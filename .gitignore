@@ -46,17 +46,27 @@ Network Trash Folder
 Temporary Items
 .apdisk
 
-# =========================
-# Custom (dev. environment)
-# =========================
+#############
+## Python
+#############
 
-# Python
-.pyc
-.pyo
+*.py[cod]
+
+# Packages
+*.egg
+*.egg-info
+*Copia.*
+dist/
+build/
+eggs/
+parts/
+var/
+sdist/
+develop-eggs/
+.installed.cfg
 
 # Eclypse project
 .project
 .pydevproject
 .settings
-
 
