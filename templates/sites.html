@@ -1,0 +1,30 @@
+{% load bootstrap3 %}
+
+{% bootstrap_css %}
+{% bootstrap_javascript %}
+
+{% block bootstrap3_content %}
+<div class="container">
+    {% include "_menu_bar.html" %}
+
+    <h1>{% block title %}VIP - Sites{% endblock %}</h1>
+
+    {% bootstrap_messages %}
+
+    {% block content %}
+	{% if sites %}
+	<div>
+	    {% for site in sites %}
+	    <div>
+	        <b><a href="{% url 'site' site.slug %}" title="site properties">{{ site.name }}</a></b>: &nbsp;
+	        <a href="{{ site.url }}" title="goto site">{{ site.url }}</a>
+	    </div>
+	    {% endfor %}
+	</div>
+	{% else %}
+		<p>No sites are available.</p>
+	{% endif %}
+	{% endblock %}
+</div>
+
+{% endblock %}

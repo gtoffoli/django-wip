@@ -1,0 +1,35 @@
+{% load bootstrap3 %}
+
+{% bootstrap_css %}
+{% bootstrap_javascript %}
+
+{% block bootstrap3_content %}
+<div class="container">
+    {% include "_menu_bar.html" %}
+
+    <h1>{% block title %}Site: {{ site.name }}{% endblock %}</h1>
+
+    {% bootstrap_messages %}
+
+    {% block content %}
+    <div><label>URL</label> {{ site.url }}</div>
+    <div><label>Allowed domains</label> {{ site.allowed_domains }}</div>
+    <div><label>Start urls</label> {{ site.start_urls }}</div>
+    <div><label>Deny</label> {{ site.deny }}</div>
+	{% if proxies %}
+	<div><h2>Proxies</h2>:
+	    {% for proxy in proxies %}
+	    <div>
+	        <h4><a href="{% url 'proxy' proxy.slug %}">
+	        {{ proxy.name }}
+	        </a></h4>
+	    </div>
+	    {% endfor %}
+	</div>
+	{% else %}
+		<p>No proxies are available.</p>
+	{% endif %}
+    {% endblock %}
+</div>
+
+{% endblock %}

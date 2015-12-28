@@ -31,7 +31,6 @@ if sys.platform.count('linux'):
     ALLOWED_HOSTS = ["localhost", ".fairvillage.eu", ".fairvillage.it"]
 else:
     DEBUG = True
-TEMPLATE_DEBUG = DEBUG
 
 # Application definition
 
@@ -42,6 +41,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'bootstrap3',
     'httpproxy',
     'wip',
 ]

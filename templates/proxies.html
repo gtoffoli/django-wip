@@ -1,0 +1,31 @@
+{% load bootstrap3 %}
+
+{% bootstrap_css %}
+{% bootstrap_javascript %}
+
+{% block bootstrap3_content %}
+<div class="container">
+    {% include "_menu_bar.html" %}
+
+    <h1>{% block title %}VIP - Proxies{% endblock %}</h1>
+
+    {% bootstrap_messages %}
+
+    {% block content %}
+	{% if proxies %}
+	<div>
+	    {% for proxy in proxies %}
+	    <div>
+	        <h4><a href="{% url 'proxy' proxy.slug %}">
+	        {{ proxy.name }}
+	        </a></h4>
+	    </div>
+	    {% endfor %}
+	</div>
+	{% else %}
+		<p>No proxies are available.</p>
+	{% endif %}
+    {% endblock %}
+</div>
+
+{% endblock %}

@@ -11,12 +11,31 @@ from django.utils.translation import ugettext_lazy as _
 from django_extensions.db.fields import CreationDateTimeField, ModificationDateTimeField, AutoSlugField
 from vocabularies import Language, ApprovalStatus
 
+def text_to_list(text):
+    lines = text.split('\n')
+    output = []
+    for line in lines:
+        line = line.replace('\r','').strip()
+        if line:
+            output.append(line)
+    return output
+
 class Site(models.Model):
     name = models.CharField(max_length=100)
+    slug = AutoSlugField(unique=True, populate_from='name', editable=True)
     url = models.CharField(max_length=100)
     allowed_domains = models.TextField()
     start_urls = models.TextField()
     deny = models.TextField()
+
+    def get_allowed_domains(self):
+        return text_to_list(self.allowed_domains)
+
+    def get_start_urls(self):
+        return text_to_list(self.start_urls)
+
+    def get_deny(self):
+        return ','.join(text_to_list(self.deny))
 
     class Meta:
         verbose_name = _('original website')
@@ -24,6 +43,7 @@ class Site(models.Model):
 
 class Proxy(models.Model):
     name = models.CharField(max_length=100)
+    slug = AutoSlugField(unique=True, populate_from='name', editable=True)
     site = models.ForeignKey(Site)
     language = models.ForeignKey(Language)
     host = models.CharField(max_length=100)

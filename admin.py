@@ -1,5 +1,5 @@
 """
-Django admins for wip application of wip project.
+Django admin for wip application of wip project.
 
 For more information on this file, see
 https://docs.djangoproject.com/en/1.9/topics/db/models/
@@ -7,7 +7,7 @@ https://docs.djangoproject.com/en/1.9/topics/db/models/
 
 from django.contrib import admin
 
-from .models import Site, Proxy, Webpage, Fetched, Translated
+from models import Site, Proxy, Webpage, Fetched, Translated
 
 class SiteAdmin(admin.ModelAdmin):
     pass

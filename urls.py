@@ -17,9 +17,15 @@ Including another URLconf
 from django.conf.urls import url
 from django.contrib import admin
 from httpproxy.views import HttpProxy
+import views
 
 urlpatterns = [
     url(r'^admin/', admin.site.urls),
     url(r'^proxy/(?P<url>.*)$',
         HttpProxy.as_view(base_url='http://www.scuolemigranti.org/')),
+    url(r"^$", views.home, name="home"),
+    url(r"^sites/$", views.sites, name="sites"),
+    url(r"^site/(?P<site_slug>[\w-]+)/$", views.site, name="site"),
+    url(r"^site/(?P<site_slug>[\w-]+)/crawl/$", views.site_crawl, name="site_crawl"),
+    url(r"^proxies/$", views.proxies, name="proxies"),
 ]
