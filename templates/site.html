@@ -16,6 +16,7 @@
     <div><label>Allowed domains</label> {{ site.allowed_domains }}</div>
     <div><label>Start urls</label> {{ site.start_urls }}</div>
     <div><label>Deny</label> {{ site.deny }}</div>
+    <div><label>Pages</label> {{ page_count }}</div>
 	{% if proxies %}
 	<div><h2>Proxies</h2>:
 	    {% for proxy in proxies %}

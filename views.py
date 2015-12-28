@@ -10,10 +10,11 @@ from django.http import HttpResponse, HttpResponseRedirect
 from django.shortcuts import render_to_response, get_object_or_404
 
 from models import Site, Proxy, Webpage # , Fetched, Translated
-#from spiders import Spider_LinkExtractor
 import scrapy
 from scrapy.spiders import CrawlSpider, Rule
 from scrapy.linkextractors import LinkExtractor
+from scrapy.crawler import CrawlerProcess
+from spiders import VipCrawlSpider
 
 def home(request):
     var_dict = {}
@@ -41,29 +42,32 @@ def site(request, site_slug):
 
 def site_crawl(request, site_slug):
     site = get_object_or_404(Site, slug=site_slug)
-    # deny = site.get_deny()
-    # print 'deny = ', deny
-    spider = CrawlSpider(
-      name=site.name,
-      allowed_domains=site.get_allowed_domains(),
-      start_urls=site.get_start_urls(),
-      rules = [Rule(LinkExtractor(deny=site.get_deny()))])
-    for item in spider.start_requests():
-        print item
+    spider_class = VipCrawlSpider
+    spider_class.name = site.name
+    spider_class.allowed_domains = site.get_allowed_domains()
+    spider_class.start_urls = site.get_start_urls()
+    spider_class.rules = [Rule(LinkExtractor(deny=site.get_deny()))]
+    spider = spider_class()
+    process = CrawlerProcess({
+      'USER_AGENT': 'Mozilla/4.0 (compatible; MSIE 7.0; Windows NT 5.1)'
+    })
+    process.crawl(spider)
+    process.start() # the script will block here until the crawling is finished
     content = str(spider)
     response = HttpResponse(content)
     response['Content-Type'] = 'text/plain; charset=utf-8'
     return response
 
-"""
-def pages(request, site_slug):
+def site_pages(request, site_slug):
     var_dict = {}
     site = get_object_or_404(Site, slug=site_slug)
     var_dict['site'] = site
     pages = Webpage.filter(site=site)
     var_dict['pages'] = pages
+    var_dict['page_count'] = pages.count()
     return render_to_response('pages.html', var_dict, context_instance=RequestContext(request))
 
+"""
 def proxy(request, proxy_slug):
     proxy = get_object_or_404(Proxy, slug=proxy_slug)
     var_dict = {}

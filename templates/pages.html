@@ -1,0 +1,29 @@
+{% load bootstrap3 %}
+
+{% bootstrap_css %}
+{% bootstrap_javascript %}
+
+{% block bootstrap3_content %}
+<div class="container">
+    {% include "_menu_bar.html" %}
+
+    <h1>{% block title %}VIP - Pages of site {{ site.name }}{% endblock %}</h1>
+
+    {% bootstrap_messages %}
+
+    {% block content %}
+	{% if pages %}
+	<div>
+	    {% for page in pages %}
+	    <div>
+	    {{ page.path }}
+	    </div>
+	    {% endfor %}
+	</div>
+	{% else %}
+		<p>No pages are present.</p>
+	{% endif %}
+	{% endblock %}
+</div>
+
+{% endblock %}
