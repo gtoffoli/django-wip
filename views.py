@@ -6,16 +6,16 @@ https://docs.djangoproject.com/en/1.9/topics/db/models/
 """
 
 from django.template import RequestContext
-from django.http import HttpResponse, HttpResponseRedirect
+from django.http import HttpResponse #, HttpResponseRedirect
 from django.shortcuts import render_to_response, get_object_or_404
 
 from models import Site, Proxy, Webpage # , Fetched, Translated
-import scrapy
-from scrapy.spiders import CrawlSpider, Rule
-from scrapy.linkextractors import LinkExtractor
+# import scrapy
+# from scrapy.spiders import CrawlSpider, Rule
+# from scrapy.linkextractors import LinkExtractor
 from scrapy.crawler import CrawlerProcess
-from spiders import VipCrawlSpider
-
+from spiders import WipCrawlSpider
+ 
 def home(request):
     var_dict = {}
     return render_to_response('homepage.html', var_dict, context_instance=RequestContext(request))
@@ -42,11 +42,7 @@ def site(request, site_slug):
 
 def site_crawl(request, site_slug):
     site = get_object_or_404(Site, slug=site_slug)
-    spider_class = VipCrawlSpider
-    spider_class.name = site.name
-    spider_class.allowed_domains = site.get_allowed_domains()
-    spider_class.start_urls = site.get_start_urls()
-    spider_class.rules = [Rule(LinkExtractor(deny=site.get_deny()))]
+    spider_class = type(str(site_slug), (WipCrawlSpider,), {'site':site})
     spider = spider_class()
     process = CrawlerProcess({
       'USER_AGENT': 'Mozilla/4.0 (compatible; MSIE 7.0; Windows NT 5.1)'
