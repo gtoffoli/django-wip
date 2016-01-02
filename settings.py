@@ -43,6 +43,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'bootstrap3',
     'httpproxy',
+    'djcelery',
     'wip',
 ]
 
@@ -134,3 +135,8 @@ USE_TZ = True
 
 STATIC_URL = '/static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'static')
+
+# Celery
+CELERY_RESULT_BACKEND='djcelery.backends.database:DatabaseBackend',
+CELERY_RESULT_BACKEND='djcelery.backends.cache:CacheBackend',
+
