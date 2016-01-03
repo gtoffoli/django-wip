@@ -26,7 +26,7 @@ urlpatterns = [
     url(r"^$", views.home, name="home"),
     url(r"^sites/$", views.sites, name="sites"),
     url(r"^site/(?P<site_slug>[\w-]+)/$", views.site, name="site"),
-    url(r"^site/(?P<site_slug>[\w-]+)/crawl/$", views.site_crawl, name="site_crawl"),
+    url(r"^site/(?P<site_slug>[\w-]+)/crawl/$", views.site_crawl_by_slug, name="site_crawl"),
     url(r"^site/(?P<site_slug>[\w-]+)/pages/$", views.site_pages, name="site_pages"),
     url(r"^proxies/$", views.proxies, name="proxies"),
 ]

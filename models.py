@@ -35,7 +35,8 @@ class Site(models.Model):
         return text_to_list(self.start_urls)
 
     def get_deny(self):
-        return ','.join(text_to_list(self.deny))
+        # return ','.join(text_to_list(self.deny))
+        return text_to_list(self.deny)
 
     class Meta:
         verbose_name = _('original website')
