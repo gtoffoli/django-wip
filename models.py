@@ -57,7 +57,8 @@ class Proxy(models.Model):
 
 class Webpage(models.Model):
     site = models.ForeignKey(Site)
-    path = models.TextField()
+    # path = models.TextField()
+    path = models.CharField(max_length=200)
     created = CreationDateTimeField()
     referer = models.ForeignKey('self', related_name='page_referer', blank=True, null=True)
     last_modified = ModificationDateTimeField()

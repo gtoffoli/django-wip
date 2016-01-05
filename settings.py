@@ -12,6 +12,9 @@ https://docs.djangoproject.com/en/1.9/ref/settings/
 
 import os, sys
 
+# set the default Django settings module for the 'celery' program.
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'wip.settings')
+
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -43,8 +46,9 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'bootstrap3',
     'httpproxy',
+    # 'djcelery',
+    # 'kombu.transport.django',
     'wip',
-    'djcelery',
 ]
 
 MIDDLEWARE_CLASSES = [
@@ -136,6 +140,12 @@ USE_TZ = True
 STATIC_URL = '/static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'static')
 
+"""
 # Celery
-CELERY_RESULT_BACKEND='djcelery.backends.database:DatabaseBackend',
-CELERY_RESULT_BACKEND='djcelery.backends.cache:CacheBackend',
+import djcelery
+djcelery.setup_loader()
+CELERY_RESULT_BACKEND='djcelery.backends.database:DatabaseBackend'
+# CELERY_RESULT_BACKEND = 'db+postgresql://admin:giotto@localhost/wip'
+BROKER_URL = 'django://'
+"""
+BROKER_URL = 'amqp://guest:guest@localhost:5672//'

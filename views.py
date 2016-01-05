@@ -13,8 +13,8 @@ from tasks import app
 
 from models import Site, Proxy, Webpage # , Fetched, Translated
 # import scrapy
-# from scrapy.spiders import CrawlSpider, Rule
-# from scrapy.linkextractors import LinkExtractor
+from scrapy.spiders import Rule #, CrawlSpider
+from scrapy.linkextractors import LinkExtractor
 from scrapy.crawler import CrawlerProcess
 from spiders import WipSiteCrawlerScript, WipCrawlSpider
 # from tasks import crawl_site
@@ -47,11 +47,12 @@ def site_crawl(site_pk):
     crawler = WipSiteCrawlerScript()
     site = Site.objects.get(pk=site_pk)
     crawler.crawl(
+      site.id,
       site.slug,
       site.name,
       site.get_allowed_domains(),
       site.get_start_urls(),
-      site.get_deny(),
+      site.get_deny()
       )
 
 # @task()
@@ -61,18 +62,25 @@ def crawl_site(site_pk):
 
 def site_crawl_by_slug(request, site_slug):
     site = get_object_or_404(Site, slug=site_slug)
-    """
-    site_name = site.name
-    allowed_domains = site.get_allowed_domains()
-    start_urls = site.get_start_urls()
-    deny = site.get_deny()
-    spider_class = type(str(site_slug), (WipCrawlSpider,), {'name':site_name, 'allowed_domains':allowed_domains, 'start_urls':start_urls, 'deny': deny})
-    spider = spider_class()
-    process = CrawlerProcess()
-    process.crawl(spider)
-    process.start() # the script will block here until the crawling is finished
-    """
-    crawl_site(site.id)
+    notask = request.GET.get('notask', False)
+    if notask:
+        site_name = site.name
+        allowed_domains = site.get_allowed_domains()
+        start_urls = site.get_start_urls()
+        deny = site.get_deny()
+        rules = [Rule(LinkExtractor(deny=deny), callback='parse_item', follow=True),]
+        spider_class = type(str(site_slug), (WipCrawlSpider,), {'site_id': site.id, 'name':site_name, 'allowed_domains':allowed_domains, 'start_urls':start_urls, 'rules': rules})
+        spider = spider_class()
+        process = CrawlerProcess()
+        process.crawl(spider)
+        process.start() # the script will block here until the crawling is finished
+        process.stop()
+    else:
+        """
+        crawl_site(site.id)
+        crawl_site.delay(site.id)
+        """
+        crawl_site.apply_async((site.id,), {})
     content = 'Crawler started!'
     response = HttpResponse(content)
     response['Content-Type'] = 'text/plain; charset=utf-8'
