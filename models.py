@@ -23,6 +23,7 @@ def text_to_list(text):
 class Site(models.Model):
     name = models.CharField(max_length=100)
     slug = AutoSlugField(unique=True, populate_from='name', editable=True)
+    path_prefix = models.CharField(max_length=20, default='')
     url = models.CharField(max_length=100)
     allowed_domains = models.TextField()
     start_urls = models.TextField()
@@ -68,6 +69,7 @@ class Webpage(models.Model):
     class Meta:
         verbose_name = _('original page')
         verbose_name_plural = _('original pages')
+        ordering = ('path',)
 
 class Fetched(models.Model):
     webpage = models.ForeignKey(Webpage)

@@ -41,6 +41,8 @@ def site(request, site_slug):
     var_dict['site'] = site
     proxies = Proxy.objects.filter(site=site)
     var_dict['proxies'] = proxies
+    page_count = Webpage.objects.filter(site=site).count()
+    var_dict['page_count'] = page_count
     return render_to_response('site.html', var_dict, context_instance=RequestContext(request))
 
 def site_crawl(site_pk):
@@ -90,7 +92,7 @@ def site_pages(request, site_slug):
     var_dict = {}
     site = get_object_or_404(Site, slug=site_slug)
     var_dict['site'] = site
-    pages = Webpage.filter(site=site)
+    pages = Webpage.objects.filter(site=site)
     var_dict['pages'] = pages
     var_dict['page_count'] = pages.count()
     return render_to_response('pages.html', var_dict, context_instance=RequestContext(request))

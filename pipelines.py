@@ -20,6 +20,8 @@ class WipCrawlPipeline(object):
     def process_item(self, item, spider):
         site = Site.objects.get(pk=item['site_id'])
         path = urlparse.urlparse(item['url']).path
+        if path and not path.endswith('/') and not path.count('?'):
+            path += '/'
         pages = Webpage.objects.filter(site=site, path=path)
         if pages:
             page = pages[0]

@@ -10,13 +10,19 @@ from django.contrib import admin
 from models import Site, Proxy, Webpage, Fetched, Translated
 
 class SiteAdmin(admin.ModelAdmin):
-    pass
+    list_display = ['name', 'slug', 'path_prefix', 'url', 'allowed_domains', 'start_urls', 'deny',]
 
 class ProxyAdmin(admin.ModelAdmin):
-    pass
+    list_display = ['name', 'slug', 'site_name', 'language', 'host', 'base_path',]
+
+    def site_name(self, obj):
+        return obj.site.name
 
 class WebpageAdmin(admin.ModelAdmin):
-    pass
+    list_display = ['path', 'site_name', 'last_checked', 'last_checked_response_code',]
+
+    def site_name(self, obj):
+        return obj.site.name
 
 class FetchedAdmin(admin.ModelAdmin):
     pass

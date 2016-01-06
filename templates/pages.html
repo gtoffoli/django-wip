@@ -7,7 +7,7 @@
 <div class="container">
     {% include "_menu_bar.html" %}
 
-    <h1>{% block title %}VIP - Pages of site {{ site.name }}{% endblock %}</h1>
+    <h1>{% block title %}WIP - Pages of site <a href="/site/{{ site.slug }}/">{{ site.name }}</a>{% endblock %}</h1>
 
     {% bootstrap_messages %}
 
@@ -16,7 +16,7 @@
 	<div>
 	    {% for page in pages %}
 	    <div>
-	    {{ page.path }}
+	    {{forloop.counter }} <a href="/{{ site.path_prefix }}{{ page.path }}">{{ page.path }}</a>
 	    </div>
 	    {% endfor %}
 	</div>

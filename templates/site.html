@@ -7,16 +7,17 @@
 <div class="container">
     {% include "_menu_bar.html" %}
 
-    <h1>{% block title %}Site: {{ site.name }}{% endblock %}</h1>
+    <h1>{% block title %}WIP - Site: {{ site.name }}{% endblock %}</h1>
 
     {% bootstrap_messages %}
 
     {% block content %}
     <div><label>URL</label> {{ site.url }}</div>
+    <div><label>Path prefix</label> {{ site.path_prefix }}</div>
     <div><label>Allowed domains</label> {{ site.allowed_domains }}</div>
     <div><label>Start urls</label> {{ site.start_urls }}</div>
     <div><label>Deny</label> {{ site.deny }}</div>
-    <div><label>Pages</label> {{ page_count }}</div>
+    <div><label>Pages</label> {% if page_count %} <a href="/site/{{ site.slug }}/pages/" title="list pages">{{ page_count }}</a> {% else %}0{% endif %}</div>
 	{% if proxies %}
 	<div><h2>Proxies</h2>:
 	    {% for proxy in proxies %}
