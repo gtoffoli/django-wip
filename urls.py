@@ -22,9 +22,11 @@ import views
 urlpatterns = [
     url(r'^admin/', admin.site.urls),
     url(r'^sm/(?P<url>.*)$',
-        HttpProxy.as_view(base_url='http://www.scuolemigranti.org/')),
-    url(r'^link/(?P<url>.*)$',
+        HttpProxy.as_view(base_url='http://www.alfabetastudio.it/')),
+    url(r'^ab/(?P<url>.*)$',
         HttpProxy.as_view(base_url='http://www.linkroma.it/it/')),
+    url(r'^sm/(?P<url>.*)$',
+        HttpProxy.as_view(base_url='http://www.scuolemigranti.org/')),
     url(r"^$", views.home, name="home"),
     url(r"^sites/$", views.sites, name="sites"),
     url(r"^site/(?P<site_slug>[\w-]+)/$", views.site, name="site"),
