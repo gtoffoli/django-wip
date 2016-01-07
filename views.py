@@ -18,7 +18,7 @@ from scrapy.linkextractors import LinkExtractor
 from scrapy.crawler import CrawlerProcess
 from spiders import WipSiteCrawlerScript, WipCrawlSpider
 # from tasks import crawl_site
- 
+
 def home(request):
     var_dict = {}
     return render_to_response('homepage.html', var_dict, context_instance=RequestContext(request))

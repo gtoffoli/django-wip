@@ -16,17 +16,17 @@ Including another URLconf
 """
 from django.conf.urls import url
 from django.contrib import admin
-from httpproxy.views import HttpProxy
 import views
+from proxy import WipHttpProxy
 
 urlpatterns = [
     url(r'^admin/', admin.site.urls),
     url(r'^ab/(?P<url>.*)$',
-        HttpProxy.as_view(base_url='http://www.alfabetastudio.it/')),
+        WipHttpProxy.as_view(base_url='http://www.alfabetastudio.it/', prefix='/ab/', rewrite_links=True)),
     url(r'^link/(?P<url>.*)$',
-        HttpProxy.as_view(base_url='http://www.linkroma.it/it/')),
+        WipHttpProxy.as_view(base_url='http://www.linkroma.it/it/', prefix='/link/', rewrite_links=True)),
     url(r'^sm/(?P<url>.*)$',
-        HttpProxy.as_view(base_url='http://www.scuolemigranti.org/')),
+        WipHttpProxy.as_view(base_url='http://www.scuolemigranti.org/', prefix='/sm/', rewrite_links=True)),
     url(r"^$", views.home, name="home"),
     url(r"^sites/$", views.sites, name="sites"),
     url(r"^site/(?P<site_slug>[\w-]+)/$", views.site, name="site"),
