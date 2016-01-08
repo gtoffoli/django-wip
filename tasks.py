@@ -6,8 +6,6 @@ http://stackoverflow.com/questions/11528739/running-scrapy-spiders-in-a-celery-t
 
 from __future__ import absolute_import
 
-import os
-
 from celery import Celery
 # from celery import task
 

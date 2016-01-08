@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 """wip URL Configuration
 
 The `urlpatterns` list routes URLs to views. For more information please see:
@@ -16,17 +18,12 @@ Including another URLconf
 """
 from django.conf.urls import url
 from django.contrib import admin
+from models import Site
 import views
 from proxy import WipHttpProxy
 
 urlpatterns = [
     url(r'^admin/', admin.site.urls),
-    url(r'^ab/(?P<url>.*)$',
-        WipHttpProxy.as_view(base_url='http://www.alfabetastudio.it/', prefix='/ab/', rewrite_links=True)),
-    url(r'^link/(?P<url>.*)$',
-        WipHttpProxy.as_view(base_url='http://www.linkroma.it/it/', prefix='/link/', rewrite_links=True)),
-    url(r'^sm/(?P<url>.*)$',
-        WipHttpProxy.as_view(base_url='http://www.scuolemigranti.org/', prefix='/sm/', rewrite_links=True)),
     url(r"^$", views.home, name="home"),
     url(r"^sites/$", views.sites, name="sites"),
     url(r"^site/(?P<site_slug>[\w-]+)/$", views.site, name="site"),
@@ -34,3 +31,19 @@ urlpatterns = [
     url(r"^site/(?P<site_slug>[\w-]+)/pages/$", views.site_pages, name="site_pages"),
     url(r"^proxies/$", views.proxies, name="proxies"),
 ]
+"""
+    url(r'^ab/(?P<url>.*)$',
+        WipHttpProxy.as_view(base_url='http://www.alfabetastudio.it/', prefix='/ab/', rewrite_links=True)),
+    url(r'^link/(?P<url>.*)$',
+        WipHttpProxy.as_view(base_url='http://www.linkroma.it/it/', prefix='/link/', rewrite_links=True)),
+    url(r'^sm/(?P<url>.*)$',
+        WipHttpProxy.as_view(base_url='http://www.scuolemigranti.org/', prefix='/sm/', rewrite_links=True)),
+"""
+
+sites = Site.objects.all()
+for site in sites:
+    prefix='/%s' % str(site.path_prefix)
+    base_url = str(site.url)
+    regex = r'^' + site.path_prefix + r'/(?P<url>.*)$'
+    url_entry = url(regex, WipHttpProxy.as_view(base_url=base_url, prefix=prefix, rewrite_links=True))
+    urlpatterns.append(url_entry)
