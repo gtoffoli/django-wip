@@ -1,17 +1,12 @@
-{% load bootstrap3 %}
+{% extends "wip_base.html" %}
+{% load staticfiles i18n %}
 
-{% bootstrap_css %}
-{% bootstrap_javascript %}
+{% block head_title %}WIP - Sites{% endblock %}
 
-{% block bootstrap3_content %}
-<div class="container">
-    {% include "_menu_bar.html" %}
+{% block title-page %}WIP - Sites{% endblock %}
 
-    <h1>{% block title %}WIP - Sites{% endblock %}</h1>
+{% block content-page %}
 
-    {% bootstrap_messages %}
-
-    {% block content %}
 	{% if sites %}
 	<div>
 	    {% for site in sites %}
@@ -24,7 +19,5 @@
 	{% else %}
 		<p>No sites are available.</p>
 	{% endif %}
-	{% endblock %}
-</div>
 
 {% endblock %}

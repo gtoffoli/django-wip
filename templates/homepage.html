@@ -1,17 +1,10 @@
-{% load bootstrap3 %}
+{% extends "wip_base.html" %}
+{% load staticfiles i18n %}
 
-{% bootstrap_css %}
-{% bootstrap_javascript %}
+{% block head_title %}FairVillage WIP{% endblock %}
 
-{% block bootstrap3_content %}
-<div class="container">
-    {% include "_menu_bar.html" %}
+{% block title-page %}FairVillage WIP{% endblock %}
 
-    <h1>{% block title %}FairVillage WIP{% endblock %}</h1>
-
-    {% bootstrap_messages %}
-
-    {% block content %}{% endblock %}
-</div>
+{% block content-page %}
 
 {% endblock %}

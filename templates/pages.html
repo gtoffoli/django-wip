@@ -1,29 +1,30 @@
-{% load bootstrap3 %}
+{% extends "wip_base.html" %}
+{% load staticfiles i18n %}
 
-{% bootstrap_css %}
-{% bootstrap_javascript %}
+{% block head_title %}WIP - Pages of site <a href="/site/{{ site.slug }}/">{{ site.name }}</a>{% endblock %}
 
-{% block bootstrap3_content %}
-<div class="container">
-    {% include "_menu_bar.html" %}
+{% block title-page %}WIP - Pages of site <a href="/site/{{ site.slug }}/">{{ site.name }}</a>{% endblock %}
 
-    <h1>{% block title %}WIP - Pages of site <a href="/site/{{ site.slug }}/">{{ site.name }}</a>{% endblock %}</h1>
+{% block extra_head %}
+<style>
+    pre { display: inline; padding: 0; }
+    pre code { line-height: 0.5; }
+</style>
+{% endblock %}
 
-    {% bootstrap_messages %}
-
-    {% block content %}
+{% block content-page %}
 	{% if pages %}
 	<div>
 	    {% for page in pages %}
 	    <div>
-	    {{forloop.counter }} <a href="/{{ site.path_prefix }}{{ page.path }}">{{ page.path }}</a>
+	    <pre><code>{{forloop.counter|rjust:"3"}}</code></pre>
+	    &nbsp; <a href="{{ site.url }}{{ page.path }}"><span class="fa fa-external-link" style="font-size: 1.0em;"></span></a>
+	    &nbsp; <a href="/{{ site.path_prefix }}{{ page.path }}"><span class="fa fa-link" style="font-size: 1.0em;"></span></a>
+		&nbsp; <a href="/page/{{ page.id }}/">{{ page.path }}</a>
 	    </div>
 	    {% endfor %}
 	</div>
 	{% else %}
 		<p>No pages are present.</p>
 	{% endif %}
-	{% endblock %}
-</div>
-
 {% endblock %}

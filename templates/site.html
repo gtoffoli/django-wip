@@ -1,17 +1,17 @@
-{% load bootstrap3 %}
+{% extends "wip_base.html" %}
+{% load staticfiles i18n %}
 
-{% bootstrap_css %}
-{% bootstrap_javascript %}
+{% block extra_head %}
+<style>
+    label { display: inline; font-weight: bold; margin-right: 1.0em; padding: 0.2em 0em;}
+</style>
+{% endblock %}
 
-{% block bootstrap3_content %}
-<div class="container">
-    {% include "_menu_bar.html" %}
+{% block head_title %}WIP - Site: {{ site.name }}{% endblock %}
 
-    <h1>{% block title %}WIP - Site: {{ site.name }}{% endblock %}</h1>
+{% block title-page %}WIP - Site: {{ site.name }}{% endblock %}
 
-    {% bootstrap_messages %}
-
-    {% block content %}
+{% block content-page %}
     <div><label>URL</label> {{ site.url }}</div>
     <div><label>Path prefix</label> {{ site.path_prefix }}</div>
     <div><label>Allowed domains</label> {{ site.allowed_domains }}</div>
@@ -29,10 +29,13 @@
 	    {% endfor %}
 	</div>
 	{% else %}
-		<p>No proxies are available.</p>
+		<p style="margin-top: 0.5em">No proxies are available.</p>
 	{% endif %}
-    <div><a class="btn btn-default" href="/site/{{ site.slug }}/crawl/">Crawl</a></div>
-    {% endblock %}
-</div>
-
+	{% if user.is_authenticated %}
+		{% if page_count %}
+    		<div><a class="btn btn-default" href="/site/{{ site.slug }}/crawl/">Re-crawl</a></div>
+		{% else %}
+			<div><a class="btn btn-default" href="/site/{{ site.slug }}/crawl/">Crawl</a></div>
+		{% endif %}
+	{% endif %}
 {% endblock %}

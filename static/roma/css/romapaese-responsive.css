@@ -1,0 +1,18 @@
+﻿/*stylesheet for romapaese responsive*/
+@media (max-width: 979px) {
+div.tema {
+	display:inline-block;
+	padding-right:6px;
+	font-size:14px;
+}
+ .nav-collapse .navbar-language {
+    float: none;
+    padding: 10px 15px;
+    margin: 10px 0;
+    border-top: 1px solid #f2f2f2;
+    border-bottom: 1px solid #f2f2f2;
+    -webkit-box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 1px 0 rgba(255, 255, 255, 0.1);
+       -moz-box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 1px 0 rgba(255, 255, 255, 0.1);
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 1px 0 rgba(255, 255, 255, 0.1);
+  }
+}

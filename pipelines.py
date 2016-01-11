@@ -9,6 +9,9 @@ import urlparse
 from datetime import datetime 
 from scrapy.exceptions import DropItem
 
+import django
+django.setup()
+
 from models import Site, Webpage
 
 class WipCrawlPipeline(object):

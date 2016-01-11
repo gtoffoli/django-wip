@@ -60,7 +60,7 @@ class WipSiteCrawlerScript():
         self.crawler.start()
         # self.crawler.stop()
 
-    def crawl(self, site_slug, site_name, allowed_domains, start_urls, deny):
+    def crawl(self, site_id, site_slug, site_name, allowed_domains, start_urls, deny):
         p = Process(target=self._crawl, args=[site_id, site_slug, site_name, allowed_domains, start_urls, deny])
         p.start()
         p.join()

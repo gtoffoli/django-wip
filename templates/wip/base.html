@@ -1,0 +1,79 @@
+{% load staticfiles i18n menu account_tags %}
+{% get_current_language as LANGUAGE_CODE %}
+{% generate_menu %}
+
+<!DOCTYPE html>
+<html lang="{{ LANGUAGE_CODE|default:"en-us" }}" {% if LANGUAGE_BIDI %}dir="rtl"{% endif %}>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+		<meta name="keywords" content="{% block meta_keywords %}Roma, quartieri, stranieri, immigrati, anziani, salute, scuola, cultura, servizi{% endblock %}">
+		<meta name="description" content="{% block meta_description %}FairVillage - Cultura, benessere, solidarietà: servizi per i migranti a Roma e nel Lazio.{% endblock %}">        
+		<meta name="copyright" content="LINK srl, Via Udine 30 - Roma" />
+		<meta name="owner" content="LINK srl, Via Udine 30 - Roma" />
+		<meta name="author" content="LINK srl - Giovanni Toffoli, Mariarosaria Manco" />
+		{% block viewport %}<meta name="viewport" content="width=device-width, initial-scale=1.0">{% endblock %}
+		{% block extra_meta %}{% endblock %}
+		<title>{% block head_title_base %}{% block head_title %}{% endblock %}{% if site_name %} :: {{ site_name }}{% endif %}{% endblock %}</title>
+		<link rel="shortcut icon" href="{% static "fairvillage/img/favicon.png" %}" type="image/x-icon">
+		{% block style_base %}
+			<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.5.0/css/font-awesome.min.css">
+			<link href="{% static "roma/css/bootstrap.css" %}" type="text/css" rel="stylesheet">
+			<link href="{% static "roma/css/bootstrap-responsive.css" %}" type="text/css" rel="stylesheet">
+			<link href="{% static "roma/css/jquery-ui-1.10.1.custom.min.css" %}" type="text/css" rel="stylesheet">
+			<link href="{% static "roma/css/romapaese.css" %}" type="text/css" rel="stylesheet">
+			<link href="{% static "roma/css/romapaese-responsive.css" %}" type="text/css" rel="stylesheet">
+			{% block extra_style %}{% endblock %}
+		{% endblock %}
+		{% block extra_head_base %}
+			{% block extra_head %}{% endblock %}
+		{% endblock %}
+	</head>
+	<body id="{% block body_id %}{% endblock %}">
+		<div class="visual-wrapper">
+			{% block topbar_base %}
+				<div class="navbar">
+					<div class="navbar-inner">
+						<div class="container">
+							{% block topbar %}
+								<a class="btn btn-navbar" data-toggle="collapse" data-target=".nav-collapse">
+									<span class="icon-bar"></span>
+									<span class="icon-bar"></span>
+									<span class="icon-bar"></span>
+								</a>
+								{% block site_brand %}<a href="/" class="brand" title="{% trans 'go home' %}"><img src="{% static "fairvillage/img/fairvillage-logo.png" %}" alt="{{ site_name }}"></a>{% endblock %}
+								<div class="nav-collapse">
+									{% block nav %}                                    
+										{% with menu=menus.main %}<ul class="nav">{% include "wip/bootstrap-navbar.html" %}</ul>{% endwith %}
+									{% endblock %}
+								</div>
+							{% endblock %}
+						</div>
+					</div>
+				</div>
+			{% endblock %}
+			{% block body_base %} 
+				<div class="container">
+					<div id="content">
+						{% block content %}
+						{% endblock %}
+					</div>
+				</div>
+			{% endblock %}
+		</div>
+
+		{% block footer_base %}
+			<div class="footerbar">
+				<div class="footerbar-inner">
+					<div class="container">
+						{% block site-actions %}{% endblock %}
+						{% block footer %}
+							<div style="float: left;">&copy; {% now "Y" %} LINK SRL - P. IVA 02098911007 :: Via Udine 30 - 00161 Roma :: <a href="mailto:fairvillage@linkroma.it">fairvillage@linkroma.it</a> - www.fairvillage.eu</div> <div style="float: right;"></div>
+						{% endblock %}
+						{% block colophon %}{% endblock %}
+					</div>
+				</div>
+			</div>
+		{% endblock %}
+
+	</body>
+</html>

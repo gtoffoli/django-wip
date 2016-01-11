@@ -20,6 +20,8 @@ class ProxyAdmin(admin.ModelAdmin):
 
 class WebpageAdmin(admin.ModelAdmin):
     list_display = ['path', 'site_name', 'last_checked', 'last_checked_response_code',]
+    list_filter = ('site__name',)
+    search_fields = ['site_name', 'path',]
 
     def site_name(self, obj):
         return obj.site.name

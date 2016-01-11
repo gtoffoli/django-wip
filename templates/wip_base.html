@@ -1,0 +1,41 @@
+{% extends "wip/base.html" %}
+
+{% load staticfiles %}
+{% load i18n %}
+
+{% block content %}
+    <div class="row">
+        <div class="span10" >     
+             {% block column-1 %}
+             	{% block placeholder-page %}{% endblock %}
+                <h1>{% block title-page %}{% endblock %}</h1>
+                {% block content-page %}
+                {% endblock %}
+             {% endblock %}
+             {% block portlets %}
+             <div class="row">
+                  <div class="span3">
+                       {% block column-1-1 %}
+                       {% endblock %}
+                  </div>	
+                  <div class="span3">
+                       {% block column-1-2 %}
+                       {% endblock %}
+                  </div>
+                  <div class="span3">
+                       {% block column-1-3 %}
+                       {% endblock %}
+                  </div>
+             </div>
+          {% endblock %}
+                     
+        </div>
+        <div class="span2">
+             {% block column-2 %}
+             {% endblock %}
+        </div>       
+    </div>
+{% endblock %}
+
+{% block footer %}
+{% endblock %}

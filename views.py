@@ -8,8 +8,6 @@ https://docs.djangoproject.com/en/1.9/topics/db/models/
 from django.template import RequestContext
 from django.http import HttpResponse #, HttpResponseRedirect
 from django.shortcuts import render_to_response, get_object_or_404
-from celery.decorators import task
-from tasks import app
 
 from models import Site, Proxy, Webpage # , Fetched, Translated
 # import scrapy
@@ -57,9 +55,25 @@ def site_crawl(site_pk):
       site.get_deny()
       )
 
+from tasks import app
+from celery.utils.log import get_task_logger
+logger = get_task_logger(__name__)
+
+# import sys
+import tasks
+def my_task(request):
+    # tasks.create_user('pippo', 'pluto')
+    tasks.dump_context()
+    return home(request)
+
+# import celery
+# @celery.task()
 # @task()
-@app.task()
+# @app.task(name='views.crawl_site')
+@app.task(bind=True)
 def crawl_site(site_pk):
+    logger.info('Crawling site {0}'.format(site_pk))
+    logger.debug('Crawling site {0}'.format(site_pk))
     return site_crawl(site_pk)
 
 def site_crawl_by_slug(request, site_slug):

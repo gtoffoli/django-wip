@@ -42,11 +42,14 @@ INSTALLED_APPS = [
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
+    'django.contrib.sites',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'allauth',
+    'allauth.account',
     'bootstrap3',
+    'menu',
     'httpproxy',
-    # 'djcelery',
     # 'kombu.transport.django',
     'wip',
 ]
@@ -67,14 +70,18 @@ ROOT_URLCONF = 'wip.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
-        'APP_DIRS': True,
+        'DIRS': [os.path.join(BASE_DIR, "wip", "templates")],
         'OPTIONS': {
             'context_processors': [
                 'django.template.context_processors.debug',
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'pinax_theme_bootstrap.context_processors.theme',
+            ],
+        'loaders': [
+            'django.template.loaders.filesystem.Loader',
+            'django.template.loaders.app_directories.Loader',
             ],
         },
     },
@@ -133,6 +140,8 @@ USE_L10N = True
 
 USE_TZ = True
 
+SITE_ID = 1
+SITE_NAME = 'FairVillage - Website Internationalisation Platform'
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/1.9/howto/static-files/
@@ -140,12 +149,72 @@ USE_TZ = True
 STATIC_URL = '/static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'static')
 
-"""
-# Celery
-import djcelery
-djcelery.setup_loader()
-CELERY_RESULT_BACKEND='djcelery.backends.database:DatabaseBackend'
-# CELERY_RESULT_BACKEND = 'db+postgresql://admin:giotto@localhost/wip'
-BROKER_URL = 'django://'
-"""
 BROKER_URL = 'amqp://guest:guest@localhost:5672//'
+
+"""
+logging levels:
+DEBUG: Low level system information for debugging purposes
+INFO: General system information
+WARNING: Information describing a minor problem that has occurred.
+ERROR: Information describing a major problem that has occurred.
+CRITICAL: Information describing a critical problem that has occurred.
+"""
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'filters': {
+        'require_debug_false': {
+            '()': 'django.utils.log.RequireDebugFalse'
+        }
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+        },
+        'mail_admins': {
+            'level': 'ERROR',
+            'filters': ['require_debug_false'],
+            'class': 'django.utils.log.AdminEmailHandler'
+        },
+        'file': {
+            'level': 'DEBUG',
+            'class': 'logging.FileHandler',
+            'filename': os.path.join(BASE_DIR, 'logs', 'debug.log'),
+        },
+    },
+    'loggers': {
+        'shell': {
+            'handlers': ['file'],
+            'level': 'ERROR',
+            'propagate': True,
+        },
+        'django.request': {
+            'handlers': ['mail_admins'],
+            'level': 'ERROR',
+            'propagate': True,
+        },
+        'django': {
+            'handlers': ['file'],
+            'level': 'DEBUG',
+            'propagate': True,
+        },
+        'wip.views': {
+            'handlers': ['file'],
+            'level': 'DEBUG',
+            'propagate': True,
+        },
+    },
+}
+"""
+        'celery.task': {
+            'handlers': ['file'],
+            'level': 'DEBUG',
+            'propagate': True,
+        },
+        'wip.tasks': {
+            'handlers': ['file'],
+            'level': 'DEBUG',
+            'propagate': True,
+        },
+"""
+
