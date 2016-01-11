@@ -77,7 +77,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
-                # 'pinax_theme_bootstrap.context_processors.theme',
+                'wip.context_processors.context_processor',
             ],
         'loaders': [
             'django.template.loaders.filesystem.Loader',
@@ -141,7 +141,7 @@ USE_L10N = True
 USE_TZ = True
 
 SITE_ID = 1
-SITE_NAME = 'FairVillage - Website Internationalisation Platform'
+SITE_NAME = 'FairVillage - WIP'
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/1.9/howto/static-files/
