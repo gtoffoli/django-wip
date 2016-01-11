@@ -77,7 +77,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
-                'pinax_theme_bootstrap.context_processors.theme',
+                # 'pinax_theme_bootstrap.context_processors.theme',
             ],
         'loaders': [
             'django.template.loaders.filesystem.Loader',
