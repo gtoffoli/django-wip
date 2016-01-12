@@ -11,14 +11,17 @@ Menu.sorted = {}
 # Add a few items to our main menu
 Menu.add_item("main", MenuItem(ugettext_lazy("Home"),
                                url='/',
+                               icon='',
                                weight=10,
                                separator=True))
 Menu.add_item("main", MenuItem(ugettext_lazy("Sites"),
                                url='/sites/',
+                               icon='',
                                weight=20,
                                separator=True))
 Menu.add_item("main", MenuItem(ugettext_lazy("Proxies"),
                                url='/proxies/',
+                               icon='',
                                weight=30,
                                separator=True))     
 
