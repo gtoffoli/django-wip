@@ -36,7 +36,9 @@ class WipCrawlSpider(CrawlSpider):
         return item
 
 # from http://stackoverflow.com/questions/11528739/running-scrapy-spiders-in-a-celery-task
-from multiprocessing import Process
+# from multiprocessing import Process
+# see https://github.com/celery/celery/issues/1709
+from billiard.process import Process
 from scrapy.crawler import CrawlerProcess
 
 class WipSiteCrawlerScript():

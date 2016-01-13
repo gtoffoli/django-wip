@@ -6,7 +6,7 @@ https://docs.djangoproject.com/en/1.9/topics/db/models/
 """
 
 from django.template import RequestContext
-from django.http import HttpResponse #, HttpResponseRedirect
+from django.http import HttpResponse, HttpResponseRedirect
 from django.shortcuts import render_to_response, get_object_or_404
 
 from models import Site, Proxy, Webpage # , Fetched, Translated
@@ -75,7 +75,8 @@ def site_crawl_by_slug(request, site_slug):
         """
         t = crawl_site.delay(site.id)
         print 'task id: ', t
-    return home(request)
+    # return home(request)
+    return HttpResponseRedirect('/site/%s/' % site_slug)
 
 from celery.utils.log import get_task_logger
 from celery_apps import app
