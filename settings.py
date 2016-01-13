@@ -167,6 +167,14 @@ LOGGING = {
             '()': 'django.utils.log.RequireDebugFalse'
         }
     },
+    'formatters': {
+        'verbose': {
+            'format': '%(levelname)s %(asctime)s %(module)s %(message)s'
+        },
+        'simple': {
+            'format': '%(levelname)s %(message)s'
+        },
+    },
     'handlers': {
         'console': {
             'class': 'logging.StreamHandler',
@@ -178,6 +186,7 @@ LOGGING = {
         },
         'file': {
             'level': 'DEBUG',
+            'filters': ['require_debug_false'],
             'class': 'logging.FileHandler',
             'filename': os.path.join(BASE_DIR, 'logs', 'debug.log'),
         },
@@ -194,8 +203,8 @@ LOGGING = {
             'propagate': True,
         },
         'django': {
-            'handlers': ['file'],
-            'level': 'DEBUG',
+            'handlers': ['console'],
+            'level': 'INFO',
             'propagate': True,
         },
         'wip.views': {
@@ -205,16 +214,3 @@ LOGGING = {
         },
     },
 }
-"""
-        'celery.task': {
-            'handlers': ['file'],
-            'level': 'DEBUG',
-            'propagate': True,
-        },
-        'wip.tasks': {
-            'handlers': ['file'],
-            'level': 'DEBUG',
-            'propagate': True,
-        },
-"""
-

@@ -10,12 +10,10 @@ from django.http import HttpResponse #, HttpResponseRedirect
 from django.shortcuts import render_to_response, get_object_or_404
 
 from models import Site, Proxy, Webpage # , Fetched, Translated
-# import scrapy
 from scrapy.spiders import Rule #, CrawlSpider
 from scrapy.linkextractors import LinkExtractor
 from scrapy.crawler import CrawlerProcess
 from spiders import WipSiteCrawlerScript, WipCrawlSpider
-# from tasks import crawl_site
 
 def home(request):
     var_dict = {}
@@ -55,27 +53,6 @@ def site_crawl(site_pk):
       site.get_deny()
       )
 
-from tasks import app
-from celery.utils.log import get_task_logger
-logger = get_task_logger(__name__)
-
-# import sys
-import tasks
-def my_task(request):
-    # tasks.create_user('pippo', 'pluto')
-    tasks.dump_context()
-    return home(request)
-
-# import celery
-# @celery.task()
-# @task()
-# @app.task(name='views.crawl_site')
-@app.task(bind=True)
-def crawl_site(site_pk):
-    logger.info('Crawling site {0}'.format(site_pk))
-    logger.debug('Crawling site {0}'.format(site_pk))
-    return site_crawl(site_pk)
-
 def site_crawl_by_slug(request, site_slug):
     site = get_object_or_404(Site, slug=site_slug)
     notask = request.GET.get('notask', False)
@@ -92,15 +69,32 @@ def site_crawl_by_slug(request, site_slug):
         process.start() # the script will block here until the crawling is finished
         process.stop()
     else:
+        print 'site_crawl_by_slug : ', site_slug
         """
-        crawl_site(site.id)
-        crawl_site.delay(site.id)
+        crawl_site.apply_async(args=(site.id,))
         """
-        crawl_site.apply_async((site.id,), {})
-    content = 'Crawler started!'
-    response = HttpResponse(content)
-    response['Content-Type'] = 'text/plain; charset=utf-8'
-    return response
+        t = crawl_site.delay(site.id)
+        print 'task id: ', t
+    return home(request)
+
+from celery.utils.log import get_task_logger
+from celery_apps import app
+
+@app.task()
+def crawl_site(site_pk):
+    logger = get_task_logger(__name__)
+    logger.info('Crawling site {0}'.format(site_pk))
+    return site_crawl(site_pk)
+
+"""
+@app.task(ignore_result=True)
+def my_task(request):
+    print('executing my_task')
+    logger = get_task_logger(__name__)
+    logger.debug('executing my_task')
+    var_dict = {}
+    return render_to_response('homepage.html', var_dict, context_instance=RequestContext(request))
+"""
 
 def site_pages(request, site_slug):
     var_dict = {}

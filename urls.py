@@ -30,16 +30,8 @@ urlpatterns = [
     url(r"^site/(?P<site_slug>[\w-]+)/crawl/$", views.site_crawl_by_slug, name="site_crawl"),
     url(r"^site/(?P<site_slug>[\w-]+)/pages/$", views.site_pages, name="site_pages"),
     url(r"^proxies/$", views.proxies, name="proxies"),
-    url(r"^my_task/$", views.my_task, name="my_task"),
+    # url(r"^my_task/$", views.my_task, name="my_task"),
 ]
-"""
-    url(r'^ab/(?P<url>.*)$',
-        WipHttpProxy.as_view(base_url='http://www.alfabetastudio.it/', prefix='/ab/', rewrite_links=True)),
-    url(r'^link/(?P<url>.*)$',
-        WipHttpProxy.as_view(base_url='http://www.linkroma.it/it/', prefix='/link/', rewrite_links=True)),
-    url(r'^sm/(?P<url>.*)$',
-        WipHttpProxy.as_view(base_url='http://www.scuolemigranti.org/', prefix='/sm/', rewrite_links=True)),
-"""
 
 sites = Site.objects.all()
 for site in sites:
