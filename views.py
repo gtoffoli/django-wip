@@ -113,3 +113,9 @@ def proxy(request, proxy_slug):
     var_dict['proxy'] = proxy
     return render_to_response('proxy.html', var_dict, context_instance=RequestContext(request))
 """
+
+def page(request, page_id):
+    var_dict = {}
+    var_dict['page'] = page = get_object_or_404(Webpage, pk=page_id)
+    var_dict['site'] = site = page.site
+    return render_to_response('page.html', var_dict, context_instance=RequestContext(request))
