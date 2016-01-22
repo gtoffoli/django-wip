@@ -21,6 +21,7 @@
 	    &nbsp; <a href="{{ site.url }}{{ page.path }}" title="goto original page"><span class="fa fa-external-link" style="font-size: 1.0em;"></span></a>
 	    &nbsp; <a href="/{{ site.path_prefix }}{{ page.path }}" title="view page through proxy"><span class="fa fa-link" style="font-size: 1.0em;"></span></a>
 		&nbsp; <a href="/page/{{ page.id }}/">{{ page.path }}</a>
+		{% with page_text=page.get_text %}{% if page_text %} * {% endif %}{% endwith %}
 	    </div>
 	    {% endfor %}
 	</div>

@@ -33,12 +33,14 @@
    			<th>Time</th>
    			<th>Code</th>
    			<th>Size</th></thead>
+   			<th>Text</th></thead>
    		<tbody>
 	    {% for scan in scans %}
 		    <tr>
 				<td>{{ scan.time|date:"SHORT_DATETIME_FORMAT" }}</td>
 				<td>{{ scan.response_code }}</td>
 				<td><a href="/page_scan/{{ scan.id }}/">{{ scan.size }}</a></td>
+				<td>{% with page_text=page.get_text %}{% if page_text %} * {% endif %}{% endwith %}</td>
 		    </tr>
 	    {% endfor %}
 	    </tbody>

@@ -10,6 +10,7 @@ from django.db import models
 from django.utils.translation import ugettext_lazy as _
 from django_extensions.db.fields import CreationDateTimeField, ModificationDateTimeField, AutoSlugField
 from vocabularies import Language, ApprovalStatus
+from wip.sd.sd_algorithm import SDAlgorithm
 
 def text_to_list(text):
     lines = text.split('\n')
@@ -77,6 +78,18 @@ class Webpage(models.Model):
 
     def __unicode__(self):
         return self.path
+
+    def get_text(self):
+        text = ''
+        fetched_pages = Fetched.objects.filter(webpage=self).order_by('-time')
+        last = fetched_pages and fetched_pages[0] or None
+        if last:
+            try:
+                sd = SDAlgorithm()
+                text = sd.wip_analyze_page(last.body)
+            except:
+                pass
+        return text
 
 class Fetched(models.Model):
     webpage = models.ForeignKey(Webpage)
