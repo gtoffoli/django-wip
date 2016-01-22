@@ -36,9 +36,9 @@
    		<tbody>
 	    {% for scan in scans %}
 		    <tr>
-				<td><a href="/page_scan/{{ scan.id }}/">{{ scan.time|date:"SHORT_DATETIME_FORMAT" }}</a></td>
-				<td>{{ scan.response_code }}
-				<td>{{ scan.size }}
+				<td>{{ scan.time|date:"SHORT_DATETIME_FORMAT" }}</td>
+				<td>{{ scan.response_code }}</td>
+				<td><a href="/page_scan/{{ scan.id }}/">{{ scan.size }}</a></td>
 		    </tr>
 	    {% endfor %}
 	    </tbody>

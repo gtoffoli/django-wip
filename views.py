@@ -122,10 +122,16 @@ def page(request, page_id):
     var_dict['scans'] = Fetched.objects.filter(webpage=page).order_by('-time')
     return render_to_response('page.html', var_dict, context_instance=RequestContext(request))
 
+from wip.sd.sd_algorithm import SDAlgorithm
+
 def page_scan(request, fetched_id):
     var_dict = {} 
     var_dict['scan'] = fetched = get_object_or_404(Fetched, pk=fetched_id)
     var_dict['page'] = page = fetched.webpage
     var_dict['site'] = site = page.site
+    if fetched.webpage.encoding.count('html'):
+        sd = SDAlgorithm()
+        article = sd.wip_analyze_page(fetched.body)
+        var_dict['article'] = article
     return render_to_response('page_scan.html', var_dict, context_instance=RequestContext(request))
     

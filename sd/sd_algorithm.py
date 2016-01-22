@@ -43,6 +43,28 @@ class SDAlgorithm():
         self.min_region_level_counter = 0
         self.page_model = None
         self.url = None
+
+    def wip_analyze_page(self, html_body):
+                
+        # tree = self.construct_page_tree()
+        doc = html.fromstring(html_body)
+        cleaner = Cleaner(**ARGS)
+        try:
+            doc = cleaner.clean_html(doc)
+        except:
+            pass
+        tree = doc.getroottree() 
+        
+        node = tree.getroot()
+        self.cross_tree(node) 
+        self.merge_groups(tree) 
+        self.create_regions(tree) 
+        self.calculate_distances_from_max(tree)  
+        for region in self.regions:
+            region._print()
+        article, comments, multiple = self.classify_page()
+
+        return article and article.full_text.replace("\n"," ") or ''
     
     def analyze_page(self):
                 
@@ -408,6 +430,7 @@ class SDAlgorithm():
         return False
     
     def print_article(self, article):
+        return
         """
         Print the details of a detected article (class, title and text).
         """
