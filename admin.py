@@ -19,15 +19,21 @@ class ProxyAdmin(admin.ModelAdmin):
         return obj.site.name
 
 class WebpageAdmin(admin.ModelAdmin):
-    list_display = ['path', 'site_name', 'last_checked', 'last_checked_response_code',]
     list_filter = ('site__name',)
+    list_display = ['id', 'path', 'site', 'encoding', 'last_checked', 'last_checked_response_code',]
+    list_display_links = ('id', 'site',)
     search_fields = ['site_name', 'path',]
 
     def site_name(self, obj):
         return obj.site.name
 
 class FetchedAdmin(admin.ModelAdmin):
-    pass
+    list_filter = ['webpage__site__name',]
+    list_display = ['id', 'site', 'webpage', 'time', 'response_code', 'size', 'checksum',]
+    list_display_links = ('id', 'webpage',)
+
+    def site(self, obj):
+        return obj.webpage.site.name
 
 class TranslatedAdmin(admin.ModelAdmin):
     pass

@@ -27,7 +27,10 @@ class Site(models.Model):
     url = models.CharField(max_length=100)
     allowed_domains = models.TextField()
     start_urls = models.TextField()
-    deny = models.TextField()
+    deny = models.TextField(blank=True, null=True)
+
+    def __unicode__(self):
+        return self.name
 
     def get_allowed_domains(self):
         return text_to_list(self.allowed_domains)
@@ -62,25 +65,32 @@ class Webpage(models.Model):
     path = models.CharField(max_length=200)
     created = CreationDateTimeField()
     referer = models.ForeignKey('self', related_name='page_referer', blank=True, null=True)
+    encoding = models.CharField(max_length=200, blank=True, null=True)
     last_modified = ModificationDateTimeField()
     last_checked = models.DateTimeField()
-    last_checked_response_code = models.IntegerField()
+    last_checked_response_code = models.IntegerField('Response code')
 
     class Meta:
         verbose_name = _('original page')
         verbose_name_plural = _('original pages')
         ordering = ('path',)
 
+    def __unicode__(self):
+        return self.path
+
 class Fetched(models.Model):
     webpage = models.ForeignKey(Webpage)
-    time = models.DateTimeField()
-    delay = models.IntegerField()
+    time = CreationDateTimeField()
+    delay = models.IntegerField(default=0)
     response_code = models.IntegerField()
     size = models.IntegerField()
+    checksum = models.CharField(max_length=32, blank=True, null=True)
+    body = models.TextField(null=True)
 
     class Meta:
         verbose_name = _('fetched page')
         verbose_name_plural = _('fetched pages')
+        ordering = ('webpage__site', 'webpage__path', '-time')
 
 class Translated(models.Model):
     webpage = models.ForeignKey(Webpage)

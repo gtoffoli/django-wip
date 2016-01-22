@@ -15,7 +15,7 @@ import sys
 import re
 import urllib
 import copy
-import nltk 
+# import nltk 
 from region import Region
 from lxml import etree, html
 from lxml.html import HtmlComment

@@ -9,7 +9,7 @@ from django.template import RequestContext
 from django.http import HttpResponse, HttpResponseRedirect
 from django.shortcuts import render_to_response, get_object_or_404
 
-from models import Site, Proxy, Webpage # , Fetched, Translated
+from models import Site, Proxy, Webpage, Fetched #, Translated
 from scrapy.spiders import Rule #, CrawlSpider
 from scrapy.linkextractors import LinkExtractor
 from scrapy.crawler import CrawlerProcess
@@ -118,4 +118,14 @@ def page(request, page_id):
     var_dict = {}
     var_dict['page'] = page = get_object_or_404(Webpage, pk=page_id)
     var_dict['site'] = site = page.site
+    var_dict['page_count'] = Webpage.objects.filter(site=site).count()
+    var_dict['scans'] = Fetched.objects.filter(webpage=page).order_by('-time')
     return render_to_response('page.html', var_dict, context_instance=RequestContext(request))
+
+def page_scan(request, fetched_id):
+    var_dict = {} 
+    var_dict['scan'] = fetched = get_object_or_404(Fetched, pk=fetched_id)
+    var_dict['page'] = page = fetched.webpage
+    var_dict['site'] = site = page.site
+    return render_to_response('page_scan.html', var_dict, context_instance=RequestContext(request))
+    

@@ -4,6 +4,7 @@
 {% block extra_head %}
 <style>
     label { display: inline; font-weight: bold; margin-right: 1.0em; padding: 0.2em 0em;}
+    label { display: inline; font-weight: bold; margin-right: 1.0em; padding: 0.2em 0em;}
 </style>
 {% endblock %}
 
@@ -12,11 +13,36 @@
 {% block title-page %}<span style="font-size: smaller;">Page: {{ site.url }}{{ page.path }}</span>{% endblock %}
 
 {% block content-page %}
-    <div><label>Site name</label> <a href="/site/{{ site.slug }}/">{{ site.name }}</a></div>
-    <div><label>Site URL</label> {{ site.url }}</div>
+    <div><b>Site</b> <a href="/site/{{ site.slug }}/">{{ site.name }}</a> , &nbsp;
+   		pages <a href="/site/{{ site.slug }}/pages/" title="list pages">{{ page_count }}</a> , &nbsp;
+		URL {{ site.url }}</div>
+    <div>&nbsp;</div>
     <div><label>Page URL</label> <a href="{{ site.url }}{{ page.path }}">{{ site.url }}{{ page.path }}</a></div>
     <div><label>Proxy path</label> <a href="/{{ site.path_prefix }}{{ page.path }}">/{{ site.path_prefix }}{{ page.path }}</a></div>
+    <div><label>Encoding</label> {{ page.encoding }}</div>
+{% comment %}
     <div><label>First crawled</label> {{ page.created|date:"SHORT_DATETIME_FORMAT" }}</div>
     <div><label>Last crawled</label> {{ page.last_checked|date:"SHORT_DATETIME_FORMAT" }}</div>
     <div><label>Last code</label> {{ page.last_checked_response_code }}</div>
+{% endcomment %}
+
+	{% if scans %}
+    <h5>Crawl history</h5>
+    	<table>
+   		<thead>
+   			<th>Time</th>
+   			<th>Code</th>
+   			<th>Size</th></thead>
+   		<tbody>
+	    {% for scan in scans %}
+		    <tr>
+				<td><a href="/page_scan/{{ scan.id }}/">{{ scan.time|date:"SHORT_DATETIME_FORMAT" }}</a></td>
+				<td>{{ scan.response_code }}
+				<td>{{ scan.size }}
+		    </tr>
+	    {% endfor %}
+	    </tbody>
+    	</table>
+	{% endif %}
+    
 {% endblock %}

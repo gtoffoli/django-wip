@@ -1,0 +1,23 @@
+{% extends "wip_base.html" %}
+{% load staticfiles i18n %}
+
+{% block extra_head %}
+<style>
+    label { display: inline; font-weight: bold; margin-right: 1.0em; padding: 0.2em 0em;}
+    label { display: inline; font-weight: bold; margin-right: 1.0em; padding: 0.2em 0em;}
+</style>
+{% endblock %}
+
+{% block head_title %}Scan of page: {{ site.url }}{{ page.path }}{% endblock %}
+
+{% block title-page %}<span style="font-size: smaller;">Scan of page: {{ site.url }}{{ page.path }}</span>{% endblock %}
+
+{% block content-page %}
+
+    <div><b>Site</b> {{ site.name }} , &nbsp;
+    	<b>Time</b> {{ scan.time|date:"SHORT_DATETIME_FORMAT" }} , &nbsp;
+   		<b>Code</b> {{ scan.response_code }} </div>
+    <div>&nbsp;</div>
+   
+	<pre>{{ scan.body }}</pre>
+{% endblock %}

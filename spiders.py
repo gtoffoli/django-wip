@@ -12,6 +12,9 @@ class WipCrawlItem(scrapy.Item):
     site_id = scrapy.Field()
     url = scrapy.Field()
     status = scrapy.Field()
+    encoding = scrapy.Field()
+    size = scrapy.Field()
+    body = scrapy.Field()
     title = scrapy.Field()
 
 class WipCrawlSpider(CrawlSpider):
@@ -24,10 +27,17 @@ class WipCrawlSpider(CrawlSpider):
     """
 
     def parse_item(self, response):
+        print response.headers
         item = WipCrawlItem()
         item['site_id'] = self.site_id
         item['url'] = response.url
         item['status'] = response.status
+        try:
+            item['encoding'] = response.headers['Content-Type']
+        except:
+            item['encoding'] = ''
+        item['body'] = response.body
+        item['size'] = len(response.body)
         try:
             title = response.xpath('/html/head/title/text()').extract()
         except:
@@ -57,7 +67,7 @@ class WipSiteCrawlerScript():
         # scrapy.log.start()
         configure_logging({
                 'LOG_ENABLEED' : True,
-                'LOG_LEVEL' : 'DEBUG',
+                'LOG_LEVEL' : 'ERROR',
                 'LOG_STDOUT' : True})
         self.crawler.start()
         # self.crawler.stop()

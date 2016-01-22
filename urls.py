@@ -30,6 +30,7 @@ urlpatterns = [
     url(r"^site/(?P<site_slug>[\w-]+)/crawl/$", views.site_crawl_by_slug, name="site_crawl"),
     url(r"^site/(?P<site_slug>[\w-]+)/pages/$", views.site_pages, name="site_pages"),
     url(r"^page/(?P<page_id>[\d]+)/$", views.page, name="page"),
+    url(r"^page_scan/(?P<fetched_id>[\d]+)/$", views.page_scan, name="page_scan"),
     url(r"^proxies/$", views.proxies, name="proxies"),
     # url(r"^my_task/$", views.my_task, name="my_task"),
 ]

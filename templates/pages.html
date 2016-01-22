@@ -18,8 +18,8 @@
 	    {% for page in pages %}
 	    <div>
 	    <pre><code>{{forloop.counter|rjust:"3"}}</code></pre>
-	    &nbsp; <a href="{{ site.url }}{{ page.path }}"><span class="fa fa-external-link" style="font-size: 1.0em;"></span></a>
-	    &nbsp; <a href="/{{ site.path_prefix }}{{ page.path }}"><span class="fa fa-link" style="font-size: 1.0em;"></span></a>
+	    &nbsp; <a href="{{ site.url }}{{ page.path }}" title="goto original page"><span class="fa fa-external-link" style="font-size: 1.0em;"></span></a>
+	    &nbsp; <a href="/{{ site.path_prefix }}{{ page.path }}" title="view page through proxy"><span class="fa fa-link" style="font-size: 1.0em;"></span></a>
 		&nbsp; <a href="/page/{{ page.id }}/">{{ page.path }}</a>
 	    </div>
 	    {% endfor %}

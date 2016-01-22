@@ -16,7 +16,7 @@
     <div><label>Path prefix</label> {{ site.path_prefix }}</div>
     <div><label>Allowed domains</label> {{ site.allowed_domains }}</div>
     <div><label>Start urls</label> {{ site.start_urls }}</div>
-    <div><label>Deny</label> {{ site.deny }}</div>
+    {% if site.deny %}<div><label>Deny</label> {{ site.deny }}</div>{% endif %}
     <div><label>Pages</label> {% if page_count %} <a href="/site/{{ site.slug }}/pages/" title="list pages">{{ page_count }}</a> {% else %}0{% endif %}</div>
 	{% if proxies %}
 	<div><h2>Proxies</h2>:
