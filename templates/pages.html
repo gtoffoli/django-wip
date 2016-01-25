@@ -15,15 +15,24 @@
 {% block content-page %}
 	{% if pages %}
 	<div>
+	<table>
+	<thead>
+		<th>#</th><th>Source</th><th>Proxy</th><th>Page path</th><th>xPath of main content region</th>
+	</thead>
+	<tbody>
 	    {% for page in pages %}
-	    <div>
-	    <pre><code>{{forloop.counter|rjust:"3"}}</code></pre>
-	    &nbsp; <a href="{{ site.url }}{{ page.path }}" title="goto original page"><span class="fa fa-external-link" style="font-size: 1.0em;"></span></a>
-	    &nbsp; <a href="/{{ site.path_prefix }}{{ page.path }}" title="view page through proxy"><span class="fa fa-link" style="font-size: 1.0em;"></span></a>
-		&nbsp; <a href="/page/{{ page.id }}/">{{ page.path }}</a>
-		{% with page_text=page.get_text %}{% if page_text %} * {% endif %}{% endwith %}
-	    </div>
+	    <tr>
+	    <td><pre><code>{{forloop.counter|rjust:"3"}}</code></pre></td>
+	    <td><a href="{{ site.url }}{{ page.path }}" title="goto original page"><span class="fa fa-external-link" style="font-size: 1.0em;"></span></a></td>
+	    <td><a href="/{{ site.path_prefix }}{{ page.path }}" title="view page through proxy"><span class="fa fa-link" style="font-size: 1.0em;"></span></a></td>
+		<td><a href="/page/{{ page.id }}/">{{ page.path }}</a></td>
+		{% with region=page.get_region %}{% if region %}
+		<td>{{ region.root }}</td>
+		{% endif %}{% endwith %}	
+	    </tr>
 	    {% endfor %}
+	</tbody>
+	</table>
 	</div>
 	{% else %}
 		<p>No pages are present.</p>

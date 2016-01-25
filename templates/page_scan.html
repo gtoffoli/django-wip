@@ -3,7 +3,7 @@
 
 {% block head_title %}Scan of page: {{ site.url }}{{ page.path }}{% endblock %}
 
-{% block title-page %}<span style="font-size: smaller;">Scan of page: {{ site.url }}{{ page.path }}</span>{% endblock %}
+{% block title-page %}<span style="font-size: smaller;">Scan of page: <a href="{{ site.url }}{{ page.path }}">{{ page.path }}</a></span>{% endblock %}
 
 {% block content-page %}
 
@@ -13,6 +13,8 @@
     <div>&nbsp;</div>
 
 	{% if page_text %}
+    <div><b>xPath of main content region</b></div>
+	<div style="margin-bottom: 1em;">{{ text_xpath }}</div>
     <div><b>Extracted text</b></div>
 	<div style="margin-bottom: 1em;">{{ page_text }}</div>
 	{% endif %}

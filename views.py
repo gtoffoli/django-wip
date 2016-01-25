@@ -129,6 +129,8 @@ def page_scan(request, fetched_id):
     var_dict['site'] = site = page.site
     page = fetched.webpage
     if page.encoding.count('html'):
-        var_dict['page_text'] = page.get_text()
+        region = page.get_region()
+        var_dict['text_xpath'] = region and region.root
+        var_dict['page_text'] = region and region.full_text.replace("\n"," ") or ''
     return render_to_response('page_scan.html', var_dict, context_instance=RequestContext(request))
     

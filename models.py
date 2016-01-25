@@ -79,17 +79,10 @@ class Webpage(models.Model):
     def __unicode__(self):
         return self.path
 
-    def get_text(self):
-        text = ''
+    def get_region(self):
         fetched_pages = Fetched.objects.filter(webpage=self).order_by('-time')
         last = fetched_pages and fetched_pages[0] or None
-        if last:
-            try:
-                sd = SDAlgorithm()
-                text = sd.wip_analyze_page(last.body)
-            except:
-                pass
-        return text
+        return last and last.get_region()
 
 class Fetched(models.Model):
     webpage = models.ForeignKey(Webpage)
@@ -104,6 +97,13 @@ class Fetched(models.Model):
         verbose_name = _('fetched page')
         verbose_name_plural = _('fetched pages')
         ordering = ('webpage__site', 'webpage__path', '-time')
+
+    def get_region(self):
+        sd = SDAlgorithm()
+        try:
+            return sd.wip_analyze_page(self.body)
+        except:
+            return None
 
 class Translated(models.Model):
     webpage = models.ForeignKey(Webpage)

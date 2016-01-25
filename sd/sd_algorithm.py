@@ -64,7 +64,8 @@ class SDAlgorithm():
             region._print()
         article, comments, multiple = self.classify_page()
 
-        return article and article.full_text.replace("\n"," ") or ''
+        # return article and article.full_text.replace("\n"," ") or ''
+        return article
     
     def analyze_page(self):
                 
