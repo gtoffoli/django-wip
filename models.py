@@ -6,7 +6,7 @@ https://docs.djangoproject.com/en/1.9/topics/db/models/
 """
 
 from django.db import models
-# from django.contrib.auth.models import User
+from django.contrib.auth.models import User
 from django.utils.translation import ugettext_lazy as _
 from django_extensions.db.fields import CreationDateTimeField, ModificationDateTimeField, AutoSlugField
 from vocabularies import Language, ApprovalStatus
@@ -46,6 +46,15 @@ class Site(models.Model):
     class Meta:
         verbose_name = _('original website')
         verbose_name_plural = _('original websites')
+
+class PageRegion(models.Model):
+    site = models.ForeignKey(Site)
+    label = models.CharField(max_length=100)
+    xpath = models.CharField(max_length=100)
+
+    class Meta:
+        verbose_name = _('page region')
+        verbose_name_plural = _('page regions')
 
 class Proxy(models.Model):
     name = models.CharField(max_length=100)
@@ -104,6 +113,29 @@ class Fetched(models.Model):
             return sd.wip_analyze_page(self.body)
         except:
             return None
+
+class String(models.Model):
+    site = models.ForeignKey(Site)
+    path = models.CharField(max_length=200)
+    xpath = models.CharField(max_length=100)
+    text = models.CharField(max_length=1000)
+    created = CreationDateTimeField()
+
+    class Meta:
+        verbose_name = _('source string')
+        verbose_name_plural = _('source strings')
+
+class Translation(models.Model):
+    string = models.ForeignKey(String)
+    language = models.ForeignKey(Language)
+    text = models.CharField(max_length=1000)
+    created = CreationDateTimeField()
+    modified = ModificationDateTimeField()
+    user = models.ForeignKey(User, verbose_name=_('user'))
+
+    class Meta:
+        verbose_name = _('string translation')
+        verbose_name_plural = _('string translations')
 
 class Translated(models.Model):
     webpage = models.ForeignKey(Webpage)

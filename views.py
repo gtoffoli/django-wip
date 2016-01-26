@@ -5,15 +5,18 @@ For more information on this file, see
 https://docs.djangoproject.com/en/1.9/topics/db/models/
 """
 
+from scrapy.spiders import Rule #, CrawlSpider
+from scrapy.linkextractors import LinkExtractor
+from scrapy.crawler import CrawlerProcess
+
 from django.template import RequestContext
 from django.http import HttpResponse, HttpResponseRedirect
 from django.shortcuts import render_to_response, get_object_or_404
 
 from models import Site, Proxy, Webpage, Fetched #, Translated
-from scrapy.spiders import Rule #, CrawlSpider
-from scrapy.linkextractors import LinkExtractor
-from scrapy.crawler import CrawlerProcess
 from spiders import WipSiteCrawlerScript, WipCrawlSpider
+
+from wip.utils import strings_from_html
 
 def home(request):
     var_dict = {}
@@ -132,5 +135,19 @@ def page_scan(request, fetched_id):
         region = page.get_region()
         var_dict['text_xpath'] = region and region.root
         var_dict['page_text'] = region and region.full_text.replace("\n"," ") or ''
+        # var_dict['strings'] = [s for s in strings_from_html(fetched.body)]
+        strings = []
+        for string in strings_from_html(fetched.body):
+            if string.count('window') and string.count('document'):
+                continue
+            l = string.split('. ')
+            # strings.extend(l)
+            n = len(l)
+            for i in range(n):
+                s = l[i]
+                if i < n-1:
+                    s = s + '.'
+                strings.append(s)
+        var_dict['strings'] = strings
     return render_to_response('page_scan.html', var_dict, context_instance=RequestContext(request))
     

@@ -13,12 +13,17 @@
     <div>&nbsp;</div>
 
 	{% if page_text %}
-    <div><b>xPath of main content region</b></div>
+    <h4>xPath of main content region</h4>
 	<div style="margin-bottom: 1em;">{{ text_xpath }}</div>
     <div><b>Extracted text</b></div>
 	<div style="margin-bottom: 1em;">{{ page_text }}</div>
 	{% endif %}
 
-    <div><b>HTML document</b></div>
+    <h4>All extracted strings</h4>
+	{% for string in strings %}
+	<div>{{ string }}</div>
+	{% endfor %}
+
+    <h4>HTML document</h4>
 	<pre>{{ scan.body }}</pre>
 {% endblock %}
