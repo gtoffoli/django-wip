@@ -5,6 +5,8 @@ For more information on this file, see
 https://docs.djangoproject.com/en/1.9/topics/db/models/
 """
 
+import os
+import re
 from scrapy.spiders import Rule #, CrawlSpider
 from scrapy.linkextractors import LinkExtractor
 from scrapy.crawler import CrawlerProcess
@@ -17,6 +19,7 @@ from models import Site, Proxy, Webpage, Fetched #, Translated
 from spiders import WipSiteCrawlerScript, WipCrawlSpider
 
 from wip.utils import strings_from_html
+import srx_segmenter
 
 def home(request):
     var_dict = {}
@@ -125,6 +128,13 @@ def page(request, page_id):
     var_dict['scans'] = Fetched.objects.filter(webpage=page).order_by('-time')
     return render_to_response('page.html', var_dict, context_instance=RequestContext(request))
 
+srx_filepath = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'segment.srx')
+srx_rules = srx_segmenter.parse(srx_filepath)
+italian_rules = srx_rules['Italian']
+print italian_rules
+segmenter = srx_segmenter.SrxSegmenter(italian_rules)
+re_parentheses = re.compile(r'\(([^)]+)\)')
+
 def page_scan(request, fetched_id):
     var_dict = {} 
     var_dict['scan'] = fetched = get_object_or_404(Fetched, pk=fetched_id)
@@ -140,14 +150,16 @@ def page_scan(request, fetched_id):
         for string in strings_from_html(fetched.body):
             if string.count('window') and string.count('document'):
                 continue
-            l = string.split('. ')
-            # strings.extend(l)
-            n = len(l)
-            for i in range(n):
-                s = l[i]
-                if i < n-1:
-                    s = s + '.'
-                strings.append(s)
+            matches = []
+            if string.count('(') and string.count(')'):
+                matches = re_parentheses.findall(string)
+                if matches:
+                    print matches
+                    for match in matches:
+                        string = string.replace('(%s)' % match, '')
+            strings.extend(segmenter.extract(string)[0])
+            for match in matches:
+                strings.extend(segmenter.extract(match)[0])
         var_dict['strings'] = strings
     return render_to_response('page_scan.html', var_dict, context_instance=RequestContext(request))
     
