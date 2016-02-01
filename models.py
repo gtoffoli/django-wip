@@ -10,7 +10,7 @@ from django.contrib.auth.models import User
 from django.utils.translation import ugettext_lazy as _
 from django_extensions.db.fields import CreationDateTimeField, ModificationDateTimeField, AutoSlugField
 from vocabularies import Language, ApprovalStatus
-from wip.sd.sd_algorithm import SDAlgorithm
+from wip.wip_sd.sd_algorithm import SDAlgorithm
 
 def text_to_list(text):
     lines = text.split('\n')

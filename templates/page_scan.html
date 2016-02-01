@@ -24,6 +24,20 @@
 	<div>{{ string }}</div>
 	{% endfor %}
 
+	{% if chunks %}
+    <h4>NP chunks</h4>
+	{% for chunk in chunks %}
+	<div>{{ chunk }}</div>
+	{% endfor %}
+	{% endif %}
+
+	{% if tags %}
+    <h4>Tagged tokens</h4>
+	{% for tag in tags %}
+	<div>{{ tag }}</div>
+	{% endfor %}
+	{% endif %}
+
 {% comment %}
     <h4>HTML document</h4>
 	<pre>{{ scan.body }}</pre>

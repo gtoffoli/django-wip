@@ -33,6 +33,7 @@ urlpatterns = [
     url(r"^page_scan/(?P<fetched_id>[\d]+)/$", views.page_scan, name="page_scan"),
     url(r"^proxies/$", views.proxies, name="proxies"),
     # url(r"^my_task/$", views.my_task, name="my_task"),
+    url(r"^create_tagger/$", views.create_tagger, name="create_tagger"),
 ]
 
 sites = Site.objects.all()

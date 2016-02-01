@@ -5,6 +5,11 @@ For more information on this file, see
 https://docs.djangoproject.com/en/1.9/topics/db/models/
 """
 
+try:
+    import cPickle as pickle
+except:
+    import pickle
+
 import os
 import re
 from scrapy.spiders import Rule #, CrawlSpider
@@ -18,7 +23,8 @@ from django.shortcuts import render_to_response, get_object_or_404
 from models import Site, Proxy, Webpage, Fetched #, Translated
 from spiders import WipSiteCrawlerScript, WipCrawlSpider
 
-from wip.utils import strings_from_html
+from settings import RESOURCES_ROOT, tagger_filename
+from utils import strings_from_html
 import srx_segmenter
 
 def home(request):
@@ -135,7 +141,14 @@ print italian_rules
 segmenter = srx_segmenter.SrxSegmenter(italian_rules)
 re_parentheses = re.compile(r'\(([^)]+)\)')
 
-def page_scan(request, fetched_id):
+def page_scan(request, fetched_id, language='it'):
+    tag = request.GET.get('tag', False)
+    chunk = request.GET.get('chunk', False)
+    ext = request.GET.get('ext', False)
+    if tag or chunk or ext:
+        tagger = NltkTagger(language=language, tagger_input_file=os.path.join(RESOURCES_ROOT, tagger_filename))
+    if chunk or ext:
+        chunker = NltkChunker(language='it')
     var_dict = {} 
     var_dict['scan'] = fetched = get_object_or_404(Fetched, pk=fetched_id)
     var_dict['page'] = page = fetched.webpage
@@ -147,6 +160,8 @@ def page_scan(request, fetched_id):
         var_dict['page_text'] = region and region.full_text.replace("\n"," ") or ''
         # var_dict['strings'] = [s for s in strings_from_html(fetched.body)]
         strings = []
+        tags = []
+        chunks = []
         for string in strings_from_html(fetched.body):
             if string.count('window') and string.count('document'):
                 continue
@@ -160,6 +175,78 @@ def page_scan(request, fetched_id):
             strings.extend(segmenter.extract(string)[0])
             for match in matches:
                 strings.extend(segmenter.extract(match)[0])
+            if ext:
+                terms = extract_terms(string, language=language, tagger=tagger, chunker=chunker)
+                terms = ['- %s -' % term]
+                strings.extend(terms)
+            if tag or chunk:
+                tagged_tokens = tagger.tag(text=string)
+                if tag:
+                    tags.extend(tagged_tokens)
+            if chunk:
+                noun_chunks = chunker.main_chunker(tagged_tokens, chunk_tag='NP')
+                chunks.extend(noun_chunks)
+                for chunk in noun_chunks:
+                    print chunk
         var_dict['strings'] = strings
+        var_dict['tags'] = tags
+        var_dict['chunks'] = chunks
     return render_to_response('page_scan.html', var_dict, context_instance=RequestContext(request))
-    
+
+import nltk
+from wip.wip_nltk.corpora import NltkCorpus
+from wip.wip_nltk.taggers import NltkTagger
+from wip.wip_nltk.chunkers import NltkChunker
+
+tagged_corpus_id = 'itwac'
+file_ids = ['ITWAC-1.xml']
+tagger_types = ['BigramTagger', 'UnigramTagger', 'AffixTagger', 'DefaultTagger',]
+default_tag = 'NOUN'
+filename = 'tagger'
+
+def create_tagger(request, language='it', filename=''):
+    corpus_loader = getattr(nltk.corpus, tagged_corpus_id)
+    tagged_corpus = NltkCorpus(corpus_loader=corpus_loader, language=language)
+    tagged_sents = tagged_corpus.corpus_loader.tagged_sents(fileids=file_ids, simplify_tags=True)
+    tagger = NltkTagger(language=language, tagger_types=tagger_types, default_tag=default_tag, train_sents=tagged_sents)
+    tagger.train()
+    data = pickle.dumps(tagger.tagger)
+    if not filename:
+        filename = '.'.join(file_ids)
+    ext = '.pickle'
+    if not filename.endswith(ext):
+        filename += ext
+    if request.GET.get('auto', False):
+        filepath = os.path.join(RESOURCES_ROOT, filename)
+        f = open(filepath, 'wb')
+        f.write(data)
+        return HttpResponseRedirect('/')
+    else:
+        content_type = 'application/octet-stream'
+        response = HttpResponse(data, content_type=content_type)
+        response['Content-Disposition'] = 'attachment; filename="%s"' % filename
+        return response
+
+def extract_terms(text, language='it', tagger=None, chunker=None):
+    if text.startswith(u'\ufeff'):
+        text = text[1:]
+    if not tagger:
+        tagger = NltkTagger(language=language, tagger_input_file=os.path.join(RESOURCES_ROOT, tagger_filename))
+    tagged_tokens = tagger.tag(text=text)
+    if not chunker:
+        chunker = NltkChunker(language='it')
+    noun_chunks = chunker.main_chunker(tagged_tokens, chunk_tag='NP')
+    phrases = []
+    for chunk in noun_chunks:
+        """
+        tag = chunk[0][1].split(u':')[0]
+        if tag in [u'ART', u'ARTPRE', 'DET']:
+            chunk = chunk[1:]
+            tag = chunk[0][1].split(u':')[0]
+            if tag in ['DET']:
+                chunk = chunk[1:]
+        """
+        # phrase = u' '.join([tagged_token[0] for tagged_token in chunk])
+        phrase = ' '.join([tagged_token[0] for tagged_token in chunk])
+        phrases.append(phrase)
+    return phrases

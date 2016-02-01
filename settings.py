@@ -214,3 +214,18 @@ LOGGING = {
         },
     },
 }
+
+# NLTK and other linguistic resources
+
+NLTK_DATA_PATH = ''
+LEXICONS = ''
+CORPORA = ''
+RESOURCES_ROOT = os.path.join(BASE_DIR, 'resources')
+# morphit_path = "/Tecnica/CL/risorse/italiano/morph-it/morph-it.48/morph-it_048.txt"
+morphit_filename = "morph-it_048.txt"
+morphit_path = os.path.join(RESOURCES_ROOT, morphit_filename)
+# tagger_filename = "itwac-1.2000000.biunigram.affix-2.simplified.pickle"
+tagger_filename = "ITWAC-1.xml.pickle"
+
+
+
