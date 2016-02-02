@@ -12,7 +12,7 @@ import nltk
 from nltk.tag import *
 from nltk.tag.sequential import ContextTagger, NgramTagger, AffixTagger
 
-import util
+import util, fixes
 from tokenizers import NltkTokenizer
 from lexicons import NltkLexicon
 from corpora import simplify_wacky_tag
@@ -192,7 +192,8 @@ class NltkTagger(object):
         if not self.tagger:
             self.build_tagger()
         self.tagged_tokens = self.tagger.tag(tokens)
-        return self.tagged_tokens
+        # return self.tagged_tokens
+        return fixes.fix_tags(self.tagged_tokens)
 
     def train(self):
         """ train the tagger with the training set specified """

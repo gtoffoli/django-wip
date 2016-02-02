@@ -39,7 +39,8 @@ class NltkChunker(object):
             grammar_path = os.path.join(this_dir, 'data', '%s_chunk_grammar.txt' % self.language)
             """
             grammar_path = os.path.join(RESOURCES_ROOT, '%s_chunk_grammar.txt' % self.language)
-            f = codecs.open(grammar_path, 'r', 'unicode_escape')
+            # f = codecs.open(grammar_path, 'r', 'unicode_escape')
+            f = open(grammar_path, 'r',)
             grammar = f.read()
             f.close()
         cp = nltk.RegexpParser(grammar)

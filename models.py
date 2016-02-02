@@ -71,10 +71,9 @@ class Proxy(models.Model):
 
 class Webpage(models.Model):
     site = models.ForeignKey(Site)
-    # path = models.TextField()
     path = models.CharField(max_length=200)
     created = CreationDateTimeField()
-    referer = models.ForeignKey('self', related_name='page_referer', blank=True, null=True)
+    # referer = models.ForeignKey('self', related_name='page_referer', blank=True, null=True)
     encoding = models.CharField(max_length=200, blank=True, null=True)
     last_modified = ModificationDateTimeField()
     last_checked = models.DateTimeField()
@@ -89,11 +88,12 @@ class Webpage(models.Model):
         return self.path
 
     def get_region(self):
-        fetched_pages = Fetched.objects.filter(webpage=self).order_by('-time')
-        last = fetched_pages and fetched_pages[0] or None
+        page_versions = PageVersion.objects.filter(webpage=self).order_by('-time')
+        last = page_versions and page_versions[0] or None
         return last and last.get_region()
 
-class Fetched(models.Model):
+# class Fetched(models.Model):
+class PageVersion(models.Model):
     webpage = models.ForeignKey(Webpage)
     time = CreationDateTimeField()
     delay = models.IntegerField(default=0)
@@ -103,8 +103,8 @@ class Fetched(models.Model):
     body = models.TextField(null=True)
 
     class Meta:
-        verbose_name = _('fetched page')
-        verbose_name_plural = _('fetched pages')
+        verbose_name = _('page version')
+        verbose_name_plural = _('page versions')
         ordering = ('webpage__site', 'webpage__path', '-time')
 
     def get_region(self):
@@ -114,36 +114,56 @@ class Fetched(models.Model):
         except:
             return None
 
+# class Translated(models.Model):
+class TranslatedVersion(models.Model):
+    webpage = models.ForeignKey(Webpage)
+    language = models.ForeignKey(Language)
+    body = models.TextField(null=True)
+    created = CreationDateTimeField()
+    modified = ModificationDateTimeField()
+    approval_status = models.ForeignKey(ApprovalStatus)
+    user = models.ForeignKey(User, null=True)
+    comments = models.TextField()
+
+    class Meta:
+        verbose_name = _('translated version')
+        verbose_name_plural = _('translated version')
+
 class String(models.Model):
-    site = models.ForeignKey(Site)
-    path = models.CharField(max_length=200)
-    xpath = models.CharField(max_length=100)
+    language = models.ForeignKey(Language)
     text = models.CharField(max_length=1000)
+    created = CreationDateTimeField()
+    user = models.ForeignKey(User, null=True)
+
+    class Meta:
+        verbose_name = _('source string')
+        verbose_name_plural = _('source strings')
+        ordering = ('text',)
+
+class StringInPage(models.Model):
+    site = models.ForeignKey(Site, null=True)
+    string = models.ForeignKey(String)
+    webpage = models.ForeignKey(Webpage, null=True)
+    xpath = models.CharField(max_length=100, null=True, blank=True)
+    pos = models.CharField(max_length=10, null=True, blank=True)
     created = CreationDateTimeField()
 
     class Meta:
         verbose_name = _('source string')
         verbose_name_plural = _('source strings')
+        ordering = ('-created',)
 
-class Translation(models.Model):
-    string = models.ForeignKey(String)
+class StringTranslation(models.Model):
+    string = models.ForeignKey(String, null=True)
+    string_in_page = models.ForeignKey(StringInPage, null=True)
     language = models.ForeignKey(Language)
     text = models.CharField(max_length=1000)
     created = CreationDateTimeField()
     modified = ModificationDateTimeField()
-    user = models.ForeignKey(User, verbose_name=_('user'))
+    user = models.ForeignKey(User, null=True)
 
     class Meta:
         verbose_name = _('string translation')
         verbose_name_plural = _('string translations')
-
-class Translated(models.Model):
-    webpage = models.ForeignKey(Webpage)
-    language = models.ForeignKey(Language)
-    approval_status = models.ForeignKey(ApprovalStatus)
-    comments = models.TextField()
-
-    class Meta:
-        verbose_name = _('translated page')
-        verbose_name_plural = _('translated page')
+        ordering = ('text',)
 

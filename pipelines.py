@@ -21,7 +21,7 @@ import django
 django.setup()
 
 from django.utils import timezone
-from models import Site, Webpage, Fetched
+from models import Site, Webpage, PageVersion
 
 class WipCrawlPipeline(object):
 
@@ -44,12 +44,12 @@ class WipCrawlPipeline(object):
         page.save()
         buf = BytesIO(item['body'])
         checksum = md5sum(buf)
-        fetched_pages = Fetched.objects.filter(webpage=page).order_by('-time')
+        fetched_pages = PageVersion.objects.filter(webpage=page).order_by('-time')
         last = fetched_pages and fetched_pages[0] or None
         # if not last or checksum!=last.checksum:
         if not last:
             body = item['encoding'].count('text/') and item['body'] or ''
-            fetched = Fetched(webpage=page, response_code=item['status'], size=item['size'], checksum=checksum, body=body)
+            fetched = PageVersion(webpage=page, response_code=item['status'], size=item['size'], checksum=checksum, body=body)
             fetched.save()
         return item
         # raise DropItem()

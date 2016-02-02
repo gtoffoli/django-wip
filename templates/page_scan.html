@@ -19,10 +19,12 @@
 	<div>{{ page_text }}</div>
 	{% endif %}
 
+	{% if strings %}
     <h4>All extracted strings</h4>
 	{% for string in strings %}
 	<div>{{ string }}</div>
 	{% endfor %}
+	{% endif %}
 
 	{% if chunks %}
     <h4>NP chunks</h4>

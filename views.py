@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-"""
+
 """
 Django views for wip application of wip project.
 
@@ -20,7 +22,7 @@ from django.template import RequestContext
 from django.http import HttpResponse, HttpResponseRedirect
 from django.shortcuts import render_to_response, get_object_or_404
 
-from models import Site, Proxy, Webpage, Fetched #, Translated
+from models import Site, Proxy, Webpage, PageVersion #, TranslatedVersion
 from spiders import WipSiteCrawlerScript, WipCrawlSpider
 
 from settings import RESOURCES_ROOT, tagger_filename
@@ -131,13 +133,13 @@ def page(request, page_id):
     var_dict['page'] = page = get_object_or_404(Webpage, pk=page_id)
     var_dict['site'] = site = page.site
     var_dict['page_count'] = Webpage.objects.filter(site=site).count()
-    var_dict['scans'] = Fetched.objects.filter(webpage=page).order_by('-time')
+    var_dict['scans'] = PageVersion.objects.filter(webpage=page).order_by('-time')
     return render_to_response('page.html', var_dict, context_instance=RequestContext(request))
 
 srx_filepath = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'segment.srx')
 srx_rules = srx_segmenter.parse(srx_filepath)
 italian_rules = srx_rules['Italian']
-print italian_rules
+# print italian_rules
 segmenter = srx_segmenter.SrxSegmenter(italian_rules)
 re_parentheses = re.compile(r'\(([^)]+)\)')
 
@@ -150,58 +152,70 @@ def page_scan(request, fetched_id, language='it'):
     if chunk or ext:
         chunker = NltkChunker(language='it')
     var_dict = {} 
-    var_dict['scan'] = fetched = get_object_or_404(Fetched, pk=fetched_id)
+    var_dict['scan'] = fetched = get_object_or_404(PageVersion, pk=fetched_id)
     var_dict['page'] = page = fetched.webpage
     var_dict['site'] = site = page.site
     page = fetched.webpage
     if page.encoding.count('html'):
-        region = page.get_region()
-        var_dict['text_xpath'] = region and region.root
-        var_dict['page_text'] = region and region.full_text.replace("\n"," ") or ''
-        # var_dict['strings'] = [s for s in strings_from_html(fetched.body)]
-        strings = []
-        tags = []
-        chunks = []
-        for string in strings_from_html(fetched.body):
-            if string.count('window') and string.count('document'):
-                continue
-            matches = []
-            if string.count('(') and string.count(')'):
-                matches = re_parentheses.findall(string)
-                if matches:
-                    print matches
+        if request.GET.get('npr', False):
+            pass
+        elif request.GET.get('region', False):
+            region = page.get_region()
+            var_dict['text_xpath'] = region and region.root
+            var_dict['page_text'] = region and region.full_text.replace("\n"," ") or ''
+        elif request.GET.get('strings', False):
+            var_dict['strings'] = [s for s in strings_from_html(fetched.body)]
+        else:
+            strings = []
+            tags = []
+            chunks = []
+            for string in strings_from_html(fetched.body):
+                string = string.replace(u"\u2018", "'").replace(u"\u2019", "'")
+                # string = filter_unicode(string)
+                if string.count('window') and string.count('document'):
+                    continue
+                if tag or chunk:
+                    tagged_tokens = tagger.tag(text=string)
+                    if tag:
+                        tags.extend(tagged_tokens)
+                if chunk:
+                    noun_chunks = chunker.main_chunker(tagged_tokens, chunk_tag='NP')
+                    chunks.extend(noun_chunks)
+                    """
+                    for chunk in noun_chunks:
+                        print chunk
+                    """
+                if not (tag or chunk):
+                    matches = []
+                    if string.count('(') and string.count(')'):
+                        matches = re_parentheses.findall(string)
+                        if matches:
+                            print matches
+                            for match in matches:
+                                string = string.replace('(%s)' % match, '')
+                    strings.extend(segmenter.extract(string)[0])
                     for match in matches:
-                        string = string.replace('(%s)' % match, '')
-            strings.extend(segmenter.extract(string)[0])
-            for match in matches:
-                strings.extend(segmenter.extract(match)[0])
-            if ext:
-                terms = extract_terms(string, language=language, tagger=tagger, chunker=chunker)
-                terms = ['- %s -' % term]
-                strings.extend(terms)
-            if tag or chunk:
-                tagged_tokens = tagger.tag(text=string)
-                if tag:
-                    tags.extend(tagged_tokens)
-            if chunk:
-                noun_chunks = chunker.main_chunker(tagged_tokens, chunk_tag='NP')
-                chunks.extend(noun_chunks)
-                for chunk in noun_chunks:
-                    print chunk
-        var_dict['strings'] = strings
-        var_dict['tags'] = tags
-        var_dict['chunks'] = chunks
+                        strings.extend(segmenter.extract(match)[0])
+                    if ext:
+                        terms = extract_terms(string, language=language, tagger=tagger, chunker=chunker)
+                        terms = ['- %s -' % term for term in terms]
+                        strings.extend(terms)
+            var_dict['strings'] = strings
+            var_dict['tags'] = tags
+            var_dict['chunks'] = chunks
     return render_to_response('page_scan.html', var_dict, context_instance=RequestContext(request))
 
 import nltk
 from wip.wip_nltk.corpora import NltkCorpus
 from wip.wip_nltk.taggers import NltkTagger
 from wip.wip_nltk.chunkers import NltkChunker
+from wip.wip_nltk.util import filter_unicode
 
 tagged_corpus_id = 'itwac'
 file_ids = ['ITWAC-1.xml']
 tagger_types = ['BigramTagger', 'UnigramTagger', 'AffixTagger', 'DefaultTagger',]
-default_tag = 'NOUN'
+# default_tag = 'NOUN'
+default_tag = None
 filename = 'tagger'
 
 def create_tagger(request, language='it', filename=''):
