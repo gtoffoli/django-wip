@@ -50,7 +50,7 @@ class Site(models.Model):
 class PageRegion(models.Model):
     site = models.ForeignKey(Site)
     label = models.CharField(max_length=100)
-    xpath = models.CharField(max_length=100)
+    xpath = models.CharField(max_length=200)
 
     class Meta:
         verbose_name = _('page region')
@@ -142,7 +142,7 @@ class StringInPage(models.Model):
     site = models.ForeignKey(Site, null=True)
     string = models.ForeignKey(String)
     webpage = models.ForeignKey(Webpage, null=True)
-    xpath = models.CharField(max_length=100, null=True, blank=True)
+    xpath = models.CharField(max_length=200, null=True, blank=True)
     pos = models.CharField(max_length=10, null=True, blank=True)
     created = CreationDateTimeField()
 
@@ -167,7 +167,7 @@ class StringTranslation(models.Model):
 
 class Block(models.Model):
     site = models.ForeignKey(Site)
-    xpath = models.CharField(max_length=100, blank=True)
+    xpath = models.CharField(max_length=200, blank=True)
     body = models.TextField(null=True)
     checksum = models.CharField(max_length=32)
     time = CreationDateTimeField()

@@ -284,7 +284,8 @@ def extract_blocks(page_id):
     tree   = etree.parse(StringIO.StringIO(html_string), parser)
     root = tree.getroot()
     """
-    html_string = re.sub("(<!--.*?-->)", "", html_string, flags=re.MULTILINE)
+    # http://stackoverflow.com/questions/1084741/regexp-to-strip-html-comments
+    html_string = re.sub("(<!--(.*?)-->)", "", html_string, flags=re.MULTILINE)
     doc = html.document_fromstring(html_string)
     tree = doc.getroottree()
     top_els = doc.getchildren()
@@ -299,10 +300,13 @@ def extract_blocks(page_id):
                 if blocks:
                     block = blocks[0]
                 else:
-                    n_2 += 1
                     string = etree.tostring(el)
                     block = Block(site=site, xpath=xpath, checksum=checksum, body=string)
-                    block.save()
+                    try:
+                        block.save()
+                        n_2 += 1
+                    except:
+                        print '--- save error in page ---', page_id
                     print n_2, checksum, xpath
                 blocks_in_page = BlockInPage.objects.filter(block=block, webpage=page)
                 if not blocks_in_page:

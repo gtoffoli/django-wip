@@ -240,7 +240,7 @@ BLOCK_TAGS = [
    'form', 'fieldset', 'input', 'button', 'select', 'option', 'textarea', 'output',
 ]
 TO_DROP_TAGS = [
-    'script', 'style','iframe',
+    'link', 'script', 'style','iframe',
 ]
 
 
