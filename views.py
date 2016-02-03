@@ -293,6 +293,7 @@ def extract_blocks(page_id):
     for top_el in top_els:
         for el in blocks_from_block(top_el):
             if el.tag in BLOCK_TAGS:
+                save_failed = False
                 n_1 += 1
                 xpath = tree.getpath(el)
                 checksum = block_checksum(el)
@@ -307,9 +308,10 @@ def extract_blocks(page_id):
                         n_2 += 1
                     except:
                         print '--- save error in page ---', page_id
+                        save_failed = True
                     print n_2, checksum, xpath
                 blocks_in_page = BlockInPage.objects.filter(block=block, webpage=page)
-                if not blocks_in_page:
+                if not blocks_in_page and not save_failed:
                     n_3 += 1
                     blocks_in_page = BlockInPage(block=block, webpage=page)
                     blocks_in_page.save()
