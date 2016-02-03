@@ -16,7 +16,8 @@ import os, sys
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'wip.settings')
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
+BASE_DIR = os.path.dirname(PROJECT_DIR)
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/1.9/howto/deployment/checklist/
@@ -45,6 +46,8 @@ INSTALLED_APPS = [
     'django.contrib.sites',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'django_extensions',
+    'tinymce',
     'allauth',
     'allauth.account',
     'bootstrap3',
@@ -220,12 +223,52 @@ LOGGING = {
 NLTK_DATA_PATH = ''
 LEXICONS = ''
 CORPORA = ''
-RESOURCES_ROOT = os.path.join(BASE_DIR, 'resources')
+DATA_ROOT = os.path.join(BASE_DIR, 'data')
+RESOURCES_ROOT = os.path.join(PROJECT_DIR, 'resources')
 # morphit_path = "/Tecnica/CL/risorse/italiano/morph-it/morph-it.48/morph-it_048.txt"
 morphit_filename = "morph-it_048.txt"
 morphit_path = os.path.join(RESOURCES_ROOT, morphit_filename)
 # tagger_filename = "itwac-1.2000000.biunigram.affix-2.simplified.pickle"
 tagger_filename = "ITWAC-1.xml.pickle"
+BLOCK_TAGS = [
+   'body', 'header', 'hgroup', 'main',  'aside', 'footer',
+   'address', 'article', 'field', 'section', 'nav',
+   'div', 'p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'ol', 'li', 'dl', 'dt', 'dd',
+   'table', 'thead', 'tbody', 'tfoot', 'tr', 'th', 'td',
+   'a', 'blockquote', 'pre', 'noscript',
+   'img', 'figure', 'figcaption', 'canvas', 'video',
+   'form', 'fieldset', 'input', 'button', 'select', 'option', 'textarea', 'output',
+]
+TO_DROP_TAGS = [
+    'script', 'style','iframe',
+]
 
 
+# configure graph_models command of django-extensions
+GRAPH_MODELS = {
+  'all_applications': False,
+  'group_models': False,
+}
 
+# TinyMCE settings (from roma APP of RomaPaese project)
+TINYMCE_COMPRESSOR = True
+
+TINYMCE_DEFAULT_CONFIG = {
+    'width': '400', # '640',
+    'height': '300', # '480',
+    'plugins': 'fullscreen,media,preview,paste,table',
+    'theme': 'advanced',
+    'relative_urls': False,
+    'theme_advanced_toolbar_location': 'top',
+    'theme_advanced_toolbar_align': 'left',
+    'theme_advanced_buttons1': 'undo,redo,|,formatselect,bold,italic,underline,|,' \
+        'justifyleft,justifycenter,justifyright,justifyfull,|,forecolor,backcolor,' \
+        'sub,sup,charmap,|,bullist,numlist,|,indent,outdent,|,link,unlink,anchor,image,media',
+    'theme_advanced_buttons2': '|,tablecontrols,|,cut,copy,paste,pasteword,pastetext,selectall,|,removeformat,cleanup,|,visualaid,code,preview,fullscreen',
+    'theme_advanced_buttons3': '',
+    'theme_advanced_blockformats': 'p,pre,address,blockquote,h1,h2,h3,h4,' \
+        'h5,h6',
+    'plugin_preview_width' : '800',
+    'plugin_preview_height' : '600',
+    'paste_auto_cleanup_on_paste': 'false',
+    }

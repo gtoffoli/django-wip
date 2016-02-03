@@ -92,7 +92,6 @@ class Webpage(models.Model):
         last = page_versions and page_versions[0] or None
         return last and last.get_region()
 
-# class Fetched(models.Model):
 class PageVersion(models.Model):
     webpage = models.ForeignKey(Webpage)
     time = CreationDateTimeField()
@@ -114,7 +113,6 @@ class PageVersion(models.Model):
         except:
             return None
 
-# class Translated(models.Model):
 class TranslatedVersion(models.Model):
     webpage = models.ForeignKey(Webpage)
     language = models.ForeignKey(Language)
@@ -149,8 +147,8 @@ class StringInPage(models.Model):
     created = CreationDateTimeField()
 
     class Meta:
-        verbose_name = _('source string')
-        verbose_name_plural = _('source strings')
+        verbose_name = _('string in page')
+        verbose_name_plural = _('strings in page')
         ordering = ('-created',)
 
 class StringTranslation(models.Model):
@@ -167,3 +165,49 @@ class StringTranslation(models.Model):
         verbose_name_plural = _('string translations')
         ordering = ('text',)
 
+class Block(models.Model):
+    site = models.ForeignKey(Site)
+    xpath = models.CharField(max_length=100, blank=True)
+    body = models.TextField(null=True)
+    checksum = models.CharField(max_length=32)
+    time = CreationDateTimeField()
+
+    class Meta:
+        verbose_name = _('page block')
+        verbose_name_plural = _('page blocks')
+        ordering = ('-time',)
+
+
+class BlockInPage(models.Model):
+    block = models.ForeignKey(Block)
+    webpage = models.ForeignKey(Webpage)
+
+    class Meta:
+        verbose_name = _('blok in page')
+        verbose_name_plural = _('bloks in page')
+ 
+class TranslatedBlock(models.Model):
+    language = models.ForeignKey(Language)
+    block = models.ForeignKey(Block)
+    body = models.TextField(null=True)
+    created = CreationDateTimeField()
+    modified = ModificationDateTimeField()
+    editor = models.ForeignKey(User, null=True)
+    state = models.IntegerField(default=0)
+    editor = models.ForeignKey(User, null=True)
+    comments = models.TextField()
+
+    class Meta:
+        verbose_name = _('translated block')
+        verbose_name_plural = _('translated blocks')
+
+class StringInBlock(models.Model):
+    site = models.ForeignKey(Site, null=True)
+    string = models.ForeignKey(String)
+    block = models.ForeignKey(Block, null=True)
+    created = CreationDateTimeField()
+
+    class Meta:
+        verbose_name = _('string in block')
+        verbose_name_plural = _('strings in block')
+        ordering = ('-created',)

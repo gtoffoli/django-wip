@@ -10,8 +10,7 @@ try:
 except ImportError:
     from io import BytesIO
 import urlparse
-from datetime import datetime 
-from scrapy.exceptions import DropItem
+# from scrapy.exceptions import DropItem
 from scrapy.utils.misc import md5sum
 
 import logging

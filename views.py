@@ -14,6 +14,8 @@ except:
 
 import os
 import re
+import StringIO
+from lxml import html, etree
 from scrapy.spiders import Rule #, CrawlSpider
 from scrapy.linkextractors import LinkExtractor
 from scrapy.crawler import CrawlerProcess
@@ -22,11 +24,11 @@ from django.template import RequestContext
 from django.http import HttpResponse, HttpResponseRedirect
 from django.shortcuts import render_to_response, get_object_or_404
 
-from models import Site, Proxy, Webpage, PageVersion #, TranslatedVersion
+from models import Site, Proxy, Webpage, PageVersion, Block, BlockInPage #, TranslatedVersion
 from spiders import WipSiteCrawlerScript, WipCrawlSpider
 
-from settings import RESOURCES_ROOT, tagger_filename
-from utils import strings_from_html
+from settings import DATA_ROOT, RESOURCES_ROOT, tagger_filename, BLOCK_TAGS
+from utils import strings_from_html, blocks_from_block, block_checksum
 import srx_segmenter
 
 def home(request):
@@ -136,7 +138,7 @@ def page(request, page_id):
     var_dict['scans'] = PageVersion.objects.filter(webpage=page).order_by('-time')
     return render_to_response('page.html', var_dict, context_instance=RequestContext(request))
 
-srx_filepath = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'segment.srx')
+srx_filepath = os.path.join(RESOURCES_ROOT, 'segment.srx')
 srx_rules = srx_segmenter.parse(srx_filepath)
 italian_rules = srx_rules['Italian']
 # print italian_rules
@@ -148,7 +150,7 @@ def page_scan(request, fetched_id, language='it'):
     chunk = request.GET.get('chunk', False)
     ext = request.GET.get('ext', False)
     if tag or chunk or ext:
-        tagger = NltkTagger(language=language, tagger_input_file=os.path.join(RESOURCES_ROOT, tagger_filename))
+        tagger = NltkTagger(language=language, tagger_input_file=os.path.join(DATA_ROOT, tagger_filename))
     if chunk or ext:
         chunker = NltkChunker(language='it')
     var_dict = {} 
@@ -231,7 +233,7 @@ def create_tagger(request, language='it', filename=''):
     if not filename.endswith(ext):
         filename += ext
     if request.GET.get('auto', False):
-        filepath = os.path.join(RESOURCES_ROOT, filename)
+        filepath = os.path.join(DATA_ROOT, filename)
         f = open(filepath, 'wb')
         f.write(data)
         return HttpResponseRedirect('/')
@@ -245,7 +247,7 @@ def extract_terms(text, language='it', tagger=None, chunker=None):
     if text.startswith(u'\ufeff'):
         text = text[1:]
     if not tagger:
-        tagger = NltkTagger(language=language, tagger_input_file=os.path.join(RESOURCES_ROOT, tagger_filename))
+        tagger = NltkTagger(language=language, tagger_input_file=os.path.join(DATA_ROOT, tagger_filename))
     tagged_tokens = tagger.tag(text=text)
     if not chunker:
         chunker = NltkChunker(language='it')
@@ -264,3 +266,50 @@ def extract_terms(text, language='it', tagger=None, chunker=None):
         phrase = ' '.join([tagged_token[0] for tagged_token in chunk])
         phrases.append(phrase)
     return phrases
+
+def extract_blocks(page_id):
+    page = Webpage.objects.get(pk=page_id)
+    site = page.site
+    versions = PageVersion.objects.filter(webpage=page).order_by('-time')
+    if not versions:
+        return None
+    last_version = versions[0]
+    html_string = last_version.body
+    """
+    tree = html.fromstring(string)
+    body = tree.find('body')
+    """
+    """
+    parser = etree.HTMLParser()
+    tree   = etree.parse(StringIO.StringIO(html_string), parser)
+    root = tree.getroot()
+    """
+    html_string = re.sub("(<!--.*?-->)", "", html_string, flags=re.MULTILINE)
+    doc = html.document_fromstring(html_string)
+    tree = doc.getroottree()
+    top_els = doc.getchildren()
+    n_1 = n_2 = n_3 = 0
+    for top_el in top_els:
+        for el in blocks_from_block(top_el):
+            if el.tag in BLOCK_TAGS:
+                n_1 += 1
+                xpath = tree.getpath(el)
+                checksum = block_checksum(el)
+                blocks = Block.objects.filter(site=site, xpath=xpath, checksum=checksum)
+                if blocks:
+                    block = blocks[0]
+                else:
+                    n_2 += 1
+                    string = etree.tostring(el)
+                    block = Block(site=site, xpath=xpath, checksum=checksum, body=string)
+                    block.save()
+                    print n_2, checksum, xpath
+                blocks_in_page = BlockInPage.objects.filter(block=block, webpage=page)
+                if not blocks_in_page:
+                    n_3 += 1
+                    blocks_in_page = BlockInPage(block=block, webpage=page)
+                    blocks_in_page.save()
+    return n_1, n_2, n_3
+
+            
+        

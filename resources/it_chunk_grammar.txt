@@ -1,0 +1,35 @@
+NP:
+    {<NOUN><PRE><NOUN><PRE><DET.*><NOUN>} # traduzioni di qualita per ogni budget
+    {<NOUN><ARTPRE|PRE>?<NOUN><NOUN>} # traduzione [di] siti web, portfolio siti web
+    {<NOUN><NOUN><ADJ>} # agenzia web internazionale
+    {<ART|ARTPRE>?<NOUN><ARTPRE|PRE><NOUN><ADV>?<ADJ>} # [la] traduzione di testi [altamente] specialistici
+    {<ART>?<NOUN><PRE><ADJ>?<NOUN|NPR><NOUN>?} # [la] traduzione di [grandi] siti [web], i soci di AlfaBeta
+    {<ART|ARTPRE|DET.*><NOUN><PRE><ARTPRE><NOUN>} # il|del|questo dibattito intorno all'analisi
+    {<ARTPRE|PRE><NOUN><ARTPRE><ADJ|DET>?<NOUN>} # nella ricerca della [propria] identita, in base alle specifiche esigenze
+    {<ART|ARTPRE|DET.*>?<NOUN><ADJ>*<PRE><NOUN|NPR><ADJ>?} # il|del|ogni partito [democratico] di Roma
+    {<ART|ARTPRE>?<NOUN><PRE><NOUN|NPR><ADJ>?} # [la|della] lista di Grillo, [i] centri di aggregazione giovanile
+    {<ART|ARTPRE>?<NOUN><ARTPRE><ADJ|DET><NOUN|NPR>} # [l'] anno della [sua] fondazione
+    {<ART|ARTPRE>?<NOUN><PRE><ART><NOUN|NPR>} # [l'] interesse per lo studio
+    {<PRE>?<NOUN><ADJ><CON><ADJ>} # [in] attivita ludiche e artistiche
+    {<ART|ARTPRE><DET.*>?<ADJ>*<NOUN><ADJ>*} # il|del [suo] [stabile] bacino [elettorale], un [suo] [grande] sogno
+    {<ART|ARTPRE|DET.*><ADJ>*<NOUN><ADJ>*} # una|della|questa [grande] conferenza [programmatica]
+    {<ART|ARTPRE|DET.*>?<NOUN><PRE><NOUN|NPR>} # [una|della] logica di verita
+    {<ART|ARTPRE><DET.*><ADJ><NOUN>} # un|del loro significativo contributo
+    {<ART|ARTPRE>?<NOUN><ARTPRE><NOUN><ADJ>?}  # [la] decodifica dei testi [scolastici]
+    {<DET.*>?<ART><NOUN><PRE><DET.*><NOUN>}  # [tutti] gli eletti di ogni ordine
+    {<ART|ARTPRE|DET.*><NOUN><ADV><ADJ>} # un|al compito ben preciso
+    {<DET.*>?<NOUN|NPR><CON><NOUN|NPR><NOUN>?} # [ogni] ordine e grado, language and web consultants
+    {<ART|ARTPRE|DET.*><NOUN><ADJ>?} # un|del ruolo [importante], questa campagna [elettorale]
+    {<ART|ARTPRE>?<NOUN><PRE>?<NPR><NPR>*} # [la|della] lista [di] Beppe [Grillo]
+    {<ART|ARTPRE><DET.*><NOUN>} # il|del nostro partito
+    {<DET><ART><ADJ>?<NOUN>} # tutti i [santi] giorni
+    {<DET><ART><NOUN><ARTPRE><NOUN><ADJ>?} # tutti i giorni della settimana [scorsa]
+    {<ART|ARTPRE><DET.*>?<ADJ>?<NOUN>} # un|del [loro] [significativo] contributo
+    {<PRE><ART><NOUN><ADJ>*} # tra le attivita [pomeridiane]
+    {<PRE>?<NOUN><ADJ>*} # [in] condizioni difficili, traduzioni tecniche
+    {<PRE><ADJ>?<NOUN>} # in [difficili] condizioni
+    {<PRE><DET.*><NOUN>} # per ogni budget
+    {<ART|DET|ADJ>?<NOUN><ARTPRE|PRE><NOUN>} # [il] controllo di/della qualita, [diverse] procedure di lavorazione
+    {<ART>?<NOUN><NOUN|NPR><ADJ>?} # [una] redazione web [internazionale]
+    {<ART|ARTPRE|DET.*>?<ADJ>*<NOUN>} # una|della [gran bella] vita
+    {<NPR><NPR>*} # Roma, Caio Giulio Cesare

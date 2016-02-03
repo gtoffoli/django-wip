@@ -1,0 +1,35 @@
+﻿# Regular expressions to tokenize Italian: a first try
+
+# Numbers and expressions containing numbers:
+# zero-or-more of pretty-much-anything
+# followed by at least one digit
+# followed by
+# either nothing
+# or another sequence of pretty-much-anything-but-not-punctuation
+[^\s\{\}\[\]\(\)\"]*[0-9]+[^\s\{\}\[\]\(\)\"]*[^\s\.,\!\?\:\{\}\[\]\(\)\"]
+
+# Single letter acronyms (if one writes U.C.L.A, this will treat
+# U.C.L. as a token, and A as a separate token: here, we would need
+# some form of context sensitive matching...)
+
+# Acronyms and abbreviations extracted from the la Repubblica corpus.
+# This list will considerably slow down the tokenizer -- it may be
+# worth removing less likely strings...
+S\.
+
+# 'Real' words possibly including hyphens
+[a-zA-Z\xc0-\xff]+[\-][a-zA-Z\xc0-\xff]+
+
+# 'Real' words
+[a-zA-Z\xc0-\xff]+[0-9]*[\'\u2019]?
+
+# Ellipsis
+\.\.\.
+
+# Round parentheses
+[\(\)]
+
+# Anything else (punctuation marks included)
+[^\s]
+
+# [^\s\{\}\[\]\(\)\"]*[0-9]+[^\s\{\}\[\]\(\)\"]*[^\s\.,\!\?\:\{\}\[\]\(\)\"]|S\.|[a-zA-Z\xc0-\xff]+[\-][a-zA-Z\xc0-\xff]+|[a-zA-Z\xc0-\xff]+|[\(\)]|[^\s]*
