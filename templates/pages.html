@@ -1,7 +1,7 @@
 {% extends "wip_base.html" %}
 {% load staticfiles i18n %}
 
-{% block head_title %}WIP - Pages of site <a href="/site/{{ site.slug }}/">{{ site.name }}</a>{% endblock %}
+{% block head_title %}WIP - Pages of site {{ site.name }}{% endblock %}
 
 {% block title-page %}WIP - Pages of site <a href="/site/{{ site.slug }}/">{{ site.name }}</a>{% endblock %}
 
@@ -17,18 +17,23 @@
 	<div>
 	<table>
 	<thead>
-		<th>#</th><th>Source</th><th>Proxy</th><th>Page path</th><th>xPath of main content region</th>
+		<th> # </th><th> Id </th><th>Source</th><th>Proxy</th><th>Page path</th><th>Blocks</th><th>Last checked</th>{% comment %}<th>xPath of main content region</th>{% endcomment %}
 	</thead>
 	<tbody>
 	    {% for page in pages %}
 	    <tr>
-	    <td><pre><code>{{forloop.counter|rjust:"3"}}</code></pre></td>
-	    <td><a href="{{ site.url }}{{ page.path }}" title="goto original page"><span class="fa fa-external-link" style="font-size: 1.0em;"></span></a></td>
-	    <td><a href="/{{ site.path_prefix }}{{ page.path }}" title="view page through proxy"><span class="fa fa-link" style="font-size: 1.0em;"></span></a></td>
+	    <td><pre><code>{{forloop.counter|rjust:"3"}}</code> </pre></td>
+		<td style="text-align: right;"> {{ page.id }} </td>
+	    <td style="text-align: center;"><a href="{{ site.url }}{{ page.path }}" title="goto original page"><span class="fa fa-external-link" style="font-size: 1.0em;"></span></a></td>
+	    <td style="text-align: center;"><a href="/{{ site.path_prefix }}{{ page.path }}" title="view page through proxy"><span class="fa fa-link" style="font-size: 1.0em;"></span></a></td>
 		<td><a href="/page/{{ page.id }}/">{{ page.path }}</a></td>
+		<td style="text-align: center;"> <a href="/page/{{ page.id }}/">{{ page.blocks.count }}</a> </td>
+		<td> {{ page.last_checked|date:"SHORT_DATETIME_FORMAT" }} </td></tr>
+{% comment %}
 		{% with region=page.get_region %}{% if region %}
 		<td>{{ region.root }}</td>
 		{% endif %}{% endwith %}	
+{% endcomment %}
 	    </tr>
 	    {% endfor %}
 	</tbody>

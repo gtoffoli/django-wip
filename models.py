@@ -78,6 +78,7 @@ class Webpage(models.Model):
     last_modified = ModificationDateTimeField()
     last_checked = models.DateTimeField()
     last_checked_response_code = models.IntegerField('Response code')
+    blocks = models.ManyToManyField('Block', through='BlockInPage', related_name='page_blocks', blank=True, verbose_name='blocks')
 
     class Meta:
         verbose_name = _('original page')
@@ -171,16 +172,22 @@ class Block(models.Model):
     body = models.TextField(null=True)
     checksum = models.CharField(max_length=32)
     time = CreationDateTimeField()
+    webpages = models.ManyToManyField(Webpage, through='BlockInPage', related_name='block_pages', blank=True, verbose_name='pages')
 
     class Meta:
         verbose_name = _('page block')
         verbose_name_plural = _('page blocks')
         ordering = ('-time',)
 
+    def __unicode__(self):
+        return self.xpath
+
+    def pages_count(self):
+        return self.webpages.all().count()
 
 class BlockInPage(models.Model):
-    block = models.ForeignKey(Block)
-    webpage = models.ForeignKey(Webpage)
+    block = models.ForeignKey(Block, related_name='block')
+    webpage = models.ForeignKey(Webpage, related_name='webpage')
 
     class Meta:
         verbose_name = _('blok in page')
@@ -192,9 +199,9 @@ class TranslatedBlock(models.Model):
     body = models.TextField(null=True)
     created = CreationDateTimeField()
     modified = ModificationDateTimeField()
-    editor = models.ForeignKey(User, null=True)
+    editor = models.ForeignKey(User, null=True, related_name='editor')
     state = models.IntegerField(default=0)
-    editor = models.ForeignKey(User, null=True)
+    revisor = models.ForeignKey(User, null=True, related_name='revisor')
     comments = models.TextField()
 
     class Meta:

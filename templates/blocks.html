@@ -1,0 +1,31 @@
+{% extends "wip_base.html" %}
+{% load staticfiles i18n %}
+
+{% block head_title %}WIP - Page blocks of site {{ site.name }}{% endblock %}
+
+{% block title-page %}WIP - Page blocks of site <a href="/site/{{ site.slug }}/">{{ site.name }}</a>{% endblock %}
+
+{% block extra_head %}
+<style>
+    pre { display: inline; padding: 0; }
+    pre code { line-height: 0.5; }
+</style>
+{% endblock %}
+
+{% block content-page %}
+    	<table>
+   		<thead>
+   			<th> # </th><th> Id </th><th>Chars</th><th> xPath </th><th> Pages </th><th> Date/Time </th>
+   		</thead>
+   		<tbody>
+		{% for page_block in blocks %}
+		<tr><td><pre><code>{{forloop.counter|rjust:"3"}}</code></pre></td>
+			<td style="text-align: right;"> {{ page_block.id }} </td>
+			<td style="text-align: right;">{{ page_block.body|length }}</td>
+			<td><a href="/block/{{ page_block.id }}/">{{ page_block.xpath }}</a></td>
+			<td style="text-align: center;">{{ page_block.webpages.count }}</td>
+			<td>{{ page_block.time|date:"SHORT_DATETIME_FORMAT" }}</td></tr>
+		{% endfor %}
+	    </tbody>
+    	</table>
+{% endblock %}

@@ -4,6 +4,8 @@
 {% block extra_head %}
 <style>
     label { display: inline; font-weight: bold; margin-right: 1.0em; padding: 0.2em 0em;}
+    pre { display: inline; padding: 0; }
+    pre code { line-height: 0.5; }
 </style>
 {% endblock %}
 
@@ -12,10 +14,7 @@
 {% block title-page %}<span style="font-size: smaller;">Page: {{ site.url }}{{ page.path }}</span>{% endblock %}
 
 {% block content-page %}
-    <div><b>Site</b> <a href="/site/{{ site.slug }}/">{{ site.name }}</a> , &nbsp;
-   		pages <a href="/site/{{ site.slug }}/pages/" title="list pages">{{ page_count }}</a> , &nbsp;
-		URL {{ site.url }}</div>
-    <div>&nbsp;</div>
+    <div><label>Site</label> <a href="/site/{{ site.slug }}/">{{ site.name }}</a></div>
     <div><label>Page URL</label> <a href="{{ site.url }}{{ page.path }}">{{ site.url }}{{ page.path }}</a></div>
     <div><label>Proxy path</label> <a href="/{{ site.path_prefix }}{{ page.path }}">/{{ site.path_prefix }}{{ page.path }}</a></div>
     <div><label>Encoding</label> {{ page.encoding }}</div>
@@ -32,21 +31,46 @@
    			<th>Time</th>
    			<th>Code</th>
    			<th>Size</th>
+{% comment %}
    			<th>xPath of main content region</th>
+{% endcomment %}
    			</thead>
    		<tbody>
 	    {% for scan in scans %}
 		    <tr>
 				<td>{{ scan.time|date:"SHORT_DATETIME_FORMAT" }}</td>
-				<td>{{ scan.response_code }}</td>
-				<td><a href="/page_scan/{{ scan.id }}/">{{ scan.size }}</a> </td>
+				<td style="text-align: right;">{{ scan.response_code }}</td>
+				<td style="text-align: right;"><a href="/page_scan/{{ scan.id }}/">{{ scan.size }}</a> </td>
+{% comment %}
 				{% with region=page.get_region %}{% if region %}
 				<td>&nbsp; {{ region.root }} </td>
 				{% endif %}{% endwith %}
+{% endcomment %}
 		    </tr>
 	    {% endfor %}
 	    </tbody>
     	</table>
+	{% endif %}
+ 
+  	{% if blocks %}
+	    <h4>Blocks included in this page</h4>
+    	<table>
+   		<thead>
+   			<th> # </th><th> Id </th><th>Chars</th><th> xPath </th><th> Pages </th><th> Date/Time </th>
+   		</thead>
+   		<tbody>
+		{% for page_block in blocks %}
+		<tr><td><pre><code>{{forloop.counter|rjust:"3"}}</code> </pre></td>
+			<td style="text-align: right;"> {{ page_block.id }} </td>
+			<td style="text-align: right;"> {{ page_block.body|length }} </td>
+			<td> <a href="/block/{{ page_block.id }}/">{{ page_block.xpath }}</a> </td>
+			<td style="text-align: center;"> <a href="/block/{{ page_block.id }}/">{{ page_block.webpages.count }}</a> </td>
+			<td> {{ page_block.time|date:"SHORT_DATETIME_FORMAT" }} </td></tr>
+		{% endfor %}
+	    </tbody>
+    	</table>
+	{% else %}
+		<p><i>No pages include this HTML fragment.</i></p>
 	{% endif %}
     
 {% endblock %}

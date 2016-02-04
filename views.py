@@ -24,7 +24,7 @@ from django.template import RequestContext
 from django.http import HttpResponse, HttpResponseRedirect
 from django.shortcuts import render_to_response, get_object_or_404
 
-from models import Site, Proxy, Webpage, PageVersion, Block, BlockInPage #, TranslatedVersion
+from models import Site, Proxy, Webpage, PageVersion, Block, TranslatedBlock, BlockInPage #, TranslatedVersion
 from spiders import WipSiteCrawlerScript, WipCrawlSpider
 
 from settings import DATA_ROOT, RESOURCES_ROOT, tagger_filename, BLOCK_TAGS
@@ -53,8 +53,8 @@ def site(request, site_slug):
     var_dict['site'] = site
     proxies = Proxy.objects.filter(site=site)
     var_dict['proxies'] = proxies
-    page_count = Webpage.objects.filter(site=site).count()
-    var_dict['page_count'] = page_count
+    var_dict['page_count'] = page_count = Webpage.objects.filter(site=site).count()
+    var_dict['block_count'] = block_count = Block.objects.filter(site=site).count()
     return render_to_response('site.html', var_dict, context_instance=RequestContext(request))
 
 def site_crawl(site_pk):
@@ -136,7 +136,25 @@ def page(request, page_id):
     var_dict['site'] = site = page.site
     var_dict['page_count'] = Webpage.objects.filter(site=site).count()
     var_dict['scans'] = PageVersion.objects.filter(webpage=page).order_by('-time')
+    var_dict['blocks'] = page.blocks.all()
     return render_to_response('page.html', var_dict, context_instance=RequestContext(request))
+
+def site_blocks(request, site_slug):
+    var_dict = {}
+    site = get_object_or_404(Site, slug=site_slug)
+    var_dict['site'] = site
+    var_dict['blocks'] = blocks = Block.objects.filter(site=site)
+    var_dict['block_count'] = blocks.count()
+    return render_to_response('blocks.html', var_dict, context_instance=RequestContext(request))
+
+def block_view(request, block_id):
+    var_dict = {}
+    var_dict['page_block'] = block = get_object_or_404(Block, pk=block_id)
+    var_dict['site'] = site = block.site
+    var_dict['translations'] = TranslatedBlock.objects.filter(block=block)
+    var_dict['pages'] = block.webpages.all()
+    print var_dict
+    return render_to_response('block_view.html', var_dict, context_instance=RequestContext(request))
 
 srx_filepath = os.path.join(RESOURCES_ROOT, 'segment.srx')
 srx_rules = srx_segmenter.parse(srx_filepath)

@@ -254,8 +254,8 @@ GRAPH_MODELS = {
 TINYMCE_COMPRESSOR = True
 
 TINYMCE_DEFAULT_CONFIG = {
-    'width': '400', # '640',
-    'height': '300', # '480',
+    'width': '640', # '400',
+    'height': '480', # '300',
     'plugins': 'fullscreen,media,preview,paste,table',
     'theme': 'advanced',
     'relative_urls': False,

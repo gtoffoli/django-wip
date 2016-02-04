@@ -4,6 +4,8 @@
 {% block extra_head %}
 <style>
     label { display: inline; font-weight: bold; margin-right: 1.0em; padding: 0.2em 0em;}
+    pre { display: inline; padding: 0; }
+    pre code { line-height: 0.5; }
 </style>
 {% endblock %}
 
@@ -18,6 +20,7 @@
     <div><label>Start urls</label> {{ site.start_urls }}</div>
     {% if site.deny %}<div><label>Deny</label> {{ site.deny }}</div>{% endif %}
     <div><label>Pages</label> {% if page_count %} <a href="/site/{{ site.slug }}/pages/" title="list pages">{{ page_count }}</a> {% else %}0{% endif %}</div>
+    <div><label>Page blocks</label> {% if block_count %} <a href="/site/{{ site.slug }}/blocks/" title="list blocks">{{ block_count }}</a> {% else %}0{% endif %}</div>
 	{% if proxies %}
 	<div><h2>Proxies</h2>:
 	    {% for proxy in proxies %}
