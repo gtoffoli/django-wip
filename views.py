@@ -164,9 +164,11 @@ segmenter = srx_segmenter.SrxSegmenter(italian_rules)
 re_parentheses = re.compile(r'\(([^)]+)\)')
 
 def page_scan(request, fetched_id, language='it'):
+    string = request.GET.get('strings', False)
     tag = request.GET.get('tag', False)
     chunk = request.GET.get('chunk', False)
     ext = request.GET.get('ext', False)
+    string = tag = chunk = True
     if tag or chunk or ext:
         tagger = NltkTagger(language=language, tagger_input_file=os.path.join(DATA_ROOT, tagger_filename))
     if chunk or ext:
@@ -177,15 +179,13 @@ def page_scan(request, fetched_id, language='it'):
     var_dict['site'] = site = page.site
     page = fetched.webpage
     if page.encoding.count('html'):
-        if request.GET.get('npr', False):
-            pass
-        elif request.GET.get('region', False):
+        if request.GET.get('region', False):
             region = page.get_region()
             var_dict['text_xpath'] = region and region.root
             var_dict['page_text'] = region and region.full_text.replace("\n"," ") or ''
-        elif request.GET.get('strings', False):
+        if string:
             var_dict['strings'] = [s for s in strings_from_html(fetched.body)]
-        else:
+        if chunk or tag:
             strings = []
             tags = []
             chunks = []
@@ -220,7 +220,7 @@ def page_scan(request, fetched_id, language='it'):
                         terms = extract_terms(string, language=language, tagger=tagger, chunker=chunker)
                         terms = ['- %s -' % term for term in terms]
                         strings.extend(terms)
-            var_dict['strings'] = strings
+            # var_dict['strings'] = strings
             var_dict['tags'] = tags
             var_dict['chunks'] = chunks
     return render_to_response('page_scan.html', var_dict, context_instance=RequestContext(request))

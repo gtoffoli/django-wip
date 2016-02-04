@@ -1,16 +1,21 @@
 {% extends "wip_base.html" %}
 {% load staticfiles i18n %}
 
+{% block extra_head %}
+<style>
+    label { display: inline; font-weight: bold; margin-right: 1.0em; padding: 0.2em 0em;}
+</style>
+{% endblock %}
+
 {% block head_title %}Scan of page: {{ site.url }}{{ page.path }}{% endblock %}
 
-{% block title-page %}<span style="font-size: smaller;">Scan of page: <a href="{{ site.url }}{{ page.path }}">{{ page.path }}</a></span>{% endblock %}
+{% block title-page %}<span style="font-size: smaller;">Scan of page: <a href="/page/{{ page.id }}/">{{ page.path }}</a></span>{% endblock %}
 
 {% block content-page %}
 
-    <div><b>Site</b> {{ site.name }} , &nbsp;
-    	<b>Time</b> {{ scan.time|date:"SHORT_DATETIME_FORMAT" }} , &nbsp;
-   		<b>Code</b> {{ scan.response_code }} </div>
-    <div>&nbsp;</div>
+    <div><label>Site</label> {{ site.name }} </div>
+    <div><label>Time</label> {{ scan.time|date:"SHORT_DATETIME_FORMAT" }} </div>
+   	<div><label>Code</label> {{ scan.response_code }} </div>
 
 	{% if page_text %}
     <h4>xPath of main content region</h4>
@@ -20,24 +25,30 @@
 	{% endif %}
 
 	{% if strings %}
-    <h4>All extracted strings</h4>
+<div style="float: left;">
+    <h4>Extracted strings</h4>
 	{% for string in strings %}
 	<div>{{ string }}</div>
 	{% endfor %}
+</div>
 	{% endif %}
 
 	{% if chunks %}
+<div style="float: left;">
     <h4>NP chunks</h4>
 	{% for chunk in chunks %}
 	<div>{{ chunk }}</div>
 	{% endfor %}
+</div>
 	{% endif %}
 
 	{% if tags %}
+<div style="float: left;">
     <h4>Tagged tokens</h4>
 	{% for tag in tags %}
 	<div>{{ tag }}</div>
 	{% endfor %}
+</div>
 	{% endif %}
 
 {% comment %}

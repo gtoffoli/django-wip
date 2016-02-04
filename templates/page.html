@@ -40,7 +40,8 @@
 		    <tr>
 				<td>{{ scan.time|date:"SHORT_DATETIME_FORMAT" }}</td>
 				<td style="text-align: right;">{{ scan.response_code }}</td>
-				<td style="text-align: right;"><a href="/page_scan/{{ scan.id }}/">{{ scan.size }}</a> </td>
+				<td style="text-align: right;">{{ scan.size }} </td>
+				<td><a href="/page_scan/{{ scan.id }}/">Extract strings, POS tags and NP chunks</a></td>
 {% comment %}
 				{% with region=page.get_region %}{% if region %}
 				<td>&nbsp; {{ region.root }} </td>
