@@ -46,9 +46,12 @@ def strings_from_block(block):
         if content: content = content.strip()
         if content: yield content
 
-def strings_from_html(string):
+def strings_from_html(string, fragment=False):
     doc = html.fromstring(string)
-    body = doc.find('body')
+    if fragment:
+        body = doc
+    else:
+        body = doc.find('body')
     for tag in settings.TO_DROP_TAGS:
         els = body.findall(tag)
         for el in els:

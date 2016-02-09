@@ -1,0 +1,56 @@
+{% extends "wip_base.html" %}
+{% load staticfiles i18n %}
+
+{% block extra_head %}
+<style>
+    label { display: inline; font-weight: bold; margin-right: 1.0em; padding: 0.2em 0em; }
+    pre { display: inline;  padding: 0; }
+    pre code { display: inline; }
+</style>
+{% endblock %}
+
+{% block head_title %}Block: {{ site.name }}{{ page_block.xpath }}{% endblock %}
+
+{% block title-page %}<span style="color: black; font-size: smaller;">Translate block:</span> <span style="font-size: smaller;">{{ page_block.xpath }}</span>{% endblock %}
+
+{% block content-page %}
+<form action="/block/{{ page_block.id }}/translate/" method="post">
+	{% csrf_token %}
+    <div><label>Site</label> <a href="/site/{{ site.slug }}/">{{ site.name }}</a></div>
+    <div><label>Site language</label> {{ site.language }}</div>
+    <fieldset style="border:1; margin: 0.5em">
+    <div><label>Block language</label> {{ form.language }}</div>
+    <div><label>Do not translate</label> {{ form.no_translate }}</div>
+    <div><label>Time</label> {{ page_block.time|date:"SHORT_DATETIME_FORMAT" }}</div>
+	<div><input type="submit" name="save_block" value="Save properties" class="btn btn-sm" /></div>
+	</fieldset>
+    <div><label>Id</label> {{ page_block.id }} &nbsp;&nbsp;
+		<a class="btn btn-sm" href="/block/{{ page_block.id }}/">view</a> &nbsp;&nbsp;
+		{% if previous %}<input type="submit" name="prev" class="btn btn-sm" value="Previous">{% endif %}
+		{% if next %}<input type="submit" name="next" class="btn btn-sm" value="Next">{% endif %}  &nbsp;&nbsp;
+		Skip translated blocks {{ form.skip_translated }} &nbsp;&nbsp; Skip no-translate blocks {{ form.skip_no_translate }}
+	</div>
+
+	<table style="border-collapse: separate; border-spacing: 5px;">
+	<thead>
+	<tr><th width="6%">language</th><th width="50%">block</th><th width="44%">segments</th></tr>
+	</thead>
+	<tbody>
+	<tr style="vertical-align: top;"><td>Source</td><td><pre>{{ page_block.body }}</pre></td>
+	<td style="text-align: top;">{% for s in source_segments %}
+		<div><pre><code>{{forloop.counter|rjust:"3"}} </code></pre> {{ s }}</div>
+	{% endfor %}</td>
+	</tr>
+	{% if not page_block.no_translate %}
+	{% for l in target_languages %}{% with code=l.code %}
+	<tr><td>{{ l.name }}</td><td><pre>{{ translated_blocks.code.body }}</pre></td>
+	<td>{% for t in target_segments.code %}
+		<pre><code>{{forloop.counter|rjust:"3"}} </code></pre> {{ t }}
+	{% endfor %}</td>
+	</tr>
+	{% endwith %}{% endfor %}
+	{% endif %}
+	</tbody>
+	</table>
+</form>
+{% endblock %}

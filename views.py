@@ -24,7 +24,8 @@ from django.template import RequestContext
 from django.http import HttpResponse, HttpResponseRedirect
 from django.shortcuts import render_to_response, get_object_or_404
 
-from models import Site, Proxy, Webpage, PageVersion, Block, TranslatedBlock, BlockInPage #, TranslatedVersion
+from models import Language, Site, Proxy, Webpage, PageVersion, Block, TranslatedBlock, BlockInPage, StringTranslation #, TranslatedVersion
+from forms import PageBlockForm
 from spiders import WipSiteCrawlerScript, WipCrawlSpider
 
 from settings import DATA_ROOT, RESOURCES_ROOT, tagger_filename, BLOCK_TAGS
@@ -153,8 +154,70 @@ def block_view(request, block_id):
     var_dict['site'] = site = block.site
     var_dict['translations'] = TranslatedBlock.objects.filter(block=block)
     var_dict['pages'] = block.webpages.all()
-    print var_dict
     return render_to_response('block_view.html', var_dict, context_instance=RequestContext(request))
+
+def block_translate(request, block_id):
+    block = get_object_or_404(Block, pk=block_id)
+    go_previous = go_next = toggle_skip = save_block = ''
+    skip_no_translate = skip_translated = True
+    if request.POST:
+        print 'POST request'
+        save_block = request.POST.get('save_block', '')
+        go_previous = request.POST.get('prev', '')
+        go_next = request.POST.get('next', '')
+        print save_block, go_previous, go_next
+        toggle_skip = request.POST.get('toggle', '')
+        form = PageBlockForm(request.POST)
+        if form.is_valid():
+            print 'form is valid'
+            data = form.cleaned_data
+            print 'data: ', data
+            skip_no_translate = data['skip_no_translate']
+            skip_translated = data['skip_translated']
+            language = data['language']
+            no_translate = data['no_translate']
+        else:
+            print 'error', form.errors
+    var_dict = {}
+    var_dict['site'] = site = block.site
+    previous, next = block.get_previous_next()
+    var_dict['previous'] = previous
+    var_dict['next'] = next
+    if go_previous or go_next:
+        if go_previous:
+            block = previous
+        else:
+            block = next
+        block_id = block.id
+    elif save_block:
+        block.language = language
+        block.no_translate = no_translate
+        block.save()
+    var_dict['page_block'] = block
+    var_dict['source_language'] = source_language = block.get_language()
+    var_dict['target_languages'] = target_languages = Language.objects.exclude(code=source_language.code)
+    # var_dict['source_segments'] = source_segments = list(strings_from_html(block.body, fragment=True))
+    var_dict['source_segments'] = source_segments = block.get_strings()
+    target_codes = []
+    translated_blocks_dict = {}
+    target_strings_dict = {}
+    for language in target_languages:
+        language_code = language.code
+        target_codes.append(language_code)
+        translated_blocks = TranslatedBlock.objects.filter(block=block, language=language)
+        if translated_blocks:
+            translated_blocks_dict[language_code] = translated_blocks[0]
+        target_strings_dict[language_code] = []
+        for source_segment in source_segments:
+            print source_segment
+            target_strings = StringTranslation.objects.filter(language=language, text__icontains=source_segment)
+            for target_string in target_strings:
+                target_strings_dict[language_code].append(target_string)
+    var_dict['target_codes'] = target_codes
+    var_dict['translated_blocks'] = translated_blocks_dict
+    var_dict['target_strings'] = target_strings_dict
+    var_dict['form'] = PageBlockForm(initial={'language': block.language, 'no_translate': block.no_translate, 'skip_translated': True, 'skip_no_translate': True,})
+    return render_to_response('block_translate.html', var_dict, context_instance=RequestContext(request))
 
 srx_filepath = os.path.join(RESOURCES_ROOT, 'segment.srx')
 srx_rules = srx_segmenter.parse(srx_filepath)
@@ -162,6 +225,15 @@ italian_rules = srx_rules['Italian']
 # print italian_rules
 segmenter = srx_segmenter.SrxSegmenter(italian_rules)
 re_parentheses = re.compile(r'\(([^)]+)\)')
+
+"""
+srx_filepath = os.path.join(RESOURCES_ROOT, 'segment.srx')
+srx_rules = srx_segmenter.parse(srx_filepath)
+italian_rules = srx_rules['Italian']
+# print italian_rules
+segmenter = srx_segmenter.SrxSegmenter(italian_rules)
+re_parentheses = re.compile(r'\(([^)]+)\)')
+"""
 
 def page_scan(request, fetched_id, language='it'):
     string = request.GET.get('strings', False)
@@ -335,5 +407,3 @@ def extract_blocks(page_id):
                     blocks_in_page.save()
     return n_1, n_2, n_3
 
-            
-        

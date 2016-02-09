@@ -14,10 +14,10 @@ from tinymce.widgets import TinyMCE
 from models import Site, Proxy, PageRegion, Webpage, PageVersion, String, StringTranslation, TranslatedVersion, Block, BlockInPage, StringInBlock, TranslatedBlock
 
 class SiteAdmin(admin.ModelAdmin):
-    list_display = ['name', 'slug', 'path_prefix', 'url', 'allowed_domains', 'start_urls', 'deny',]
+    list_display = ['name', 'language', 'slug', 'path_prefix', 'url', 'allowed_domains', 'start_urls', 'deny',]
 
 class ProxyAdmin(admin.ModelAdmin):
-    list_display = ['name', 'slug', 'site_name', 'language', 'host', 'base_path',]
+    list_display = ['name', 'language', 'slug', 'site_name', 'host', 'base_path',]
 
     def site_name(self, obj):
         return obj.site.name

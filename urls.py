@@ -32,6 +32,7 @@ urlpatterns = [
     url(r"^site/(?P<site_slug>[\w-]+)/pages/$", views.site_pages, name="site_pages"),
     url(r"^site/(?P<site_slug>[\w-]+)/blocks/$", views.site_blocks, name="site_blocks"),
     url(r"^page/(?P<page_id>[\d]+)/$", views.page, name="page"),
+    url(r"^block/(?P<block_id>[\d]+)/translate/$", views.block_translate, name="block_translate"),
     url(r"^block/(?P<block_id>[\d]+)/$", views.block_view, name="block_view"),
     url(r"^page_scan/(?P<fetched_id>[\d]+)/$", views.page_scan, name="page_scan"),
     url(r"^proxies/$", views.proxies, name="proxies"),
@@ -39,10 +40,13 @@ urlpatterns = [
     url(r"^create_tagger/$", views.create_tagger, name="create_tagger"),
 ]
 
-sites = Site.objects.all()
-for site in sites:
-    prefix='/%s' % str(site.path_prefix)
-    base_url = str(site.url)
-    regex = r'^' + site.path_prefix + r'/(?P<url>.*)$'
-    url_entry = url(regex, WipHttpProxy.as_view(base_url=base_url, prefix=prefix, rewrite_links=True))
-    urlpatterns.append(url_entry)
+try:
+    sites = Site.objects.all()
+    for site in sites:
+        prefix='/%s' % str(site.path_prefix)
+        base_url = str(site.url)
+        regex = r'^' + site.path_prefix + r'/(?P<url>.*)$'
+        url_entry = url(regex, WipHttpProxy.as_view(base_url=base_url, prefix=prefix, rewrite_links=True))
+        urlpatterns.append(url_entry)
+except:
+    pass

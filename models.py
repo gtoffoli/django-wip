@@ -5,12 +5,18 @@ For more information on this file, see
 https://docs.djangoproject.com/en/1.9/topics/db/models/
 """
 
+import os
+import re
 from django.db import models
 from django.contrib.auth.models import User
 from django.utils.translation import ugettext_lazy as _
 from django_extensions.db.fields import CreationDateTimeField, ModificationDateTimeField, AutoSlugField
 from vocabularies import Language, ApprovalStatus
 from wip.wip_sd.sd_algorithm import SDAlgorithm
+
+from settings import DATA_ROOT, RESOURCES_ROOT, tagger_filename, BLOCK_TAGS
+from utils import strings_from_html, blocks_from_block, block_checksum
+import srx_segmenter
 
 def text_to_list(text):
     lines = text.split('\n')
@@ -24,6 +30,7 @@ def text_to_list(text):
 class Site(models.Model):
     name = models.CharField(max_length=100)
     slug = AutoSlugField(unique=True, populate_from='name', editable=True)
+    language = models.ForeignKey(Language, null=True)
     path_prefix = models.CharField(max_length=20, default='')
     url = models.CharField(max_length=100)
     allowed_domains = models.TextField()
@@ -72,6 +79,7 @@ class Proxy(models.Model):
 class Webpage(models.Model):
     site = models.ForeignKey(Site)
     path = models.CharField(max_length=200)
+    no_translate = models.BooleanField(default=False)
     created = CreationDateTimeField()
     # referer = models.ForeignKey('self', related_name='page_referer', blank=True, null=True)
     encoding = models.CharField(max_length=200, blank=True, null=True)
@@ -86,6 +94,9 @@ class Webpage(models.Model):
         ordering = ('path',)
 
     def __unicode__(self):
+        return self.path
+
+    def title_or_path(self):
         return self.path
 
     def get_region(self):
@@ -170,6 +181,8 @@ class Block(models.Model):
     site = models.ForeignKey(Site)
     xpath = models.CharField(max_length=200, blank=True)
     body = models.TextField(null=True)
+    language = models.ForeignKey(Language, null=True)
+    no_translate = models.BooleanField(default=False)
     checksum = models.CharField(max_length=32)
     time = CreationDateTimeField()
     webpages = models.ManyToManyField(Webpage, through='BlockInPage', related_name='block_pages', blank=True, verbose_name='pages')
@@ -184,6 +197,53 @@ class Block(models.Model):
 
     def pages_count(self):
         return self.webpages.all().count()
+
+    def get_language(self):
+        return self.language or self.site.language or Language.objects.get(code='it')
+
+    def get_previous_next(self, exclude_language=None, order_by='id', no_translate=None):
+        site = self.site
+        qs = Block.objects.filter(site=site)
+        if not no_translate is None:
+            qs = qs.filter(no_translate=no_translate)
+        if exclude_language:
+            qs = qs.exclude(language=exclude_language)
+        if order_by == 'id':
+            id = self.id
+            qs_before = qs.filter(id__lt=id)
+            qs_after = qs.filter(id__gt=id)
+        elif order_by == 'xpath':
+            xpath = self.xpath
+            qs_before = qs.filter(xpath__lt=xpath)
+            qs_after = qs.filter(xpath__gt=xpath)
+        qs_before = qs_before.order_by('-'+order_by)
+        qs_after = qs_after.order_by(order_by)
+        previous = qs_before.count() and qs_before[0] or None
+        next = qs_after.count() and qs_after[0] or None
+        return previous, next
+
+    def get_strings(self):
+        srx_filepath = os.path.join(RESOURCES_ROOT, 'segment.srx')
+        srx_rules = srx_segmenter.parse(srx_filepath)
+        italian_rules = srx_rules['Italian']
+        segmenter = srx_segmenter.SrxSegmenter(italian_rules)
+        re_parentheses = re.compile(r'\(([^)]+)\)')
+
+        strings = []
+        for string in list(strings_from_html(self.body, fragment=True)):
+            string = string.replace(u"\u2018", "'").replace(u"\u2019", "'")
+            if string.count('window') and string.count('document'):
+                continue
+            matches = []
+            if string.count('(') and string.count(')'):
+                matches = re_parentheses.findall(string)
+                if matches:
+                    for match in matches:
+                        string = string.replace('(%s)' % match, '')
+            strings.extend(segmenter.extract(string)[0])
+            for match in matches:
+                strings.extend(segmenter.extract(match)[0])
+        return strings
 
 class BlockInPage(models.Model):
     block = models.ForeignKey(Block, related_name='block')

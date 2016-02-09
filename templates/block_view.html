@@ -9,14 +9,17 @@
 </style>
 {% endblock %}
 
-{% block head_title %}Block: {{ site.name }}{{ page_block.xpath }}{% endblock %}
+{% block head_title %}Page block: {{ site.name }}{{ page_block.xpath }}{% endblock %}
 
-{% block title-page %}<span style="color: black; font-size: smaller;">Block:</span> {{ page_block.xpath }}{% endblock %}
+{% block title-page %}<span style="color: black; font-size: smaller;">Page block:</span> <span style="font-size: smaller;">{{ page_block.xpath }}</span>{% endblock %}
 
 {% block content-page %}
     <div><label>Site</label> <a href="/site/{{ site.slug }}/">{{ site.name }}</a></div>
     <div><label>Checksum</label> {{ page_block.checksum }}</div>
     <div><label>Time</label> {{ page_block.time|date:"SHORT_DATETIME_FORMAT" }}</div>
+    {% if user.is_superuser %}
+    <div><a href="/block/{{ page_block.id }}/translate/">Translate block</a>
+	{% endif %}
 
     <h4>HTML fragment</h4>
 	<pre>{{ page_block.body }}</pre>
