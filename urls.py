@@ -18,7 +18,7 @@ Including another URLconf
 """
 from django.conf.urls import url, include
 from django.contrib import admin
-from models import Site
+from models import Site, Proxy
 import views
 from proxy import WipHttpProxy
 
@@ -36,14 +36,22 @@ urlpatterns = [
     url(r"^block/(?P<block_id>[\d]+)/$", views.block_view, name="block_view"),
     url(r"^page_scan/(?P<fetched_id>[\d]+)/$", views.page_scan, name="page_scan"),
     url(r"^proxies/$", views.proxies, name="proxies"),
+    url(r"^proxy/(?P<proxy_slug>[\w-]+)/$", views.proxy, name="proxy"),
     # url(r"^my_task/$", views.my_task, name="my_task"),
     url(r"^create_tagger/$", views.create_tagger, name="create_tagger"),
 ]
 
 try:
+    proxies = Proxy.objects.all()
+    for proxy in proxies:
+        prefix = '/%s' % str(proxy.base_path)
+        base_url = str(proxy.site.url)
+        regex = r'^' + proxy.base_path + r'/(?P<url>.*)$'
+        url_entry = url(regex, WipHttpProxy.as_view(base_url=base_url, prefix=prefix, rewrite_links=True, proxy_id=proxy.id, language_code=proxy.language.code))
+        urlpatterns.append(url_entry)
     sites = Site.objects.all()
     for site in sites:
-        prefix='/%s' % str(site.path_prefix)
+        prefix = '/%s' % str(site.path_prefix)
         base_url = str(site.url)
         regex = r'^' + site.path_prefix + r'/(?P<url>.*)$'
         url_entry = url(regex, WipHttpProxy.as_view(base_url=base_url, prefix=prefix, rewrite_links=True))

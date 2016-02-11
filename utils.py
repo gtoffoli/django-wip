@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 
-
 import sys
 import codecs
 sys.stdout = codecs.getwriter('utf8')(sys.stdout)
@@ -13,8 +12,8 @@ except ImportError:
     from io import BytesIO
 from scrapy.utils.misc import md5sum
 
-from itertools import chain
 from lxml import html, etree
+from guess_language import guessLanguage
 
 # from wip.settings import BLOCK_TAGS, TO_DROP_TAGS
 from django.conf import settings
@@ -124,4 +123,12 @@ def block_checksum(block):
     string = etree.tostring(block)
     buf = BytesIO(string)
     return md5sum(buf)
-    
+
+def guess_block_language(block):
+    strings = strings_from_html(block.body, fragment=True)
+    if strings:
+        text = ' '.join(strings)
+        code = guessLanguage(text)
+        if len(code) == 2:
+            return code
+    return '?'

@@ -8,7 +8,7 @@ from vocabularies import Language
 
 class PageBlockForm(forms.Form):
     # block = forms.IntegerField(widget=forms.HiddenInput())
-    language = forms.ModelChoiceField(required=False, queryset=Language.objects.all())
+    language = forms.ModelChoiceField(required=False, queryset=Language.objects.all(), widget=forms.Select(attrs={'style':'height: 24px;',}))
     no_translate = forms.BooleanField(required=False, label='No translate')
     skip_no_translate = forms.BooleanField(required=False, label='Skip no-translate blocks', )
     skip_translated = forms.BooleanField(required=False, label='Skip translated blocks')

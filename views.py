@@ -24,7 +24,7 @@ from django.template import RequestContext
 from django.http import HttpResponse, HttpResponseRedirect
 from django.shortcuts import render_to_response, get_object_or_404
 
-from models import Language, Site, Proxy, Webpage, PageVersion, Block, TranslatedBlock, BlockInPage, StringTranslation #, TranslatedVersion
+from models import Language, Site, Proxy, Webpage, PageVersion, TranslatedVersion, Block, TranslatedBlock, BlockInPage, String, StringTranslation #, TranslatedVersion
 from forms import PageBlockForm
 from spiders import WipSiteCrawlerScript, WipCrawlSpider
 
@@ -34,17 +34,32 @@ import srx_segmenter
 
 def home(request):
     var_dict = {}
+    var_dict['original_sites'] = original_sites = Site.objects.all().order_by('name')
+    sites = []
+    for site in original_sites:
+        site_dict = {}
+        site_dict['name'] = site.name
+        site_dict['slug'] = site.slug
+        site_dict['source_pages'] = Webpage.objects.filter(site=site)
+        site_dict['page_versions'] = PageVersion.objects.filter(webpage__site=site)
+        site_dict['translated_versions'] = TranslatedVersion.objects.filter(webpage__site=site)
+        site_dict['source_blocks'] = Block.objects.filter(site=site)
+        site_dict['translated_blocks'] = TranslatedBlock.objects.filter(block__site=site)
+        sites.append(site_dict)
+    var_dict['sites'] = sites
+    var_dict['source_strings'] = String.objects.all()
+    var_dict['translated_strings'] = StringTranslation.objects.all()
     return render_to_response('homepage.html', var_dict, context_instance=RequestContext(request))
 
 def sites(request):
     var_dict = {}
-    sites = Site.objects.all()
+    sites = Site.objects.all().order_by('name')
     var_dict['sites'] = sites
     return render_to_response('sites.html', var_dict, context_instance=RequestContext(request))
 
 def proxies(request):
     var_dict = {}
-    proxies = Proxy.objects.all()
+    proxies = Proxy.objects.all().order_by('site__name')
     var_dict['proxies'] = proxies
     return render_to_response('proxies.html', var_dict, context_instance=RequestContext(request))
 
@@ -139,6 +154,13 @@ def page(request, page_id):
     var_dict['scans'] = PageVersion.objects.filter(webpage=page).order_by('-time')
     var_dict['blocks'] = page.blocks.all()
     return render_to_response('page.html', var_dict, context_instance=RequestContext(request))
+
+def proxy(request, proxy_slug):
+    proxy = get_object_or_404(Proxy, slug=proxy_slug)
+    var_dict = {}
+    var_dict['proxy'] = proxy
+    var_dict['site'] = proxy.site
+    return render_to_response('proxy.html', var_dict, context_instance=RequestContext(request))
 
 def site_blocks(request, site_slug):
     var_dict = {}

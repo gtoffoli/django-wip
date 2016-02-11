@@ -1,0 +1,20 @@
+{% extends "wip_base.html" %}
+{% load staticfiles i18n %}
+
+{% block extra_head %}
+<style>
+    label { display: inline; font-weight: bold; margin-right: 1.0em; padding: 0.2em 0em;}
+    pre { display: inline; padding: 0; }
+    pre code { line-height: 0.5; }
+</style>
+{% endblock %}
+
+{% block head_title %}WIP - Proxy: {{ proxy.name }}{% endblock %}
+
+{% block title-page %}WIP - Proxy: {{ proxy.name }}{% endblock %}
+
+{% block content-page %}
+    <div><label>Site</label> <a href="{% url 'site' site.slug %}">{{ site.name }}</a></div>
+    <div><label>Language</label> {{ proxy.language.name }}</div>
+    <div><label>Base path</label> {{ proxy.base_path }}</div>
+{% endblock %}

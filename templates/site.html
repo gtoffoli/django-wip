@@ -22,13 +22,9 @@
     <div><label>Pages</label> {% if page_count %} <a href="/site/{{ site.slug }}/pages/" title="list pages">{{ page_count }}</a> {% else %}0{% endif %}</div>
     <div><label>Page blocks</label> {% if block_count %} <a href="/site/{{ site.slug }}/blocks/" title="list blocks">{{ block_count }}</a> {% else %}0{% endif %}</div>
 	{% if proxies %}
-	<div><h2>Proxies</h2>:
+	<div><label>Proxies</label>
 	    {% for proxy in proxies %}
-	    <div>
-	        <h4><a href="{% url 'proxy' proxy.slug %}">
-	        {{ proxy.name }}
-	        </a></h4>
-	    </div>
+	    <a href="{% url 'proxy' proxy.slug %}">{{ proxy.name }}</a>
 	    {% endfor %}
 	</div>
 	{% else %}

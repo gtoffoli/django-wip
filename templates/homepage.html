@@ -1,10 +1,37 @@
 {% extends "wip_base.html" %}
 {% load staticfiles i18n %}
 
+{% block extra_head %}
+<style>
+    label { display: inline; font-weight: bold; margin-right: 1.0em; padding: 0.2em 0em;}
+</style>
+{% endblock %}
+
 {% block head_title %}FairVillage WIP{% endblock %}
 
 {% block title-page %}FairVillage WIP{% endblock %}
 
 {% block content-page %}
+
+<table style="border-collapse: separate; border-spacing: 5px;">
+<thead>
+	<tr><th>Site</th><th>Pages</th><th>Page<br/>versions</th><th>Translated<br/>versions</th><th>Blocks</th><th>Translated<br/>blocks</th></tr>
+</thead>
+<tbody style="text-align: right;">
+    {% for site in sites %}
+    <tr>
+    	<td style="text-align: left; font-weight: bold;"><a href="/site/{{ site.slug }}/">{{ site.name }}</a></td>
+    	<td><a href="/site/{{ site.slug }}/pages/">{{ site.source_pages.count }}</a></td>
+    	<td>{{ site.page_versions.count }}</td>
+    	<td>{{ site.translated_versions.count }}</td>
+    	<td><a href="/site/{{ site.slug }}/blocks/">{{ site.source_blocks.count }}</a></td>
+    	<td>{{ site.translated_blocks.count }}</td>
+    </tr>
+	{% endfor %}
+</tbody>
+</table>
+
+<div>&nbsp;<label>Source strings</label> {{ source_strings.count }}</div>
+<div>&nbsp;<label>Translated strings</label> {{ translated_strings.count }}</div>
 
 {% endblock %}
