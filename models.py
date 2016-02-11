@@ -201,11 +201,13 @@ class Block(models.Model):
     def get_language(self):
         return self.language or self.site.language or Language.objects.get(code='it')
 
-    def get_previous_next(self, exclude_language=None, order_by='id', no_translate=None):
+    def get_previous_next(self, include_language=None, exclude_language=None, order_by='id', no_translate=None):
         site = self.site
         qs = Block.objects.filter(site=site)
         if not no_translate is None:
             qs = qs.filter(no_translate=no_translate)
+        if include_language:
+            qs = qs.filter(language=include_language)
         if exclude_language:
             qs = qs.exclude(language=exclude_language)
         if order_by == 'id':

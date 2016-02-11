@@ -180,15 +180,14 @@ def block_view(request, block_id):
 
 def block_translate(request, block_id):
     block = get_object_or_404(Block, pk=block_id)
-    go_previous = go_next = toggle_skip = save_block = ''
+    go_previous = go_next = save_block = ''
     skip_no_translate = skip_translated = True
+    exclude_language = include_language = None
     if request.POST:
         print 'POST request'
         save_block = request.POST.get('save_block', '')
         go_previous = request.POST.get('prev', '')
         go_next = request.POST.get('next', '')
-        print save_block, go_previous, go_next
-        toggle_skip = request.POST.get('toggle', '')
         form = PageBlockForm(request.POST)
         if form.is_valid():
             print 'form is valid'
@@ -196,19 +195,21 @@ def block_translate(request, block_id):
             print 'data: ', data
             skip_no_translate = data['skip_no_translate']
             skip_translated = data['skip_translated']
+            exclude_language = data['exclude_language']
+            include_language = data['include_language']
             language = data['language']
             no_translate = data['no_translate']
         else:
             print 'error', form.errors
     var_dict = {}
     var_dict['site'] = site = block.site
-    previous, next = block.get_previous_next()
+    previous, next = block.get_previous_next(exclude_language=exclude_language, include_language=include_language)
     var_dict['previous'] = previous
     var_dict['next'] = next
     if go_previous or go_next:
-        if go_previous:
+        if go_previous and previous:
             block = previous
-        else:
+        elif go_next and next:
             block = next
         block_id = block.id
     elif save_block:
@@ -238,7 +239,7 @@ def block_translate(request, block_id):
     var_dict['target_codes'] = target_codes
     var_dict['translated_blocks'] = translated_blocks_dict
     var_dict['target_strings'] = target_strings_dict
-    var_dict['form'] = PageBlockForm(initial={'language': block.language, 'no_translate': block.no_translate, 'skip_translated': True, 'skip_no_translate': True,})
+    var_dict['form'] = PageBlockForm(initial={'language': block.language, 'no_translate': block.no_translate, 'skip_translated': skip_translated, 'skip_no_translate': skip_no_translate, 'exclude_language': exclude_language, 'include_language': include_language,})
     return render_to_response('block_translate.html', var_dict, context_instance=RequestContext(request))
 
 srx_filepath = os.path.join(RESOURCES_ROOT, 'segment.srx')

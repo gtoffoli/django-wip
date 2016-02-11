@@ -18,17 +18,22 @@
 	{% csrf_token %}
     <div><label>Site</label> <a href="/site/{{ site.slug }}/">{{ site.name }}</a></div>
     <div><label>Site language</label> {{ site.language }}</div>
-    <fieldset style="border:1; margin: 0.5em">
-    <div><label>Block language</label> {{ form.language }}</div>
-    <div><label>Do not translate</label> {{ form.no_translate }}</div>
     <div><label>Time</label> {{ page_block.time|date:"SHORT_DATETIME_FORMAT" }}</div>
-	<div><input type="submit" name="save_block" value="Save properties" class="btn btn-sm" /></div>
+    <fieldset style="border: 1px;">
+    <div><label>Block language</label> {{ form.language }} &nbsp;
+    	 <label>No-translate</label> {{ form.no_translate }} &nbsp;&nbsp;
+	     <input type="submit" name="save_block" value="Save properties" class="btn btn-sm" /></div>
 	</fieldset>
     <div><label>Id</label> {{ page_block.id }} &nbsp;&nbsp;
-		<a class="btn btn-sm" href="/block/{{ page_block.id }}/">view</a> &nbsp;&nbsp;
+		<a class="btn btn-sm" href="/block/{{ page_block.id }}/">View</a>
+	</div>
+	<div>
 		{% if previous %}<input type="submit" name="prev" class="btn btn-sm" value="Previous">{% endif %}
-		{% if next %}<input type="submit" name="next" class="btn btn-sm" value="Next">{% endif %}  &nbsp;&nbsp;
-		Skip translated blocks {{ form.skip_translated }} &nbsp;&nbsp; Skip no-translate blocks {{ form.skip_no_translate }}
+		{% if next %}<input type="submit" name="next" class="btn btn-sm" value="Next">{% endif %}
+		&nbsp;&nbsp; Skip translated {{ form.skip_translated }}
+		&nbsp;&nbsp; Skip no-translate {{ form.skip_no_translate }}
+		&nbsp;&nbsp; Exclude {{ form.exclude_language }}
+		&nbsp;&nbsp; Include {{ form.include_language }}
 	</div>
 
 	<table style="border-collapse: separate; border-spacing: 5px;">

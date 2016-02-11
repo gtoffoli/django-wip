@@ -12,3 +12,5 @@ class PageBlockForm(forms.Form):
     no_translate = forms.BooleanField(required=False, label='No translate')
     skip_no_translate = forms.BooleanField(required=False, label='Skip no-translate blocks', )
     skip_translated = forms.BooleanField(required=False, label='Skip translated blocks')
+    exclude_language = forms.ModelChoiceField(required=False, queryset=Language.objects.all(), widget=forms.Select(attrs={'style':'height: 24px;',}))
+    include_language = forms.ModelChoiceField(required=False, queryset=Language.objects.all(), widget=forms.Select(attrs={'style':'height: 24px;',}))
