@@ -29,21 +29,22 @@ def etree_from_html(string):
 # http://stackoverflow.com/questions/4624062/get-all-text-inside-a-tag-in-lxml
 def strings_from_block(block):
     # print 'BLOCK: ', block.tag
-    block_children = [child for child in block.getchildren() if child.tag in settings.BLOCK_TAGS]
+    children = block.getchildren()
+    block_children = [child for child in children if child.tag in settings.BLOCK_TAGS]
     if block_children:
         text = block.text
         if text: text = text.strip()
         if text: yield text
-        for child in block_children:
+        for child in children:
             for el in strings_from_block(child):
                 yield el
-        tail = block.tail
-        if tail: tail = tail.strip()
-        if tail: yield tail
     else:
         content = block.text_content()
         if content: content = content.strip()
         if content: yield content
+    tail = block.tail
+    if tail: tail = tail.strip()
+    if tail: yield tail
 
 def strings_from_html(string, fragment=False):
     doc = html.fromstring(string)
@@ -58,31 +59,6 @@ def strings_from_html(string, fragment=False):
     for s in strings_from_block(body):
         if s:
             yield s
-
-"""
-def blocks_from_block(block):
-    block_children = [child for child in block.getchildren() if child.tag in settings.BLOCK_TAGS]
-    if block_children:
-        lead = block.text
-        if lead: lead = lead.strip()
-        print 'lead', lead
-        children = []
-        for child in block_children:
-            for el in blocks_from_block(child):
-                if el:
-                    children.append(el)
-                    yield el
-        tail = block.tail
-        if tail: tail = tail.strip()
-        print 'tail', tail
-        # if lead or children or tail:
-        if lead or tail:
-            yield block
-    else:
-        content = block.text_content()
-        if content: content = content.strip()
-        if content: yield block
-"""
 
 def blocks_from_block(block):
     # block_children = [child for child in block.getchildren() if child.tag in settings.BLOCK_TAGS]
