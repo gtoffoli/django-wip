@@ -28,7 +28,6 @@ def etree_from_html(string):
 
 # http://stackoverflow.com/questions/4624062/get-all-text-inside-a-tag-in-lxml
 def strings_from_block(block):
-    # print 'BLOCK: ', block.tag
     children = block.getchildren()
     block_children = [child for child in children if child.tag in settings.BLOCK_TAGS]
     if block_children:
@@ -37,7 +36,8 @@ def strings_from_block(block):
         if text: yield text
         for child in children:
             for el in strings_from_block(child):
-                yield el
+                if el: el = el.strip()
+                if el: yield el
     else:
         content = block.text_content()
         if content: content = content.strip()
@@ -60,40 +60,39 @@ def strings_from_html(string, fragment=False):
         if s:
             yield s
 
-def blocks_from_block(block):
-    # block_children = [child for child in block.getchildren() if child.tag in settings.BLOCK_TAGS]
-    children = block.getchildren()
+def elements_from_element(element):
+    """ returns the in block and, recursively, the child blocks, when
+    - a block with block children has also additional text inside itself
+    - a block without block children has some text content
+    """
+    children = element.getchildren()
     child_blocks = []
-    text = block.text
+    text = element.text
     text = text and text.strip() and True
     for child in children:
         tag = child.tag
         if not text:
             tail = child.tail
-            # text = tail and tail.strip() and True
             tail = tail and tail.strip()
             if tail:
                 text = True
-                print tail
         if tag in settings.BLOCK_TAGS:
             child_blocks.append(child)
-            for el in blocks_from_block(child):
+            for el in elements_from_element(child):
                 yield el
         elif not text:
             if not tag in settings.TO_DROP_TAGS:
                 content = child.text_content()
-                # text = content and content.strip() and True
                 content = content and content.strip()
                 if content:
                     text = True
-                    print content
     if child_blocks:
         if text:
-            yield block
+            yield element
     else:
-        content = block.text_content()
+        content = element.text_content()
         if content: content = content.strip()
-        if content: yield block
+        if content: yield element
 
 def block_checksum(block):
     string = etree.tostring(block)

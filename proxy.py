@@ -2,8 +2,7 @@
 
 import urlparse
 from httpproxy.views import HttpProxy
-from utils import strings_from_html, blocks_from_block, block_checksum
-from models import Language, Site, Proxy, Webpage, PageVersion, TranslatedVersion, Block, TranslatedBlock
+from models import Language, Proxy, Webpage, PageVersion, TranslatedVersion
 
 class WipHttpProxy(HttpProxy):
     prefix = ''
@@ -46,23 +45,15 @@ class WipHttpProxy(HttpProxy):
 
     def translate(self, response):
         content = response.content
-        language = Language.objects.get(code=self.language_code)
+        # language = Language.objects.get(code=self.language_code)
         proxy = Proxy.objects.get(pk=self.proxy_id)
         site = proxy.site
-        path = '/%s' % urlparse.urlparse(self.url).path
-        print 'path: ', path
+        path = urlparse.urlparse(self.url).path
+        print 'translate - path: ', path
         pages = Webpage.objects.filter(site=site, path=path).order_by('-created')
         if pages:
-            print 'pages: ', list(pages)
-            webpage=pages[0]
-            versions = PageVersion.objects.filter(webpage=webpage).order_by('-time')
-            if versions:
-                print 'versions: ', list(versions)
-                last_version = versions[0]
-            translated_versions = TranslatedVersion.objects.filter(webpage=webpage, language=language).order_by('-modified')
-            if translated_versions:
-                print 'translated versions: ', list(translated_versions)
-                last_translated = translated_versions[0]
-            response.content = content
+            content, has_translation = pages[0].get_translation(self.language_code)
+            if has_translation:
+                response.content = content
         return response
 

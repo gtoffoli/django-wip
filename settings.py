@@ -231,7 +231,7 @@ morphit_path = os.path.join(RESOURCES_ROOT, morphit_filename)
 # tagger_filename = "itwac-1.2000000.biunigram.affix-2.simplified.pickle"
 tagger_filename = "ITWAC-1.xml.pickle"
 BLOCK_TAGS = [
-   'body', 'header', 'hgroup', 'main',  'aside', 'footer',
+   'html', 'body', 'header', 'hgroup', 'main',  'aside', 'footer',
    'address', 'article', 'field', 'section', 'nav',
    'div', 'p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'ol', 'li', 'dl', 'dt', 'dd',
    'table', 'thead', 'tbody', 'tfoot', 'tr', 'th', 'td',

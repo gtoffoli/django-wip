@@ -7,15 +7,17 @@ https://docs.djangoproject.com/en/1.9/topics/db/models/
 
 import os
 import re
+from lxml import html
 from django.db import models
+from django.shortcuts import get_object_or_404
 from django.contrib.auth.models import User
 from django.utils.translation import ugettext_lazy as _
 from django_extensions.db.fields import CreationDateTimeField, ModificationDateTimeField, AutoSlugField
 from vocabularies import Language, ApprovalStatus
 from wip.wip_sd.sd_algorithm import SDAlgorithm
 
-from settings import DATA_ROOT, RESOURCES_ROOT, tagger_filename, BLOCK_TAGS
-from utils import strings_from_html, blocks_from_block, block_checksum
+from settings import RESOURCES_ROOT, BLOCK_TAGS
+from utils import strings_from_html
 import srx_segmenter
 
 def text_to_list(text):
@@ -49,6 +51,9 @@ class Site(models.Model):
     def get_deny(self):
         # return ','.join(text_to_list(self.deny))
         return text_to_list(self.deny)
+
+    def get_proxies(self):
+        return Proxy.objects.filter(site=self)
 
     class Meta:
         verbose_name = _('original website')
@@ -103,6 +108,21 @@ class Webpage(models.Model):
         page_versions = PageVersion.objects.filter(webpage=self).order_by('-time')
         last = page_versions and page_versions[0] or None
         return last and last.get_region()
+
+    def get_translation(self, language_code):
+        content = None
+        has_translation = False
+        language = get_object_or_404(Language, code=language_code)
+        versions = PageVersion.objects.filter(webpage=self).order_by('-time')
+        last_version = versions and versions[0] or None
+        site = self.site
+        if last_version:
+            content = last_version.body
+            content_document = html.document_fromstring(content)
+            translated_document, has_translation = translated_element(content_document, site, self, language)
+            if has_translation:
+                content = html.tostring(translated_document)
+        return content, has_translation
 
 class PageVersion(models.Model):
     webpage = models.ForeignKey(Webpage)
@@ -280,3 +300,38 @@ class StringInBlock(models.Model):
         verbose_name = _('string in block')
         verbose_name_plural = _('strings in block')
         ordering = ('-created',)
+
+# inspired by the algorithm of utils.elements_from_element
+def translated_element(element, site, page, language, xpath='/html'):
+    print xpath
+    has_translation = False
+    blocks = Block.objects.filter(site=site, xpath=xpath, webpages=page).order_by('-time')
+    if blocks:
+        print blocks[0].id
+        translated_blocks = TranslatedBlock.objects.filter(block=blocks[0], language=language).order_by('-modified')
+        if translated_blocks:
+            element = html.fromstring(translated_blocks[0].body)
+            # has_translation = True
+        else:
+            element = html.fromstring(blocks[0].body)
+            has_translation = True
+    child_tags_dict_1 = {}
+    child_tags_dict_2 = {}
+    text = element.text
+    text = text and text.strip() and True
+    for child in element.getchildren():
+        tag = child.tag
+        if tag in BLOCK_TAGS:
+            child_tags_dict_1[tag] = child_tags_dict_1.setdefault(tag, 0)+1
+    for child in element.getchildren():
+        tag = child.tag
+        if tag in BLOCK_TAGS:
+            child_tags_dict_2[tag] = n = child_tags_dict_2.setdefault(tag, 0)+1
+            branch = tag
+            if child_tags_dict_1[tag] > 1:
+                branch += '[%d]' % n
+            translated_child, child_has_translation = translated_element(child, site, page, language, xpath='%s/%s' % (xpath, branch))
+            if child_has_translation:
+                element.replace(child, translated_child)
+                has_translation = True
+    return element, has_translation

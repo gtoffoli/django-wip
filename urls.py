@@ -31,6 +31,7 @@ urlpatterns = [
     url(r"^site/(?P<site_slug>[\w-]+)/crawl/$", views.site_crawl_by_slug, name="site_crawl"),
     url(r"^site/(?P<site_slug>[\w-]+)/pages/$", views.site_pages, name="site_pages"),
     url(r"^site/(?P<site_slug>[\w-]+)/blocks/$", views.site_blocks, name="site_blocks"),
+    url(r"^page/(?P<page_id>[\d]+)/proxy/(?P<language_code>[\w-]+)/$", views.page_proxy, name="page_proxy"),
     url(r"^page/(?P<page_id>[\d]+)/$", views.page, name="page"),
     url(r"^block/(?P<block_id>[\d]+)/translate/$", views.block_translate, name="block_translate"),
     url(r"^block/(?P<block_id>[\d]+)/$", views.block_view, name="block_view"),

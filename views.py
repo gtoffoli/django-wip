@@ -29,7 +29,7 @@ from forms import PageBlockForm
 from spiders import WipSiteCrawlerScript, WipCrawlSpider
 
 from settings import DATA_ROOT, RESOURCES_ROOT, tagger_filename, BLOCK_TAGS
-from utils import strings_from_html, blocks_from_block, block_checksum
+from utils import strings_from_html, elements_from_element, block_checksum
 import srx_segmenter
 
 def home(request):
@@ -155,6 +155,14 @@ def page(request, page_id):
     var_dict['blocks'] = page.blocks.all()
     return render_to_response('page.html', var_dict, context_instance=RequestContext(request))
 
+def page_proxy(request, page_id, language_code):
+    page = get_object_or_404(Webpage, pk=page_id)
+    content, has_translation = page.get_translation(language_code)
+    if content:
+        return HttpResponse(content, content_type="text/html")
+    else:
+        return HttpResponseRedirect('/page/%d/' % page_id)
+  
 def proxy(request, proxy_slug):
     proxy = get_object_or_404(Proxy, slug=proxy_slug)
     var_dict = {}
@@ -183,8 +191,9 @@ def block_translate(request, block_id):
     go_previous = go_next = save_block = ''
     skip_no_translate = skip_translated = True
     exclude_language = include_language = None
-    if request.POST:
-        print 'POST request'
+    post = request.POST
+    if post:
+        # print post.keys()
         save_block = request.POST.get('save_block', '')
         go_previous = request.POST.get('prev', '')
         go_next = request.POST.get('next', '')
@@ -216,29 +225,35 @@ def block_translate(request, block_id):
         block.language = language
         block.no_translate = no_translate
         block.save()
+    elif post:
+        for key in post.keys():
+            if key.startswith('create-'):
+                code = key.split('-')[1]
+                name = 'translation-%s' % code
+                text = post.get(name).strip()
+                translated_block = TranslatedBlock(block=block, body=text, language_id=code, editor=request.user)
+                translated_block.save()
+            elif key.startswith('modify-'):
+                translated_block = TranslatedBlock.objects.get(block=block, language_id=code)
+                name = 'translation-%s' % code
+                text = post.get(name).strip()
+                translated_block.body = text
+                translated_block.editor = request.user
+                translated_block.save()
     var_dict['page_block'] = block
     var_dict['source_language'] = source_language = block.get_language()
     var_dict['target_languages'] = target_languages = Language.objects.exclude(code=source_language.code)
     # var_dict['source_segments'] = source_segments = list(strings_from_html(block.body, fragment=True))
     var_dict['source_segments'] = source_segments = block.get_strings()
-    target_codes = []
-    translated_blocks_dict = {}
-    target_strings_dict = {}
+    target_list = []
     for language in target_languages:
         language_code = language.code
-        target_codes.append(language_code)
         translated_blocks = TranslatedBlock.objects.filter(block=block, language=language)
-        if translated_blocks:
-            translated_blocks_dict[language_code] = translated_blocks[0]
-        target_strings_dict[language_code] = []
+        target_strings = []
         for source_segment in source_segments:
-            print source_segment
-            target_strings = StringTranslation.objects.filter(language=language, text__icontains=source_segment)
-            for target_string in target_strings:
-                target_strings_dict[language_code].append(target_string)
-    var_dict['target_codes'] = target_codes
-    var_dict['translated_blocks'] = translated_blocks_dict
-    var_dict['target_strings'] = target_strings_dict
+            target_strings.extend(StringTranslation.objects.filter(language=language, text__icontains=source_segment))
+        target_list.append([language, translated_blocks, target_strings])
+    var_dict['target_list'] = target_list
     var_dict['form'] = PageBlockForm(initial={'language': block.language, 'no_translate': block.no_translate, 'skip_translated': skip_translated, 'skip_no_translate': skip_no_translate, 'exclude_language': exclude_language, 'include_language': include_language,})
     return render_to_response('block_translate.html', var_dict, context_instance=RequestContext(request))
 
@@ -388,15 +403,6 @@ def extract_blocks(page_id):
         return None
     last_version = versions[0]
     html_string = last_version.body
-    """
-    tree = html.fromstring(string)
-    body = tree.find('body')
-    """
-    """
-    parser = etree.HTMLParser()
-    tree   = etree.parse(StringIO.StringIO(html_string), parser)
-    root = tree.getroot()
-    """
     # http://stackoverflow.com/questions/1084741/regexp-to-strip-html-comments
     html_string = re.sub("(<!--(.*?)-->)", "", html_string, flags=re.MULTILINE)
     doc = html.document_fromstring(html_string)
@@ -404,7 +410,7 @@ def extract_blocks(page_id):
     top_els = doc.getchildren()
     n_1 = n_2 = n_3 = 0
     for top_el in top_els:
-        for el in blocks_from_block(top_el):
+        for el in elements_from_element(top_el):
             if el.tag in BLOCK_TAGS:
                 save_failed = False
                 n_1 += 1
@@ -429,4 +435,3 @@ def extract_blocks(page_id):
                     blocks_in_page = BlockInPage(block=block, webpage=page)
                     blocks_in_page.save()
     return n_1, n_2, n_3
-

@@ -18,6 +18,9 @@
     <div><label>Page URL</label> <a href="{{ site.url }}{{ page.path }}">{{ site.url }}{{ page.path }}</a></div>
     <div><label>Proxy path</label> <a href="/{{ site.path_prefix }}{{ page.path }}">/{{ site.path_prefix }}{{ page.path }}</a></div>
     <div><label>Encoding</label> {{ page.encoding }}</div>
+	{% for proxy in site.get_proxies %}
+    <div><label>View</label> <a href="/page/{{ page.id }}/proxy/{{ proxy.language.code }}/">{{ proxy.language.name }}</a></div>
+	{% endfor %}
 {% comment %}
     <div><label>First crawled</label> {{ page.created|date:"SHORT_DATETIME_FORMAT" }}</div>
     <div><label>Last crawled</label> {{ page.last_checked|date:"SHORT_DATETIME_FORMAT" }}</div>

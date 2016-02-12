@@ -41,19 +41,28 @@
 	<tr><th width="6%">language</th><th width="50%">block</th><th width="44%">segments</th></tr>
 	</thead>
 	<tbody>
-	<tr style="vertical-align: top;"><td>Source</td><td><pre>{{ page_block.body }}</pre></td>
+	<tr style="vertical-align: middle;"><td>Source</td><td><pre>{{ page_block.body }}</pre></td>
 	<td style="text-align: top;">{% for s in source_segments %}
 		<div><pre><code>{{forloop.counter|rjust:"3"}} </code></pre> {{ s }}</div>
 	{% endfor %}</td>
 	</tr>
 	{% if not page_block.no_translate %}
-	{% for l in target_languages %}{% with code=l.code %}
-	<tr><td>{{ l.name }}</td><td><pre>{{ translated_blocks.code.body }}</pre></td>
+	{% for language, blocks, strings in target_list %}
+	<tr><td>{{ language.name }}</td>
+	<td style="padding-top: 1.0em;">
+	{% if blocks %}
+	<textarea name="translation-{{ code }}" style="width: 96%; height:auto; margin-top: 0.5em;">{{ blocks.0.body }}</textarea>
+	<input type="submit" value="Modify translation" name="modify-{{ code }}" />
+	{% else %}
+	<textarea name="translation-{{ code }}"  style="width: 96%; height:auto;">{{ page_block.body }}</textarea>
+	<input type="submit" value="Create translation" name="create-{{ code }}" />
+	{% endif %}
+	</td>
 	<td>{% for t in target_segments.code %}
 		<pre><code>{{forloop.counter|rjust:"3"}} </code></pre> {{ t }}
 	{% endfor %}</td>
 	</tr>
-	{% endwith %}{% endfor %}
+	{% endfor %}
 	{% endif %}
 	</tbody>
 	</table>

@@ -18,7 +18,7 @@
     <div><label>Checksum</label> {{ page_block.checksum }}</div>
     <div><label>Time</label> {{ page_block.time|date:"SHORT_DATETIME_FORMAT" }}</div>
     {% if user.is_superuser %}
-    <div><a href="/block/{{ page_block.id }}/translate/">Translate block</a>
+    <div><a class="btn btn-sm" href="/block/{{ page_block.id }}/translate/">Edit translations</a>
 	{% endif %}
 
     <h4>HTML fragment</h4>
