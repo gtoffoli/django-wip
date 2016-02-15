@@ -91,7 +91,7 @@ class Webpage(models.Model):
     last_modified = ModificationDateTimeField()
     last_checked = models.DateTimeField()
     last_checked_response_code = models.IntegerField('Response code')
-    blocks = models.ManyToManyField('Block', through='BlockInPage', related_name='page_blocks', blank=True, verbose_name='blocks')
+    blocks = models.ManyToManyField('Block', through='BlockInPage', related_name='page', blank=True, verbose_name='blocks')
 
     class Meta:
         verbose_name = _('original page')
@@ -108,6 +108,14 @@ class Webpage(models.Model):
         page_versions = PageVersion.objects.filter(webpage=self).order_by('-time')
         last = page_versions and page_versions[0] or None
         return last and last.get_region()
+
+    def get_translated_blocks_count(self):
+        proxies = Proxy.objects.filter(site=self.site).order_by('language__code')   
+        languages = [proxy.language for proxy in proxies]
+        language_blocks_translations = []
+        for language in languages:
+            language_blocks_translations.append([language, TranslatedBlock.objects.filter(block__page=self, language=language).values('block_id').distinct().count()])
+        return language_blocks_translations
 
     def get_translation(self, language_code):
         content = None
@@ -205,7 +213,7 @@ class Block(models.Model):
     no_translate = models.BooleanField(default=False)
     checksum = models.CharField(max_length=32)
     time = CreationDateTimeField()
-    webpages = models.ManyToManyField(Webpage, through='BlockInPage', related_name='block_pages', blank=True, verbose_name='pages')
+    webpages = models.ManyToManyField(Webpage, through='BlockInPage', related_name='block', blank=True, verbose_name='pages')
 
     class Meta:
         verbose_name = _('page block')
@@ -243,6 +251,14 @@ class Block(models.Model):
         previous = qs_before.count() and qs_before[0] or None
         next = qs_after.count() and qs_after[0] or None
         return previous, next
+
+    def get_last_translations(self):
+        proxies = Proxy.objects.filter(site=self.site).order_by('language__code')   
+        languages = [proxy.language for proxy in proxies]
+        language_translations = []
+        for language in languages:
+            language_translations.append([language.code, TranslatedBlock.objects.filter(block=self, language=language).order_by('-modified')])
+        return language_translations
 
     def get_strings(self):
         srx_filepath = os.path.join(RESOURCES_ROOT, 'segment.srx')
@@ -311,10 +327,9 @@ def translated_element(element, site, page, language, xpath='/html'):
         translated_blocks = TranslatedBlock.objects.filter(block=blocks[0], language=language).order_by('-modified')
         if translated_blocks:
             element = html.fromstring(translated_blocks[0].body)
-            # has_translation = True
+            has_translation = True
         else:
             element = html.fromstring(blocks[0].body)
-            has_translation = True
     child_tags_dict_1 = {}
     child_tags_dict_2 = {}
     text = element.text

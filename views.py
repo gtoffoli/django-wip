@@ -67,8 +67,7 @@ def site(request, site_slug):
     site = get_object_or_404(Site, slug=site_slug)
     var_dict = {}
     var_dict['site'] = site
-    proxies = Proxy.objects.filter(site=site)
-    var_dict['proxies'] = proxies
+    var_dict['proxies'] =  proxies = Proxy.objects.filter(site=site)
     var_dict['page_count'] = page_count = Webpage.objects.filter(site=site).count()
     var_dict['block_count'] = block_count = Block.objects.filter(site=site).count()
     return render_to_response('site.html', var_dict, context_instance=RequestContext(request))
@@ -133,8 +132,8 @@ def site_pages(request, site_slug):
     var_dict = {}
     site = get_object_or_404(Site, slug=site_slug)
     var_dict['site'] = site
-    pages = Webpage.objects.filter(site=site)
-    var_dict['pages'] = pages
+    var_dict['proxies'] =  proxies = Proxy.objects.filter(site=site)
+    var_dict['pages'] = pages = Webpage.objects.filter(site=site)
     var_dict['page_count'] = pages.count()
     return render_to_response('pages.html', var_dict, context_instance=RequestContext(request))
 
@@ -155,6 +154,14 @@ def page(request, page_id):
     var_dict['blocks'] = page.blocks.all()
     return render_to_response('page.html', var_dict, context_instance=RequestContext(request))
 
+def page_blocks(request, page_id):
+    var_dict = {}
+    var_dict['page'] = page = get_object_or_404(Webpage, pk=page_id)
+    var_dict['site'] = site = page.site
+    var_dict['blocks'] = blocks = page.blocks.all()
+    var_dict['blocks_count'] = blocks.count()
+    return render_to_response('page_blocks.html', var_dict, context_instance=RequestContext(request))
+
 def page_proxy(request, page_id, language_code):
     page = get_object_or_404(Webpage, pk=page_id)
     content, has_translation = page.get_translation(language_code)
@@ -174,17 +181,35 @@ def site_blocks(request, site_slug):
     var_dict = {}
     site = get_object_or_404(Site, slug=site_slug)
     var_dict['site'] = site
+    var_dict['proxies'] = proxies = Proxy.objects.filter(site=site).order_by('language__code')   
     var_dict['blocks'] = blocks = Block.objects.filter(site=site)
     var_dict['block_count'] = blocks.count()
     return render_to_response('blocks.html', var_dict, context_instance=RequestContext(request))
 
-def block_view(request, block_id):
+def site_translated_blocks(request, site_slug):
+    var_dict = {}
+    site = get_object_or_404(Site, slug=site_slug)
+    var_dict['site'] = site
+    var_dict['translated_blocks'] = blocks = TranslatedBlock.objects.filter(block__site=site)
+    var_dict['translated_blocks_count'] = blocks.count()
+    return render_to_response('translated_blocks.html', var_dict, context_instance=RequestContext(request))
+
+def block(request, block_id):
     var_dict = {}
     var_dict['page_block'] = block = get_object_or_404(Block, pk=block_id)
     var_dict['site'] = site = block.site
     var_dict['translations'] = TranslatedBlock.objects.filter(block=block)
     var_dict['pages'] = block.webpages.all()
-    return render_to_response('block_view.html', var_dict, context_instance=RequestContext(request))
+    return render_to_response('block.html', var_dict, context_instance=RequestContext(request))
+
+def block_pages(request, block_id):
+    var_dict = {}
+    var_dict['page_block'] = block = get_object_or_404(Block, pk=block_id)
+    var_dict['site'] = site = block.site
+    var_dict['proxies'] =  proxies = Proxy.objects.filter(site=site)
+    var_dict['pages'] = pages = block.webpages.all()
+    var_dict['pages_count'] = pages.count()
+    return render_to_response('block_pages.html', var_dict, context_instance=RequestContext(request))
 
 def block_translate(request, block_id):
     block = get_object_or_404(Block, pk=block_id)
