@@ -263,6 +263,7 @@ def block_translate(request, block_id):
                 text = post.get(name).strip()
                 translated_block = TranslatedBlock(block=block, body=text, language_id=code, editor=request.user)
                 translated_block.save()
+                propagate_block_translation(request, block, translated_block)
             elif key.startswith('modify-'):
                 code = key.split('-')[1]
                 translated_block = TranslatedBlock.objects.get(block=block, language_id=code)
@@ -271,6 +272,7 @@ def block_translate(request, block_id):
                 translated_block.body = text
                 translated_block.editor = request.user
                 translated_block.save()
+                propagate_block_translation(request, block, translated_block)
     var_dict['page_block'] = block
     var_dict['source_language'] = source_language = block.get_language()
     var_dict['target_languages'] = target_languages = Language.objects.exclude(code=source_language.code)
@@ -289,6 +291,22 @@ def block_translate(request, block_id):
     var_dict['target_list'] = target_list
     var_dict['form'] = PageBlockForm(initial={'language': block.language, 'no_translate': block.no_translate, 'skip_translated': skip_translated, 'skip_no_translate': skip_no_translate, 'exclude_language': exclude_language, 'include_language': include_language,})
     return render_to_response('block_translate.html', var_dict, context_instance=RequestContext(request))
+
+def propagate_block_translation(request, block, translated_block):
+    similar_blocks = Block.objects.filter(site=block.site, checksum=block.checksum)
+    for similar_block in similar_blocks:
+        if not similar_block.body == block.body:
+            continue
+        translated_blocks = TranslatedBlock.objects.filter(block=similar_block).order_by('-modified')
+        if translated_blocks:
+            similar_block_translation = translated_blocks[0]
+            similar_block_translation.body = translated_block.body
+            similar_block_translation.editor = translated_block.editor
+        else:
+            similar_block_translation = translated_block
+            similar_block_translation.pk = None
+            similar_block_translation.block = similar_block
+        similar_block_translation.save()
 
 srx_filepath = os.path.join(RESOURCES_ROOT, 'segment.srx')
 srx_rules = srx_segmenter.parse(srx_filepath)

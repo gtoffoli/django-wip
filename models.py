@@ -320,19 +320,6 @@ class TranslatedBlock(models.Model):
         verbose_name = _('translated block')
         verbose_name_plural = _('translated blocks')
 
-"""
-class StringInBlock(models.Model):
-    site = models.ForeignKey(Site, null=True)
-    string = models.ForeignKey(String)
-    block = models.ForeignKey(Block, null=True)
-    created = CreationDateTimeField()
-
-    class Meta:
-        verbose_name = _('string in block')
-        verbose_name_plural = _('strings in block')
-        ordering = ('-created',)
-"""
-
 # inspired by the algorithm of utils.elements_from_element
 def translated_element(element, site, page, language, xpath='/html'):
     print xpath
