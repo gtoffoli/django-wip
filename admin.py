@@ -173,13 +173,22 @@ class TranslatedBlockForm(forms.ModelForm):
 
 class TranslatedBlockAdmin(admin.ModelAdmin):
     list_filter = ['block__site__name', 'language',]
-    list_display = ['id', 'site_name', 'language', 'xpath', 'state', 'modified', 'editor',]
+    list_display = ['id', 'site_name', 'block_link', 'language', 'xpath', 'state', 'modified', 'editor',]
 
     def site_name(self, obj):
         return obj.block.site.name
 
     def xpath(self, obj):
         return obj.block.xpath
+
+    def block_link(self, obj):
+        block = obj.block
+        url = '/admin/wip/block/%d/' % block.id
+        label = block.id
+        link = '<a href="%s">%s</a>' % (url, label)
+        return link
+    block_link.short_description = 'Block'
+    block_link.allow_tags = True
 
 admin.site.register(Site, SiteAdmin)
 admin.site.register(Proxy, ProxyAdmin)
