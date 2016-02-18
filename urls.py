@@ -20,6 +20,7 @@ from django.conf.urls import url, include
 from django.contrib import admin
 from models import Site, Proxy
 import views
+import scripts
 from proxy import WipHttpProxy
 
 urlpatterns = [
@@ -42,6 +43,7 @@ urlpatterns = [
     url(r"^proxy/(?P<proxy_slug>[\w-]+)/$", views.proxy, name="proxy"),
     # url(r"^my_task/$", views.my_task, name="my_task"),
     url(r"^create_tagger/$", views.create_tagger, name="create_tagger"),
+    url(r"^test/$", scripts.test, name="test"),
 ]
 
 try:

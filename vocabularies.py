@@ -27,8 +27,8 @@ class CodedEntry(models.Model):
     """
     Abstract class for classification entries with control on key
     """
-    code = models.CharField(max_length=5, primary_key=True)
-    name = models.CharField(max_length=100)
+    code = models.CharField(max_length=10, primary_key=True)
+    name = models.CharField(max_length=100, null=True, blank=True)
 
     class Meta:
         abstract = True
@@ -62,7 +62,6 @@ class Language(CodedEntry):
     """
     Enumerate languages referred by Websites, Proxies and ...
     """
-
     class Meta:
         verbose_name = _('language')
         verbose_name_plural = _('languages')
@@ -70,7 +69,19 @@ class Language(CodedEntry):
 class LanguageAdmin(CodedEntryAdmin):
     pass
 
+class Subject(CodedEntry):
+    """
+    Enumerate IATE subjects
+    """
+    class Meta:
+        verbose_name = _('subject')
+        verbose_name_plural = _('subjects')
+
+
+class SubjectAdmin(CodedEntryAdmin):
+    pass
 
 admin.site.register(ApprovalStatus, ApprovalStatusAdmin)
 admin.site.register(Language, LanguageAdmin)
+admin.site.register(Subject, SubjectAdmin)
 

@@ -8,10 +8,9 @@ https://docs.djangoproject.com/en/1.9/topics/db/models/
 from django.db import models
 from django import forms
 from django.contrib import admin
-from django.shortcuts import get_object_or_404
 from tinymce.widgets import TinyMCE
 
-from models import Site, Proxy, PageRegion, Webpage, PageVersion, String, StringTranslation, TranslatedVersion, Block, BlockInPage, StringInBlock, TranslatedBlock
+from models import Site, Proxy, Webpage, PageVersion, String, Txu, TxuSubject, TranslatedVersion, Block, BlockInPage, TranslatedBlock
 
 class SiteAdmin(admin.ModelAdmin):
     list_display = ['name', 'language', 'slug', 'path_prefix', 'url', 'allowed_domains', 'start_urls', 'deny',]
@@ -46,15 +45,6 @@ class WebpageAdmin(admin.ModelAdmin):
     blocks_count.short_description = 'Blocks'
     blocks_count.allow_tags = True
 
-class PageRegionAdmin(admin.ModelAdmin):
-    list_filter = ('site__name',)
-    list_display = ['id', 'site', 'label', 'xpath',]
-    list_display_links = ('id', 'site',)
-    search_fields = ['site_name', 'xpath',]
-
-    def site_name(self, obj):
-        return obj.site.name
-
 class PageVersionAdmin(admin.ModelAdmin):
     list_filter = ['webpage__site__name',]
     list_display = ['id', 'site', 'webpage', 'time', 'response_code', 'size', 'checksum',]
@@ -65,11 +55,33 @@ class PageVersionAdmin(admin.ModelAdmin):
 
 class StringAdmin(admin.ModelAdmin):
     list_filter = ['language']
-    list_display = ['id', 'language', 'created', 'text',]
+    list_display = ['id', 'language', 'text',]
 
-class StringTranslationAdmin(admin.ModelAdmin):
-    list_filter = ['language', 'user',]
-    list_display = ['id', 'language', 'user', 'created', 'modified', 'text',]
+class TxuAdmin(admin.ModelAdmin):
+    list_filter = ['source__language', 'target__language', 'user',]
+    list_display = ['id', 'source', 'target', 'user', 'created', 'modified',]
+
+class TxuSubjectAdmin(admin.ModelAdmin):
+    # list_filter = ['subject',]
+    list_display = ['id', 'subject_link', 'txu_link',]
+
+    def subject_link(self, obj):
+        subject = obj.subject
+        url = '/admin/wip/subject/%s/' % subject.code
+        label = '%s' % (subject.code)
+        link = '<a href="%s">%s</a>' % (url, label)
+        return link
+    subject_link.short_description = 'Subject'
+    subject_link.allow_tags = True
+
+    def txu_link(self, obj):
+        txu = obj.txu
+        url = '/admin/wip/txu/%d/' % txu.id
+        label = '%s -> %s' % (txu.source.text, txu.target.text)
+        link = '<a href="%s">%s</a>' % (url, label)
+        return link
+    txu_link.short_description = 'Txu'
+    txu_link.allow_tags = True
 
 class TranslatedVersionAdmin(admin.ModelAdmin):
     pass
@@ -151,13 +163,6 @@ class BlockInPageAdmin(admin.ModelAdmin):
     page_link.short_description = 'Page'
     page_link.allow_tags = True
 
-class StringInBlockAdmin(admin.ModelAdmin):
-    list_filter = ['site',]
-    list_display = ['id', 'site', 'xpath', 'created',]
-
-    def xpath(self, obj):
-        return obj.block.xpath
-
 class TranslatedBlockForm(forms.ModelForm):
     class Meta:
         model = Block
@@ -179,13 +184,12 @@ class TranslatedBlockAdmin(admin.ModelAdmin):
 admin.site.register(Site, SiteAdmin)
 admin.site.register(Proxy, ProxyAdmin)
 admin.site.register(Webpage, WebpageAdmin)
-admin.site.register(PageRegion, PageRegionAdmin)
 admin.site.register(PageVersion, PageVersionAdmin)
 admin.site.register(String, StringAdmin)
-admin.site.register(StringTranslation,StringTranslationAdmin)
+admin.site.register(Txu, TxuAdmin)
+admin.site.register(TxuSubject, TxuSubjectAdmin)
 admin.site.register(TranslatedVersion, TranslatedVersionAdmin)
 admin.site.register(Block, BlockAdmin)
 admin.site.register(BlockInPage, BlockInPageAdmin)
-admin.site.register(StringInBlock, StringInBlockAdmin)
 admin.site.register(TranslatedBlock, TranslatedBlockAdmin)
 

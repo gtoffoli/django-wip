@@ -11,9 +11,11 @@ from lxml import html
 from django.db import models
 from django.shortcuts import get_object_or_404
 from django.contrib.auth.models import User
+from django.contrib.contenttypes.models import ContentType
+from django.contrib.contenttypes.fields import GenericForeignKey
 from django.utils.translation import ugettext_lazy as _
 from django_extensions.db.fields import CreationDateTimeField, ModificationDateTimeField, AutoSlugField
-from vocabularies import Language, ApprovalStatus
+from vocabularies import Language, Subject, ApprovalStatus
 from wip.wip_sd.sd_algorithm import SDAlgorithm
 
 from settings import RESOURCES_ROOT, BLOCK_TAGS
@@ -139,7 +141,7 @@ class PageVersion(models.Model):
     response_code = models.IntegerField()
     size = models.IntegerField()
     checksum = models.CharField(max_length=32, blank=True, null=True)
-    body = models.TextField(null=True)
+    body = models.TextField(blank=True, null=True)
 
     class Meta:
         verbose_name = _('page version')
@@ -156,59 +158,71 @@ class PageVersion(models.Model):
 class TranslatedVersion(models.Model):
     webpage = models.ForeignKey(Webpage)
     language = models.ForeignKey(Language)
-    body = models.TextField(null=True)
+    body = models.TextField(blank=True, null=True)
     created = CreationDateTimeField()
     modified = ModificationDateTimeField()
     approval_status = models.ForeignKey(ApprovalStatus)
     user = models.ForeignKey(User, null=True)
-    comments = models.TextField()
+    comments = models.TextField(blank=True, null=True)
 
     class Meta:
         verbose_name = _('translated version')
-        verbose_name_plural = _('translated version')
+        verbose_name_plural = _('translated versions')
 
 class String(models.Model):
     language = models.ForeignKey(Language)
     text = models.CharField(max_length=1000)
-    created = CreationDateTimeField()
-    user = models.ForeignKey(User, null=True)
 
     class Meta:
-        verbose_name = _('source string')
-        verbose_name_plural = _('source strings')
+        verbose_name = _('source or target string')
+        verbose_name_plural = _('source or target strings')
         ordering = ('text',)
 
-class StringInPage(models.Model):
-    site = models.ForeignKey(Site, null=True)
-    string = models.ForeignKey(String)
-    webpage = models.ForeignKey(Webpage, null=True)
-    xpath = models.CharField(max_length=200, null=True, blank=True)
-    pos = models.CharField(max_length=10, null=True, blank=True)
-    created = CreationDateTimeField()
+    def __unicode__(self):
+        text = self.text[:32]
+        if len(self.text) > 32: text += '...'
+        return text
 
-    class Meta:
-        verbose_name = _('string in page')
-        verbose_name_plural = _('strings in page')
-        ordering = ('-created',)
-
-class StringTranslation(models.Model):
-    string = models.ForeignKey(String, null=True)
-    string_in_page = models.ForeignKey(StringInPage, null=True)
-    language = models.ForeignKey(Language)
-    text = models.CharField(max_length=1000)
+# ContentType, currently not used, could be Site, Webpage or Block
+class Txu(models.Model):
+    source = models.ForeignKey(String, verbose_name='source string', related_name='as_source')
+    target = models.ForeignKey(String, verbose_name='target string', related_name='as_target')
+    provider = models.CharField(verbose_name='txu source', max_length=100, blank=True, null=True)
+    entry_id = models.CharField(verbose_name='id by provider', max_length=100, blank=True, null=True)
+    reliability = models.IntegerField(default=1)
+    subjects = models.ManyToManyField('Subject', through='TxuSubject', related_name='txu', blank=True, verbose_name='subjects')
+    context_type = models.ForeignKey(ContentType, verbose_name=_(u"Context type"), blank=True, null=True)
+    context_id = models.PositiveIntegerField(verbose_name=_(u"Context id"), blank=True, null=True) # 
+    context = GenericForeignKey(ct_field="context_type", fk_field="context_id")
     created = CreationDateTimeField()
     modified = ModificationDateTimeField()
     user = models.ForeignKey(User, null=True)
+    comments = models.TextField(blank=True, null=True)
 
     class Meta:
-        verbose_name = _('string translation')
-        verbose_name_plural = _('string translations')
-        ordering = ('text',)
+        verbose_name = _('translation unit')
+        verbose_name_plural = _('translation units')
+        ordering = ('source__text', 'target__text',)
+
+    def __unicode__(self):
+        source = self.source
+        text = source.text
+        display = u'%s-%s %s' % (source.language_id.upper(), self.target.language_id.upper(), text[:32])
+        if len(text) > 32: display += '...'
+        return display
+
+class TxuSubject(models.Model):
+    txu = models.ForeignKey(Txu, related_name='txu')
+    subject = models.ForeignKey(Subject, related_name='subject')
+
+    class Meta:
+        verbose_name = _('txu subject')
+        verbose_name_plural = _('txu subjects')
 
 class Block(models.Model):
     site = models.ForeignKey(Site)
     xpath = models.CharField(max_length=200, blank=True)
-    body = models.TextField(null=True)
+    body = models.TextField(blank=True, null=True)
     language = models.ForeignKey(Language, null=True)
     no_translate = models.BooleanField(default=False)
     checksum = models.CharField(max_length=32)
@@ -294,18 +308,19 @@ class BlockInPage(models.Model):
 class TranslatedBlock(models.Model):
     language = models.ForeignKey(Language)
     block = models.ForeignKey(Block)
-    body = models.TextField(null=True)
+    body = models.TextField(blank=True, null=True)
     created = CreationDateTimeField()
     modified = ModificationDateTimeField()
     editor = models.ForeignKey(User, null=True, related_name='editor')
     state = models.IntegerField(default=0)
     revisor = models.ForeignKey(User, null=True, related_name='revisor')
-    comments = models.TextField()
+    comments = models.TextField(blank=True, null=True)
 
     class Meta:
         verbose_name = _('translated block')
         verbose_name_plural = _('translated blocks')
 
+"""
 class StringInBlock(models.Model):
     site = models.ForeignKey(Site, null=True)
     string = models.ForeignKey(String)
@@ -316,6 +331,7 @@ class StringInBlock(models.Model):
         verbose_name = _('string in block')
         verbose_name_plural = _('strings in block')
         ordering = ('-created',)
+"""
 
 # inspired by the algorithm of utils.elements_from_element
 def translated_element(element, site, page, language, xpath='/html'):

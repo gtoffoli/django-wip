@@ -24,7 +24,7 @@ from django.template import RequestContext
 from django.http import HttpResponse, HttpResponseRedirect
 from django.shortcuts import render_to_response, get_object_or_404
 
-from models import Language, Site, Proxy, Webpage, PageVersion, TranslatedVersion, Block, TranslatedBlock, BlockInPage, String, StringTranslation #, TranslatedVersion
+from models import Language, Site, Proxy, Webpage, PageVersion, TranslatedVersion, Block, TranslatedBlock, BlockInPage, String, Txu #, TranslatedVersion
 from forms import PageBlockForm
 from spiders import WipSiteCrawlerScript, WipCrawlSpider
 
@@ -48,7 +48,7 @@ def home(request):
         sites.append(site_dict)
     var_dict['sites'] = sites
     var_dict['source_strings'] = String.objects.all()
-    var_dict['translated_strings'] = StringTranslation.objects.all()
+    # var_dict['translated_strings'] = StringTranslation.objects.all()
     return render_to_response('homepage.html', var_dict, context_instance=RequestContext(request))
 
 def sites(request):
@@ -211,6 +211,10 @@ def block_pages(request, block_id):
     var_dict['pages_count'] = pages.count()
     return render_to_response('block_pages.html', var_dict, context_instance=RequestContext(request))
 
+def strings(request):
+    var_dict = {}
+    strings = String.objects.all()
+
 def block_translate(request, block_id):
     block = get_object_or_404(Block, pk=block_id)
     go_previous = go_next = save_block = ''
@@ -271,6 +275,7 @@ def block_translate(request, block_id):
     # var_dict['source_segments'] = source_segments = list(strings_from_html(block.body, fragment=True))
     var_dict['source_segments'] = source_segments = block.get_strings()
     target_list = []
+    """
     for language in target_languages:
         language_code = language.code
         translated_blocks = TranslatedBlock.objects.filter(block=block, language=language)
@@ -278,6 +283,7 @@ def block_translate(request, block_id):
         for source_segment in source_segments:
             target_strings.extend(StringTranslation.objects.filter(language=language, text__icontains=source_segment))
         target_list.append([language, translated_blocks, target_strings])
+    """
     var_dict['target_list'] = target_list
     var_dict['form'] = PageBlockForm(initial={'language': block.language, 'no_translate': block.no_translate, 'skip_translated': skip_translated, 'skip_no_translate': skip_no_translate, 'exclude_language': exclude_language, 'include_language': include_language,})
     return render_to_response('block_translate.html', var_dict, context_instance=RequestContext(request))
