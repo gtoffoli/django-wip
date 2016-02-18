@@ -52,7 +52,7 @@ filename_template = 'export_EN_ES_FR_IT_2016-02-16_All_Langs_Domain_%s.tbx'
 
 # /Tecnica/OpenData/language/export_EN_IT_2016-02-16_All_Langs_Domain_32.tbx
 def import_tbx(path='', base_path=IATE_path, filename=filename_template, sector='', dry=True, allow_subjects=[], provider='IATE'):
-    if not sector:
+    if not path and not sector:
         return 'Please, specify a sector code'
     from xml.etree import ElementTree
     if not path and sector:
