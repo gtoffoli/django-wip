@@ -264,6 +264,7 @@ def block_translate(request, block_id):
                 translated_block = TranslatedBlock(block=block, body=text, language_id=code, editor=request.user)
                 translated_block.save()
             elif key.startswith('modify-'):
+                code = key.split('-')[1]
                 translated_block = TranslatedBlock.objects.get(block=block, language_id=code)
                 name = 'translation-%s' % code
                 text = post.get(name).strip()

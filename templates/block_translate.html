@@ -51,11 +51,11 @@
 	<tr><td>{{ language.name }}</td>
 	<td style="padding-top: 1.0em;">
 	{% if blocks %}
-	<textarea name="translation-{{ code }}" style="width: 96%; height:100px; margin-top: 0.5em;">{{ blocks.0.body }}</textarea>
-	<input type="submit" value="Modify translation" name="modify-{{ code }}" />
+	<textarea name="translation-{{ language.code }}" style="width: 96%; height:100px; margin-top: 0.5em;">{{ blocks.0.body }}</textarea>
+	<input type="submit" value="Modify translation" name="modify-{{ language.code }}" />
 	{% else %}
-	<textarea name="translation-{{ code }}"  style="width: 96%; height:100px;">{{ page_block.body }}</textarea>
-	<input type="submit" value="Create translation" name="create-{{ code }}" />
+	<textarea name="translation-{{ language.code }}"  style="width: 96%; height:100px;">{{ page_block.body }}</textarea>
+	<input type="submit" value="Create translation" name="create-{{ language.code }}" />
 	{% endif %}
 	</td>
 	<td>{% for t in target_segments.code %}
