@@ -23,9 +23,9 @@
 		<tr><td><pre><code>{{forloop.counter|rjust:"3"}}</code></pre></td>
 			<td style="text-align: right;"> {{ page_block.id }} </td>
 			<td style="text-align: right;">{{ page_block.body|length }}</td>
-			<td><a href="/block/{{ block.id }}/">{{ page_block.xpath }}</a></td>
+			<td><a href="/block/{{ page_block.id }}/">{{ page_block.xpath }}</a></td>
 			<td style="text-align: center;"><a href="/block/{{ page_block.id }}/pages/">{{ page_block.webpages.all.count }}</a></td>
-			<td>{{ block.time|date:"SHORT_DATETIME_FORMAT" }}</td>
+			<td>{{ page_block.time|date:"SHORT_DATETIME_FORMAT" }}</td>
 			{% for language_code, translations in page_block.get_last_translations %}<td>
 				{% if translations %}
 					<a href="/block/{{ page_block }}/translate/">{{ translations.count }}</a>

@@ -241,6 +241,7 @@ def block_translate(request, block_id):
             print 'error', form.errors
     var_dict = {}
     var_dict['site'] = site = block.site
+    var_dict['proxies'] = proxies = Proxy.objects.filter(site=site).order_by('language_id')
     previous, next = block.get_previous_next(exclude_language=exclude_language, include_language=include_language)
     var_dict['previous'] = previous
     var_dict['next'] = next
@@ -275,15 +276,15 @@ def block_translate(request, block_id):
     # var_dict['source_segments'] = source_segments = list(strings_from_html(block.body, fragment=True))
     var_dict['source_segments'] = source_segments = block.get_strings()
     target_list = []
-    """
-    for language in target_languages:
-        language_code = language.code
+    for proxy in proxies:
+        language = proxy.language
         translated_blocks = TranslatedBlock.objects.filter(block=block, language=language)
         target_strings = []
+        """
         for source_segment in source_segments:
             target_strings.extend(StringTranslation.objects.filter(language=language, text__icontains=source_segment))
+        """
         target_list.append([language, translated_blocks, target_strings])
-    """
     var_dict['target_list'] = target_list
     var_dict['form'] = PageBlockForm(initial={'language': block.language, 'no_translate': block.no_translate, 'skip_translated': skip_translated, 'skip_no_translate': skip_no_translate, 'exclude_language': exclude_language, 'include_language': include_language,})
     return render_to_response('block_translate.html', var_dict, context_instance=RequestContext(request))

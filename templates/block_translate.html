@@ -11,7 +11,7 @@
 
 {% block head_title %}Block: {{ site.name }}{{ page_block.xpath }}{% endblock %}
 
-{% block title-page %}<span style="color: black; font-size: smaller;">Translate block:</span> <span style="font-size: smaller;">{{ page_block.xpath }}</span>{% endblock %}
+{% block title-page %}<span style="color: black; font-size: smaller;">Translate block:</span> <span style="font-size: small;">{{ page_block.xpath }}</span>{% endblock %}
 
 {% block content-page %}
 <form action="/block/{{ page_block.id }}/translate/" method="post">
@@ -51,10 +51,10 @@
 	<tr><td>{{ language.name }}</td>
 	<td style="padding-top: 1.0em;">
 	{% if blocks %}
-	<textarea name="translation-{{ code }}" style="width: 96%; height:auto; margin-top: 0.5em;">{{ blocks.0.body }}</textarea>
+	<textarea name="translation-{{ code }}" style="width: 96%; height:100px; margin-top: 0.5em;">{{ blocks.0.body }}</textarea>
 	<input type="submit" value="Modify translation" name="modify-{{ code }}" />
 	{% else %}
-	<textarea name="translation-{{ code }}"  style="width: 96%; height:auto;">{{ page_block.body }}</textarea>
+	<textarea name="translation-{{ code }}"  style="width: 96%; height:100px;">{{ page_block.body }}</textarea>
 	<input type="submit" value="Create translation" name="create-{{ code }}" />
 	{% endif %}
 	</td>
