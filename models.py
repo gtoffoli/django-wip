@@ -183,6 +183,9 @@ class String(models.Model):
         if len(self.text) > 32: text += '...'
         return text
 
+    def language_code(self):
+        return self.language.code
+
 # ContentType, currently not used, could be Site, Webpage or Block
 class Txu(models.Model):
     source = models.ForeignKey(String, verbose_name='source string', related_name='as_source')

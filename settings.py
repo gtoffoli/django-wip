@@ -39,6 +39,7 @@ else:
 # Application definition
 
 INSTALLED_APPS = [
+    'haystack',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -242,7 +243,12 @@ BLOCK_TAGS = [
 TO_DROP_TAGS = [
     'link', 'script', 'style','iframe',
 ]
-
+EMPTY_WORDS = {
+'it': [
+  'circa', 'quello',
+]
+}
+LANGUAGE_COLORS = { 'it': 'green', 'en': 'grey', 'es': 'red', 'fr': 'blue', }
 
 # configure graph_models command of django-extensions
 GRAPH_MODELS = {
@@ -272,3 +278,13 @@ TINYMCE_DEFAULT_CONFIG = {
     'plugin_preview_height' : '600',
     'paste_auto_cleanup_on_paste': 'false',
     }
+
+SEARCH_BACKEND = "whoosh"
+if SEARCH_BACKEND == 'whoosh':
+    HAYSTACK_CONNECTIONS = {
+        'default': {
+            'ENGINE': 'haystack.backends.whoosh_backend.WhooshEngine',
+            'PATH': os.path.join(BASE_DIR, 'whoosh_index'),
+        },
+    }
+

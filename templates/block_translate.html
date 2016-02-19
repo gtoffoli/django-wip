@@ -17,19 +17,20 @@
 <form action="/block/{{ page_block.id }}/translate/" method="post">
 	{% csrf_token %}
     <div><label>Site</label> <a href="/site/{{ site.slug }}/">{{ site.name }}</a></div>
-    <div><label>Site language</label> {{ site.language }}</div>
+    <div><label>Site language</label> {{ site.language }}
+    <div><label>Block id</label> {{ page_block.id }}</div>
     <div><label>Time</label> {{ page_block.time|date:"SHORT_DATETIME_FORMAT" }}</div>
     <fieldset style="border: 1px;">
     <div><label>Block language</label> {{ form.language }} &nbsp;
     	 <label>No-translate</label> {{ form.no_translate }} &nbsp;&nbsp;
 	     <input type="submit" name="save_block" value="Save properties" class="btn btn-sm" /></div>
 	</fieldset>
-    <div><label>Id</label> {{ page_block.id }} &nbsp;&nbsp;
+    <div>
 		<a class="btn btn-sm" href="/block/{{ page_block.id }}/">View</a>
-	</div>
-	<div>
 		{% if previous %}<input type="submit" name="prev" class="btn btn-sm" value="Previous">{% endif %}
 		{% if next %}<input type="submit" name="next" class="btn btn-sm" value="Next">{% endif %}
+	</div>
+	<div>
 		&nbsp;&nbsp; Skip translated {{ form.skip_translated }}
 		&nbsp;&nbsp; Skip no-translate {{ form.skip_no_translate }}
 		&nbsp;&nbsp; Exclude {{ form.exclude_language }}
@@ -38,28 +39,33 @@
 
 	<table style="border-collapse: separate; border-spacing: 5px;">
 	<thead>
-	<tr><th width="6%">language</th><th width="50%">block</th><th width="44%">segments</th></tr>
+	<tr><th width="6%">language</th><th width="50%">block</th><th width="44%" colspan="2">segments and strings</th></tr>
 	</thead>
 	<tbody>
-	<tr style="vertical-align: middle;"><td>Source</td><td><pre>{{ page_block.body }}</pre></td>
-	<td style="text-align: top;">{% for s in source_segments %}
-		<div><pre><code>{{forloop.counter|rjust:"3"}} </code></pre> {{ s }}</div>
+	<tr style="vertical-align: top;"><td>Source</td><td><pre>{{ page_block.body }}</pre></td>
+	<td style="vertical-align: top;">{% for segment, strings in source_segments %}
+		<div style="padding-left: 1.8em; text-indent: -1.8em;"><code>{{forloop.counter|rjust:"3"}}</code> <span style=""><span>{{ segment }}</span></div>
+		{% for string in strings %}
+		<div style="font-style: italic; font-size: small; padding-left: 1.8em;">{{ string }}</div>
+		{% endfor %}
 	{% endfor %}</td>
 	</tr>
 	{% if not page_block.no_translate %}
-	{% for language, blocks, strings in target_list %}
-	<tr><td>{{ language.name }}</td>
-	<td style="padding-top: 1.0em;">
+	{% for language, block, segment_strings in target_list %}
+	<tr style="vertical-align: top;"><td>{{ language.name }}</td>
+	<td>
 	{% if blocks %}
-	<textarea name="translation-{{ language.code }}" style="width: 96%; height:100px; margin-top: 0.5em;">{{ blocks.0.body }}</textarea>
+	<textarea name="translation-{{ language.code }}" style="width: 96%; height:100px; margin-top: 0.5em;">{{ block.body }}</textarea>
 	<input type="submit" value="Modify translation" name="modify-{{ language.code }}" />
 	{% else %}
 	<textarea name="translation-{{ language.code }}"  style="width: 96%; height:100px;">{{ page_block.body }}</textarea>
-	<input type="submit" value="Create translation" name="create-{{ language.code }}" />
+	<input type="submit" class="btn btn-sm" value="Create translation" name="create-{{ language.code }}" />
 	{% endif %}
 	</td>
-	<td>{% for t in target_segments.code %}
-		<pre><code>{{forloop.counter|rjust:"3"}} </code></pre> {{ t }}
+	<td style="vertical-align: top;">{% for strings in segment_strings %}
+		{% if strings %}<div><code>{{forloop.counter|rjust:"3"}}</code></div>
+		{% for string in strings %}<div style="font-style: italic; font-size: small; padding-left: 1.8em;">{{ string }}</div>{% endfor %}
+		{% endif %}
 	{% endfor %}</td>
 	</tr>
 	{% endfor %}

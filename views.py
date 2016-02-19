@@ -19,6 +19,9 @@ from lxml import html, etree
 from scrapy.spiders import Rule #, CrawlSpider
 from scrapy.linkextractors import LinkExtractor
 from scrapy.crawler import CrawlerProcess
+from haystack.indexes import SearchIndex
+from haystack.query import SearchQuerySet
+from wip.search_indexes import StringIndex
 
 from django.template import RequestContext
 from django.http import HttpResponse, HttpResponseRedirect
@@ -28,7 +31,7 @@ from models import Language, Site, Proxy, Webpage, PageVersion, TranslatedVersio
 from forms import PageBlockForm
 from spiders import WipSiteCrawlerScript, WipCrawlSpider
 
-from settings import DATA_ROOT, RESOURCES_ROOT, tagger_filename, BLOCK_TAGS
+from settings import DATA_ROOT, RESOURCES_ROOT, tagger_filename, BLOCK_TAGS, EMPTY_WORDS
 from utils import strings_from_html, elements_from_element, block_checksum
 import srx_segmenter
 
@@ -215,6 +218,17 @@ def strings(request):
     var_dict = {}
     strings = String.objects.all()
 
+def add_and_index_string(text, language):
+    if isinstance(language, str):
+        language = Language.objects.get(code=language)
+    try:
+        string = String.objects.get(text=text, language=language)
+    except:
+        string = String(text=text, language=language)
+        string.save()
+    StringIndex().update_object(string)
+    return string
+
 def block_translate(request, block_id):
     block = get_object_or_404(Block, pk=block_id)
     go_previous = go_next = save_block = ''
@@ -242,6 +256,7 @@ def block_translate(request, block_id):
     var_dict = {}
     var_dict['site'] = site = block.site
     var_dict['proxies'] = proxies = Proxy.objects.filter(site=site).order_by('language_id')
+    var_dict['target_languages'] = target_languages = [proxy.language for proxy in proxies]
     previous, next = block.get_previous_next(exclude_language=exclude_language, include_language=include_language)
     var_dict['previous'] = previous
     var_dict['next'] = next
@@ -275,19 +290,80 @@ def block_translate(request, block_id):
                 propagate_block_translation(request, block, translated_block)
     var_dict['page_block'] = block
     var_dict['source_language'] = source_language = block.get_language()
-    var_dict['target_languages'] = target_languages = Language.objects.exclude(code=source_language.code)
-    # var_dict['source_segments'] = source_segments = list(strings_from_html(block.body, fragment=True))
-    var_dict['source_segments'] = source_segments = block.get_strings()
+    source_language_code = source_language.code
+    source_segments = block.get_strings()
+    source_segments = [segment.strip(' .,;:*+-') for segment in source_segments]
+    source_strings = []
+    for segment in source_segments:
+        if not segment:
+            continue
+        segment_string = add_and_index_string(segment, source_language)
+        if source_language in target_languages:
+            source_strings.append([])
+            continue
+        tokens = segment.split()
+        tokens = re.split(" |\'", segment)
+        filtered_tokens = []
+        for token in tokens:
+            token = token.strip(' .,;:*')
+            if not token:
+                continue
+            n_chars = len(token)
+            if n_chars < 5:
+                continue
+            if token in EMPTY_WORDS[source_language_code]:
+                continue
+            """
+            if n_chars > 4:
+                token = token[:n_chars-1]
+            """
+            filtered_tokens.append(token)
+        qs = None
+        strings = []
+        qs = SearchQuerySet().more_like_this(segment_string)
+        print 'like_this: ', qs
+        for token in filtered_tokens:
+            qs = SearchQuerySet().filter(language_code=source_language_code, content=token).values_list('text', flat=True)
+            if qs:
+                min_length = 100
+                for string in qs:
+                    length = len(string.split())
+                    if length < min_length:
+                        min_length = length
+                n = 0
+                for string in qs:
+                    length = len(string.split())
+                    if length > min_length:
+                        continue
+                    n += 1
+                    if n >= 2:
+                        break
+                    strings.append(string)
+        source_strings.append(strings)
+    source_segments = zip(source_segments, source_strings)
+    var_dict['source_segments'] = source_segments
     target_list = []
     for proxy in proxies:
-        language = proxy.language
-        translated_blocks = TranslatedBlock.objects.filter(block=block, language=language)
+        target_language = proxy.language
+        try:
+            translated_block = TranslatedBlock.objects.get(block=block, language=target_language)
+        except:
+            translated_block = None
         target_strings = []
-        """
-        for source_segment in source_segments:
-            target_strings.extend(StringTranslation.objects.filter(language=language, text__icontains=source_segment))
-        """
-        target_list.append([language, translated_blocks, target_strings])
+        for segment_strings in source_strings:
+            translated_strings = []
+            for s in segment_strings:
+                try:
+                    string = String.objects.get(language=source_language, text=s)
+                    translations = Txu.objects.filter(source=string, target__language=target_language)
+                    for translation in translations:
+                        text = translation.target.text
+                        if not text in translated_strings:
+                            translated_strings.append(text)
+                except:
+                    pass
+            target_strings.append(translated_strings)
+        target_list.append([target_language, translated_block, target_strings])
     var_dict['target_list'] = target_list
     var_dict['form'] = PageBlockForm(initial={'language': block.language, 'no_translate': block.no_translate, 'skip_translated': skip_translated, 'skip_no_translate': skip_no_translate, 'exclude_language': exclude_language, 'include_language': include_language,})
     return render_to_response('block_translate.html', var_dict, context_instance=RequestContext(request))

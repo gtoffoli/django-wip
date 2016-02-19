@@ -67,7 +67,7 @@ def import_tbx(path='', base_path=IATE_path, filename=filename_template, sector=
     n_tigs = n_terms = 0 
     for entry in entries:
         entry_id = entry.attrib['id']
-        print entry_id
+        # print entry_id
         subjectfield = entry.find("descripGrp/descrip[@type='subjectField']").text
         subject_codes = subjectfield.split(',')
         subject_codes = [subject.strip() for subject in subject_codes]
