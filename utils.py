@@ -81,7 +81,8 @@ def elements_from_element(element):
             for el in elements_from_element(child):
                 yield el
         elif not text:
-            if not tag in settings.TO_DROP_TAGS:
+            # if not tag in settings.TO_DROP_TAGS:
+            if not tag in settings.TO_DROP_TAGS and not tag is etree.Comment:
                 content = child.text_content()
                 content = content and content.strip()
                 if content:
