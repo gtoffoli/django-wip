@@ -1,0 +1,70 @@
+{% extends "wip_base.html" %}
+{% load staticfiles i18n %}
+
+{% block head_title %}WIP -
+Strings
+{% if source_languages %} in
+{% for l in source_languages %}{{ l.name }}{% endfor %}
+{% endif %}
+{{ state }}
+{% if target_languages %} to
+{% for l in target_languages %}{{ l.name }}{% if not forloop.last %}, {% endif %}{% endfor %}
+{% endif %}
+{% endblock %}
+
+{% block title-page %}WIP -
+Strings
+{% if source_languages %} in
+{% for l in source_languages %}{{ l.name }}{% endfor %}
+{% endif %}
+{{ state }}
+{% if target_languages %} to
+{% for l in target_languages %}{{ l.name }}{% if not forloop.last %}, {% endif %}{% endfor %}
+{% endif %}
+{% endblock %}
+
+{% block content-page %}
+
+	{% if string_count %}
+	<div>{{ string_count }} strings found.</div>
+	<h4><div class="pagination">
+    <span class="step-links">
+        {% if strings.has_previous %}
+            <a href="?page={{ strings.previous_page_number }}">previous</a>
+        {% endif %}
+
+        <span class="current">
+            Page {{ strings.number }} of {{ strings.paginator.num_pages }}
+        </span>
+
+        {% if strings.has_next %}
+            <a href="?page={{ strings.next_page_number }}">next</a>
+        {% endif %}
+    </span>
+	</div></h4>
+	<table>
+	<thead><th></th>
+	{% for l in source_languages %}<th>{{ l.name }}</th>{% endfor %}
+	{% for l in target_languages %}<th>{{ l.name }}</th>{% endfor %}
+	</thead>
+	<tbody>
+	{% for string in strings %}
+	<tr>
+	<td style="text-align: right; padding-right: 1.0em;">{{forloop.counter|add:offset}}</td>
+	<td>{{ string.text }}</td>
+	{% for translation in string.get_translations %}
+		{% if translation.0.code in target_codes %}
+			<td>{% for s in translation.1 %}
+				{{ s.text }}{% if not forloop.last %}, {% endif %}
+			{% endfor %}</td>
+		{% endif %}
+	{% endfor %}
+	</tr>
+	{% endfor %}
+	</tbody>
+	</table>
+	{% else %}
+		<div>No strings were found.</div>
+	{% endif %}
+
+{% endblock %}

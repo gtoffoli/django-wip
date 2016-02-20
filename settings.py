@@ -35,6 +35,7 @@ if sys.platform.count('linux'):
     ALLOWED_HOSTS = ["localhost", ".fairvillage.eu", ".fairvillage.it"]
 else:
     DEBUG = True
+    TEMPLATE_STRING_IF_INVALID = '%s'
 
 # Application definition
 
@@ -73,6 +74,7 @@ ROOT_URLCONF = 'wip.urls'
 
 TEMPLATES = [
     {
+        #'TEMPLATE_STRING_IF_INVALID': '%s',
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
         'DIRS': [os.path.join(BASE_DIR, "wip", "templates")],
         'OPTIONS': {

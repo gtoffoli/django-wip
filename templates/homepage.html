@@ -13,6 +13,7 @@
 
 {% block content-page %}
 
+<h3>Sites</h3>
 <table style="border-collapse: separate; border-spacing: 5px;">
 <thead>
 	<tr><th>Site</th><th>Pages</th><th>Page<br/>versions</th><th>Translated<br/>versions</th><th>Blocks</th><th>Translated<br/>blocks</th></tr>
@@ -31,7 +32,10 @@
 </tbody>
 </table>
 
-<div>&nbsp;<label>Source strings</label> {{ source_strings.count }}</div>
-<div>&nbsp;<label>Translated strings</label> {{ translated_strings.count }}</div>
+<h3>Strings</h3>
+<div>&nbsp;<label>Italian strings</label> <a href="/strings/it/translated/en-es-fr/">{{ source_strings.count }}</a></div>
+<div>&nbsp;<label>Not translated to English</label> <a href="/strings/it/untranslated/en/">{{ untraslated_strings.en.count }}</a></div>
+<div>&nbsp;<label>Not translated to French</label> <a href="/strings/it/untranslated/fr/">{{ untraslated_strings.fr.count }}</a></div>
+<div>&nbsp;<label>Not translated to Spanish</label> <a href="/strings/it/untranslated/es/">{{ untraslated_strings.es.count }}</a></div>
 
 {% endblock %}

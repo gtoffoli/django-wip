@@ -169,6 +169,14 @@ class TranslatedVersion(models.Model):
         verbose_name = _('translated version')
         verbose_name_plural = _('translated versions')
 
+"""
+    translation_targets = models.ManyToManyField('self', through='Txu', related_name='source', blank=True, verbose_name='translation targets')
+    translation_sources = models.ManyToManyField('self', through='Txu', related_name='target', blank=True, verbose_name='translation sources')
+ERRORS:
+wip.String.translation_sources: (fields.E332) Many-to-many fields with intermediate tables must not be symmetrical.
+wip.String.translation_targets: (fields.E332) Many-to-many fields with intermediate tables must not be symmetrical.
+wip.String: (models.E003) The model has two many-to-many relations through the intermediate model 'wip.Txu'.
+"""
 class String(models.Model):
     language = models.ForeignKey(Language)
     text = models.CharField(max_length=1000)
@@ -186,6 +194,14 @@ class String(models.Model):
     def language_code(self):
         return self.language.code
 
+    def get_translations(self, languages=[]):
+        translations = []
+        if not languages:
+            languages = Language.objects.exclude(code=self.language.code).order_by('code')
+        for language in languages:
+            strings = String.objects.filter(as_target__source=self, language=language)
+            translations.append([language, strings])
+        return translations
 # ContentType, currently not used, could be Site, Webpage or Block
 class Txu(models.Model):
     source = models.ForeignKey(String, verbose_name='source string', related_name='as_source')

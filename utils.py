@@ -82,6 +82,7 @@ def elements_from_element(element):
                 yield el
         elif not text:
             # if not tag in settings.TO_DROP_TAGS:
+            # see http://lxml.de/FAQ.html#how-can-i-find-out-if-an-element-is-a-comment-or-pi
             if not tag in settings.TO_DROP_TAGS and not tag is etree.Comment:
                 content = child.text_content()
                 content = content and content.strip()

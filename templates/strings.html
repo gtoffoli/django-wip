@@ -1,0 +1,32 @@
+{% extends "wip_base.html" %}
+{% load staticfiles i18n %}
+
+{% block head_title %}WIP - Strings{% endblock %}
+
+{% block title-page %}WIP - Strings{% endblock %}
+
+{% block content-page %}
+
+	<h4>List Italian strings</h4>
+
+	<table>
+	<thead>
+		<tr><th>untranslated</th><th>translated</th></tr>
+	</thead>
+	<tbody>
+		<tr>
+			<td></td> <td><a href="/strings/it/translated/en-es-fr/">to all languages</a></td>
+		</tr>
+		<tr>
+			<td><a href="/strings/it/untranslated/en/">to English</a></td> <td><a href="/strings/it/translated/en/">to Englishs</a></td>
+		</tr>
+		<tr>
+			<td><a href="/strings/it/untranslated/fr/">to French</a></td> <td><a href="/strings/it/translated/fr/">to French</a></td>
+		</tr>
+		<tr>
+			<td><a href="/strings/it/untranslated/es/">to Spanish</a></td> <td><a href="/strings/it/translated/es/">to Spanishs</a></td>
+		</tr>
+	</tbody>
+	</table>
+
+{% endblock %}

@@ -19,8 +19,15 @@ Menu.add_item("main", MenuItem(ugettext_lazy("Sites"),
                                icon='',
                                weight=20,
                                separator=True))
+"""
 Menu.add_item("main", MenuItem(ugettext_lazy("Proxies"),
                                url='/proxies/',
+                               icon='',
+                               weight=30,
+                               separator=True))     
+"""
+Menu.add_item("main", MenuItem(ugettext_lazy("Strings"),
+                               url='/strings/',
                                icon='',
                                weight=30,
                                separator=True))     

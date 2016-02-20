@@ -23,6 +23,7 @@ from haystack.indexes import SearchIndex
 from haystack.query import SearchQuerySet
 from wip.search_indexes import StringIndex
 
+from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from django.template import RequestContext
 from django.http import HttpResponse, HttpResponseRedirect
 from django.shortcuts import render_to_response, get_object_or_404
@@ -50,7 +51,12 @@ def home(request):
         site_dict['translated_blocks'] = TranslatedBlock.objects.filter(block__site=site)
         sites.append(site_dict)
     var_dict['sites'] = sites
-    var_dict['source_strings'] = String.objects.all()
+    var_dict['source_strings'] = find_strings(source_languages=['it'])
+    var_dict['untraslated_strings'] = {
+       'en': find_strings(source_languages=['it'], target_languages=['en'], translated=False),
+       'fr': find_strings(source_languages=['it'], target_languages=['fr'], translated=False),
+       'es': find_strings(source_languages=['it'], target_languages=['es'], translated=False),
+       }
     # var_dict['translated_strings'] = StringTranslation.objects.all()
     return render_to_response('homepage.html', var_dict, context_instance=RequestContext(request))
 
@@ -213,10 +219,6 @@ def block_pages(request, block_id):
     var_dict['pages'] = pages = block.webpages.all()
     var_dict['pages_count'] = pages.count()
     return render_to_response('block_pages.html', var_dict, context_instance=RequestContext(request))
-
-def strings(request):
-    var_dict = {}
-    strings = String.objects.all()
 
 def add_and_index_string(text, language):
     if isinstance(language, str):
@@ -562,3 +564,74 @@ def extract_blocks(page_id):
                     blocks_in_page = BlockInPage(block=block, webpage=page)
                     blocks_in_page.save()
     return n_1, n_2, n_3
+
+def strings(request):
+    return render_to_response('strings.html', {}, context_instance=RequestContext(request))
+
+def list_strings(request, sources, state, targets):
+    PAGE_SIZE = 100
+    var_dict = {}
+    var_dict['sources'] = sources
+    var_dict['state'] = state
+    var_dict['targets'] = targets
+    source_languages = target_languages = []
+    translated = None
+    if sources:
+        source_codes = sources.split('-')
+        source_languages = Language.objects.filter(code__in=source_codes).order_by('code')
+    if targets:
+        target_codes = targets.split('-')
+        target_languages = Language.objects.filter(code__in=target_codes).order_by('code')
+    if state == 'translated':
+        translated = True
+    elif state == 'untranslated':
+        translated = False
+    var_dict['source_languages'] = source_languages
+    var_dict['target_languages'] = target_languages
+    var_dict['target_codes'] = [l.code for l in target_languages]
+    qs = find_strings(source_languages=source_languages, target_languages=target_languages, translated=translated)
+    var_dict['string_count'] = qs.count()
+    paginator = Paginator(qs, PAGE_SIZE)
+    page = request.GET.get('page', 1)
+    try:
+        strings = paginator.page(page)
+    except PageNotAnInteger:
+        # If page is not an integer, deliver first page.
+        page = 1
+        strings = paginator.page(1)
+    except EmptyPage:
+        # If page is out of range (e.g. 9999), deliver last page of results.
+        page = paginator.num_pages
+        strings = paginator.page(paginator.num_pages)
+    var_dict['page_size'] = PAGE_SIZE
+    var_dict['page'] = page = int(page)
+    var_dict['offset'] = (page-1) * PAGE_SIZE
+    var_dict['strings'] = strings
+    return render_to_response('list_strings.html', var_dict, context_instance=RequestContext(request))
+
+# translation state
+def find_strings(source_languages=[], target_languages=[], translated=None):
+    if isinstance(source_languages, Language):
+        source_languages = [source_languages]
+    if isinstance(target_languages, Language):
+        target_languages = [target_languages]
+    qs = String.objects
+    if source_languages:
+        qs = qs.filter(language__in=source_languages)
+    if translated is None:
+        if not source_languages:
+            qs = qs.all()
+    elif translated: # translated = True
+        if target_languages:
+            qs = qs.filter(as_source__target__language__in=target_languages).distinct()
+        else:
+            qs = qs.filter(as_source__isnull=False).distinct()
+    else: # translated = False
+        if target_languages:
+            qs = qs.exclude(as_source__target__language__in=target_languages).distinct()
+        else:
+            qs = qs.filter(as_source__isnull=True).distinct()
+    return qs.order_by('language', 'text')
+
+def get_language(language_code):
+    return Language.objects.get(code=language_code)
