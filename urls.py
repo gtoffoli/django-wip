@@ -38,6 +38,7 @@ urlpatterns = [
     url(r"^block/(?P<block_id>[\d]+)/pages/$", views.block_pages, name="block_pages"),
     url(r"^block/(?P<block_id>[\d]+)/translate/$", views.block_translate, name="block_translate"),
     url(r"^block/(?P<block_id>[\d]+)/$", views.block, name="block"),
+    url(r"^string_edit/(?P<string_id>[\d]+)/(?P<targets>[\w-]*)/$", views.string_edit, name="string_edit"),
     url(r"^strings/(?P<sources>[\w-]*)/(?P<state>[\w-]*)/(?P<targets>[\w-]*)/$", views.list_strings, name="list_strings"),
     url(r"^strings/$", views.strings, name="strings"),
     url(r"^page_scan/(?P<fetched_id>[\d]+)/$", views.page_scan, name="page_scan"),

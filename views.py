@@ -223,6 +223,7 @@ def block_pages(request, block_id):
 def add_and_index_string(text, language):
     if isinstance(language, str):
         language = Language.objects.get(code=language)
+    # text = text.lower()
     try:
         string = String.objects.get(text=text, language=language)
     except:
@@ -292,9 +293,9 @@ def block_translate(request, block_id):
                 propagate_block_translation(request, block, translated_block)
     var_dict['page_block'] = block
     var_dict['source_language'] = source_language = block.get_language()
-    source_language_code = source_language.code
+    # source_language_code = source_language.code
     source_segments = block.get_strings()
-    source_segments = [segment.strip(' .,;:*+-') for segment in source_segments]
+    source_segments = [segment.strip(' .,;:*+-').lower() for segment in source_segments]
     source_strings = []
     for segment in source_segments:
         if not segment:
@@ -303,6 +304,7 @@ def block_translate(request, block_id):
         if source_language in target_languages:
             source_strings.append([])
             continue
+        """
         tokens = segment.split()
         tokens = re.split(" |\'", segment)
         filtered_tokens = []
@@ -315,10 +317,6 @@ def block_translate(request, block_id):
                 continue
             if token in EMPTY_WORDS[source_language_code]:
                 continue
-            """
-            if n_chars > 4:
-                token = token[:n_chars-1]
-            """
             filtered_tokens.append(token)
         qs = None
         strings = []
@@ -342,6 +340,8 @@ def block_translate(request, block_id):
                         break
                     strings.append(string)
         source_strings.append(strings)
+        """
+        source_strings.append(find_like_strings(segment_string))
     source_segments = zip(source_segments, source_strings)
     var_dict['source_segments'] = source_segments
     target_list = []
@@ -567,6 +567,72 @@ def extract_blocks(page_id):
 
 def strings(request):
     return render_to_response('strings.html', {}, context_instance=RequestContext(request))
+
+def string_edit(request, string_id, targets):
+    var_dict = {}
+    var_dict['string'] = string = get_object_or_404(String, pk=string_id)
+    var_dict['source_language'] = source_language = string.language
+    var_dict['targets'] = targets
+    target_languages = []
+    if targets:
+        target_codes = targets.split('-')
+        target_languages = Language.objects.filter(code__in=target_codes).order_by('code')
+    var_dict['target_languages'] = target_languages
+    post = request.POST
+    if post:
+        pass
+    return render_to_response('string_edit.html', var_dict, context_instance=RequestContext(request))
+
+def filtered_tokens(text, language_code, truncate=False, min_chars=4):
+    """
+    tokenize a text according to the language and strips some delimiter chars
+    drop short tokens; remove last char
+    """
+    tokens = re.split(" |\'", text)
+    filtered_tokens = []
+    for token in tokens:
+        token = token.strip(' .,;:*')
+        if not token:
+            continue
+        n_chars = len(token)
+        if n_chars < min_chars:
+            continue
+        if token in EMPTY_WORDS[language_code]:
+            continue
+        if truncate:
+            token = token[:n_chars-1]
+        filtered_tokens.append(token)
+    return filtered_tokens
+
+def find_like_strings(source_string, translation_languages=[], min_chars=5, max_strings=10):
+    """
+    source_string is an object of type String
+    we look for similar strings of the same language
+    first we use fuzzy search (more_like_this)
+    then we find strings containing some of the same tokens
+    """
+    language = source_string.language
+    language_code = language.code
+    hits = list(SearchQuerySet().more_like_this(source_string))
+    if not hits:
+        return []
+    source_set = set(filtered_tokens(source_string.text, language_code, truncate=True))
+    like_strings = []
+    n_like = 0
+    for hit in hits:
+        if not hit.language_code == language_code:
+            continue
+        string = String.objects.get(language=language, text=hit.text)
+        if not string.get_translations(languages=translation_languages):
+            continue
+        like_set = set(filtered_tokens(string.text, language_code, truncate=True))
+        if like_set.intersection(source_set):
+            like_strings.append(string)
+            n_like +=1
+            if n_like == max_strings:
+                break
+    like_strings = [String.objects.get(language=language, text=s.text) for s in like_strings]
+    return like_strings
 
 def list_strings(request, sources, state, targets):
     PAGE_SIZE = 100

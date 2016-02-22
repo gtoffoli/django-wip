@@ -281,6 +281,7 @@ TINYMCE_DEFAULT_CONFIG = {
     'paste_auto_cleanup_on_paste': 'false',
     }
 
+HAYSTACK_LIMIT_TO_REGISTERED_MODELS = False
 SEARCH_BACKEND = "whoosh"
 if SEARCH_BACKEND == 'whoosh':
     HAYSTACK_CONNECTIONS = {
