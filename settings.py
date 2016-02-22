@@ -246,9 +246,12 @@ TO_DROP_TAGS = [
     'link', 'script', 'style','iframe',
 ]
 EMPTY_WORDS = {
+'en': [],
+'es': [],
+'fr': [],
 'it': [
-  'circa', 'quello',
-]
+'circa', 'quello',
+],
 }
 LANGUAGE_COLORS = { 'it': 'green', 'en': 'grey', 'es': 'red', 'fr': 'blue', }
 

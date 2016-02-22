@@ -194,14 +194,26 @@ class String(models.Model):
     def language_code(self):
         return self.language.code
 
-    def get_translations(self, languages=[]):
-        translations = []
-        if not languages:
-            languages = Language.objects.exclude(code=self.language.code).order_by('code')
-        for language in languages:
-            strings = String.objects.filter(as_target__source=self, language=language)
-            translations.append([language, strings])
-        return translations
+    def get_translations(self, target_languages=[]):
+        if not target_languages:
+            target_languages = Language.objects.exclude(code=self.language.code).order_by('code')
+        if isinstance(target_languages, Language):
+            """
+            strings = String.objects.filter(as_target__source=self, language=target_languages)
+            return strings
+            """
+            txus = Txu.objects.filter(source=self, target__language=target_languages)
+            return txus
+        else:
+            translations = []
+            for language in target_languages:
+                """
+                strings = String.objects.filter(as_target__source=self, language__in=target_languages)
+                translations.append([language, strings])
+                """
+                txus = Txu.objects.filter(source=self, target__language=language)
+                translations.append([language, txus])
+            return translations
 # ContentType, currently not used, could be Site, Webpage or Block
 class Txu(models.Model):
     source = models.ForeignKey(String, verbose_name='source string', related_name='as_source')

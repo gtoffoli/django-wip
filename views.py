@@ -237,6 +237,7 @@ def block_translate(request, block_id):
     go_previous = go_next = save_block = ''
     skip_no_translate = skip_translated = True
     exclude_language = include_language = None
+    extract_strings = False
     post = request.POST
     if post:
         # print post.keys()
@@ -251,7 +252,8 @@ def block_translate(request, block_id):
             skip_no_translate = data['skip_no_translate']
             skip_translated = data['skip_translated']
             exclude_language = data['exclude_language']
-            include_language = data['include_language']
+            # include_language = None # data['include_language']
+            extract_strings = data['extract_strings']
             language = data['language']
             no_translate = data['no_translate']
         else:
@@ -260,6 +262,7 @@ def block_translate(request, block_id):
     var_dict['site'] = site = block.site
     var_dict['proxies'] = proxies = Proxy.objects.filter(site=site).order_by('language_id')
     var_dict['target_languages'] = target_languages = [proxy.language for proxy in proxies]
+    var_dict['extract_strings'] = extract_strings
     previous, next = block.get_previous_next(exclude_language=exclude_language, include_language=include_language)
     var_dict['previous'] = previous
     var_dict['next'] = next
@@ -301,7 +304,7 @@ def block_translate(request, block_id):
         if not segment:
             continue
         segment_string = add_and_index_string(segment, source_language)
-        if source_language in target_languages:
+        if not extract_strings or source_language in target_languages:
             source_strings.append([])
             continue
         """
@@ -367,7 +370,7 @@ def block_translate(request, block_id):
             target_strings.append(translated_strings)
         target_list.append([target_language, translated_block, target_strings])
     var_dict['target_list'] = target_list
-    var_dict['form'] = PageBlockForm(initial={'language': block.language, 'no_translate': block.no_translate, 'skip_translated': skip_translated, 'skip_no_translate': skip_no_translate, 'exclude_language': exclude_language, 'include_language': include_language,})
+    var_dict['form'] = PageBlockForm(initial={'language': block.language, 'no_translate': block.no_translate, 'skip_translated': skip_translated, 'skip_no_translate': skip_no_translate, 'exclude_language': exclude_language, 'extract_strings': extract_strings,})
     return render_to_response('block_translate.html', var_dict, context_instance=RequestContext(request))
 
 def propagate_block_translation(request, block, translated_block):
@@ -568,20 +571,27 @@ def extract_blocks(page_id):
 def strings(request):
     return render_to_response('strings.html', {}, context_instance=RequestContext(request))
 
-def string_edit(request, string_id, targets):
+def string_view(request, string_id):
     var_dict = {}
     var_dict['string'] = string = get_object_or_404(String, pk=string_id)
     var_dict['source_language'] = source_language = string.language
-    var_dict['targets'] = targets
-    target_languages = []
-    if targets:
-        target_codes = targets.split('-')
-        target_languages = Language.objects.filter(code__in=target_codes).order_by('code')
-    var_dict['target_languages'] = target_languages
+    var_dict['other_languages'] = other_languages = Language.objects.exclude(code=source_language.code).order_by('code')
+    var_dict['translations'] = string.get_translations()
+    var_dict['similar_strings'] = find_like_strings(string, min_chars=5, max_strings=10)
+    return render_to_response('string_view.html', var_dict, context_instance=RequestContext(request))
+
+def string_translate(request, string_id, target_code):
+    var_dict = {}
+    var_dict['string'] = string = get_object_or_404(String, pk=string_id)
+    var_dict['source_language'] = source_language = string.language
+    var_dict['target_code'] = target_code
+    var_dict['target_language'] = target_language = Language.objects.get(code=target_code)
+    var_dict['translations'] = string.get_translations(target_languages=target_language)
+    var_dict['similar_strings'] = find_like_strings(string, translation_language=target_language, with_translations=True, min_chars=5, max_strings=10)
     post = request.POST
     if post:
         pass
-    return render_to_response('string_edit.html', var_dict, context_instance=RequestContext(request))
+    return render_to_response('string_translate.html', var_dict, context_instance=RequestContext(request))
 
 def filtered_tokens(text, language_code, truncate=False, min_chars=4):
     """
@@ -604,7 +614,7 @@ def filtered_tokens(text, language_code, truncate=False, min_chars=4):
         filtered_tokens.append(token)
     return filtered_tokens
 
-def find_like_strings(source_string, translation_languages=[], min_chars=5, max_strings=10):
+def find_like_strings(source_string, translation_language=[], with_translations=False, min_chars=5, max_strings=10):
     """
     source_string is an object of type String
     we look for similar strings of the same language
@@ -622,16 +632,23 @@ def find_like_strings(source_string, translation_languages=[], min_chars=5, max_
     for hit in hits:
         if not hit.language_code == language_code:
             continue
-        string = String.objects.get(language=language, text=hit.text)
-        if not string.get_translations(languages=translation_languages):
+        try: # the index could be not in sync
+            string = String.objects.get(language=language, text=hit.text)
+        except:
             continue
+        if with_translations:
+            string_translations = string.get_translations(target_languages=translation_language)
+            if not string_translations:
+                continue
         like_set = set(filtered_tokens(string.text, language_code, truncate=True))
         if like_set.intersection(source_set):
-            like_strings.append(string)
+            if with_translations:
+                like_strings.append([string, string_translations])
+            else:
+                like_strings.append(string)
             n_like +=1
             if n_like == max_strings:
                 break
-    like_strings = [String.objects.get(language=language, text=s.text) for s in like_strings]
     return like_strings
 
 def list_strings(request, sources, state, targets):

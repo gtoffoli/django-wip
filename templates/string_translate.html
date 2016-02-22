@@ -1,0 +1,43 @@
+{% extends "wip_base.html" %}
+{% load staticfiles i18n %}
+
+{% block extra_head %}
+<style>
+    label { display: inline; font-weight: bold; margin-right: 1.0em; padding: 0.2em 0em; }
+    pre { display: inline;  padding: 0; }
+    pre code { display: inline; }
+    tr.odd { background: LightGray; }
+    tr.even { background: white; }
+</style>
+{% endblock %}
+
+{% block head_title %}Translate string: {{ string.text }}{% endblock %}
+
+{% block title-page %}<span style="color: black; font-size: smaller;">Translate string: </span> <span style="font-size: smaller;">{{ string.text|truncatechars:80 }}</span>{% endblock %}
+
+{% block content-page %}
+<form action="/string_translate/{{ string.id }}/translate/" method="post">
+	{% csrf_token %}
+    <div><label>String id</label> {{ string.id }}</div>
+    <div><label>Source language</label> {{ string.language }}
+    <div><label>Source text</label> <span style="font-size: larger;">{{ string.text }}</span></div>
+    <table style="width: 100%">
+    <tbody>
+    <tr><td colspan=4 style="padding-top: 0.5em; padding-bottom: 0.5em; font-size: large; font-weight: bold;">{{ target_language }} translation</td></tr>
+    <tr><td colspan=4 style="width: 100%"><span><textarea name="translation-{{ target_language.code }}" style="width: 100%"></textarea></span></td></tr>
+	<tr><td colspan=4><input type="submit" name="save_{{ target_language.code }}" value="Save {{ l.name }} translation" class="btn btn-sm" /></td></tr>
+    <tr><td colspan=4 style="width: 100%"><hr></td></tr>
+    <tr><td colspan=4 style="padding-top: 0.5em; padding-bottom: 0.5em; font-size: large; font-weight: bold;">{{ target_language }} translations of similar strings</td></tr>
+	<tr><th></th><th>source</th><th>reliab.</th><th style="text-align: left">translation</th></tr>
+	{% for s, tt in similar_strings %}{% for t in tt %}
+    <tr class="{% cycle 'odd' 'even' %}">{% with target=t.target %}
+    	<td>{% if forloop.counter == 1 %}{{ s.text }}{% endif %}</td>
+    	<td style="text-align: center">{{ t.provider }}</td>
+    	<td style="text-align: center">{{ t.reliability }}</td>
+    	<td>{{ t.target.text }}</td>
+   	{% endwith %}</tr>
+	{% endfor %}{% endfor %}
+	</tbody>
+	</table>
+</form>
+{% endblock %}

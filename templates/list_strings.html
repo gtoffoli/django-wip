@@ -51,12 +51,12 @@ Strings
 	{% for string in strings %}
 	<tr>
 	<td style="text-align: right; padding-right: 1.0em;">{{forloop.counter|add:offset}}</td>
-	<td>{{ string.text }}</td>
+	<td><a href="/string_view/{{ string.id }}/" title="view info">{{ string.text }}</a></td>
 	{% for translation in string.get_translations %}
 		{% if translation.0.code in target_codes %}
-			<td>{% for s in translation.1 %}
-				{{ s.text }}{% if not forloop.last %}, {% endif %}
-			{% endfor %}</td>
+			<td>{% if translation.1 %}{% for t in translation.1 %}<a href="/string_view/{{ t.target.id }}/" title="view info">{{ t.target.text }}</a>{% if not forloop.last %}, {% endif %}{% endfor %}
+				{% else %}<a href="/string_translate/{{ string.id }}/{% for l in target_languages %}{{ l.code }}{% if not forloop.last %}-{% endif %}{% endfor %}/">translate</a>
+				{% endif %}</td>
 		{% endif %}
 	{% endfor %}
 	</tr>

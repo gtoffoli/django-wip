@@ -1,0 +1,57 @@
+{% extends "wip_base.html" %}
+{% load staticfiles i18n %}
+
+{% block extra_head %}
+<style>
+    label { display: inline; font-weight: bold; margin-right: 1.0em; padding: 0.2em 0em; }
+    pre { display: inline;  padding: 0; }
+    pre code { display: inline; }
+    tr.odd { background: LightGray; }
+    tr.even { background: white; }
+</style>
+{% endblock %}
+
+{% block head_title %}String: {{ string.text }}{% endblock %}
+
+{% block title-page %}<span style="color: black; font-size: smaller;">String: </span> <span style="font-size: smaller;">{{ string.text|truncatechars:80 }}</span>{% endblock %}
+
+{% block content-page %}
+<form action="/string_translate/{{ string.id }}/translate/" method="post">
+	{% csrf_token %}
+    <div><label>String id</label> {{ string.id }}</div>
+    <div><label>String language</label> {{ string.language }}
+    <div><label>String text</label> <span style="font-size: larger;">{{ string.text }}</span></div>
+    {% if string.language.code == 'it' %}
+    	<div>{% for l in other_languages %}
+    	<a class="btn btn-sm" href="/string_translate/{{ string.id }}/{{ l.code }}/">Translate to {{ l }}</a>&nbsp;&nbsp;
+    	{% endfor %}</div>
+    {% endif %}
+    <table style="width: 100%">
+    <tbody>
+    {% if string.language.code == 'it' %}
+    <tr><td colspan=4 style="padding-top: 0.5em; padding-bottom: 0.5em; font-size: large; font-weight: bold;">Available translation</td></tr>
+	<tr><th>language</th><th>source</th><th>reliab.</th><th style="text-align: left">translation</th></tr>
+	{% for l, tt in string.get_translations %}
+	{% for t in tt %}
+    <tr class="{% cycle 'odd' 'even' %}">{% with target=t.target %}
+    	<td>{{ l }}</td>
+    	<td style="text-align: center">{{ t.provider }}</td>
+    	<td style="text-align: center">{{ t.reliability }}</td>
+    	<td><a href="/string_view/{{ target.id }}/">{{ target.text }}</a></td>
+   	{% endwith %}</tr>
+	{% endfor %}
+	{% endfor %}
+    {% endif %}
+
+    {% if similar_strings %}
+    <tr><td colspan=4 style="padding-top: 0.5em; padding-bottom: 0.5em; font-size: large; font-weight: bold;">Similar strings</td></tr>
+	{% for s in similar_strings %}
+    <tr class="{% cycle 'odd' 'even' %}">
+    	<td colspan=4><a href="/string_view/{{ s.id }}/" title="view info">{{ s.text }}</a></td>
+   	</tr>
+	{% endfor %}
+    {% endif %}
+	</tbody>
+	</table>
+</form>
+{% endblock %}

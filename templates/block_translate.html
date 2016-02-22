@@ -34,17 +34,18 @@
 		&nbsp;&nbsp; Skip translated {{ form.skip_translated }}
 		&nbsp;&nbsp; Skip no-translate {{ form.skip_no_translate }}
 		&nbsp;&nbsp; Exclude {{ form.exclude_language }}
-		&nbsp;&nbsp; Include {{ form.include_language }}
+		&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Extract strings {{ form.extract_strings }}
+		{% comment %}&nbsp;&nbsp; Include {{ form.include_language }}{% endcomment %}
 	</div>
 
 	<table style="border-collapse: separate; border-spacing: 5px;">
 	<thead>
-	<tr><th width="6%">language</th><th width="50%">block</th><th width="44%" colspan="2">segments and strings</th></tr>
+	<tr><th width="6%">language</th><th width="50%">block</th><th width="44%" colspan="2">segments{% if extract_strings %} and strings{% endif %}</th></tr>
 	</thead>
 	<tbody>
 	<tr style="vertical-align: top;"><td>Source</td><td><pre>{{ page_block.body }}</pre></td>
 	<td style="vertical-align: top;">{% for segment, strings in source_segments %}
-		<div style="padding-left: 1.8em; text-indent: -1.8em;"><code>{{forloop.counter|rjust:"3"}}</code> <span style=""><span>{{ segment }}</span></div>
+		<div style="padding-left: 1.8em; text-indent: -1.8em;"><code>{{forloop.counter|rjust:"3"}}</code> <span style="font-weight: bold;"><span>{{ segment }}</span></div>
 		{% for string in strings %}
 		<div style="font-style: italic; font-size: small; padding-left: 1.8em;">{{ string }}</div>
 		{% endfor %}
