@@ -1,5 +1,5 @@
 """
-Django vocabilary mpodels for wip application.
+Django vocabulary mpodels for wip application.
 """
 
 from django.utils.translation import ugettext_lazy as _
@@ -35,18 +35,35 @@ class CodedEntry(models.Model):
         ordering = ['name']
 
     def option_label(self):
-        return '%s - %s' % (self.code, self.name)
+        try:
+            return '%s - %s' % (self.code, self.name)
+        except:
+            return self.code
+
+    def label_from_instance(self):
+        try:
+            return '%s - %s' % (self.code, self.name)
+        except:
+            return self.code
 
     def only_name (self):
         return '%s' % (self.name)
 
     def __unicode__(self):
-        return self.name
+        try:
+            return self.name
+        except:
+            return self.code
 
 class CodedEntryAdmin(admin.ModelAdmin):
     fieldset = ['code', 'name',]
     list_display = ('code', 'name', )
 
+    def safe_name(self, obj):
+        try:
+            return obj.name
+        except:
+            return obj.code
 
 class ApprovalStatus(VocabularyEntry):
 
@@ -76,7 +93,10 @@ class Subject(CodedEntry):
     class Meta:
         verbose_name = _('subject')
         verbose_name_plural = _('subjects')
+        ordering = ['code']
 
+    def label_from_instance(self):
+        return self.__unicode__()
 
 class SubjectAdmin(CodedEntryAdmin):
     pass

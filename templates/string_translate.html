@@ -9,6 +9,22 @@
     tr.odd { background: LightGray; }
     tr.even { background: white; }
 </style>
+<script>
+function addText(from, to_id) {
+	to = document.getElementById(to_id)
+	if (to.value != ''){
+		to.value += ' '
+	}
+    to.value += from.textContent || from.innerText;
+}
+{% comment %}
+function capFirst(id) {
+	el = document.getElementById(id)
+	s = el.value
+	el.value = s.charAt(0).toUpperCase() + s.slice(1);
+}
+{% endcomment %}
+</script>
 {% endblock %}
 
 {% block head_title %}Translate string: {{ string.text }}{% endblock %}
@@ -16,7 +32,7 @@
 {% block title-page %}<span style="color: black; font-size: smaller;">Translate string: </span> <span style="font-size: smaller;">{{ string.text|truncatechars:80 }}</span>{% endblock %}
 
 {% block content-page %}
-<form action="/string_translate/{{ string.id }}/translate/" method="post">
+<form action="/string_translate/{{ string.id }}/{{ target_code }}/" method="post">
 	{% csrf_token %}
     <div><label>String id</label> {{ string.id }}</div>
     <div><label>Source language</label> {{ string.language }}
@@ -24,17 +40,22 @@
     <table style="width: 100%">
     <tbody>
     <tr><td colspan=4 style="padding-top: 0.5em; padding-bottom: 0.5em; font-size: large; font-weight: bold;">{{ target_language }} translation</td></tr>
-    <tr><td colspan=4 style="width: 100%"><span><textarea name="translation-{{ target_language.code }}" style="width: 100%"></textarea></span></td></tr>
+    <tr><td colspan=4 style="width: 100%">{% comment %}<a onclick="capFirst('translation')"><span class="fa fa-arrow-up" style="font-size: 1.0em;" title="make 1st char uppercase"></span></a> &nbsp;
+    	{% endcomment %}{{ form.translation }}</td></tr>
+	<tr><td colspan=4><label>Site </label> {{ form.site }}</td></tr>
+	<tr><td colspan=4><label>Sectors </label> {{ form.subjects }}</td></tr>
 	<tr><td colspan=4><input type="submit" name="save_{{ target_language.code }}" value="Save {{ l.name }} translation" class="btn btn-sm" /></td></tr>
     <tr><td colspan=4 style="width: 100%"><hr></td></tr>
     <tr><td colspan=4 style="padding-top: 0.5em; padding-bottom: 0.5em; font-size: large; font-weight: bold;">{{ target_language }} translations of similar strings</td></tr>
 	<tr><th></th><th>source</th><th>reliab.</th><th style="text-align: left">translation</th></tr>
-	{% for s, tt in similar_strings %}{% for t in tt %}
+	{% for score, s, tt in similar_strings %}{% for t in tt %}
     <tr class="{% cycle 'odd' 'even' %}">{% with target=t.target %}
-    	<td>{% if forloop.counter == 1 %}{{ s.text }}{% endif %}</td>
+    	<td>{% if forloop.counter == 1 %}{{ score|floatformat:1 }} &nbsp; {{ s.text }}{% endif %}</td>
     	<td style="text-align: center">{{ t.provider }}</td>
     	<td style="text-align: center">{{ t.reliability }}</td>
-    	<td>{{ t.target.text }}</td>
+    	<td>{% for token in target.tokens %}<a onclick="addText(this, 'id_translation')" style="cursor: pointer;" title="append this word to your translation">{{ token }}</a> {% endfor %}
+    		&nbsp; <a onclick="addText(this.parentNode, 'id_translation')"><span class="fa fa-copy" style="font-size: 1.0em;" title="append this translation to your translation"></span></a>
+   		</td>
    	{% endwith %}</tr>
 	{% endfor %}{% endfor %}
 	</tbody>

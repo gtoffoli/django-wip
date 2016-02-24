@@ -194,6 +194,9 @@ class String(models.Model):
     def language_code(self):
         return self.language.code
 
+    def tokens(self):
+        return self.text.split()
+
     def get_translations(self, target_languages=[]):
         if not target_languages:
             target_languages = Language.objects.exclude(code=self.language.code).order_by('code')

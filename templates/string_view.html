@@ -45,9 +45,9 @@
 
     {% if similar_strings %}
     <tr><td colspan=4 style="padding-top: 0.5em; padding-bottom: 0.5em; font-size: large; font-weight: bold;">Similar strings</td></tr>
-	{% for s in similar_strings %}
+	{% for score, s in similar_strings %}
     <tr class="{% cycle 'odd' 'even' %}">
-    	<td colspan=4><a href="/string_view/{{ s.id }}/" title="view info">{{ s.text }}</a></td>
+    	<td colspan=4>{{ score|floatformat:1 }} &nbsp; <a href="/string_view/{{ s.id }}/" title="view info">{{ s.text }}</a></td>
    	</tr>
 	{% endfor %}
     {% endif %}

@@ -250,8 +250,18 @@ EMPTY_WORDS = {
 'es': [],
 'fr': [],
 'it': [
-'circa', 'quello',
+       'di', 'a', 'da', 'in', 'con', 'su', 'per',
+       'del', 'della', 'dei', 'al', 'alla', 'ai', 'sui',
+       'tuo', 'tua', 'tuoi', 'tue',
+       'quello', 'quella', 'questo', 'questa',
+       'circa',
 ],
+}
+SEPARATORS =  {
+'en': ' .,;:?*',
+'es': ' .,;:?*',
+'fr': ' .,;:?*',
+'it': ' .,;:?*',
 }
 LANGUAGE_COLORS = { 'it': 'green', 'en': 'grey', 'es': 'red', 'fr': 'blue', }
 

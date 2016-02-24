@@ -7,21 +7,15 @@ For more information on this file, see
 https://docs.djangoproject.com/en/1.9/topics/db/models/
 """
 
-try:
-    import cPickle as pickle
-except:
-    import pickle
-
 import os
 import re
-import StringIO
+from math import sqrt
 from lxml import html, etree
 from scrapy.spiders import Rule #, CrawlSpider
 from scrapy.linkextractors import LinkExtractor
 from scrapy.crawler import CrawlerProcess
-from haystack.indexes import SearchIndex
 from haystack.query import SearchQuerySet
-from wip.search_indexes import StringIndex
+from search_indexes import StringIndex
 
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from django.template import RequestContext
@@ -29,10 +23,10 @@ from django.http import HttpResponse, HttpResponseRedirect
 from django.shortcuts import render_to_response, get_object_or_404
 
 from models import Language, Site, Proxy, Webpage, PageVersion, TranslatedVersion, Block, TranslatedBlock, BlockInPage, String, Txu #, TranslatedVersion
-from forms import PageBlockForm
+from forms import PageBlockForm, StringTranslationForm
 from spiders import WipSiteCrawlerScript, WipCrawlSpider
 
-from settings import DATA_ROOT, RESOURCES_ROOT, tagger_filename, BLOCK_TAGS, EMPTY_WORDS
+from settings import DATA_ROOT, RESOURCES_ROOT, tagger_filename, BLOCK_TAGS, SEPARATORS, EMPTY_WORDS
 from utils import strings_from_html, elements_from_element, block_checksum
 import srx_segmenter
 
@@ -577,7 +571,7 @@ def string_view(request, string_id):
     var_dict['source_language'] = source_language = string.language
     var_dict['other_languages'] = other_languages = Language.objects.exclude(code=source_language.code).order_by('code')
     var_dict['translations'] = string.get_translations()
-    var_dict['similar_strings'] = find_like_strings(string, min_chars=5, max_strings=10)
+    var_dict['similar_strings'] = find_like_strings(string, max_strings=10)
     return render_to_response('string_view.html', var_dict, context_instance=RequestContext(request))
 
 def string_translate(request, string_id, target_code):
@@ -587,69 +581,111 @@ def string_translate(request, string_id, target_code):
     var_dict['target_code'] = target_code
     var_dict['target_language'] = target_language = Language.objects.get(code=target_code)
     var_dict['translations'] = string.get_translations(target_languages=target_language)
-    var_dict['similar_strings'] = find_like_strings(string, translation_language=target_language, with_translations=True, min_chars=5, max_strings=10)
-    post = request.POST
-    if post:
-        pass
+    var_dict['similar_strings'] = find_like_strings(string, translation_language=target_language, with_translations=True, max_strings=10)
+    if request.method == 'POST':
+        # print post.keys()
+        site = None
+        form = StringTranslationForm(request.POST)
+        if form.is_valid():
+            print 'form is valid'
+            data = form.cleaned_data
+            print 'data: ', data
+            translation = data['translation']
+            site = data['site']
+        else:
+            print 'error', form.errors
+        target = add_and_index_string(translation, target_language)
+        txu = Txu(source=string, target=target, reliability=5, user=request.user)
+        if site:
+            txu.context = site
+            txu.provider = site.name
+        txu.save()
+    else:
+        form = StringTranslationForm()
+    var_dict['form'] = form
     return render_to_response('string_translate.html', var_dict, context_instance=RequestContext(request))
 
-def filtered_tokens(text, language_code, truncate=False, min_chars=4):
+def raw_tokens(text, language_code):
+    tokens = re.split(" |\'", text)
+    raw_tokens = []
+    for token in tokens:
+        token = token.strip(SEPARATORS[language_code])
+        if not token:
+            continue
+        raw_tokens.append(token)
+    return raw_tokens     
+
+def filtered_tokens(text, language_code, tokens=[], truncate=False, min_chars=10):
     """
     tokenize a text according to the language and strips some delimiter chars
     drop short tokens; remove last char
     """
-    tokens = re.split(" |\'", text)
+    if not tokens:
+        tokens = raw_tokens(text, language_code)
     filtered_tokens = []
     for token in tokens:
-        token = token.strip(' .,;:*')
-        if not token:
-            continue
         n_chars = len(token)
         if n_chars < min_chars:
             continue
         if token in EMPTY_WORDS[language_code]:
             continue
-        if truncate:
+        if truncate and n_chars>min_chars:
             token = token[:n_chars-1]
         filtered_tokens.append(token)
     return filtered_tokens
 
-def find_like_strings(source_string, translation_language=[], with_translations=False, min_chars=5, max_strings=10):
+def find_like_strings(source_string, translation_language=[], with_translations=False, min_chars=3, max_strings=10):
     """
     source_string is an object of type String
     we look for similar strings of the same language
     first we use fuzzy search (more_like_this)
     then we find strings containing some of the same tokens
     """
+    min_chars_times_10 = min_chars*10
     language = source_string.language
     language_code = language.code
     hits = list(SearchQuerySet().more_like_this(source_string))
     if not hits:
         return []
-    source_set = set(filtered_tokens(source_string.text, language_code, truncate=True))
+    source_tokens = filtered_tokens(source_string.text, language_code, truncate=True, min_chars=min_chars)
+    # print 'source_tokens: ', source_tokens
+    source_set = set(source_tokens)
     like_strings = []
-    n_like = 0
+    # print 'hits: ', hits
     for hit in hits:
         if not hit.language_code == language_code:
             continue
+        print 'language: ', hit.language_code
         try: # the index could be not in sync
             string = String.objects.get(language=language, text=hit.text)
         except:
             continue
         if with_translations:
-            string_translations = string.get_translations(target_languages=translation_language)
-            if not string_translations:
+            translations = string.get_translations(target_languages=translation_language)
+            if not translations:
                 continue
-        like_set = set(filtered_tokens(string.text, language_code, truncate=True))
-        if like_set.intersection(source_set):
-            if with_translations:
-                like_strings.append([string, string_translations])
-            else:
-                like_strings.append(string)
-            n_like +=1
-            if n_like == max_strings:
-                break
-    return like_strings
+        text = string.text
+        tokens = raw_tokens(text, language_code)
+        l = len(tokens)
+        tokens = filtered_tokens(text, language_code, tokens=tokens, truncate=True, min_chars=min_chars)
+        l = float(len(source_tokens) + l + len(tokens))/3
+        like_set = set(tokens)
+        i = len(like_set.intersection(source_set))
+        if not i:
+            continue
+        # core  formula
+        similarity_score = float(i * sqrt(i)) / sqrt(l)
+        # print similarity_score, text
+        # add a small pseudo-random element to compensate for the bias in the results of more_like_this
+        correction = float(len(text) % min_chars) / min_chars_times_10
+        similarity_score += correction
+        print similarity_score
+        if with_translations:
+            like_strings.append([similarity_score, string, translations])
+        else:
+            like_strings.append([similarity_score, string])
+    like_strings.sort(key=lambda x: x[0], reverse=True)
+    return like_strings[:max_strings]
 
 def list_strings(request, sources, state, targets):
     PAGE_SIZE = 100
