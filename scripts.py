@@ -113,9 +113,10 @@ def import_tbx(path='', base_path=IATE_path, filename=filename_template, sector=
             n_terms += 1
             if dry:
                 # print entry_id, ', '.join([entry_dict[language_code][0][0] for language_code in LANGUAGES])
-                print entry_id
+                sys.stdout.write('.')
             else:
-                print entry_id
+                # print entry_id
+                sys.stdout.write('.')
                 source_term = entry_dict['it'][0]
                 text = source_term[0]
                 reliability = source_term[1]
