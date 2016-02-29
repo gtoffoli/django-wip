@@ -46,6 +46,22 @@ function capFirst(id) {
 	<tr><td colspan=4><label>Sectors </label> {{ form.subjects }}</td></tr>
 	<tr><td colspan=4><input type="submit" name="save_{{ target_language.code }}" value="Save {{ l.name }} translation" class="btn btn-sm" /></td></tr>
     <tr><td colspan=4 style="width: 100%"><hr></td></tr>
+
+    {% if translations %}
+    <tr><td colspan=4 style="padding-top: 0.5em; padding-bottom: 0.5em; font-size: large; font-weight: bold;">Available translations</td></tr>
+	<tr><th></th><th>source</th><th>reliab.</th><th style="text-align: left">translation</th></tr>
+	{% for t in translations.0.1 %}
+    <tr class="{% cycle 'odd' 'even' %}">{% with target=t.target %}
+    	<td></td>
+    	<td style="text-align: center">{{ t.provider }}</td>
+    	<td style="text-align: center">{{ t.reliability }}</td>
+    	<td>{{ target.text }}
+    		&nbsp; <a onclick="addText(this.parentNode, 'id_translation')"><span class="fa fa-copy" style="font-size: 1.0em;" title="append this translation to your translation"></span></a>
+    	</td>
+   	{% endwith %}</tr>
+	{% endfor %}
+    {% endif %}
+
     <tr><td colspan=4 style="padding-top: 0.5em; padding-bottom: 0.5em; font-size: large; font-weight: bold;">{{ target_language }} translations of similar strings</td></tr>
 	<tr><th></th><th>source</th><th>reliab.</th><th style="text-align: left">translation</th></tr>
 	{% for score, s, tt in similar_strings %}{% for t in tt %}

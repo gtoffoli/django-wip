@@ -1,9 +1,9 @@
 {% extends "wip_base.html" %}
 {% load staticfiles i18n %}
 
-{% block head_title %}WIP - Blocks of site {{ site.name }}, page {{ page.path }}{% endblock %}
+{% block head_title %}WIP - Blocks of site {{ site.name }}, page {{ webpage.path }}{% endblock %}
 
-{% block title-page %}WIP - Blocks of site <a href="/site/{{ site.slug }}/">{{ site.name }}</a>, page <a href="/page/{{ page.id }}/">{{ page.path }}</a>{% endblock %}
+{% block title-page %}WIP - Blocks of site <a href="/site/{{ site.slug }}/">{{ site.name }}</a>, page <a href="/page/{{ webpage.id }}/">{{ webpage.path }}</a>{% endblock %}
 
 {% block extra_head %}
 <style>
@@ -13,19 +13,32 @@
 {% endblock %}
 
 {% block content-page %}
-    	<table>
-   		<thead>
-   			<th> # </th><th> Id </th><th>Chars</th><th> xPath </th><th> Pages </th><th> Date/Time </th>
-   		</thead>
-   		<tbody>
-		{% for page_block in blocks %}
-		<tr><td><pre><code>{{forloop.counter|rjust:"3"}}</code></pre></td>
-			<td style="text-align: right;"> {{ page_block.id }} </td>
-			<td style="text-align: right;">{{ page_block.body|length }}</td>
-			<td><a href="/block/{{ page_block.id }}/">{{ page_block.xpath }}</a></td>
-			<td style="text-align: center;"><a href="/block/{{page_block.id }}/pages/">{{ page_block.webpages.all.count }}</a></td>
-			<td>{{ page_block.time|date:"SHORT_DATETIME_FORMAT" }}</td></tr>
-		{% endfor %}
-	    </tbody>
-    	</table>
+	{% if block_count %}
+	<div>{{ block_count }} blocks found in this page.</div>
+	<div class="pagination">
+    <span class="step-links">
+    	{% for p in before %}<a href="?page={{ p }}">{% if forloop.first %}<i class="fa fa-fast-backward"></i> {% else %}{{ p }}{% endif %}</a>&nbsp;{% endfor %}
+        &nbsp;<i class="fa fa-circle" style="font-size: 0.5em;"></i> page {{ page_blocks.number }} of {{ page_blocks.paginator.num_pages }} <i class="fa fa-circle" style="font-size: 0.5em;"></i>&nbsp;
+    	{% for p in after %}&nbsp;<a href="?page={{ p }}">{% if forloop.last %} <i class="fa fa-fast-forward"></i> {% else %} {{ p }} {% endif %}</a></a>{% endfor %}
+    </span>
+	</div>
+
+   	<table>
+  		<thead>
+  			<th> # </th><th> Id </th><th>Chars</th><th> xPath </th><th> Pages </th><th> Date/Time </th>
+  		</thead>
+  		<tbody>
+	{% for page_block in page_blocks %}
+	<tr><td><pre><code>{{forloop.counter|rjust:"3"}}</code></pre></td>
+		<td style="text-align: right;"> {{ page_block.id }} </td>
+		<td style="text-align: right;">{{ page_block.body|length }}</td>
+		<td><a href="/block/{{ page_block.id }}/">{{ page_block.xpath }}</a></td>
+		<td style="text-align: center;"><a href="/block/{{page_block.id }}/pages/">{{ page_block.webpages.all.count }}</a></td>
+		<td>{{ page_block.time|date:"SHORT_DATETIME_FORMAT" }}</td></tr>
+	{% endfor %}
+    </tbody>
+   	</table>
+	{% else %}
+		<p>No blocks are present.</p>
+	{% endif %}
 {% endblock %}

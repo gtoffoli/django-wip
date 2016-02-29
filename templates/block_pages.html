@@ -13,8 +13,16 @@
 {% endblock %}
 
 {% block content-page %}
-	{% if pages %}
-	<div>
+	{% if page_count %}
+	<div>{{ page_count }} pages found including this block.</div>
+	<div class="pagination">
+    <span class="step-links">
+    	{% for p in before %}<a href="?page={{ p }}">{% if forloop.first %}<i class="fa fa-fast-backward"></i> {% else %}{{ p }}{% endif %}</a>&nbsp;{% endfor %}
+        &nbsp;<i class="fa fa-circle" style="font-size: 0.5em;"></i> page {{ block_pages.number }} of {{ block_pages.paginator.num_pages }} <i class="fa fa-circle" style="font-size: 0.5em;"></i>&nbsp;
+    	{% for p in after %}&nbsp;<a href="?page={{ p }}">{% if forloop.last %} <i class="fa fa-fast-forward"></i> {% else %} {{ p }} {% endif %}</a></a>{% endfor %}
+    </span>
+	</div>
+
 	<table>
 	<thead>
 		<th> # </th><th> Id </th><th>Source</th><th>Proxy</th><th>Page path</th><th>Blocks</th>
@@ -22,23 +30,22 @@
 		<th>Last checked</th>{% comment %}<th>xPath of main content region</th>{% endcomment %}
 	</thead>
 	<tbody>
-	    {% for page in pages %}
+	    {% for block_page in block_pages %}
 	    <tr>
 	    <td><pre><code>{{forloop.counter|rjust:"3"}}</code> </pre></td>
-		<td style="text-align: right;"> {{ page.id }} </td>
-	    <td style="text-align: center;"><a href="{{ site.url }}{{ page.path }}" title="goto original page"><span class="fa fa-external-link" style="font-size: 1.0em;"></span></a></td>
-	    <td style="text-align: center;"><a href="/{{ site.path_prefix }}{{ page.path }}" title="view page through proxy"><span class="fa fa-link" style="font-size: 1.0em;"></span></a></td>
-		<td><a href="/page/{{ page.id }}/">{{ page.path }}</a></td>
-		<td style="text-align: center;"> <a href="/page/{{ page.id }}/blocks/">{{ page.blocks.all.count }}</a> </td>
-		{% for language, blocks_count in page.get_translated_blocks_count %}
+		<td style="text-align: right;"> {{ block_page.id }} </td>
+	    <td style="text-align: center;"><a href="{{ site.url }}{{ block_page.path }}" title="goto original page"><span class="fa fa-external-link" style="font-size: 1.0em;"></span></a></td>
+	    <td style="text-align: center;"><a href="/{{ site.path_prefix }}{{ block_page.path }}" title="view page through proxy"><span class="fa fa-link" style="font-size: 1.0em;"></span></a></td>
+		<td><a href="/page/{{ block_page.id }}/">{{ block_page.path }}</a></td>
+		<td style="text-align: center;"> <a href="/page/{{ block_page.id }}/blocks/">{{ block_page.blocks.all.count }}</a> </td>
+		{% for language, blocks_count in block_page.get_translated_blocks_count %}
 		<td>{% if blocks_count %} {{ blocks_count }} {% endif %}</td>
 		{% endfor %} 			
-		<td> {{ page.last_checked|date:"SHORT_DATETIME_FORMAT" }} </td></tr>
+		<td> {{ block_page.last_checked|date:"SHORT_DATETIME_FORMAT" }} </td></tr>
 	    </tr>
 	    {% endfor %}
 	</tbody>
 	</table>
-	</div>
 	{% else %}
 		<p>No pages are present.</p>
 	{% endif %}

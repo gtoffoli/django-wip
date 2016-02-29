@@ -139,7 +139,8 @@ def import_tbx(path='', base_path=IATE_path, filename=filename_template, sector=
                     txus = Txu.objects.filter(provider=provider, entry_id=entry_id, target=target_string)
                     if txus:
                         continue                        
-                    txu = Txu(source=source_string, target=target_string, provider=provider, entry_id=entry_id, reliability=reliability)
+                    # txu = Txu(source=source_string, target=target_string, provider=provider, entry_id=entry_id, reliability=reliability)
+                    txu = Txu(source=source_string, target=target_string, source_code='it', target_code=language_code, provider=provider, entry_id=entry_id, reliability=reliability)
                     txu.save()
                     for subject_code in subject_codes:
                         try:
@@ -156,6 +157,14 @@ def import_tbx(path='', base_path=IATE_path, filename=filename_template, sector=
     print n_entries, ' entries'
     print n_tigs, ' tigs'
     print n_terms, ' terms'
+
+def fix_txus():
+    txus=Txu.objects.all()
+    for txu in txus:
+        txu.source_code = txu.source.language_id
+        txu.target_code = txu.target.language_id
+        txu.save()
+    print txus.count()
 
 def test(request):
     var_dict = {}

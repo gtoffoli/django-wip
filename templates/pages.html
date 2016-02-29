@@ -13,8 +13,16 @@
 {% endblock %}
 
 {% block content-page %}
-	{% if pages %}
-	<div>
+	{% if page_count %}
+	<div>{{ page_count }} pages found in this site.</div>
+	<div class="pagination">
+    <span class="step-links">
+    	{% for p in before %}<a href="?page={{ p }}">{% if forloop.first %}<i class="fa fa-fast-backward"></i> {% else %}{{ p }}{% endif %}</a>&nbsp;{% endfor %}
+        &nbsp;<i class="fa fa-circle" style="font-size: 0.5em;"></i> page {{ site_pages.number }} of {{ site_pages.paginator.num_pages }} <i class="fa fa-circle" style="font-size: 0.5em;"></i>&nbsp;
+    	{% for p in after %}&nbsp;<a href="?page={{ p }}">{% if forloop.last %} <i class="fa fa-fast-forward"></i> {% else %} {{ p }} {% endif %}</a></a>{% endfor %}
+    </span>
+	</div>
+
 	<table>
 	<thead>
 		<th> # </th><th> Id </th><th>Source</th><th colspan='{{ proxies.count|add:"1" }}'>Proxies</th>			
@@ -23,33 +31,27 @@
 		<th>Last checked</th>{% comment %}<th>xPath of main content region</th>{% endcomment %}
 	</thead>
 	<tbody>
-	    {% for page in pages %}
+	    {% for site_page in site_pages %}
 	    <tr>
-	    <td><pre><code>{{forloop.counter|rjust:"3"}}</code> </pre></td>
-		<td style="text-align: right;"> {{ page.id }} </td>
-	    <td style="text-align: center;"><a href="{{ site.url }}{{ page.path }}" title="goto original page"><span class="fa fa-external-link" style="font-size: 1.0em;"></span></a></td>
-	    <td style="text-align: center;"><a href="/{{ site.path_prefix }}{{ page.path }}" title="view page through the null proxy">null</a></td>
-		{% for language, translated_block_count in page.get_translated_blocks_count %}<td>
+	    <td><pre><code>{{forloop.counter|add:offset|rjust:"3"}}</code> </pre></td>
+		<td style="text-align: right;"> {{ site_page.id }} </td>
+	    <td style="text-align: center;"><a href="{{ site.url }}{{ site_page.path }}" title="goto original page"><span class="fa fa-external-link" style="font-size: 1.0em;"></span></a></td>
+	    <td style="text-align: center;"><a href="/{{ site.path_prefix }}{{ site_page.path }}" title="view page through the null proxy">null</a></td>
+		{% for language, translated_block_count in site_page.get_translated_blocks_count %}<td>
 			{% if translated_block_count %}
-				<a href="/{{ site.path_prefix }}/{{ language.code }}{{ page.path }}" title="view page through the {{ language.name }} proxy">{{ language.code }}</a>
+				<a href="/{{ site.path_prefix }}/{{ language.code }}{{ site_page.path }}" title="view page through the {{ language.name }} proxy">{{ language.code }}</a>
 			{% endif %}
 		</td>{% endfor %}
-		<td><a href="/page/{{ page.id }}/">{{ page.path }}</a></td>
-		<td style="text-align: center;"> <a href="/page/{{ page.id }}/blocks/">{{ page.blocks.all.count }}</a> </td>
-		{% for language, blocks_count in page.get_translated_blocks_count %}
+		<td><a href="/page/{{ site_page.id }}/">{{ site_page.path }}</a></td>
+		<td style="text-align: center;"> <a href="/page/{{ site_page.id }}/blocks/">{{ site_page.blocks.all.count }}</a> </td>
+		{% for language, blocks_count in site_page.get_translated_blocks_count %}
 		<td>{% if blocks_count %} {{ blocks_count }} {% endif %}</td>
 		{% endfor %} 			
-		<td> {{ page.last_checked|date:"SHORT_DATETIME_FORMAT" }} </td></tr>
-{% comment %}
-		{% with region=page.get_region %}{% if region %}
-		<td>{{ region.root }}</td>
-		{% endif %}{% endwith %}	
-{% endcomment %}
+		<td> {{ site_page.last_checked|date:"SHORT_DATETIME_FORMAT" }} </td></tr>
 	    </tr>
 	    {% endfor %}
 	</tbody>
 	</table>
-	</div>
 	{% else %}
 		<p>No pages are present.</p>
 	{% endif %}

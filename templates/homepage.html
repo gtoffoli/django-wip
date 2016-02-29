@@ -32,10 +32,12 @@
 </tbody>
 </table>
 
+{% comment %}
 <h3>Strings</h3>
 <div>&nbsp;<label>Italian strings</label> <a href="/strings/it/translated/en-es-fr/">{{ source_strings.count }}</a></div>
 <div>&nbsp;<label>Not translated to English</label> <a href="/strings/it/untranslated/en/">{{ untraslated_strings.en.count }}</a></div>
 <div>&nbsp;<label>Not translated to French</label> <a href="/strings/it/untranslated/fr/">{{ untraslated_strings.fr.count }}</a></div>
 <div>&nbsp;<label>Not translated to Spanish</label> <a href="/strings/it/untranslated/es/">{{ untraslated_strings.es.count }}</a></div>
+{% endcomment %}
 
 {% endblock %}

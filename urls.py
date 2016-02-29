@@ -20,6 +20,7 @@ from django.conf.urls import url, include
 from django.contrib import admin
 from models import Site, Proxy
 import views
+import search_indexes
 import scripts
 from proxy import WipHttpProxy
 
@@ -47,6 +48,7 @@ urlpatterns = [
     url(r"^proxy/(?P<proxy_slug>[\w-]+)/$", views.proxy, name="proxy"),
     # url(r"^my_task/$", views.my_task, name="my_task"),
     url(r"^create_tagger/$", views.create_tagger, name="create_tagger"),
+    url(r'^navigation_autocomplete$', search_indexes.navigation_autocomplete, name='navigation_autocomplete'),
     url(r"^test/$", scripts.test, name="test"),
 ]
 

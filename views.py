@@ -21,14 +21,31 @@ from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from django.template import RequestContext
 from django.http import HttpResponse, HttpResponseRedirect
 from django.shortcuts import render_to_response, get_object_or_404
+from django.db.models import Q, Count
+from django.db.models.expressions import RawSQL
 
 from models import Language, Site, Proxy, Webpage, PageVersion, TranslatedVersion, Block, TranslatedBlock, BlockInPage, String, Txu #, TranslatedVersion
 from forms import PageBlockForm, StringTranslationForm
 from spiders import WipSiteCrawlerScript, WipCrawlSpider
 
+from settings import PAGE_SIZE, PAGE_STEPS
 from settings import DATA_ROOT, RESOURCES_ROOT, tagger_filename, BLOCK_TAGS, SEPARATORS, EMPTY_WORDS
 from utils import strings_from_html, elements_from_element, block_checksum
 import srx_segmenter
+
+def steps_before(page):
+    steps = list(PAGE_STEPS)
+    steps.reverse()
+    steps = [page-step for step in steps if page-step >= 1 and page-step < page]
+    if page > 1 and steps[0] > 1:
+        steps = [1] + steps
+    return steps
+
+def steps_after(page, page_count):
+    steps = [page+step for step in PAGE_STEPS if page+step > page and page+step <= page_count]
+    if page < page_count and steps[-1] < page_count:
+        steps.append(page_count)
+    return steps
 
 def home(request):
     var_dict = {}
@@ -45,13 +62,15 @@ def home(request):
         site_dict['translated_blocks'] = TranslatedBlock.objects.filter(block__site=site)
         sites.append(site_dict)
     var_dict['sites'] = sites
+    """
+    DO NOT REMOVE
     var_dict['source_strings'] = find_strings(source_languages=['it'])
     var_dict['untraslated_strings'] = {
        'en': find_strings(source_languages=['it'], target_languages=['en'], translated=False),
        'fr': find_strings(source_languages=['it'], target_languages=['fr'], translated=False),
        'es': find_strings(source_languages=['it'], target_languages=['es'], translated=False),
        }
-    # var_dict['translated_strings'] = StringTranslation.objects.all()
+    """
     return render_to_response('homepage.html', var_dict, context_instance=RequestContext(request))
 
 def sites(request):
@@ -136,8 +155,30 @@ def site_pages(request, site_slug):
     site = get_object_or_404(Site, slug=site_slug)
     var_dict['site'] = site
     var_dict['proxies'] =  proxies = Proxy.objects.filter(site=site)
+    """
     var_dict['pages'] = pages = Webpage.objects.filter(site=site)
     var_dict['page_count'] = pages.count()
+    """
+    qs = Webpage.objects.filter(site=site)
+    var_dict['page_count'] = page_count = qs.count()
+    paginator = Paginator(qs, PAGE_SIZE)
+    page = request.GET.get('page', 1)
+    try:
+        site_pages = paginator.page(page)
+    except PageNotAnInteger:
+        # If page is not an integer, deliver first page.
+        page = 1
+        site_pages = paginator.page(1)
+    except EmptyPage:
+        # If page is out of range (e.g. 9999), deliver last page of results.
+        page = paginator.num_pages
+        site_pages = paginator.page(paginator.num_pages)
+    var_dict['page_size'] = PAGE_SIZE
+    var_dict['page'] = page = int(page)
+    var_dict['offset'] = (page-1) * PAGE_SIZE
+    var_dict['before'] = steps_before(page)
+    var_dict['after'] = steps_after(page, paginator.num_pages)
+    var_dict['site_pages'] = site_pages
     return render_to_response('pages.html', var_dict, context_instance=RequestContext(request))
 
 """
@@ -159,10 +200,32 @@ def page(request, page_id):
 
 def page_blocks(request, page_id):
     var_dict = {}
-    var_dict['page'] = page = get_object_or_404(Webpage, pk=page_id)
-    var_dict['site'] = site = page.site
-    var_dict['blocks'] = blocks = page.blocks.all()
+    var_dict['webpage'] = webpage = get_object_or_404(Webpage, pk=page_id)
+    var_dict['site'] = site = webpage.site
+    """
+    var_dict['blocks'] = blocks = webpage.blocks.all()
     var_dict['blocks_count'] = blocks.count()
+    """
+    qs = webpage.blocks.all()
+    var_dict['block_count'] = block_count = qs.count()
+    paginator = Paginator(qs, PAGE_SIZE)
+    page = request.GET.get('page', 1)
+    try:
+        page_blocks = paginator.page(page)
+    except PageNotAnInteger:
+        # If page is not an integer, deliver first page.
+        page = 1
+        page_blocks = paginator.page(1)
+    except EmptyPage:
+        # If page is out of range (e.g. 9999), deliver last page of results.
+        page = paginator.num_pages
+        page_blocks = paginator.page(paginator.num_pages)
+    var_dict['page_size'] = PAGE_SIZE
+    var_dict['page'] = page = int(page)
+    var_dict['offset'] = (page-1) * PAGE_SIZE
+    var_dict['before'] = steps_before(page)
+    var_dict['after'] = steps_after(page, paginator.num_pages)
+    var_dict['page_blocks'] = page_blocks
     return render_to_response('page_blocks.html', var_dict, context_instance=RequestContext(request))
 
 def page_proxy(request, page_id, language_code):
@@ -185,8 +248,30 @@ def site_blocks(request, site_slug):
     site = get_object_or_404(Site, slug=site_slug)
     var_dict['site'] = site
     var_dict['proxies'] = proxies = Proxy.objects.filter(site=site).order_by('language__code')   
+    """
     var_dict['blocks'] = blocks = Block.objects.filter(site=site)
     var_dict['block_count'] = blocks.count()
+    """
+    qs = Block.objects.filter(site=site)
+    var_dict['block_count'] = block_count = qs.count()
+    paginator = Paginator(qs, PAGE_SIZE)
+    page = request.GET.get('page', 1)
+    try:
+        site_blocks = paginator.page(page)
+    except PageNotAnInteger:
+        # If page is not an integer, deliver first page.
+        page = 1
+        site_blocks = paginator.page(1)
+    except EmptyPage:
+        # If page is out of range (e.g. 9999), deliver last page of results.
+        page = paginator.num_pages
+        site_blocks = paginator.page(paginator.num_pages)
+    var_dict['page_size'] = PAGE_SIZE
+    var_dict['page'] = page = int(page)
+    var_dict['offset'] = (page-1) * PAGE_SIZE
+    var_dict['before'] = steps_before(page)
+    var_dict['after'] = steps_after(page, paginator.num_pages)
+    var_dict['site_blocks'] = site_blocks
     return render_to_response('blocks.html', var_dict, context_instance=RequestContext(request))
 
 def site_translated_blocks(request, site_slug):
@@ -210,8 +295,29 @@ def block_pages(request, block_id):
     var_dict['page_block'] = block = get_object_or_404(Block, pk=block_id)
     var_dict['site'] = site = block.site
     var_dict['proxies'] =  proxies = Proxy.objects.filter(site=site)
+    """
     var_dict['pages'] = pages = block.webpages.all()
     var_dict['pages_count'] = pages.count()
+    """
+    qs = block.webpages.all()
+    var_dict['page_count'] = page_count = qs.count()
+    paginator = Paginator(qs, PAGE_SIZE)
+    page = request.GET.get('page', 1)
+    try:
+        block_pages = paginator.page(page)
+    except PageNotAnInteger:
+        # If page is not an integer, deliver first page.
+        page = 1
+        block_pages = paginator.page(1)
+    except EmptyPage:
+        # If page is out of range (e.g. 9999), deliver last page of results.
+        page = paginator.num_pages
+        block_pages = paginator.page(paginator.num_pages)
+    var_dict['page_size'] = PAGE_SIZE
+    var_dict['page'] = page = int(page)
+    var_dict['offset'] = (page-1) * PAGE_SIZE
+    var_dict['before'] = steps_before(page)
+    var_dict['after'] = steps_after(page, paginator.num_pages)
     return render_to_response('block_pages.html', var_dict, context_instance=RequestContext(request))
 
 def add_and_index_string(text, language):
@@ -301,43 +407,6 @@ def block_translate(request, block_id):
         if not extract_strings or source_language in target_languages:
             source_strings.append([])
             continue
-        """
-        tokens = segment.split()
-        tokens = re.split(" |\'", segment)
-        filtered_tokens = []
-        for token in tokens:
-            token = token.strip(' .,;:*')
-            if not token:
-                continue
-            n_chars = len(token)
-            if n_chars < 5:
-                continue
-            if token in EMPTY_WORDS[source_language_code]:
-                continue
-            filtered_tokens.append(token)
-        qs = None
-        strings = []
-        qs = SearchQuerySet().more_like_this(segment_string)
-        print 'like_this: ', qs
-        for token in filtered_tokens:
-            qs = SearchQuerySet().filter(language_code=source_language_code, content=token).values_list('text', flat=True)
-            if qs:
-                min_length = 100
-                for string in qs:
-                    length = len(string.split())
-                    if length < min_length:
-                        min_length = length
-                n = 0
-                for string in qs:
-                    length = len(string.split())
-                    if length > min_length:
-                        continue
-                    n += 1
-                    if n >= 2:
-                        break
-                    strings.append(string)
-        source_strings.append(strings)
-        """
         source_strings.append(find_like_strings(segment_string))
     source_segments = zip(source_segments, source_strings)
     var_dict['source_segments'] = source_segments
@@ -390,15 +459,6 @@ italian_rules = srx_rules['Italian']
 segmenter = srx_segmenter.SrxSegmenter(italian_rules)
 re_parentheses = re.compile(r'\(([^)]+)\)')
 
-"""
-srx_filepath = os.path.join(RESOURCES_ROOT, 'segment.srx')
-srx_rules = srx_segmenter.parse(srx_filepath)
-italian_rules = srx_rules['Italian']
-# print italian_rules
-segmenter = srx_segmenter.SrxSegmenter(italian_rules)
-re_parentheses = re.compile(r'\(([^)]+)\)')
-"""
-
 def page_scan(request, fetched_id, language='it'):
     string = request.GET.get('strings', False)
     tag = request.GET.get('tag', False)
@@ -427,7 +487,6 @@ def page_scan(request, fetched_id, language='it'):
             chunks = []
             for string in strings_from_html(fetched.body):
                 string = string.replace(u"\u2018", "'").replace(u"\u2019", "'")
-                # string = filter_unicode(string)
                 if string.count('window') and string.count('document'):
                     continue
                 if tag or chunk:
@@ -437,10 +496,6 @@ def page_scan(request, fetched_id, language='it'):
                 if chunk:
                     noun_chunks = chunker.main_chunker(tagged_tokens, chunk_tag='NP')
                     chunks.extend(noun_chunks)
-                    """
-                    for chunk in noun_chunks:
-                        print chunk
-                    """
                 if not (tag or chunk):
                     matches = []
                     if string.count('(') and string.count(')'):
@@ -456,7 +511,6 @@ def page_scan(request, fetched_id, language='it'):
                         terms = extract_terms(string, language=language, tagger=tagger, chunker=chunker)
                         terms = ['- %s -' % term for term in terms]
                         strings.extend(terms)
-            # var_dict['strings'] = strings
             var_dict['tags'] = tags
             var_dict['chunks'] = chunks
     return render_to_response('page_scan.html', var_dict, context_instance=RequestContext(request))
@@ -577,14 +631,14 @@ def string_view(request, string_id):
 def string_translate(request, string_id, target_code):
     var_dict = {}
     var_dict['string'] = string = get_object_or_404(String, pk=string_id)
-    var_dict['source_language'] = source_language = string.language
+    var_dict['source_language'] = string.language
     var_dict['target_code'] = target_code
     var_dict['target_language'] = target_language = Language.objects.get(code=target_code)
-    var_dict['translations'] = string.get_translations(target_languages=target_language)
+    var_dict['translations'] = string.get_translations(target_languages=[target_language])
     var_dict['similar_strings'] = find_like_strings(string, translation_language=target_language, with_translations=True, max_strings=10)
+    site = None
     if request.method == 'POST':
         # print post.keys()
-        site = None
         form = StringTranslationForm(request.POST)
         if form.is_valid():
             print 'form is valid'
@@ -595,7 +649,8 @@ def string_translate(request, string_id, target_code):
         else:
             print 'error', form.errors
         target = add_and_index_string(translation, target_language)
-        txu = Txu(source=string, target=target, reliability=5, user=request.user)
+        # txu = Txu(source=string, target=target, reliability=5, user=request.user)
+        txu = Txu(source=string, target=target, source_code=string.language_id, target_code=target_code, reliability=5, user=request.user)
         if site:
             txu.context = site
             txu.provider = site.name
@@ -725,31 +780,36 @@ def list_strings(request, sources, state, targets):
     var_dict['page_size'] = PAGE_SIZE
     var_dict['page'] = page = int(page)
     var_dict['offset'] = (page-1) * PAGE_SIZE
+    var_dict['before'] = steps_before(page)
+    var_dict['after'] = steps_after(page, paginator.num_pages)
     var_dict['strings'] = strings
     return render_to_response('list_strings.html', var_dict, context_instance=RequestContext(request))
 
-# translation state
 def find_strings(source_languages=[], target_languages=[], translated=None):
     if isinstance(source_languages, Language):
         source_languages = [source_languages]
     if isinstance(target_languages, Language):
         target_languages = [target_languages]
+    source_codes = [l.code for l in source_languages]
+    target_codes = [l.code for l in target_languages]
     qs = String.objects
     if source_languages:
-        qs = qs.filter(language__in=source_languages)
+        source_codes = [l.code for l in source_languages]
+        qs = qs.filter(language_id__in=source_codes)
     if translated is None:
         if not source_languages:
             qs = qs.all()
     elif translated: # translated = True
         if target_languages:
-            qs = qs.filter(as_source__target__language__in=target_languages).distinct()
+            qs = qs.filter(as_source__target_code__in=target_codes).distinct()
         else:
-            qs = qs.filter(as_source__isnull=False).distinct()
+            qs = qs.filter(as_source__isnull=False)
     else: # translated = False
         if target_languages:
-            qs = qs.exclude(as_source__target__language__in=target_languages).distinct()
+            # qs = qs.exclude(as_source__target_code__in=target_codes)
+            qs = qs.annotate(nt = RawSQL("SELECT COUNT(*) FROM wip_txu WHERE source_id = wip_string.id and target_code IN ('%s')" % "','".join(target_codes), ())).filter(nt=0)
         else:
-            qs = qs.filter(as_source__isnull=True).distinct()
+            qs = qs.filter(as_source__isnull=True)
     return qs.order_by('language', 'text')
 
 def get_language(language_code):

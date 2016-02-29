@@ -61,6 +61,7 @@ class Site(models.Model):
         verbose_name = _('original website')
         verbose_name_plural = _('original websites')
 
+"""
 class PageRegion(models.Model):
     site = models.ForeignKey(Site)
     label = models.CharField(max_length=100)
@@ -69,6 +70,7 @@ class PageRegion(models.Model):
     class Meta:
         verbose_name = _('page region')
         verbose_name_plural = _('page regions')
+"""
 
 class Proxy(models.Model):
     name = models.CharField(max_length=100)
@@ -179,7 +181,8 @@ wip.String: (models.E003) The model has two many-to-many relations through the i
 """
 class String(models.Model):
     language = models.ForeignKey(Language)
-    text = models.CharField(max_length=1000)
+    # text = models.CharField(max_length=1000)
+    text = models.TextField()
 
     class Meta:
         verbose_name = _('source or target string')
@@ -201,26 +204,23 @@ class String(models.Model):
         if not target_languages:
             target_languages = Language.objects.exclude(code=self.language.code).order_by('code')
         if isinstance(target_languages, Language):
-            """
-            strings = String.objects.filter(as_target__source=self, language=target_languages)
-            return strings
-            """
-            txus = Txu.objects.filter(source=self, target__language=target_languages)
+            # txus = Txu.objects.filter(source=self, target__language=target_languages)
+            txus = Txu.objects.filter(source=self, target_code=target_languages.code)
             return txus
         else:
             translations = []
             for language in target_languages:
-                """
-                strings = String.objects.filter(as_target__source=self, language__in=target_languages)
-                translations.append([language, strings])
-                """
-                txus = Txu.objects.filter(source=self, target__language=language)
+                # txus = Txu.objects.filter(source=self, target__language=language)
+                txus = Txu.objects.filter(source=self, target_code=language.code)
                 translations.append([language, txus])
             return translations
+
 # ContentType, currently not used, could be Site, Webpage or Block
 class Txu(models.Model):
     source = models.ForeignKey(String, verbose_name='source string', related_name='as_source')
     target = models.ForeignKey(String, verbose_name='target string', related_name='as_target')
+    source_code = models.CharField(max_length=5, blank=True, null=True)
+    target_code = models.CharField(max_length=5, blank=True, null=True)
     provider = models.CharField(verbose_name='txu source', max_length=100, blank=True, null=True)
     entry_id = models.CharField(verbose_name='id by provider', max_length=100, blank=True, null=True)
     reliability = models.IntegerField(default=1)

@@ -27,40 +27,34 @@ Strings
 
 	{% if string_count %}
 	<div>{{ string_count }} strings found.</div>
-	<h4><div class="pagination">
+
+	<div class="pagination">
     <span class="step-links">
-        {% if strings.has_previous %}
-            <a href="?page={{ strings.previous_page_number }}">previous</a>
-        {% endif %}
-
-        <span class="current">
-            Page {{ strings.number }} of {{ strings.paginator.num_pages }}
-        </span>
-
-        {% if strings.has_next %}
-            <a href="?page={{ strings.next_page_number }}">next</a>
-        {% endif %}
+    	{% for p in before %}<a href="?page={{ p }}">{% if forloop.first %}<i class="fa fa-fast-backward"></i> {% else %}{{ p }}{% endif %}</a>&nbsp;{% endfor %}
+        &nbsp;<i class="fa fa-circle" style="font-size: 0.5em;"></i> page {{ strings.number }} of {{ strings.paginator.num_pages }} <i class="fa fa-circle" style="font-size: 0.5em;"></i>&nbsp;
+    	{% for p in after %}&nbsp;<a href="?page={{ p }}">{% if forloop.last %} <i class="fa fa-fast-forward"></i> {% else %} {{ p }} {% endif %}</a></a>{% endfor %}
     </span>
-	</div></h4>
+	</div>
+
 	<table>
 	<thead><th></th>
-	{% for l in source_languages %}<th>{{ l.name }}</th>{% endfor %}
-	{% for l in target_languages %}<th>{{ l.name }}</th>{% endfor %}
+		{% for l in source_languages %}<th>{{ l.name }}</th>{% endfor %}
+		{% for l in target_languages %}<th>{{ l.name }}</th>{% endfor %}
 	</thead>
 	<tbody>
-	{% for string in strings %}
-	<tr>
-	<td style="text-align: right; padding-right: 1.0em;">{{forloop.counter|add:offset}}</td>
-	<td><a href="/string_view/{{ string.id }}/" title="view info">{{ string.text }}</a></td>
-	{% for translation in string.get_translations %}
-		{% if translation.0.code in target_codes %}
-			<td>{% if translation.1 %}{% for t in translation.1 %}<a href="/string_view/{{ t.target.id }}/" title="view info">{{ t.target.text }}</a>{% if not forloop.last %}, {% endif %}{% endfor %}
-				{% else %}<a href="/string_translate/{{ string.id }}/{% for l in target_languages %}{{ l.code }}{% if not forloop.last %}-{% endif %}{% endfor %}/">translate</a>
-				{% endif %}</td>
-		{% endif %}
-	{% endfor %}
-	</tr>
-	{% endfor %}
+		{% for string in strings %}
+		<tr>
+		<td style="text-align: right; padding-right: 1.0em;">{{forloop.counter|add:offset}}</td>
+		<td><a href="/string_view/{{ string.id }}/" title="view info">{{ string.text }}</a></td>
+		{% for translation in string.get_translations %}
+			{% if translation.0.code in target_codes %}
+				<td>{% if translation.1 %}{% for t in translation.1 %}<a href="/string_view/{{ t.target.id }}/" title="view info">{{ t.target.text }}</a>{% if not forloop.last %}, {% endif %}{% endfor %}
+					{% else %}<a href="/string_translate/{{ string.id }}/{% for l in target_languages %}{{ l.code }}{% if not forloop.last %}-{% endif %}{% endfor %}/">translate</a>
+					{% endif %}</td>
+			{% endif %}
+		{% endfor %}
+		</tr>
+		{% endfor %}
 	</tbody>
 	</table>
 	{% else %}
