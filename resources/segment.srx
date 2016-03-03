@@ -5466,15 +5466,15 @@ It [really!] works. This is e.g. Mr. Smith, who talks slowly... And this is anot
 <afterbreak></afterbreak>
 </rule>
 <rule break="yes">
-<beforebreak>[\.!?\;\:\,…][\u00BB\u2019\u201D\u203A"'\p{Pe}\u0002¹²³]*\s</beforebreak>
+<beforebreak>[\.!?\;\:\,\+\=\…][\u00BB\u2019\u201D\u203A"'\p{Pe}\u0002¹²³]*\s</beforebreak>
 <afterbreak></afterbreak>
 </rule>
 <rule break="yes">
-<beforebreak>[\.!?\;\:\,…]['"\u00BB\u2019\u201D\u203A\p{Pe}\u0002]*</beforebreak>
+<beforebreak>[\.!?\;\:\,\+\=\…]['"\u00BB\u2019\u201D\u203A\p{Pe}\u0002]*</beforebreak>
 <afterbreak>\p{Lu}[^\p{Lu}]</afterbreak>
 </rule>
 <rule break="yes">
-<beforebreak>\s\p{L}[\.!?\;\:\,…]\s</beforebreak>
+<beforebreak>\s\p{L}[\.!?\;\:\,\+\=\…]\s</beforebreak>
 <afterbreak>\p{Lu}\p{Ll}</afterbreak>
 </rule>
 </languagerule>

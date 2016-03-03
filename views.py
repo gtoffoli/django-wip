@@ -6,6 +6,14 @@ Django views for wip application of wip project.
 For more information on this file, see
 https://docs.djangoproject.com/en/1.9/topics/db/models/
 """
+import sys
+"""
+import codecs
+sys.stdout = codecs.getwriter('utf8')(sys.stdout)
+sys.stderr = codecs.getwriter('utf8')(sys.stderr)
+"""
+reload(sys)  
+sys.setdefaultencoding('utf8')
 
 import os
 import re
@@ -15,7 +23,7 @@ from scrapy.spiders import Rule #, CrawlSpider
 from scrapy.linkextractors import LinkExtractor
 from scrapy.crawler import CrawlerProcess
 from haystack.query import SearchQuerySet
-from search_indexes import StringIndex
+# from search_indexes import StringIndex
 
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from django.template import RequestContext
@@ -286,8 +294,23 @@ def block(request, block_id):
     var_dict = {}
     var_dict['page_block'] = block = get_object_or_404(Block, pk=block_id)
     var_dict['site'] = site = block.site
-    var_dict['translations'] = TranslatedBlock.objects.filter(block=block)
+    # var_dict['translations'] = TranslatedBlock.objects.filter(block=block)
     var_dict['pages'] = block.webpages.all()
+    go_previous = go_next = ''
+    post = request.POST
+    if post:
+        go_previous = request.POST.get('prev', '')
+        go_next = request.POST.get('next', '')
+    if go_previous or go_next:
+        previous, next = block.get_previous_next()
+        if go_previous:
+            block = previous
+        elif go_next:
+            block = next
+        return HttpResponseRedirect('/block/%d/' % block.id)
+    previous, next = block.get_previous_next()
+    var_dict['previous'] = previous
+    var_dict['next'] = next
     return render_to_response('block.html', var_dict, context_instance=RequestContext(request))
 
 def block_pages(request, block_id):
@@ -320,35 +343,48 @@ def block_pages(request, block_id):
     var_dict['after'] = steps_after(page, paginator.num_pages)
     return render_to_response('block_pages.html', var_dict, context_instance=RequestContext(request))
 
-def add_and_index_string(text, language):
+# def add_and_index_string(text, language):
+def get_or_add_string(text, language, add=False):
     if isinstance(language, str):
         language = Language.objects.get(code=language)
-    # text = text.lower()
+    is_model_instance = False
     try:
         string = String.objects.get(text=text, language=language)
+        is_model_instance = True
     except:
         string = String(text=text, language=language)
-        string.save()
-    StringIndex().update_object(string)
-    return string
+        if add:
+            string.save()
+            is_model_instance = True
+    # StringIndex().update_object(string)
+    return is_model_instance, string
 
 def block_translate(request, block_id):
+    var_dict = {}
     block = get_object_or_404(Block, pk=block_id)
-    go_previous = go_next = save_block = ''
+    var_dict['site'] = site = block.site
+    var_dict['proxies'] = proxies = Proxy.objects.filter(site=site).order_by('language_id')
+    source_language = block.get_language()
+    var_dict['target_languages'] = target_languages = [proxy.language for proxy in proxies]
+    segments = block.get_strings()
+    segments = [segment.strip(' .,;:*+-=').lower() for segment in segments]
+    save_block = extract = go_previous = go_next = ''
     skip_no_translate = skip_translated = True
     exclude_language = include_language = None
     extract_strings = False
     post = request.POST
     if post:
-        # print post.keys()
+        segment = request.POST.get('segment', '')
+        string = request.POST.get('string', '')
         save_block = request.POST.get('save_block', '')
+        extract = request.POST.get('extract', '')
         go_previous = request.POST.get('prev', '')
         go_next = request.POST.get('next', '')
         form = PageBlockForm(request.POST)
         if form.is_valid():
-            print 'form is valid'
+            # print 'form is valid'
             data = form.cleaned_data
-            print 'data: ', data
+            # print 'data: ', data
             skip_no_translate = data['skip_no_translate']
             skip_translated = data['skip_translated']
             exclude_language = data['exclude_language']
@@ -358,24 +394,27 @@ def block_translate(request, block_id):
             no_translate = data['no_translate']
         else:
             print 'error', form.errors
-    var_dict = {}
-    var_dict['site'] = site = block.site
-    var_dict['proxies'] = proxies = Proxy.objects.filter(site=site).order_by('language_id')
-    var_dict['target_languages'] = target_languages = [proxy.language for proxy in proxies]
-    var_dict['extract_strings'] = extract_strings
-    previous, next = block.get_previous_next(exclude_language=exclude_language, include_language=include_language)
-    var_dict['previous'] = previous
-    var_dict['next'] = next
     if go_previous or go_next:
+        previous, next = block.get_previous_next(exclude_language=exclude_language, include_language=include_language)
         if go_previous and previous:
             block = previous
         elif go_next and next:
             block = next
-        block_id = block.id
+        return HttpResponseRedirect('/block/%d/translate/' % block.id)
+        segments = block.get_strings()
+        segments = [segment.strip(' .,;:*+-=').lower() for segment in segments]
     elif save_block:
         block.language = language
         block.no_translate = no_translate
         block.save()
+    elif extract:
+        for segment in segments:
+            is_model_instance, segment_string = get_or_add_string(segment, source_language, add=True)
+    elif segment:
+        is_model_instance, segment_string = get_or_add_string(segment, source_language, add=True)
+    elif string:
+        is_model_instance, segment_string = get_or_add_string(string, source_language, add=True)
+        return HttpResponseRedirect('/string_translate/%d/%s/' % (segment_string.id, target_languages[0].code))
     elif post:
         for key in post.keys():
             if key.startswith('create-'):
@@ -394,25 +433,52 @@ def block_translate(request, block_id):
                 translated_block.editor = request.user
                 translated_block.save()
                 propagate_block_translation(request, block, translated_block)
+            elif key.startswith('extract-'):
+                pass
+    elif extract_strings:
+        for segment in segments:
+            is_model_instance, segment_string = get_or_add_string(segment, source_language, add=extract or extract_strings)
     var_dict['page_block'] = block
+    previous, next = block.get_previous_next(exclude_language=exclude_language, include_language=include_language)
+    var_dict['previous'] = previous
+    var_dict['next'] = next
     var_dict['source_language'] = source_language = block.get_language()
-    # source_language_code = source_language.code
-    source_segments = block.get_strings()
-    source_segments = [segment.strip(' .,;:*+-').lower() for segment in source_segments]
+    var_dict['extract_strings'] = extract_strings
+    var_dict['form'] = PageBlockForm(initial={'language': block.language, 'no_translate': block.no_translate, 'skip_translated': skip_translated, 'skip_no_translate': skip_no_translate, 'exclude_language': exclude_language, 'extract_strings': extract_strings,})
+    """
+    if post:
+        return render_to_response('block_translate.html', var_dict, context_instance=RequestContext(request))
+    """
+    source_segments = []
     source_strings = []
-    for segment in source_segments:
+    source_translations = []
+    for segment in segments:
         if not segment:
             continue
-        segment_string = add_and_index_string(segment, source_language)
-        if not extract_strings or source_language in target_languages:
+        if source_language in target_languages:
             source_strings.append([])
             continue
-        source_strings.append(find_like_strings(segment_string))
-    source_segments = zip(source_segments, source_strings)
+        is_model_instance, segment_string = get_or_add_string(segment, source_language, add=extract or extract_strings)
+        if is_model_instance:
+            like_strings = find_like_strings(segment_string, max_strings=5)
+            source_strings.append(like_strings)
+            translations = segment_string.get_translations(target_languages)
+            source_translations.append(translations)
+            """
+            for language, txus in translations:
+                setattr(segment_string, language.code, txus)
+            """
+        else:
+            segment_string.id = 0
+            source_strings.append([])
+            source_translations.append([])
+        source_segments.append(segment_string)
+    print 'source_segments: ', source_segments
+    source_segments = zip(source_segments, source_strings, source_translations)
+    print 'zipped segments: ', source_segments
     var_dict['source_segments'] = source_segments
     target_list = []
-    for proxy in proxies:
-        target_language = proxy.language
+    for target_language in target_languages:
         try:
             translated_block = TranslatedBlock.objects.get(block=block, language=target_language)
         except:
@@ -433,7 +499,6 @@ def block_translate(request, block_id):
             target_strings.append(translated_strings)
         target_list.append([target_language, translated_block, target_strings])
     var_dict['target_list'] = target_list
-    var_dict['form'] = PageBlockForm(initial={'language': block.language, 'no_translate': block.no_translate, 'skip_translated': skip_translated, 'skip_no_translate': skip_no_translate, 'exclude_language': exclude_language, 'extract_strings': extract_strings,})
     return render_to_response('block_translate.html', var_dict, context_instance=RequestContext(request))
 
 def propagate_block_translation(request, block, translated_block):
@@ -638,7 +703,6 @@ def string_translate(request, string_id, target_code):
     var_dict['similar_strings'] = find_like_strings(string, translation_language=target_language, with_translations=True, max_strings=10)
     site = None
     if request.method == 'POST':
-        # print post.keys()
         form = StringTranslationForm(request.POST)
         if form.is_valid():
             print 'form is valid'
@@ -648,8 +712,8 @@ def string_translate(request, string_id, target_code):
             site = data['site']
         else:
             print 'error', form.errors
-        target = add_and_index_string(translation, target_language)
-        # txu = Txu(source=string, target=target, reliability=5, user=request.user)
+        # target = add_and_index_string(translation, target_language)
+        is_model_instance, target = get_or_add_string(translation, target_language, add=True)
         txu = Txu(source=string, target=target, source_code=string.language_id, target_code=target_code, reliability=5, user=request.user)
         if site:
             txu.context = site
@@ -684,12 +748,14 @@ def filtered_tokens(text, language_code, tokens=[], truncate=False, min_chars=10
             continue
         if token in EMPTY_WORDS[language_code]:
             continue
+        """
         if truncate and n_chars>min_chars:
             token = token[:n_chars-1]
+        """
         filtered_tokens.append(token)
     return filtered_tokens
 
-def find_like_strings(source_string, translation_language=[], with_translations=False, min_chars=3, max_strings=10):
+def find_like_strings(source_string, translation_language=[], with_translations=False, min_chars=3, max_strings=10, min_score=0.4):
     """
     source_string is an object of type String
     we look for similar strings of the same language
@@ -710,7 +776,7 @@ def find_like_strings(source_string, translation_language=[], with_translations=
     for hit in hits:
         if not hit.language_code == language_code:
             continue
-        print 'language: ', hit.language_code
+        # print 'language: ', hit.language_code
         try: # the index could be not in sync
             string = String.objects.get(language=language, text=hit.text)
         except:
@@ -734,7 +800,8 @@ def find_like_strings(source_string, translation_language=[], with_translations=
         # add a small pseudo-random element to compensate for the bias in the results of more_like_this
         correction = float(len(text) % min_chars) / min_chars_times_10
         similarity_score += correction
-        print similarity_score
+        if similarity_score < min_score:
+            continue
         if with_translations:
             like_strings.append([similarity_score, string, translations])
         else:
@@ -742,7 +809,15 @@ def find_like_strings(source_string, translation_language=[], with_translations=
     like_strings.sort(key=lambda x: x[0], reverse=True)
     return like_strings[:max_strings]
 
-def list_strings(request, sources, state, targets):
+def list_strings(request, sources, state, targets=[]):
+    post = request.POST
+    if post and post.get('delete_strings', ''):
+        string_ids = post.getlist('delete')
+        print string_ids
+        if string_ids:
+            strings = String.objects.filter(id__in=string_ids)
+            for string in strings:
+                string.delete()
     PAGE_SIZE = 100
     var_dict = {}
     var_dict['sources'] = sources
@@ -750,6 +825,7 @@ def list_strings(request, sources, state, targets):
     var_dict['targets'] = targets
     source_languages = target_languages = []
     translated = None
+    can_delete = False
     if sources:
         source_codes = sources.split('-')
         source_languages = Language.objects.filter(code__in=source_codes).order_by('code')
@@ -760,6 +836,8 @@ def list_strings(request, sources, state, targets):
         translated = True
     elif state == 'untranslated':
         translated = False
+        can_delete = not targets and request.user.is_superuser
+    var_dict['can_delete'] = can_delete
     var_dict['source_languages'] = source_languages
     var_dict['target_languages'] = target_languages
     var_dict['target_codes'] = [l.code for l in target_languages]

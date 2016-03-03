@@ -1,0 +1,27 @@
+{% extends "account/base.html" %}
+{% load i18n staticfiles %}
+
+{% block head_title %}{% trans "Welcome page" %}{% endblock %}
+{% block content %}
+	<h1>{% trans "Welcome page" %}</h1>
+
+	<div><span style="font-weight: bold;">{{ user.get_full_name }}</span>, {% trans "here is your user profile" %}:</div>
+
+	<div style="margin-top: 5px; margin-left: 20px;">
+	<div><span class="eti">{% trans "Username" %}</span> {{ user.username }}</div>
+	<div><span class="eti">{% trans "First name" %}</span> {{ user.first_name }}</div>
+	<div><span class="eti">{% trans "Last name" %}</span> {{ user.last_name }}</div>
+	<div><span class="eti">{% trans "E-mail" %}</span> {{ user.email }}</div>
+	</div>
+	
+	{% for account in user.socialaccount_set.all %}
+	{% if forloop.first %}<h5>{% trans "Social network account" %}:</h5>{% endif %}
+	<div class="boxround" style="margin-top: 5px; margin-bottom: 5px;">
+		<a href="{{ account.get_profile_url }}" title="{% trans "Go to the" %} account {{ account.provider }}">
+			<span class="eti">{{ account.provider }}</span>	<img src="{{ account.get_avatar_url }}" /></a>
+	</div>
+	{% endfor %}
+
+	<div style="margin-top: 10px;">{% trans "Go to the" %} <a href='/' title="RomaPaese">homepage</a></div>
+{% endblock %}
+

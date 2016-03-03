@@ -3,9 +3,12 @@
 
 {% block extra_head %}
 <style>
-    label { display: inline; font-weight: bold; margin-right: 1.0em; padding: 0.2em 0em; }
-    pre { display: inline; padding: 0; }
-    pre code { line-height: 0.5; }
+label { display: inline; font-weight: bold; margin-right: 1.0em; padding: 0.2em 0em; }
+pre { display: inline; padding: 0; }
+pre code { line-height: 0.5; }
+.rounded-box { border-radius: 10px;  border: 2px solid;  padding: 10px; margin: 5px 0; }
+.it { border-color: green; }
+.en { border-color: red; }
 </style>
 {% endblock %}
 
@@ -17,12 +20,30 @@
     <div><label>Site</label> <a href="/site/{{ site.slug }}/">{{ site.name }}</a></div>
     <div><label>Checksum</label> {{ page_block.checksum }}</div>
     <div><label>Time</label> {{ page_block.time|date:"SHORT_DATETIME_FORMAT" }}</div>
+   	<form action="/block/{{ page_block.id }}/" method="post">
+    <div>
     {% if user.is_superuser %}
-    <div><a class="btn btn-sm" href="/block/{{ page_block.id }}/translate/">Edit translations</a>
+    	<a class="btn btn-sm" href="/block/{{ page_block.id }}/translate/">Edit translations</a> &nbsp;
 	{% endif %}
+		{% csrf_token %}
+		{% if previous %}<input type="submit" name="prev" class="btn btn-sm" value="Previous">{% endif %}
+		{% if next %}<input type="submit" name="next" class="btn btn-sm" value="Next">{% endif %}
+	</div>    	
+	</form>
 
     <h4>HTML fragment</h4>
-	<pre>{{ page_block.body }}</pre>
+	{% comment %}<pre>{{ page_block.body }}</pre>{% endcomment %}
+	<div class="rounded-box {{ page_block.get_language.code }}">{{ page_block.body|safe }}</div>
+
+	{% with language_translations=page_block.get_last_translations %}
+ 	{% if language_translations %}
+ 	{% for language_code, translations in language_translations %}
+ 		{% if translations %}<h4>Last translations</h4>
+		<div class="rounded-box {{ language_code }}">{{ translations.0.body|safe }}</div>
+ 		{% endif %}
+	{% endfor %}
+	{% endif %}
+	{% endwith %}
  
  	{% if pages %}
 	    <h4>Pages including this block</h4>

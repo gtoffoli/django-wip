@@ -3,10 +3,49 @@
 
 {% block extra_head %}
 <style>
-    label { display: inline; font-weight: bold; margin-right: 1.0em; padding: 0.2em 0em; }
-    pre { display: inline;  padding: 0; }
-    pre code { display: inline; }
+label { display: inline; font-weight: bold; margin-right: 1.0em; padding: 0.2em 0em; }
+pre { display: inline;  padding: 0; }
+pre code { display: inline; }
+.rounded-box {  border-radius: 10px;  border: 2px solid;  padding: 10px; }
+.it { border: 1px solid; border-color: green; margin: 1px; }
+.en { border: 1px solid; border-color: red; margin: 1px; }
+.es { border: 1px solid; border-color: yellow; margin: 1px; }
+.fr { border: 1px solid; border-color: blue; margin: 1px; }   
+tx.en {color: red; }
+tx.fr {color: blue; }
 </style>
+<script>
+function make_string (id) {
+	s = document.getElementById(id).textContent;
+	hidden = document.getElementById('segment');
+	hidden.value = s;
+	hidden.form.submit();
+}
+function translate_string (id) {
+	s = document.getElementById(id).textContent;
+	hidden = document.getElementById('string');
+	hidden.value = s;
+	hidden.form.submit();
+}
+function apply_translation (target_code, id_from, id_to) {
+	segment = document.getElementById(id_from).textContent;
+	translation = document.getElementById(id_to).textContent;
+	textarea = document.getElementById(target_code);
+	text = textarea.textContent;
+	tx_open = '<tx class="' + target_code + '">';
+	tx_close = '</tx>';
+	pos = text.toLowerCase().indexOf(segment);
+	if (pos >= 0) {
+		firstchar = text.charAt(pos);
+		capfirst = (firstchar != firstchar.toLowerCase());
+		if (capfirst) {
+			translation = translation.charAt(0).toUpperCase() + translation.substring(1);
+		}
+		text = text.substring(0, pos) + tx_open + translation + tx_close + text.substring(pos+segment.length);
+		textarea.value = text;
+	}
+}
+</script>
 {% endblock %}
 
 {% block head_title %}Block: {{ site.name }}{{ page_block.xpath }}{% endblock %}
@@ -16,6 +55,8 @@
 {% block content-page %}
 <form action="/block/{{ page_block.id }}/translate/" method="post">
 	{% csrf_token %}
+	<input type="hidden" id="segment" name="segment" value="" />
+	<input type="hidden" id="string" name="string" value="" />
     <div><label>Site</label> <a href="/site/{{ site.slug }}/">{{ site.name }}</a></div>
     <div><label>Site language</label> {{ site.language }}
     <div><label>Block id</label> {{ page_block.id }}</div>
@@ -26,6 +67,8 @@
 	     <input type="submit" name="save_block" value="Save properties" class="btn btn-sm" /></div>
 	</fieldset>
     <div>
+    
+		{% if not extract_strings %}<input type="submit" name="extract" class="btn btn-sm" value="Extract strings">{% endif %}
 		<a class="btn btn-sm" href="/block/{{ page_block.id }}/">View</a>
 		{% if previous %}<input type="submit" name="prev" class="btn btn-sm" value="Previous">{% endif %}
 		{% if next %}<input type="submit" name="next" class="btn btn-sm" value="Next">{% endif %}
@@ -34,7 +77,7 @@
 		&nbsp;&nbsp; Skip translated {{ form.skip_translated }}
 		&nbsp;&nbsp; Skip no-translate {{ form.skip_no_translate }}
 		&nbsp;&nbsp; Exclude {{ form.exclude_language }}
-		&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Extract strings {{ form.extract_strings }}
+		&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Extract all strings on page view {{ form.extract_strings }}
 		{% comment %}&nbsp;&nbsp; Include {{ form.include_language }}{% endcomment %}
 	</div>
 
@@ -43,29 +86,42 @@
 	<tr><th width="6%">language</th><th width="50%">block</th><th width="44%" colspan="2">segments{% if extract_strings %} and strings{% endif %}</th></tr>
 	</thead>
 	<tbody>
-	<tr style="vertical-align: top;"><td>Source</td><td><pre>{{ page_block.body }}</pre></td>
-	<td style="vertical-align: top;">{% for segment, strings in source_segments %}
-		<div style="padding-left: 1.8em; text-indent: -1.8em;"><code>{{forloop.counter|rjust:"3"}}</code> <span style="font-weight: bold;"><span>{{ segment }}</span></div>
-		{% for string in strings %}
-		<div style="font-style: italic; font-size: small; padding-left: 1.8em;">{{ string }}</div>
+	<tr style="vertical-align: top;"><td>Source</td><td><div class="rounded-box {{ page_block.get_language.code }}">{{ page_block.body }}</div></td>
+	<td style="vertical-align: top;">
+		<table style="cell-padding: 2px;"><tbody>
+		{% for segment, strings, language_translations in source_segments %}
+		<tr><td style="vertical-align: top;"><code>{{forloop.counter|rjust:"3"}}</code></td>
+			<td>{% if segment.id %}<span  id="str-{{ forloop.counter }}" style="font-weight: bold;">{{ segment.text }}</span> &nbsp;
+			 	<button type="submit" onclick="translate_string('str-{{ forloop.counter }}'); return false;" class="fa fa-language" style="background-color: white; color: blue; border: none;" title="translate this string" />
+				{% else %}<span id="seg-{{ forloop.counter }}">{{ segment }}</span> &nbsp;
+				<button type="submit" onclick="make_string('seg-{{ forloop.counter }}'); return false;" class="fa fa-caret-square-o-up" style="background-color: white; color: blue; border: none;" title="extract this string" />
+				{% endif %}</td></tr>
+		{% for language, translations in language_translations %}{% for t in translations %}
+		<tr><td></td><td><span   id="tra-{{ forloop.counter }}" class="{{ language.code }}">{{ t.target.text }}</span>
+				<a onclick="apply_translation('{{ language.code }}', 'str-{{ forloop.parentloop.parentloop.counter }}', 'tra-{{ forloop.counter }}'); return true;" class="fa fa-check" style="background-color: white; color: blue; border: none;" title="apply this translation" /></td></tr>
+		{% endfor %}{% endfor %}
+		{% for score, string in strings %}
+		<tr><td></td><td style="font-style: italic; font-size: small;">{{ score|floatformat:2 }} {{ string.text }}</td></tr>
 		{% endfor %}
-	{% endfor %}</td>
+		{% endfor %}
+		</tbody></table>
+	</td>
 	</tr>
 	{% if not page_block.no_translate %}
 	{% for language, block, segment_strings in target_list %}
 	<tr style="vertical-align: top;"><td>{{ language.name }}</td>
 	<td>
-	{% if blocks %}
-	<textarea name="translation-{{ language.code }}" style="width: 96%; height:100px; margin-top: 0.5em;">{{ block.body }}</textarea>
+	{% if block %}
+	<textarea id="{{ language.code }}" name="translation-{{ language.code }}" class="rounded-box {{ language.code }}" style="width: 96%; height:100px; margin-top: 0.5em;">{{ block.body }}</textarea>
 	<input type="submit" value="Modify translation" name="modify-{{ language.code }}" />
 	{% else %}
-	<textarea name="translation-{{ language.code }}"  style="width: 96%; height:100px;">{{ page_block.body }}</textarea>
+	<textarea id="{{ language.code }}" name="translation-{{ language.code }}" name="translation-{{ language.code }}"  style="width: 96%; height:100px;">{{ page_block.body }}</textarea>
 	<input type="submit" class="btn btn-sm" value="Create translation" name="create-{{ language.code }}" />
 	{% endif %}
 	</td>
 	<td style="vertical-align: top;">{% for strings in segment_strings %}
 		{% if strings %}<div><code>{{forloop.counter|rjust:"3"}}</code></div>
-		{% for string in strings %}<div style="font-style: italic; font-size: small; padding-left: 1.8em;">{{ string }}</div>{% endfor %}
+		{% for string in strings %}<div style="font-style: italic; font-size: small; margin-left: 1.8em;">{{ string.text }}</div>{% endfor %}
 		{% endif %}
 	{% endfor %}</td>
 	</tr>

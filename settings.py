@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-"""
+
 """
 Django settings for wip project.
 
@@ -52,6 +54,7 @@ INSTALLED_APPS = [
     'tinymce',
     'allauth',
     'allauth.account',
+    'allauth.socialaccount',
     'bootstrap3',
     'menu',
     'httpproxy',
@@ -252,9 +255,11 @@ EMPTY_WORDS = {
 'it': [
        'di', 'a', 'da', 'in', 'con', 'su', 'per',
        'del', 'della', 'dei', 'al', 'alla', 'ai', 'sui',
+       'fra', 'tra', 'uno', 'una', 'tutti', 'tutte',
        'tuo', 'tua', 'tuoi', 'tue',
        'quello', 'quella', 'questo', 'questa',
-       'circa',
+       'poco', 'molto', 'tanto',
+       'circa', 'solo', 'anche', 'pure', 'però',
 ],
 }
 SEPARATORS =  {

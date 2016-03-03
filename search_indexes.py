@@ -3,6 +3,7 @@ Created on 18/Feb/2016
 @author: giovanni
 '''
 
+from django.db.models.signals import post_save, post_delete
 from haystack import indexes
 from haystack.query import SearchQuerySet
 
@@ -20,6 +21,17 @@ class StringIndex(indexes.SearchIndex, indexes.Indexable):
 
     def index_queryset(self, using=None):
         return self.get_model().objects.all()
+
+def string_post_save_handler(sender, **kwargs):
+    string = kwargs['instance']
+    StringIndex().update_object(string)
+
+def string_post_delete_handler(sender, **kwargs):
+    string = kwargs['instance']
+    StringIndex().remove_object(string)
+
+post_save.connect(string_post_save_handler, sender=String)
+post_delete.connect(string_post_delete_handler, sender=String)
 
 from collections import defaultdict
 from django.shortcuts import render

@@ -16,7 +16,8 @@ Including another URLconf
     2. Import the include() function: from django.conf.urls import url, include
     3. Add a URL to urlpatterns:  url(r'^blog/', include(blog_urls))
 """
-from django.conf.urls import url, include
+from django.conf.urls import patterns, include, url
+from django.views.generic import TemplateView
 from django.contrib import admin
 from models import Site, Proxy
 import views
@@ -42,6 +43,7 @@ urlpatterns = [
     url(r"^string_view/(?P<string_id>[\d]+)/$", views.string_view, name="string_view"),
     url(r"^string_translate/(?P<string_id>[\d]+)/(?P<target_code>[\w]+)/$", views.string_translate, name="string_translate"),
     url(r"^strings/(?P<sources>[\w-]*)/(?P<state>[\w-]*)/(?P<targets>[\w-]*)/$", views.list_strings, name="list_strings"),
+    url(r"^strings/(?P<sources>[\w-]*)/(?P<state>[\w-]*)/$", views.list_strings, name="list_strings_notarget"),
     url(r"^strings/$", views.strings, name="strings"),
     url(r"^page_scan/(?P<fetched_id>[\d]+)/$", views.page_scan, name="page_scan"),
     url(r"^proxies/$", views.proxies, name="proxies"),
@@ -49,8 +51,14 @@ urlpatterns = [
     # url(r"^my_task/$", views.my_task, name="my_task"),
     url(r"^create_tagger/$", views.create_tagger, name="create_tagger"),
     url(r'^navigation_autocomplete$', search_indexes.navigation_autocomplete, name='navigation_autocomplete'),
-    url(r"^test/$", scripts.test, name="test"),
+    # url(r"^test/$", scripts.test, name="test"),
+    url(r"^test/$", TemplateView.as_view(template_name="test.html"), name="test"),
 ]
+
+urlpatterns += patterns('',
+    url(r'^accounts/', include('allauth.urls')),
+    url(r'^accounts/profile/', TemplateView.as_view(template_name='accounts/profile.html'), name='welcome',),
+)   
 
 try:
     proxies = Proxy.objects.all()

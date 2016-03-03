@@ -190,9 +190,11 @@ class String(models.Model):
         ordering = ('text',)
 
     def __unicode__(self):
+        """
         text = self.text[:32]
         if len(self.text) > 32: text += '...'
-        return text
+        """
+        return self.text
 
     def language_code(self):
         return self.language.code
@@ -304,9 +306,14 @@ class Block(models.Model):
         proxies = Proxy.objects.filter(site=self.site).order_by('language__code')   
         languages = [proxy.language for proxy in proxies]
         language_translations = []
+        has_translations = False
         for language in languages:
-            language_translations.append([language.code, TranslatedBlock.objects.filter(block=self, language=language).order_by('-modified')])
-        return language_translations
+            translations = TranslatedBlock.objects.filter(block=self, language=language).order_by('-modified')
+            language_translations.append([language.code, translations])
+            if translations:
+                has_translations = True
+        print 'get_last_translations', has_translations, language_translations
+        return has_translations and language_translations or []
 
     def get_strings(self):
         srx_filepath = os.path.join(RESOURCES_ROOT, 'segment.srx')
