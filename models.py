@@ -5,11 +5,17 @@ For more information on this file, see
 https://docs.djangoproject.com/en/1.9/topics/db/models/
 """
 
+import sys
+reload(sys)  
+sys.setdefaultencoding('utf8')
+
 import os
 import re
 from lxml import html
 from django.db import models
+from django.db.models.expressions import RawSQL
 from django.shortcuts import get_object_or_404
+from django.utils.translation import ugettext_lazy as _
 from django.contrib.auth.models import User
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.contenttypes.fields import GenericForeignKey
@@ -30,6 +36,19 @@ def text_to_list(text):
         if line:
             output.append(line)
     return output
+
+TO_BE_TRANSLATED = 1
+TRANSLATED = 2
+INVARIANT = 3
+ALREADY = 4
+TRANSLATION_STATE_CHOICES = (
+    (0, _('any'),),
+    (TO_BE_TRANSLATED, _('to be translated'),),
+    (TRANSLATED,  _('translated'),),
+    (INVARIANT,  _('invariant'),),
+    (ALREADY,  _('already in target language'),),
+)
+TRANSLATION_STATE_DICT = dict(TRANSLATION_STATE_CHOICES)
 
 class Site(models.Model):
     name = models.CharField(max_length=100)
@@ -279,15 +298,47 @@ class Block(models.Model):
     def get_language(self):
         return self.language or self.site.language or Language.objects.get(code='it')
 
-    def get_previous_next(self, include_language=None, exclude_language=None, order_by='id', no_translate=None):
+    def get_previous_next(self, include_language=None, exclude_language=None, order_by='id', skip_no_translate=None):
         site = self.site
         qs = Block.objects.filter(site=site)
-        if not no_translate is None:
-            qs = qs.filter(no_translate=no_translate)
-        if include_language:
-            qs = qs.filter(language=include_language)
-        if exclude_language:
-            qs = qs.exclude(language=exclude_language)
+        if skip_no_translate:
+            qs = qs.exclude(no_translate=True)
+        if order_by == 'id':
+            id = self.id
+            qs_before = qs.filter(id__lt=id)
+            qs_after = qs.filter(id__gt=id)
+        elif order_by == 'xpath':
+            xpath = self.xpath
+            qs_before = qs.filter(xpath__lt=xpath)
+            qs_after = qs.filter(xpath__gt=xpath)
+        qs_before = qs_before.order_by('-'+order_by)
+        qs_after = qs_after.order_by(order_by)
+        previous = qs_before.count() and qs_before[0] or None
+        next = qs_after.count() and qs_after[0] or None
+        return previous, next
+
+    # alternative version of get_previous_next
+    def get_navigation(self, webpage=None, translation_state='', translation_codes=[], order_by='id'):
+        target_code = len(translation_codes)==1 and translation_codes[0] or None
+        qs = Block.objects.filter(site=self.site)
+        if webpage:
+            qs = qs.filter(block_in_page__webpage=webpage)
+        if translation_state == INVARIANT: # block is language independent
+            qs = qs.filter(no_translate=True)
+        elif translation_state == ALREADY: # block is already in target language
+            qs = qs.filter(language_id=target_code)
+        elif translation_state == TRANSLATED:
+            if translation_codes:
+                qs = qs.filter(source_block__language_id__in=translation_codes)
+            else:
+                qs = qs.filter(source_block__isnull=False) # at least 1
+        elif translation_state == TO_BE_TRANSLATED:
+            if translation_codes:
+                qs = qs.annotate(nt = RawSQL("SELECT COUNT(*) FROM wip_translatedblock WHERE block_id = wip_block.id and language_id IN ('%s')" % "','".join(translation_codes), ())).filter(nt=0)
+            else:
+                qs = qs.filter(source_block__isnull=True).exclude(no_translate=True) # none
+            if target_code:
+                qs = qs.exclude(language_id=target_code)
         if order_by == 'id':
             id = self.id
             qs_before = qs.filter(id__lt=id)
@@ -312,7 +363,6 @@ class Block(models.Model):
             language_translations.append([language.code, translations])
             if translations:
                 has_translations = True
-        print 'get_last_translations', has_translations, language_translations
         return has_translations and language_translations or []
 
     def get_strings(self):
@@ -339,7 +389,7 @@ class Block(models.Model):
         return strings
 
 class BlockInPage(models.Model):
-    block = models.ForeignKey(Block, related_name='block')
+    block = models.ForeignKey(Block, related_name='block_in_page')
     webpage = models.ForeignKey(Webpage, related_name='webpage')
 
     class Meta:
@@ -348,7 +398,7 @@ class BlockInPage(models.Model):
  
 class TranslatedBlock(models.Model):
     language = models.ForeignKey(Language)
-    block = models.ForeignKey(Block)
+    block = models.ForeignKey(Block, related_name='source_block')
     body = models.TextField(blank=True, null=True)
     created = CreationDateTimeField()
     modified = ModificationDateTimeField()
@@ -363,11 +413,9 @@ class TranslatedBlock(models.Model):
 
 # inspired by the algorithm of utils.elements_from_element
 def translated_element(element, site, page, language, xpath='/html'):
-    print xpath
     has_translation = False
     blocks = Block.objects.filter(site=site, xpath=xpath, webpages=page).order_by('-time')
     if blocks:
-        print blocks[0].id
         translated_blocks = TranslatedBlock.objects.filter(block=blocks[0], language=language).order_by('-modified')
         if translated_blocks:
             element = html.fromstring(translated_blocks[0].body)

@@ -9,26 +9,48 @@ pre code { line-height: 0.5; }
 .rounded-box { border-radius: 10px;  border: 2px solid;  padding: 10px; margin: 5px 0; }
 .it { border-color: green; }
 .en { border-color: red; }
+th, td { text-align: left; vertical-align: top; }
 </style>
 {% endblock %}
 
 {% block head_title %}Page block: {{ site.name }}{{ page_block.xpath }}{% endblock %}
 
-{% block title-page %}<span style="color: black; font-size: smaller;">Page block:</span> <span style="font-size: smaller;">{{ page_block.xpath }}</span>{% endblock %}
+{% block title-page %}<span style="color: black; font-size: smaller;">Page block:</span> <span style="font-size: small;">{{ page_block.xpath }}</span>{% endblock %}
 
 {% block content-page %}
-    <div><label>Site</label> <a href="/site/{{ site.slug }}/">{{ site.name }}</a></div>
+    <div><label>Site</label> <a href="/site/{{ site.slug }}/" style="font-size: larger;">{{ site.name }}</a></div>
+    <div><label>Block or site language</label> {{ language }}</div>
     <div><label>Checksum</label> {{ page_block.checksum }}</div>
     <div><label>Time</label> {{ page_block.time|date:"SHORT_DATETIME_FORMAT" }}</div>
-   	<form action="/block/{{ page_block.id }}/" method="post">
-    <div>
+
+   	<form action="/block/{{ page_block.id }}/" method="post">{% csrf_token %}
+   	{{ sequencer_form.webpage }}
+    <div style="vertical-align: middle;">
+		<label>Block language</label> {{ edit_form.language }} &nbsp;
+		<label>Invariant</label> {{ edit_form.no_translate }} &nbsp;&nbsp;
+		{% if user.is_superuser %}
+		<input type="submit" name="save_block" value="Save properties" class="btn btn-sm" />
+		{% endif %}
     {% if user.is_superuser %}
     	<a class="btn btn-sm" href="/block/{{ page_block.id }}/translate/">Edit translations</a> &nbsp;
 	{% endif %}
-		{% csrf_token %}
-		{% if previous %}<input type="submit" name="prev" class="btn btn-sm" value="Previous">{% endif %}
-		{% if next %}<input type="submit" name="next" class="btn btn-sm" value="Next">{% endif %}
-	</div>    	
+	</div>
+    <div>
+<hr>
+		<input type="submit" name="apply_filter" class="btn btn-sm" value="Apply filter below"> &nbsp;&nbsp;
+		{% if previous %}<input type="submit" name="goto-{{ previous.id }}" class="btn btn-sm" value="Previous">{% endif %}
+		{% if next %}<input type="submit" name="goto-{{ next.id }}" class="btn btn-sm" value="Next">{% endif %}
+    </div>
+    <table><thead>
+    	<tr>{% for field in sequencer_form.visible_fields %}
+    	<th>{{ field.label_tag }}</th>{% endfor %}
+    	</tr>
+   	</thead><tbody><tr>
+		<td>{{ sequencer_form.block_age }}</td>
+		<td>{{ sequencer_form.translation_state }}</td>
+		<td>{{ sequencer_form.translation_languages }}</td>
+		<td>{{ sequencer_form.translation_age }}</td>
+	</tr></tbody></table>    	
 	</form>
 
     <h4>HTML fragment</h4>
