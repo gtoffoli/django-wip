@@ -53,33 +53,41 @@ function apply_translation (target_code, id_from, id_to) {
 {% block title-page %}<span style="color: black; font-size: smaller;">Translate block:</span> <span style="font-size: small;">{{ page_block.xpath }}</span>{% endblock %}
 
 {% block content-page %}
-<form action="/block/{{ page_block.id }}/translate/" method="post">
-	{% csrf_token %}
+    <div><label>Site</label> <a href="/site/{{ site.slug }}/">{{ site.name }}</a></div>
+    <div><label>Block or site language</label> {{ language }}
+    <div><label>Block id</label> {{ page_block.id }}</div>
+    <div><label>Checksum</label> {{ page_block.checksum }}</div>
+    <div><label>Time</label> {{ page_block.time|date:"SHORT_DATETIME_FORMAT" }}</div>
+
+<form action="/block/{{ page_block.id }}/translate/" method="post">{% csrf_token %}
 	<input type="hidden" id="segment" name="segment" value="" />
 	<input type="hidden" id="string" name="string" value="" />
-    <div><label>Site</label> <a href="/site/{{ site.slug }}/">{{ site.name }}</a></div>
-    <div><label>Site language</label> {{ site.language }}
-    <div><label>Block id</label> {{ page_block.id }}</div>
-    <div><label>Time</label> {{ page_block.time|date:"SHORT_DATETIME_FORMAT" }}</div>
-    <fieldset style="border: 1px;">
-    <div><label>Block language</label> {{ form.language }} &nbsp;
-    	 <label>No-translate</label> {{ form.no_translate }} &nbsp;&nbsp;
-	     <input type="submit" name="save_block" value="Save properties" class="btn btn-sm" /></div>
-	</fieldset>
+    <div style="vertical-align: middle;">
+		<label>Block language</label> {{ edit_form.language }} &nbsp;
+		<label>Invariant</label> {{ edit_form.no_translate }} &nbsp;&nbsp;
+		{% if user.is_superuser %}
+		<input type="submit" name="save_block" value="Save properties" class="btn btn-sm" />
+		{% endif %}
     <div>
-    
-		{% if not extract_strings %}<input type="submit" name="extract" class="btn btn-sm" value="Extract strings">{% endif %}
 		<a class="btn btn-sm" href="/block/{{ page_block.id }}/">View</a>
-		{% if previous %}<input type="submit" name="prev" class="btn btn-sm" value="Previous">{% endif %}
-		{% if next %}<input type="submit" name="next" class="btn btn-sm" value="Next">{% endif %}
+ 		{% if not extract_strings %}<input type="submit" name="extract" class="btn btn-sm" value="Extract strings">{% endif %}
 	</div>
-	<div>
-		&nbsp;&nbsp; Skip translated {{ form.skip_translated }}
-		&nbsp;&nbsp; Skip no-translate {{ form.skip_no_translate }}
-		&nbsp;&nbsp; Exclude {{ form.exclude_language }}
-		&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Extract all strings on page view {{ form.extract_strings }}
-		{% comment %}&nbsp;&nbsp; Include {{ form.include_language }}{% endcomment %}
-	</div>
+    <div>
+		<input type="submit" name="apply_filter" class="btn btn-sm" value="Apply filter below"> &nbsp;&nbsp;
+		{% if previous %}<input type="submit" name="goto-{{ previous.id }}" class="btn btn-sm" value="Previous">{% endif %}
+		{% if next %}<input type="submit" name="goto-{{ next.id }}" class="btn btn-sm" value="Next">{% endif %}
+    </div>
+    <table><thead>
+    	<tr>{% for field in sequencer_form.visible_fields %}<th>{{ field.label_tag }}</th>{% endfor %}</tr>
+   	</thead><tbody><tr>
+		<td>{{ sequencer_form.webpage }}</td>
+		<td>{{ sequencer_form.block_age }}</td>
+		<td>{{ sequencer_form.translation_state }}</td>
+		<td>{{ sequencer_form.translation_languages }}</td>
+		<td>{{ sequencer_form.translation_age }}</td>
+		<td>{{ sequencer_form.extract_strings }}</td>
+	</tr></tbody></table>    	
+	</form>
 
 	<table style="border-collapse: separate; border-spacing: 5px;">
 	<thead>

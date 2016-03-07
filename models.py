@@ -37,6 +37,9 @@ def text_to_list(text):
             output.append(line)
     return output
 
+def code_to_language(code):
+    return Language.objects.get(pk=code)
+
 TO_BE_TRANSLATED = 1
 TRANSLATED = 2
 INVARIANT = 3
@@ -74,22 +77,87 @@ class Site(models.Model):
         return text_to_list(self.deny)
 
     def get_proxies(self):
-        return Proxy.objects.filter(site=self)
+        return Proxy.objects.filter(site=self).order_by('language__code')
 
     class Meta:
         verbose_name = _('original website')
         verbose_name_plural = _('original websites')
 
-"""
-class PageRegion(models.Model):
-    site = models.ForeignKey(Site)
-    label = models.CharField(max_length=100)
-    xpath = models.CharField(max_length=200)
+    def pages_summary(self):
+        site_code = self.language_id
+        pages = Webpage.objects.filter(site=self).order_by('path')
+        proxy_codes = [proxy.language_id for proxy in Proxy.objects.filter(site=self)]
+        proxy_list = [[code, {'partially': 0, 'translated': 0, 'revised': 0}] for code in proxy_codes]
+        proxy_dict = dict(proxy_list)
+        total = pages.count()
+        invariant = 0
+        for page in pages:
+            if page.no_translate:
+                invariant +=1
+                continue
+            translations = TranslatedVersion.objects.filter(webpage=page)
+            for translation in translations:
+                code = translation.language_id
+                if translation.state == 2:
+                    proxy_dict[code]['revised'] += 1
+                elif translation.state == 1:
+                    proxy_dict[code]['translated'] += 1
+                else:
+                    proxy_dict[code]['partially'] += 1
+        sorted_list = sorted(proxy_dict.items())
+        proxy_list = []
+        for code, t_dict in sorted_list:
+            language = code_to_language(code)
+            left = total - invariant
+            for value in t_dict.values():
+                left -= value
+            t_dict['left'] = left
+            proxy_list.append([language, t_dict])
+        return pages, total, invariant, proxy_list
 
-    class Meta:
-        verbose_name = _('page region')
-        verbose_name_plural = _('page regions')
-"""
+    def blocks_summary(self):
+        site_code = self.language_id
+        blocks = Block.objects.filter(block_in_page__webpage__site=self).order_by('xpath', 'checksum', '-time')
+        last_ids = []
+        xpath = ''
+        checksum = '' 
+        for block in blocks:
+            if not (block.xpath==xpath and block.checksum==checksum):
+                xpath = block.xpath
+                checksum = block.checksum
+                last_ids.append(block.id)
+        blocks = Block.objects.prefetch_related('source_block').filter(id__in=last_ids).order_by('xpath')
+        proxy_codes = [proxy.language_id for proxy in Proxy.objects.filter(site=self)]
+        proxy_list = [[code, {'already': 0, 'partially': 0, 'translated': 0, 'revised': 0}] for code in proxy_codes]
+        proxy_dict = dict(proxy_list)
+        total = blocks.count()
+        invariant = 0
+        for block in blocks:
+            if block.no_translate:
+                invariant +=1
+                continue
+            if block.language_id in proxy_codes:
+                proxy_dict[block.language_id]['already'] += 1
+                continue
+            translations = TranslatedBlock.objects.filter(block=block)
+            for translation in translations:
+                code = translation.language_id
+                if translation.state == 2:
+                    proxy_dict[code]['revised'] += 1
+                elif translation.state == 1:
+                    proxy_dict[code]['translated'] += 1
+                else:
+                    proxy_dict[code]['partially'] += 1
+        sorted_list = sorted(proxy_dict.items())
+        proxy_list = []
+        for code, t_dict in sorted_list:
+            language = code_to_language(code)
+            left = total - invariant
+            for value in t_dict.values():
+                left -= value
+            t_dict['left'] = left
+            proxy_list.append([language, t_dict])
+        return blocks, total, invariant, proxy_list
 
 class Proxy(models.Model):
     name = models.CharField(max_length=100)
@@ -155,6 +223,50 @@ class Webpage(models.Model):
                 content = html.tostring(translated_document)
         return content, has_translation
 
+    def blocks_summary(self):
+        site = self.site
+        site_code = site.language_id
+        blocks = Block.objects.filter(block_in_page__webpage=self).order_by('xpath', '-time')
+        last_ids = []
+        xpath = ''
+        for block in blocks:
+            if not block.xpath == xpath:
+                xpath = block.xpath
+                last_ids.append(block.id)
+        blocks = Block.objects.prefetch_related('source_block').filter(id__in=last_ids).order_by('xpath')
+        # blocks = Block.objects.filter(id__in=last_ids).order_by('xpath')
+        proxy_codes = [proxy.language_id for proxy in Proxy.objects.filter(site=self.site)]
+        proxy_list = [[code, {'already': 0, 'partially': 0, 'translated': 0, 'revised': 0}] for code in proxy_codes]
+        proxy_dict = dict(proxy_list)
+        total = blocks.count()
+        invariant = 0
+        for block in blocks:
+            if block.no_translate:
+                invariant +=1
+                continue
+            if block.language_id in proxy_codes:
+                proxy_dict[block.language_id]['already'] += 1
+                continue
+            translations = TranslatedBlock.objects.filter(block=block)
+            for translation in translations:
+                code = translation.language_id
+                if translation.state == 2:
+                    proxy_dict[block.language_id]['revised'] += 1
+                elif translation.state == 1:
+                    proxy_dict[block.language_id]['translated'] += 1
+                else:
+                    proxy_dict[block.language_id]['partially'] += 1
+        sorted_list = sorted(proxy_dict.items())
+        proxy_list = []
+        for code, t_dict in sorted_list:
+            language = code_to_language(code)
+            left = total - invariant
+            for value in t_dict.values():
+                left -= value
+            t_dict['left'] = left
+            proxy_list.append([language, t_dict])
+        return blocks, total, invariant, proxy_list
+
 class PageVersion(models.Model):
     webpage = models.ForeignKey(Webpage)
     time = CreationDateTimeField()
@@ -190,14 +302,6 @@ class TranslatedVersion(models.Model):
         verbose_name = _('translated version')
         verbose_name_plural = _('translated versions')
 
-"""
-    translation_targets = models.ManyToManyField('self', through='Txu', related_name='source', blank=True, verbose_name='translation targets')
-    translation_sources = models.ManyToManyField('self', through='Txu', related_name='target', blank=True, verbose_name='translation sources')
-ERRORS:
-wip.String.translation_sources: (fields.E332) Many-to-many fields with intermediate tables must not be symmetrical.
-wip.String.translation_targets: (fields.E332) Many-to-many fields with intermediate tables must not be symmetrical.
-wip.String: (models.E003) The model has two many-to-many relations through the intermediate model 'wip.Txu'.
-"""
 class String(models.Model):
     language = models.ForeignKey(Language)
     # text = models.CharField(max_length=1000)
@@ -364,6 +468,30 @@ class Block(models.Model):
             if translations:
                 has_translations = True
         return has_translations and language_translations or []
+
+    def get_translation_states(self):
+        proxy_languages = [proxy.language for proxy in self.site.get_proxies()]
+        invariant = self.no_translate
+        states = []
+        for language in proxy_languages:
+            if invariant:
+                state = 'I'
+            elif language == self.language:
+                state = 'A'
+            else:
+                translations = TranslatedBlock.objects.filter(block=self, language=language).order_by('-modified')
+                if not translations:
+                    state = 'U'
+                else:
+                    translation = translations[0]
+                    if translation.state == 2:
+                        state = 'V'
+                    elif translation.state == 1:
+                        state = 'T'
+                    else:
+                        state = 'P'
+            states.append(state)
+        return states
 
     def get_strings(self):
         srx_filepath = os.path.join(RESOURCES_ROOT, 'segment.srx')

@@ -31,6 +31,7 @@ from django.http import HttpResponse, HttpResponseRedirect
 from django.shortcuts import render_to_response, get_object_or_404
 # from django.db.models import Q, Count
 from django.db.models.expressions import RawSQL
+from django import forms
 
 from models import Language, Site, Proxy, Webpage, PageVersion, TranslatedVersion, Block, TranslatedBlock, BlockInPage, String, Txu #, TranslatedVersion
 from models import TO_BE_TRANSLATED
@@ -98,9 +99,18 @@ def site(request, site_slug):
     site = get_object_or_404(Site, slug=site_slug)
     var_dict = {}
     var_dict['site'] = site
-    var_dict['proxies'] =  proxies = Proxy.objects.filter(site=site)
+    var_dict['proxies'] =  proxies = site.get_proxies()
+    var_dict['proxy_languages'] = proxy_languages = [proxy.language for proxy in proxies]
     var_dict['page_count'] = page_count = Webpage.objects.filter(site=site).count()
     var_dict['block_count'] = block_count = Block.objects.filter(site=site).count()
+    pages, pages_total, pages_invariant, pages_proxy_list = site.pages_summary()
+    var_dict['pages_total'] = pages_total
+    var_dict['pages_invariant'] = pages_invariant
+    var_dict['pages_proxy_list'] = pages_proxy_list
+    blocks, blocks_total, blocks_invariant, blocks_proxy_list = site.blocks_summary()
+    var_dict['blocks_total'] = blocks_total
+    var_dict['blocks_invariant'] = blocks_invariant
+    var_dict['blocks_proxy_list'] = blocks_proxy_list
     return render_to_response('site.html', var_dict, context_instance=RequestContext(request))
 
 def site_crawl(site_pk):
@@ -202,9 +212,15 @@ def page(request, page_id):
     var_dict = {}
     var_dict['page'] = page = get_object_or_404(Webpage, pk=page_id)
     var_dict['site'] = site = page.site
+    var_dict['proxy_languages'] = proxy_languages = [proxy.language for proxy in site.get_proxies()]
     var_dict['page_count'] = Webpage.objects.filter(site=site).count()
     var_dict['scans'] = PageVersion.objects.filter(webpage=page).order_by('-time')
-    var_dict['blocks'] = page.blocks.all()
+    blocks, total, invariant, proxy_list = page.blocks_summary()
+    print total, invariant, proxy_list
+    var_dict['blocks'] = blocks
+    var_dict['total'] = total
+    var_dict['invariant'] = invariant
+    var_dict['proxy_list'] = proxy_list
     return render_to_response('page.html', var_dict, context_instance=RequestContext(request))
 
 def page_blocks(request, page_id):
@@ -291,6 +307,21 @@ def site_translated_blocks(request, site_slug):
     var_dict['translated_blocks_count'] = blocks.count()
     return render_to_response('translated_blocks.html', var_dict, context_instance=RequestContext(request))
 
+def get_or_add_string(text, language, add=False):
+    if isinstance(language, str):
+        language = Language.objects.get(code=language)
+    is_model_instance = False
+    try:
+        string = String.objects.get(text=text, language=language)
+        is_model_instance = True
+    except:
+        string = String(text=text, language=language)
+        if add:
+            string.save()
+            is_model_instance = True
+    # StringIndex().update_object(string)
+    return is_model_instance, string
+
 def block(request, block_id):
     """
     view block specified and allow moving back and forth among blocks of the same site filtered by:
@@ -369,6 +400,168 @@ def block(request, block_id):
     var_dict['sequencer_form'] = BlockSequencerForm(initial={'webpage': webpage_id, 'block_age': block_age, 'translation_state': translation_state, 'translation_languages': translation_languages, 'translation_age': translation_age,})
     return render_to_response('block.html', var_dict, context_instance=RequestContext(request))
 
+def block_translate(request, block_id):
+    block = get_object_or_404(Block, pk=block_id)
+    proxy_languages = [proxy.language for proxy in block.site.get_proxies()]
+    proxy_codes = [proxy.language_id for proxy in block.site.get_proxies()]
+    source_language = block.get_language()
+    BlockSequencerForm.base_fields['translation_languages'].queryset = Language.objects.filter(code__in=proxy_codes)
+    BlockSequencerForm.base_fields['extract_strings'] = forms.BooleanField(required=False, label='Extract strings', )
+    save_block = apply_filter = goto = extract = '' 
+    segments = block.get_strings()
+    segments = [segment.strip(' .,;:*+-=').lower() for segment in segments]
+    extract_strings = False
+    post = request.POST
+    if post:
+        save_block = post.get('save_block', '')
+        apply_filter = post.get('apply_filter', '')
+        segment = request.POST.get('segment', '')
+        string = request.POST.get('string', '')
+        extract = request.POST.get('extract', '')
+        if not (save_block or apply_filter):
+            for key in post.keys():
+                if key.startswith('goto-'):
+                    goto = int(key.split('-')[1])
+                    block = get_object_or_404(Block, pk=goto)
+        if save_block:
+            form = BlockEditForm(post)
+            if form.is_valid():
+                data = form.cleaned_data
+                language = data['language']
+                no_translate = data['no_translate']
+                block.language = language
+                block.no_translate = no_translate
+                block.save()
+        elif (apply_filter or goto):
+            form = BlockSequencerForm(post)
+            if form.is_valid():
+                data = form.cleaned_data
+                webpage_id = data['webpage']
+                block_age = data['block_age']
+                translation_state = int(data['translation_state'])
+                translation_languages = data['translation_languages']
+                translation_codes = [l.code for l in translation_languages]
+                translation_age = data['translation_age']
+                extract_strings = data['extract_strings']
+        elif extract:
+            for segment in segments:
+                is_model_instance, segment_string = get_or_add_string(segment, source_language, add=True)
+        elif segment:
+            is_model_instance, segment_string = get_or_add_string(segment, source_language, add=True)
+        elif string:
+            is_model_instance, segment_string = get_or_add_string(string, source_language, add=True)
+            return HttpResponseRedirect('/string_translate/%d/%s/' % (segment_string.id, proxy_codes[0]))
+    if (not post) or save_block or extract or segment or string:
+        sequencer_context = request.session.get('sequencer_context', {})
+        if sequencer_context:
+            webpage_id = sequencer_context.get('webpage', None)
+            block_age = sequencer_context['block_age']
+            translation_state = sequencer_context['translation_state']
+            translation_codes = sequencer_context['translation_codes']
+            translation_age = sequencer_context['translation_age']
+            extract_strings = sequencer_context.get('extract_strings', False)
+            request.session['sequencer_context'] = {}
+        else:
+            block_age = ''
+            translation_state = TO_BE_TRANSLATED
+            translation_codes = [proxy.language.code for proxy in block.site.get_proxies()]
+            translation_age = ''
+        webpage_id = request.GET.get('webpage', webpage_id)
+        translation_languages = translation_codes and Language.objects.filter(code__in=translation_codes) or []
+    sequencer_context = {}
+    sequencer_context['webpage'] = webpage_id
+    sequencer_context['block_age'] = block_age
+    sequencer_context['translation_state'] = translation_state
+    sequencer_context['translation_codes'] = translation_codes
+    sequencer_context['translation_age'] = translation_age
+    sequencer_context['extract_strings'] = extract_strings
+    request.session['sequencer_context'] = sequencer_context
+    source_segments = []
+    source_strings = []
+    source_translations = []
+    for segment in segments:
+        if not segment:
+            continue
+        if source_language in proxy_languages:
+            source_strings.append([])
+            continue
+        is_model_instance, segment_string = get_or_add_string(segment, source_language, add=extract or extract_strings)
+        if is_model_instance:
+            like_strings = find_like_strings(segment_string, max_strings=5)
+            source_strings.append(like_strings)
+            translations = segment_string.get_translations(proxy_languages)
+            source_translations.append(translations)
+            """
+            for language, txus in translations:
+                setattr(segment_string, language.code, txus)
+            """
+        else:
+            segment_string.id = 0
+            source_strings.append([])
+            source_translations.append([])
+        source_segments.append(segment_string)
+    source_segments = zip(source_segments, source_strings, source_translations)
+    target_list = []
+    for proxy_language in proxy_languages:
+        try:
+            translated_block = TranslatedBlock.objects.get(block=block, language=proxy_language)
+        except:
+            translated_block = None
+        target_strings = []
+        for segment_strings in source_strings:
+            translated_strings = []
+            for s in segment_strings:
+                try:
+                    string = String.objects.get(language=source_language, text=s)
+                    translations = Txu.objects.filter(source=string, target__language=proxy_language)
+                    for translation in translations:
+                        text = translation.target.text
+                        if not text in translated_strings:
+                            translated_strings.append(text)
+                except:
+                    pass
+            target_strings.append(translated_strings)
+        target_list.append([proxy_language, translated_block, target_strings])
+
+    var_dict = {}
+    var_dict['page_block'] = block
+    webpage = webpage_id and Webpage.objects.get(pk=webpage_id) or None
+    previous, next = block.get_navigation(webpage=webpage, translation_state=translation_state, translation_codes=translation_codes)
+    var_dict['previous'] = previous
+    var_dict['next'] = next
+    var_dict['site'] = site = block.site
+    var_dict['language'] = block.language or site.language
+    var_dict['pages'] = block.webpages.all()
+    if save_block or goto:
+        return HttpResponseRedirect('/block/%d/translate/' % block.id)        
+    var_dict['edit_form'] = BlockEditForm(initial={'language': block.language, 'no_translate': block.no_translate,})
+    var_dict['sequencer_form'] = BlockSequencerForm(initial={'webpage': webpage_id, 'block_age': block_age, 'translation_state': translation_state, 'translation_languages': translation_languages, 'translation_age': translation_age,})
+    var_dict['source_segments'] = source_segments
+    var_dict['target_list'] = target_list
+    return render_to_response('block_translate.html', var_dict, context_instance=RequestContext(request))
+
+def propagate_block_translation(request, block, translated_block):
+    similar_blocks = Block.objects.filter(site=block.site, checksum=block.checksum)
+    for similar_block in similar_blocks:
+        if not similar_block.body == block.body:
+            continue
+        translated_blocks = TranslatedBlock.objects.filter(block=similar_block).order_by('-modified')
+        if translated_blocks:
+            similar_block_translation = translated_blocks[0]
+            similar_block_translation.body = translated_block.body
+            similar_block_translation.editor = translated_block.editor
+        else:
+            similar_block_translation = translated_block
+            similar_block_translation.pk = None
+            similar_block_translation.block = similar_block
+        similar_block_translation.save()
+
+srx_filepath = os.path.join(RESOURCES_ROOT, 'segment.srx')
+srx_rules = srx_segmenter.parse(srx_filepath)
+italian_rules = srx_rules['Italian']
+segmenter = srx_segmenter.SrxSegmenter(italian_rules)
+re_parentheses = re.compile(r'\(([^)]+)\)')
+
 def block_pages(request, block_id):
     var_dict = {}
     var_dict['page_block'] = block = get_object_or_404(Block, pk=block_id)
@@ -398,184 +591,6 @@ def block_pages(request, block_id):
     var_dict['before'] = steps_before(page)
     var_dict['after'] = steps_after(page, paginator.num_pages)
     return render_to_response('block_pages.html', var_dict, context_instance=RequestContext(request))
-
-# def add_and_index_string(text, language):
-def get_or_add_string(text, language, add=False):
-    if isinstance(language, str):
-        language = Language.objects.get(code=language)
-    is_model_instance = False
-    try:
-        string = String.objects.get(text=text, language=language)
-        is_model_instance = True
-    except:
-        string = String(text=text, language=language)
-        if add:
-            string.save()
-            is_model_instance = True
-    # StringIndex().update_object(string)
-    return is_model_instance, string
-
-def block_translate(request, block_id):
-    var_dict = {}
-    block = get_object_or_404(Block, pk=block_id)
-    var_dict['site'] = site = block.site
-    var_dict['proxies'] = proxies = Proxy.objects.filter(site=site).order_by('language_id')
-    source_language = block.get_language()
-    var_dict['target_languages'] = target_languages = [proxy.language for proxy in proxies]
-    segments = block.get_strings()
-    segments = [segment.strip(' .,;:*+-=').lower() for segment in segments]
-    save_block = extract = go_previous = go_next = ''
-    skip_no_translate = skip_translated = True
-    exclude_language = include_language = None
-    extract_strings = False
-    post = request.POST
-    if post:
-        segment = request.POST.get('segment', '')
-        string = request.POST.get('string', '')
-        save_block = request.POST.get('save_block', '')
-        extract = request.POST.get('extract', '')
-        go_previous = request.POST.get('prev', '')
-        go_next = request.POST.get('next', '')
-        form = PageBlockForm(request.POST)
-        if form.is_valid():
-            # print 'form is valid'
-            data = form.cleaned_data
-            # print 'data: ', data
-            skip_no_translate = data['skip_no_translate']
-            skip_translated = data['skip_translated']
-            exclude_language = data['exclude_language']
-            # include_language = None # data['include_language']
-            extract_strings = data['extract_strings']
-            language = data['language']
-            no_translate = data['no_translate']
-        else:
-            print 'error', form.errors
-    if go_previous or go_next:
-        previous, next = block.get_previous_next(exclude_language=exclude_language, include_language=include_language)
-        if go_previous and previous:
-            block = previous
-        elif go_next and next:
-            block = next
-        return HttpResponseRedirect('/block/%d/translate/' % block.id)
-        segments = block.get_strings()
-        segments = [segment.strip(' .,;:*+-=').lower() for segment in segments]
-    elif save_block:
-        block.language = language
-        block.no_translate = no_translate
-        block.save()
-    elif extract:
-        for segment in segments:
-            is_model_instance, segment_string = get_or_add_string(segment, source_language, add=True)
-    elif segment:
-        is_model_instance, segment_string = get_or_add_string(segment, source_language, add=True)
-    elif string:
-        is_model_instance, segment_string = get_or_add_string(string, source_language, add=True)
-        return HttpResponseRedirect('/string_translate/%d/%s/' % (segment_string.id, target_languages[0].code))
-    elif post:
-        for key in post.keys():
-            if key.startswith('create-'):
-                code = key.split('-')[1]
-                name = 'translation-%s' % code
-                text = post.get(name).strip()
-                translated_block = TranslatedBlock(block=block, body=text, language_id=code, editor=request.user)
-                translated_block.save()
-                propagate_block_translation(request, block, translated_block)
-            elif key.startswith('modify-'):
-                code = key.split('-')[1]
-                translated_block = TranslatedBlock.objects.get(block=block, language_id=code)
-                name = 'translation-%s' % code
-                text = post.get(name).strip()
-                translated_block.body = text
-                translated_block.editor = request.user
-                translated_block.save()
-                propagate_block_translation(request, block, translated_block)
-            elif key.startswith('extract-'):
-                pass
-    elif extract_strings:
-        for segment in segments:
-            is_model_instance, segment_string = get_or_add_string(segment, source_language, add=extract or extract_strings)
-    var_dict['page_block'] = block
-    previous, next = block.get_previous_next(exclude_language=exclude_language, include_language=include_language)
-    var_dict['previous'] = previous
-    var_dict['next'] = next
-    var_dict['source_language'] = source_language = block.get_language()
-    var_dict['extract_strings'] = extract_strings
-    var_dict['form'] = PageBlockForm(initial={'language': block.language, 'no_translate': block.no_translate, 'skip_translated': skip_translated, 'skip_no_translate': skip_no_translate, 'exclude_language': exclude_language, 'extract_strings': extract_strings,})
-    """
-    if post:
-        return render_to_response('block_translate.html', var_dict, context_instance=RequestContext(request))
-    """
-    source_segments = []
-    source_strings = []
-    source_translations = []
-    for segment in segments:
-        if not segment:
-            continue
-        if source_language in target_languages:
-            source_strings.append([])
-            continue
-        is_model_instance, segment_string = get_or_add_string(segment, source_language, add=extract or extract_strings)
-        if is_model_instance:
-            like_strings = find_like_strings(segment_string, max_strings=5)
-            source_strings.append(like_strings)
-            translations = segment_string.get_translations(target_languages)
-            source_translations.append(translations)
-            """
-            for language, txus in translations:
-                setattr(segment_string, language.code, txus)
-            """
-        else:
-            segment_string.id = 0
-            source_strings.append([])
-            source_translations.append([])
-        source_segments.append(segment_string)
-    source_segments = zip(source_segments, source_strings, source_translations)
-    var_dict['source_segments'] = source_segments
-    target_list = []
-    for target_language in target_languages:
-        try:
-            translated_block = TranslatedBlock.objects.get(block=block, language=target_language)
-        except:
-            translated_block = None
-        target_strings = []
-        for segment_strings in source_strings:
-            translated_strings = []
-            for s in segment_strings:
-                try:
-                    string = String.objects.get(language=source_language, text=s)
-                    translations = Txu.objects.filter(source=string, target__language=target_language)
-                    for translation in translations:
-                        text = translation.target.text
-                        if not text in translated_strings:
-                            translated_strings.append(text)
-                except:
-                    pass
-            target_strings.append(translated_strings)
-        target_list.append([target_language, translated_block, target_strings])
-    var_dict['target_list'] = target_list
-    return render_to_response('block_translate.html', var_dict, context_instance=RequestContext(request))
-
-def propagate_block_translation(request, block, translated_block):
-    similar_blocks = Block.objects.filter(site=block.site, checksum=block.checksum)
-    for similar_block in similar_blocks:
-        if not similar_block.body == block.body:
-            continue
-        translated_blocks = TranslatedBlock.objects.filter(block=similar_block).order_by('-modified')
-        if translated_blocks:
-            similar_block_translation = translated_blocks[0]
-            similar_block_translation.body = translated_block.body
-            similar_block_translation.editor = translated_block.editor
-        else:
-            similar_block_translation = translated_block
-            similar_block_translation.pk = None
-            similar_block_translation.block = similar_block
-        similar_block_translation.save()
-
-srx_filepath = os.path.join(RESOURCES_ROOT, 'segment.srx')
-srx_rules = srx_segmenter.parse(srx_filepath)
-italian_rules = srx_rules['Italian']
-segmenter = srx_segmenter.SrxSegmenter(italian_rules)
-re_parentheses = re.compile(r'\(([^)]+)\)')
 
 def page_scan(request, fetched_id, language='it'):
     string = request.GET.get('strings', False)

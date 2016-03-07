@@ -142,12 +142,12 @@ LANGUAGE_CODE = 'en-us'
 
 # TIME_ZONE = 'UTC'
 TIME_ZONE = 'Europe/Rome'
+USE_TZ = True
+SHORT_DATETIME_FORMAT = 'd-m-y P'
+DATETIME_FORMAT = 'd-m-y H'
 
 USE_I18N = True
-
 USE_L10N = True
-
-USE_TZ = True
 
 SITE_ID = 1
 SITE_NAME = 'FairVillage - WIP'

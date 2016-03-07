@@ -6,6 +6,9 @@
     label { display: inline; font-weight: bold; margin-right: 1.0em; padding: 0.2em 0em;}
     pre { display: inline; padding: 0; }
     pre code { line-height: 0.5; }
+    .l { text-align: left; }
+    .r { text-align: right; }
+    table { border-spacing: 10px 0; border-collapse: separate;
 </style>
 {% endblock %}
 
@@ -37,4 +40,51 @@
 			<div><a class="btn btn-default" href="/site/{{ site.slug }}/crawl/">Crawl</a></div>
 		{% endif %}
 	{% endif %}
+
+<h4>Translation state of site pages</h4>
+<table border="0"><thead>
+	<th class="l">Proxy</th>
+	<th class="r">TOTAL</th>
+	<th class="r">invariant</th>
+	<th class="r">partially<br/>translated</th>
+	<th class="r">translated</th>
+	<th class="r">revised</th>
+	<th class="r">to be translated</th>
+</thead><tbody>
+{% for language, dict in pages_proxy_list %}<tr>
+   <th><a href="/page/{{ page.id }}/proxy/{{ language.code }}/">{{ language.name }}</a></th>
+   <td class="r">{{ pages_total }}</td>
+   <td class="r">{{ pages_invariant }}</td>
+   <td class="r">{{ dict.partially }}</td>
+   <td class="r">{{ dict.translated }}</td>
+   <td class="r">{{ dict.revised }}</td>
+   <td class="r">{{ dict.left }}</td>
+</tr>{% endfor %}
+</tbody>
+</table>
+
+<h4>Translation state of site blocks</h4>
+<table border="0"><thead>
+	<th class="l">Proxy</th>
+	<th class="r">TOTAL</th>
+	<th class="r">invariant</th>
+	<th class="r">in target<br/>language</th>
+	<th class="r">partially<br/>translated</th>
+	<th class="r">translated</th>
+	<th class="r">revised</th>
+	<th class="r">to be translated</th>
+</thead><tbody>
+{% for language, dict in blocks_proxy_list %}<tr>
+   <th><a href="/page/{{ page.id }}/proxy/{{ language.code }}/">{{ language.name }}</a></th>
+   <td class="r">{{ blocks_total }}</td>
+   <td class="r">{{ blocks_invariant }}</td>
+   <td class="r">{{ dict.already }}</td>
+   <td class="r">{{ dict.partially }}</td>
+   <td class="r">{{ dict.translated }}</td>
+   <td class="r">{{ dict.revised }}</td>
+   <td class="r">{{ dict.left }}</td>
+</tr>{% endfor %}
+</tbody>
+</table>
+
 {% endblock %}

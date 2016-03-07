@@ -6,6 +6,10 @@
     label { display: inline; font-weight: bold; margin-right: 1.0em; padding: 0.2em 0em;}
     pre { display: inline; padding: 0; }
     pre code { line-height: 0.5; }
+    .l { text-align: left; }
+    .r { text-align: right; }
+    table { border-spacing: 10px 0; border-collapse: separate;
+}
 </style>
 {% endblock %}
 
@@ -15,28 +19,43 @@
 
 {% block content-page %}
     <div><label>Site</label> <a href="/site/{{ site.slug }}/">{{ site.name }}</a></div>
+    <div><label>Page id</label> {{ page.id }}</div>
     <div><label>Page URL</label> <a href="{{ site.url }}{{ page.path }}">{{ site.url }}{{ page.path }}</a></div>
-    <div><label>Proxy path</label> <a href="/{{ site.path_prefix }}{{ page.path }}">/{{ site.path_prefix }}{{ page.path }}</a></div>
+    <div><label>Null proxy</label> <a href="/{{ site.path_prefix }}{{ page.path }}">/{{ site.path_prefix }}{{ page.path }}</a></div>
     <div><label>Encoding</label> {{ page.encoding }}</div>
-	{% for proxy in site.get_proxies %}
-    <div><label>View</label> <a href="/page/{{ page.id }}/proxy/{{ proxy.language.code }}/">{{ proxy.language.name }}</a></div>
-	{% endfor %}
-{% comment %}
-    <div><label>First crawled</label> {{ page.created|date:"SHORT_DATETIME_FORMAT" }}</div>
-    <div><label>Last crawled</label> {{ page.last_checked|date:"SHORT_DATETIME_FORMAT" }}</div>
-    <div><label>Last code</label> {{ page.last_checked_response_code }}</div>
-{% endcomment %}
+    <div><label>Crawled &nbsp; first:</label>{{ page.created|date:"SHORT_DATETIME_FORMAT" }}, &nbsp; <label>last:</label>{{ page.last_checked|date:"SHORT_DATETIME_FORMAT" }}, &nbsp; <label>last code:</label>{{ page.last_checked_response_code }}</div>
+
+<h4>Translation state of page blocks</h4>
+<table border="0"><thead>
+	<th class="l">Proxy</th>
+	<th class="r">TOTAL</th>
+	<th class="r">invariant</th>
+	<th class="r">in target<br/>language</th>
+	<th class="r">partially<br/>translated</th>
+	<th class="r">translated</th>
+	<th class="r">revised</th>
+	<th class="r">to be translated</th>
+</thead><tbody>
+{% for language, dict in proxy_list %}<tr>
+   <th><a href="/page/{{ page.id }}/proxy/{{ language.code }}/">{{ language.name }}</a></th>
+   <td class="r">{{ total }}</td>
+   <td class="r">{{ invariant }}</td>
+   <td class="r">{{ dict.already }}</td>
+   <td class="r">{{ dict.partially }}</td>
+   <td class="r">{{ dict.translated }}</td>
+   <td class="r">{{ dict.revised }}</td>
+   <td class="r">{{ dict.left }}</td>
+</tr>{% endfor %}
+</tbody>
+</table>
 
 	{% if scans %}
-    <h5>Crawl history</h5>
+    <h4>Crawl history</h4>
     	<table>
    		<thead>
    			<th>Time</th>
    			<th>Code</th>
    			<th>Size</th>
-{% comment %}
-   			<th>xPath of main content region</th>
-{% endcomment %}
    			</thead>
    		<tbody>
 	    {% for scan in scans %}
@@ -45,11 +64,6 @@
 				<td style="text-align: right;">{{ scan.response_code }}</td>
 				<td style="text-align: right;">{{ scan.size }} </td>
 				<td><a href="/page_scan/{{ scan.id }}/">Extract strings, POS tags and NP chunks</a></td>
-{% comment %}
-				{% with region=page.get_region %}{% if region %}
-				<td>&nbsp; {{ region.root }} </td>
-				{% endif %}{% endwith %}
-{% endcomment %}
 		    </tr>
 	    {% endfor %}
 	    </tbody>
@@ -60,7 +74,8 @@
 	    <h4>Blocks included in this page</h4>
     	<table>
    		<thead>
-   			<th> # </th><th> Id </th><th>Chars</th><th> xPath </th><th> Pages </th><th> Date/Time </th>
+   			<tr><th> # </th><th> Id </th><th>Chars</th><th> xPath </th><th> Pages </th><th> Date/Time </th>
+   			{% for l in proxy_languages %}<th> {{ l.code }} </th>{% endfor %}</tr>
    		</thead>
    		<tbody>
 		{% for page_block in blocks %}
@@ -69,7 +84,8 @@
 			<td style="text-align: right;"> {{ page_block.body|length }} </td>
 			<td> <a href="/block/{{ page_block.id }}/?webpage={{ page.id }}">{{ page_block.xpath }}</a> </td>
 			<td style="text-align: center;"> <a href="/block/{{ page_block.id }}/?webpage={{ page.id }}">{{ page_block.webpages.count }}</a> </td>
-			<td> {{ page_block.time|date:"SHORT_DATETIME_FORMAT" }} </td></tr>
+			<td> {{ page_block.time|date:"SHORT_DATETIME_FORMAT" }} </td>
+  			{% for state in page_block.get_translation_states %}<td class="r"> {{ state }} </td>{% endfor %}</tr>
 		{% endfor %}
 	    </tbody>
     	</table>

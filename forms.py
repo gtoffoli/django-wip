@@ -22,7 +22,8 @@ class BlockEditForm(forms.Form):
     no_translate = forms.BooleanField(required=False, label='No translate')
 
 class BlockSequencerForm(forms.Form):
-    webpage = forms.IntegerField(required=False, widget=forms.HiddenInput())
+    # webpage = forms.IntegerField(required=False, widget=forms.HiddenInput())
+    webpage = forms.IntegerField(required=False, widget=forms.TextInput(attrs={'size': 8, 'style': 'width: 50px;',}))
     block_age = forms.CharField(required=False, label="Block age range", widget=forms.TextInput(attrs={'size': 8, 'style': 'width: 50px;',}))
     translation_state = forms.ChoiceField(required=False, choices=TRANSLATION_STATE_CHOICES, label="Translation state", widget=forms.Select(attrs={ 'style': 'width: auto; height: 2em;',}))
     translation_languages = forms.ModelMultipleChoiceField(required=False, queryset=Language.objects.all(), label="Translation languages", widget=forms.SelectMultiple(attrs={ 'style': 'width: auto;', 'size': 3,}))
