@@ -35,7 +35,7 @@ from django import forms
 
 from models import Language, Site, Proxy, Webpage, PageVersion, TranslatedVersion, Block, TranslatedBlock, BlockInPage, String, Txu #, TranslatedVersion
 from models import TO_BE_TRANSLATED
-from forms import BlockEditForm, BlockSequencerForm, PageBlockForm, StringTranslationForm
+from forms import PageEditForm, PageSequencerForm, BlockEditForm, BlockSequencerForm, StringTranslationForm
 from spiders import WipSiteCrawlerScript, WipCrawlSpider
 
 from settings import PAGE_SIZE, PAGE_STEPS
@@ -210,12 +210,68 @@ def proxy(request, proxy_slug):
 
 def page(request, page_id):
     var_dict = {}
-    var_dict['page'] = page = get_object_or_404(Webpage, pk=page_id)
-    var_dict['site'] = site = page.site
+    webpage = get_object_or_404(Webpage, pk=page_id)
+    var_dict['site'] = site = webpage.site
     var_dict['proxy_languages'] = proxy_languages = [proxy.language for proxy in site.get_proxies()]
-    var_dict['page_count'] = Webpage.objects.filter(site=site).count()
-    var_dict['scans'] = PageVersion.objects.filter(webpage=page).order_by('-time')
-    blocks, total, invariant, proxy_list = page.blocks_summary()
+    proxy_codes = [proxy.language_id for proxy in site.get_proxies()]
+    var_dict['scans'] = PageVersion.objects.filter(webpage=webpage).order_by('-time')
+    PageSequencerForm.base_fields['translation_languages'].queryset = Language.objects.filter(code__in=proxy_codes)
+    save_page = apply_filter = goto = '' 
+    post = request.POST
+    if post:
+        save_page = post.get('save_page', '')
+        apply_filter = post.get('apply_filter', '')
+        if not (save_page or apply_filter):
+            for key in post.keys():
+                if key.startswith('goto-'):
+                    goto = int(key.split('-')[1])
+                    webpage = get_object_or_404(Webpage, pk=goto)
+        if save_page:
+            form = PageEditForm(post)
+            if form.is_valid():
+                data = form.cleaned_data
+                no_translate = data['no_translate']
+                webpage.no_translate = no_translate
+                webpage.save()
+        elif (apply_filter or goto):
+            form = PageSequencerForm(post)
+            if form.is_valid():
+                data = form.cleaned_data
+                page_age = data['page_age']
+                translation_state = int(data['translation_state'])
+                translation_languages = data['translation_languages']
+                translation_codes = [l.code for l in translation_languages]
+                translation_age = data['translation_age']
+    if not post or save_page:
+        sequencer_context = request.session.get('page_sequencer_context', {})
+        if sequencer_context:
+            page_age = sequencer_context['page_age']
+            translation_state = sequencer_context['translation_state']
+            translation_codes = sequencer_context['translation_codes']
+            translation_age = sequencer_context['translation_age']
+            request.session['page_sequencer_context'] = {}
+        else:
+            page_age = ''
+            translation_state = TO_BE_TRANSLATED
+            translation_codes = [proxy.language.code for proxy in site.get_proxies()]
+            translation_age = ''
+        translation_languages = translation_codes and Language.objects.filter(code__in=translation_codes) or []
+    sequencer_context = {}
+    sequencer_context['page_age'] = page_age
+    sequencer_context['translation_state'] = translation_state
+    sequencer_context['translation_codes'] = translation_codes
+    sequencer_context['translation_age'] = translation_age
+    request.session['page_sequencer_context'] = sequencer_context
+    var_dict['webpage'] = webpage
+    previous, next = webpage.get_navigation(translation_state=translation_state, translation_codes=translation_codes)
+    var_dict['previous'] = previous
+    var_dict['next'] = next
+    var_dict['site'] = site
+    if save_page or goto:
+        return HttpResponseRedirect('/page/%d/' % webpage.id)        
+    var_dict['edit_form'] = PageEditForm(initial={'no_translate': webpage.no_translate,})
+    var_dict['sequencer_form'] = PageSequencerForm(initial={'page_age': page_age, 'translation_state': translation_state, 'translation_languages': translation_languages, 'translation_age': translation_age,})
+    blocks, total, invariant, proxy_list = webpage.blocks_summary()
     print total, invariant, proxy_list
     var_dict['blocks'] = blocks
     var_dict['total'] = total
@@ -227,10 +283,6 @@ def page_blocks(request, page_id):
     var_dict = {}
     var_dict['webpage'] = webpage = get_object_or_404(Webpage, pk=page_id)
     var_dict['site'] = site = webpage.site
-    """
-    var_dict['blocks'] = blocks = webpage.blocks.all()
-    var_dict['blocks_count'] = blocks.count()
-    """
     qs = webpage.blocks.all()
     var_dict['block_count'] = block_count = qs.count()
     paginator = Paginator(qs, PAGE_SIZE)
@@ -325,9 +377,9 @@ def get_or_add_string(text, language, add=False):
 def block(request, block_id):
     """
     view block specified and allow moving back and forth among blocks of the same site filtered by:
-    - age: more than age days old if age is positive, less than if age is negative
+    - : more than  days old if  is positive, less than if  is negative
     - target_languages: one or more translation language (a subset of the proxy languages)
-    - translation_age: as age, but with reference to the translated blocks
+    - translation_: as , but with reference to the translated blocks
     - state: translated (at least one language), untranslated (at least one language), all
     """
     block = get_object_or_404(Block, pk=block_id)
@@ -372,6 +424,7 @@ def block(request, block_id):
             translation_age = sequencer_context['translation_age']
             request.session['sequencer_context'] = {}
         else:
+            webpage_id = None
             block_age = ''
             translation_state = TO_BE_TRANSLATED
             translation_codes = [proxy.language.code for proxy in block.site.get_proxies()]
@@ -567,10 +620,6 @@ def block_pages(request, block_id):
     var_dict['page_block'] = block = get_object_or_404(Block, pk=block_id)
     var_dict['site'] = site = block.site
     var_dict['proxies'] =  proxies = Proxy.objects.filter(site=site)
-    """
-    var_dict['pages'] = pages = block.webpages.all()
-    var_dict['pages_count'] = pages.count()
-    """
     qs = block.webpages.all()
     var_dict['page_count'] = page_count = qs.count()
     paginator = Paginator(qs, PAGE_SIZE)

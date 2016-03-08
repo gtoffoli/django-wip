@@ -47,7 +47,7 @@
 										{% with menu=menus.main %}<ul class="nav">{% include "wip/bootstrap-navbar.html" %}</ul>{% endwith %}
 		<ul class="nav navbar-nav navbar-right" style="margin-right:30px"><li style="padding-left:15px">
 			<div class="navbar-search" style="padding-top:8px; padding-bottom:10px;">
-				<label for="search-input" style="position:absolute; left:24px; top:14px; font-size:12px;"><i class="fa fa-search"></i></label>
+				<label for="search-input" style="position:absolute; left:12px; top:14px; font-size:12px;"><i class="fa fa-search"></i></label>
 				<input class="form-control bc-demigray" style="padding-left:30px; padding-right:10px; font-size:12px; height:30px;" size="32" type="text" name="q" id="navigation_autocomplete">
 			</div>
 		</li></ul>
@@ -72,11 +72,11 @@
 												</ul>
 											</li>
 										{% else %}
-											<li class="divider-vertical"></li>
+											{% comment %}<li class="divider-vertical"></li>{% endcomment %}
 											<li class="menu-ele"><a href="{% url "account_signup" %}">{% trans "Sign Up" %}</a></li>
-											<li class="divider-vertical"></li>
+											{% comment %}<li class="divider-vertical"></li>{% endcomment %}
 											<li class="menu-ele"><a href="{% url "account_login" %}">{% trans "Log In" %}</a></li>
-											<li class="divider-vertical"></li>
+											{% comment %}<li class="divider-vertical"></li>{% endcomment %}
 										{% endif %}
 									{% endblock %}
 								</div>

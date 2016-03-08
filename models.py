@@ -223,6 +223,34 @@ class Webpage(models.Model):
                 content = html.tostring(translated_document)
         return content, has_translation
 
+    def get_navigation(self, translation_state='', translation_codes=[], order_by='id'):
+        qs = Webpage.objects.filter(site=self.site)
+        if translation_state == INVARIANT: # block is language independent
+            qs = qs.filter(no_translate=True)
+        elif translation_state == TRANSLATED:
+            if translation_codes:
+                qs = qs.filter(webpage__language_id__in=translation_codes)
+            else:
+                qs = qs.filter(webpage__isnull=False) # at least 1
+        elif translation_state == TO_BE_TRANSLATED:
+            if translation_codes:
+                qs = qs.annotate(nt = RawSQL("SELECT COUNT(*) FROM wip_translatedversion WHERE webpage_id = wip_webpage.id and language_id IN ('%s')" % "','".join(translation_codes), ())).filter(nt=0)
+            else:
+                qs = qs.filter(webpage__isnull=True).exclude(no_translate=True) # none
+        if order_by == 'id':
+            id = self.id
+            qs_before = qs.filter(id__lt=id)
+            qs_after = qs.filter(id__gt=id)
+        elif order_by == 'path':
+            path = self.path
+            qs_before = qs.filter(path__lt=path)
+            qs_after = qs.filter(path__gt=path)
+        qs_before = qs_before.order_by('-'+order_by)
+        qs_after = qs_after.order_by(order_by)
+        previous = qs_before.count() and qs_before[0] or None
+        next = qs_after.count() and qs_after[0] or None
+        return previous, next
+
     def blocks_summary(self):
         site = self.site
         site_code = site.language_id

@@ -3,27 +3,49 @@
 
 {% block extra_head %}
 <style>
-    label { display: inline; font-weight: bold; margin-right: 1.0em; padding: 0.2em 0em;}
-    pre { display: inline; padding: 0; }
-    pre code { line-height: 0.5; }
-    .l { text-align: left; }
-    .r { text-align: right; }
-    table { border-spacing: 10px 0; border-collapse: separate;
-}
+label { display: inline; font-weight: bold; margin-right: 1.0em; padding: 0.2em 0em; }
+pre { display: inline; padding: 0; }
+pre code { line-height: 0.5; }
+.l { text-align: left; }
+.r { text-align: right; }
+table { border-spacing: 10px 0; border-collapse: separate; }
+th, td { text-align: left; vertical-align: top; }
 </style>
 {% endblock %}
 
-{% block head_title %}Page: {{ site.url }}{{ page.path }}{% endblock %}
+{% block head_title %}Page: {{ site.url }}{{ webpage.path }}{% endblock %}
 
-{% block title-page %}<span style="font-size: smaller;">Page: {{ site.url }}{{ page.path }}</span>{% endblock %}
+{% block title-page %}<span style="color: black; font-size: smaller;">Page:</span> <span style="font-size: small;">{{ site.url }}{{ webpage.path }}</span>{% endblock %}
 
 {% block content-page %}
-    <div><label>Site</label> <a href="/site/{{ site.slug }}/">{{ site.name }}</a></div>
-    <div><label>Page id</label> {{ page.id }}</div>
-    <div><label>Page URL</label> <a href="{{ site.url }}{{ page.path }}">{{ site.url }}{{ page.path }}</a></div>
-    <div><label>Null proxy</label> <a href="/{{ site.path_prefix }}{{ page.path }}">/{{ site.path_prefix }}{{ page.path }}</a></div>
-    <div><label>Encoding</label> {{ page.encoding }}</div>
-    <div><label>Crawled &nbsp; first:</label>{{ page.created|date:"SHORT_DATETIME_FORMAT" }}, &nbsp; <label>last:</label>{{ page.last_checked|date:"SHORT_DATETIME_FORMAT" }}, &nbsp; <label>last code:</label>{{ page.last_checked_response_code }}</div>
+    <div><label>Site</label> <a href="/site/{{ site.slug }}/" style="font-size: larger;">{{ site.name }}</a></div>
+    <div><label>Page id</label> {{ webpage.id }} &nbsp;
+		 <label>Encoding</label> {{ webpage.encoding }}</div>
+    <div><label>Page URL</label> <a href="{{ site.url }}{{ webpage.path }}">{{ site.url }}{{ webpage.path }}</a> &nbsp;
+    	 <label>Null proxy</label> <a href="/{{ site.path_prefix }}{{ webpage.path }}">/{{ site.path_prefix }}{{ webpage.path }}</a></div>
+	{% comment %}<div><label>Crawled &nbsp; first:</label>{{ webpage.created|date:"SHORT_DATETIME_FORMAT" }}, &nbsp; <label>last:</label>{{ webpage.last_checked|date:"SHORT_DATETIME_FORMAT" }}, &nbsp; <label>last code:</label>{{ webpage.last_checked_response_code }}</div>{% endcomment %}
+
+   	<form action="/page/{{ webpage.id }}/" method="post">{% csrf_token %}
+    <div style="vertical-align: middle;">
+		<label>Invariant</label> {{ edit_form.no_translate }} &nbsp;&nbsp;
+		{% if user.is_superuser %}
+		<input type="submit" name="save_page" value="Save" class="btn btn-sm" />
+		{% endif %}
+	</div>
+    <div style="margin-top: 0.5em;">
+		<input type="submit" name="apply_filter" class="btn btn-sm" value="Apply filter below"> &nbsp;&nbsp;
+		{% if previous %}<input type="submit" name="goto-{{ previous.id }}" class="btn btn-sm" value="Previous">{% endif %}
+		{% if next %}<input type="submit" name="goto-{{ next.id }}" class="btn btn-sm" value="Next">{% endif %}
+    </div>
+    <table><thead>
+    	<tr>{% for field in sequencer_form.visible_fields %}<th>{{ field.label_tag }}</th>{% endfor %}</tr>
+   	</thead><tbody><tr>
+		<td>{{ sequencer_form.page_age }}</td>
+		<td>{{ sequencer_form.translation_state }}</td>
+		<td>{{ sequencer_form.translation_languages }}</td>
+		<td>{{ sequencer_form.translation_age }}</td>
+	</tr></tbody></table>    	
+	</form>
 
 <h4>Translation state of page blocks</h4>
 <table border="0"><thead>
@@ -37,7 +59,7 @@
 	<th class="r">to be translated</th>
 </thead><tbody>
 {% for language, dict in proxy_list %}<tr>
-   <th><a href="/page/{{ page.id }}/proxy/{{ language.code }}/">{{ language.name }}</a></th>
+   <th><a href="/page/{{ webpage.id }}/proxy/{{ language.code }}/">{{ language.name }}</a></th>
    <td class="r">{{ total }}</td>
    <td class="r">{{ invariant }}</td>
    <td class="r">{{ dict.already }}</td>
@@ -82,8 +104,8 @@
 		<tr><td><pre><code>{{forloop.counter|rjust:"3"}}</code> </pre></td>
 			<td style="text-align: right;"> {{ page_block.id }} </td>
 			<td style="text-align: right;"> {{ page_block.body|length }} </td>
-			<td> <a href="/block/{{ page_block.id }}/?webpage={{ page.id }}">{{ page_block.xpath }}</a> </td>
-			<td style="text-align: center;"> <a href="/block/{{ page_block.id }}/?webpage={{ page.id }}">{{ page_block.webpages.count }}</a> </td>
+			<td> <a href="/block/{{ page_block.id }}/?webpage={{ webpage.id }}">{{ page_block.xpath }}</a> </td>
+			<td style="text-align: center;"> <a href="/block/{{ page_block.id }}/?webpage={{ webpage.id }}">{{ page_block.webpages.count }}</a> </td>
 			<td> {{ page_block.time|date:"SHORT_DATETIME_FORMAT" }} </td>
   			{% for state in page_block.get_translation_states %}<td class="r"> {{ state }} </td>{% endfor %}</tr>
 		{% endfor %}
