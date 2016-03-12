@@ -3,11 +3,15 @@
 
 {% block extra_head %}
 <style>
-    label { display: inline; font-weight: bold; margin-right: 1.0em; padding: 0.2em 0em; }
-    pre { display: inline;  padding: 0; }
-    pre code { display: inline; }
-    tr.odd { background: LightGray; }
-    tr.even { background: white; }
+label { display: inline; font-weight: bold; margin-right: 1.0em; padding: 0.2em 0em; }
+pre { display: inline;  padding: 0; }
+pre code { display: inline; }
+tr.odd { background: LightGray; }
+tr.even { background: white; }
+.it { color: green; }
+.en { color: #FF0066; }
+.es { color: OrangeRed; }
+.fr { color: blue; }   
 </style>
 <script>
 function addText(from, to_id) {
@@ -35,8 +39,8 @@ function capFirst(id) {
 <form action="/string_translate/{{ string.id }}/{{ target_code }}/" method="post">
 	{% csrf_token %}
     <div><label>String id</label> {{ string.id }}</div>
-    <div><label>Source language</label> {{ string.language }}
-    <div><label>Source text</label> <span style="font-size: larger;">{{ string.text }}</span></div>
+    <div><label>Source language</label> {{ source_language }}
+    <div><label>Source text</label> <a href="/string/{{ string.id }}/" class="{{ source_language.code }}" style="font-size: larger;">{{ string.text }}</a></div>
     <table style="width: 100%">
     <tbody>
     <tr><td colspan=4 style="padding-top: 0.5em; padding-bottom: 0.5em; font-size: large; font-weight: bold;">{{ target_language }} translation</td></tr>
@@ -47,6 +51,7 @@ function capFirst(id) {
 	<tr><td colspan=4><input type="submit" name="save_{{ target_language.code }}" value="Save {{ l.name }} translation" class="btn btn-sm" /></td></tr>
     <tr><td colspan=4 style="width: 100%"><hr></td></tr>
 
+{% comment %}
     {% if translations %}
     <tr><td colspan=4 style="padding-top: 0.5em; padding-bottom: 0.5em; font-size: large; font-weight: bold;">Available translations</td></tr>
 	<tr><th></th><th>source</th><th>reliab.</th><th style="text-align: left">translation</th></tr>
@@ -61,19 +66,34 @@ function capFirst(id) {
    	{% endwith %}</tr>
 	{% endfor %}
     {% endif %}
+{% endcomment %}
+
+   {% with translations=string.get_translations %}{% if translations %}
+    <tr><td colspan=4 style="padding-top: 0.5em; padding-bottom: 0.5em; font-size: large; font-weight: bold;">Available translations</td></tr>
+	<tr><th>language</th><th>source</th><th>reliab.</th><th style="text-align: left">translation</th></tr>
+	{% for l, tt in string.get_translations %}
+	{% for t in tt %}
+    <tr class="{% cycle 'odd' 'even' %}">
+    	<td class="{{ l.code }}">{{ l.name }}</td>
+    	<td style="text-align: center">{{ t.provider }}</td>
+    	<td style="text-align: center">{{ t.reliability }}</td>
+    	<td class="{{ l.code }}">{% if t.source_code == source_language.code  %}{{ t.target.text }}{% else  %}{{ t.source.text }}{% endif  %}<a onclick="addText(this.parentNode, 'id_translation')"><span class="fa fa-copy" style="font-size: 1.0em; padding-left: 1.0em;" title="append this translation to your translation"></span></a></td>
+   	</tr>
+	{% endfor %}
+	{% endfor %}
+    {% endif %}
+   	{% endwith %}
 
     <tr><td colspan=4 style="padding-top: 0.5em; padding-bottom: 0.5em; font-size: large; font-weight: bold;">{{ target_language }} translations of similar strings</td></tr>
 	<tr><th></th><th>source</th><th>reliab.</th><th style="text-align: left">translation</th></tr>
-	{% for score, s, tt in similar_strings %}{% for t in tt %}
-    <tr class="{% cycle 'odd' 'even' %}">{% with target=t.target %}
-    	<td>{% if forloop.counter == 1 %}{{ score|floatformat:1 }} &nbsp; {{ s.text }}{% endif %}</td>
+	{% for score, s, lltt in similar_strings %}{% for l, tt in lltt %}{% for t in tt %}
+    <tr class="{% cycle 'odd' 'even' %}">
+    	<td>{% if forloop.counter == 1 %}{{ score|floatformat:1 }} &nbsp; <a href="/string/{{ s.id }}/" class="{{ source_language.code }}">{{ s.text }}</a>{% endif %}</td>
     	<td style="text-align: center">{{ t.provider }}</td>
     	<td style="text-align: center">{{ t.reliability }}</td>
-    	<td>{% for token in target.tokens %}<a onclick="addText(this, 'id_translation')" style="cursor: pointer;" title="append this word to your translation">{{ token }}</a> {% endfor %}
-    		&nbsp; <a onclick="addText(this.parentNode, 'id_translation')"><span class="fa fa-copy" style="font-size: 1.0em;" title="append this translation to your translation"></span></a>
-   		</td>
-   	{% endwith %}</tr>
-	{% endfor %}{% endfor %}
+    	<td>{% if t.source_code == source_language.code %}{% for token in t.target.tokens %}<a onclick="addText(this, 'id_translation')" style="cursor: pointer;" title="append this word to your translation">{{ token }} </a>{% endfor %}{% else %}{% for token in t.source.tokens %}<a onclick="addText(this, 'id_translation')" style="cursor: pointer;" title="append this word to your translation">{{ token }} </a>{% endfor %}{% endif %}<a onclick="addText(this.parentNode, 'id_translation')"><span class="fa fa-copy" style="font-size: 1.0em; padding-left: 1.0em;" title="append this translation to your translation"></span></a></td>
+   	</tr>
+	{% endfor %}{% endfor %}{% endfor %}
 	</tbody>
 	</table>
 </form>

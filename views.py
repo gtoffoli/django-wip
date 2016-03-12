@@ -385,7 +385,7 @@ def block(request, block_id):
     block = get_object_or_404(Block, pk=block_id)
     proxy_codes = [proxy.language_id for proxy in block.site.get_proxies()]
     BlockSequencerForm.base_fields['translation_languages'].queryset = Language.objects.filter(code__in=proxy_codes)
-    save_block = apply_filter = goto = '' 
+    save_block = apply_filter = goto = create = modify = '' 
     post = request.POST
     if post:
         save_block = post.get('save_block', '')
@@ -414,7 +414,7 @@ def block(request, block_id):
                 translation_languages = data['translation_languages']
                 translation_codes = [l.code for l in translation_languages]
                 translation_age = data['translation_age']
-    if not post or save_block:
+    if not post or save_block or create or modify:
         sequencer_context = request.session.get('sequencer_context', {})
         if sequencer_context:
             webpage_id = sequencer_context.get('webpage', None)
@@ -476,6 +476,10 @@ def block_translate(request, block_id):
                 if key.startswith('goto-'):
                     goto = int(key.split('-')[1])
                     block = get_object_or_404(Block, pk=goto)
+                elif key.startswith('create-'):
+                    create = key.split('-')[1]
+                elif key.startswith('modify-'):
+                    modify = key.split('-')[1]
         if save_block:
             form = BlockEditForm(post)
             if form.is_valid():
@@ -485,6 +489,14 @@ def block_translate(request, block_id):
                 block.language = language
                 block.no_translate = no_translate
                 block.save()
+        elif create:
+            translation = TranslatedBlock(block=block, language=Language.objects.get(code=create), editor=request.user)
+            translation.body = post.get('translation-%s' % create)
+            translation.save()
+        elif modify:
+            translation = TranslatedBlock.objects.filter(block=block, language=Language.objects.get(code=modify).order_by('-modified')[0])
+            translation.body = post.get('translation-%s' % modify)
+            translation.save()
         elif (apply_filter or goto):
             form = BlockSequencerForm(post)
             if form.is_valid():
@@ -504,7 +516,7 @@ def block_translate(request, block_id):
         elif string:
             is_model_instance, segment_string = get_or_add_string(string, source_language, add=True)
             return HttpResponseRedirect('/string_translate/%d/%s/' % (segment_string.id, proxy_codes[0]))
-    if (not post) or save_block or extract or segment or string:
+    if (not post) or save_block or create or modify or extract or segment or string:
         sequencer_context = request.session.get('sequencer_context', {})
         if sequencer_context:
             webpage_id = sequencer_context.get('webpage', None)
@@ -556,6 +568,8 @@ def block_translate(request, block_id):
     source_segments = zip(source_segments, source_strings, source_translations)
     target_list = []
     for proxy_language in proxy_languages:
+        if proxy_language == source_language:
+            continue
         try:
             translated_block = TranslatedBlock.objects.get(block=block, language=proxy_language)
         except:
@@ -815,7 +829,7 @@ def string_translate(request, string_id, target_code):
     var_dict['target_code'] = target_code
     var_dict['target_language'] = target_language = Language.objects.get(code=target_code)
     var_dict['translations'] = string.get_translations(target_languages=[target_language])
-    var_dict['similar_strings'] = find_like_strings(string, translation_language=target_language, with_translations=True, max_strings=10)
+    var_dict['similar_strings'] = find_like_strings(string, translation_languages=[target_language], with_translations=True, max_strings=10)
     site = None
     if request.method == 'POST':
         form = StringTranslationForm(request.POST)
@@ -868,7 +882,7 @@ def filtered_tokens(text, language_code, tokens=[], truncate=False, min_chars=10
         filtered_tokens.append(token)
     return filtered_tokens
 
-def find_like_strings(source_string, translation_language=[], with_translations=False, min_chars=3, max_strings=10, min_score=0.4):
+def find_like_strings(source_string, translation_languages=[], with_translations=False, min_chars=3, max_strings=10, min_score=0.4):
     """
     source_string is an object of type String
     we look for similar strings of the same language
@@ -892,7 +906,7 @@ def find_like_strings(source_string, translation_language=[], with_translations=
         except:
             continue
         if with_translations:
-            translations = string.get_translations(target_languages=translation_language)
+            translations = string.get_translations(target_languages=translation_languages)
             if not translations:
                 continue
         text = string.text

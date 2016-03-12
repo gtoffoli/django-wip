@@ -13,6 +13,7 @@ import os
 import re
 from lxml import html
 from django.db import models
+from django.db.models import Q
 from django.db.models.expressions import RawSQL
 from django.shortcuts import get_object_or_404
 from django.utils.translation import ugettext_lazy as _
@@ -275,15 +276,15 @@ class Webpage(models.Model):
             if block.language_id in proxy_codes:
                 proxy_dict[block.language_id]['already'] += 1
                 continue
-            translations = TranslatedBlock.objects.filter(block=block)
+            translations = TranslatedBlock.objects.filter(block=block, language_id__in=proxy_codes)
             for translation in translations:
                 code = translation.language_id
                 if translation.state == 2:
-                    proxy_dict[block.language_id]['revised'] += 1
+                    proxy_dict[code]['revised'] += 1
                 elif translation.state == 1:
-                    proxy_dict[block.language_id]['translated'] += 1
+                    proxy_dict[code]['translated'] += 1
                 else:
-                    proxy_dict[block.language_id]['partially'] += 1
+                    proxy_dict[code]['partially'] += 1
         sorted_list = sorted(proxy_dict.items())
         proxy_list = []
         for code, t_dict in sorted_list:
@@ -355,18 +356,16 @@ class String(models.Model):
 
     def get_translations(self, target_languages=[]):
         if not target_languages:
-            target_languages = Language.objects.exclude(code=self.language.code).order_by('code')
-        if isinstance(target_languages, Language):
-            # txus = Txu.objects.filter(source=self, target__language=target_languages)
-            txus = Txu.objects.filter(source=self, target_code=target_languages.code)
-            return txus
-        else:
-            translations = []
-            for language in target_languages:
-                # txus = Txu.objects.filter(source=self, target__language=language)
-                txus = Txu.objects.filter(source=self, target_code=language.code)
-                translations.append([language, txus])
-            return translations
+            target_languages = Language.objects.exclude(code=self.language.code).distinct().order_by('code')
+        source_code = self.language_id
+        translations = []
+        for language in target_languages:
+            if source_code == 'it' or language.code == 'it':
+                txus = Txu.objects.filter(Q(source=self, target_code=language.code) | (Q(target=self, source_code=language.code)))
+            else:
+                txus = []
+            translations.append([language, txus])
+        return translations
 
 # ContentType, currently not used, could be Site, Webpage or Block
 class Txu(models.Model):

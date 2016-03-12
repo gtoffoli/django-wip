@@ -13,6 +13,7 @@ pre code { display: inline; }
 .fr { border: 1px solid; border-color: blue; margin: 1px; }   
 tx.en {color: red; }
 tx.fr {color: blue; }
+th, td { text-align: left; vertical-align: top; }
 </style>
 <script>
 function make_string (id) {
@@ -91,11 +92,16 @@ function apply_translation (target_code, id_from, id_to) {
 
 	<table style="border-collapse: separate; border-spacing: 5px;">
 	<thead>
-	<tr><th width="6%">language</th><th width="50%">block</th><th width="44%" colspan="2">segments{% if extract_strings %} and strings{% endif %}</th></tr>
+	<tr><th width="6%">language</th><th width="50%">block</th>
+	{% if not page_block.no_translate %}
+	<th width="44%" colspan="2">segments{% if extract_strings %} and strings{% endif %}</th>
+	{% endif %}
+	</tr>
 	</thead>
 	<tbody>
 	<tr style="vertical-align: top;"><td>Source</td><td><div class="rounded-box {{ page_block.get_language.code }}">{{ page_block.body }}</div></td>
 	<td style="vertical-align: top;">
+	{% if not page_block.no_translate %}
 		<table style="cell-padding: 2px;"><tbody>
 		{% for segment, strings, language_translations in source_segments %}
 		<tr><td style="vertical-align: top;"><code>{{forloop.counter|rjust:"3"}}</code></td>
@@ -113,6 +119,7 @@ function apply_translation (target_code, id_from, id_to) {
 		{% endfor %}
 		{% endfor %}
 		</tbody></table>
+	{% endif %}
 	</td>
 	</tr>
 	{% if not page_block.no_translate %}

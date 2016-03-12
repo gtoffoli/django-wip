@@ -1,7 +1,7 @@
 <div style="overflow: auto; max-height:320px;"><div style="padding:6px">
 {% for language, strings in language_strings %}{% if strings %}
 <dl style="margin-bottom:5px"><dt>{{ language }}</dt>{% for pk, label in strings  %}
-  <dd><a href="/string_view/{{ pk }}/">{{ label }}</a></dd>
+  <dd><a href="/string/{{ pk }}/">{{ label }}</a></dd>
 {% endfor %}</dl>
 {% endif %}{% endfor %}
 </div></div>

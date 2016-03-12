@@ -8,48 +8,53 @@
     pre code { display: inline; }
     tr.odd { background: LightGray; }
     tr.even { background: white; }
+.it { color: LimeGreen; }
+.en { color: #FF0066; }
+.es { color: OrangeRed; }
+.fr { color: blue; }   
 </style>
 {% endblock %}
 
 {% block head_title %}String: {{ string.text }}{% endblock %}
 
-{% block title-page %}<span style="color: black; font-size: smaller;">String: </span> <span style="font-size: smaller;">{{ string.text|truncatechars:80 }}</span>{% endblock %}
+{% block title-page %}<span style="color: black; font-size: smaller;">String: </span> <span class="{{ source_language.code }}" style="font-size: smaller;">{{ string.text|truncatechars:80 }}</span>{% endblock %}
 
 {% block content-page %}
 <form action="/string_translate/{{ string.id }}/translate/" method="post">
 	{% csrf_token %}
     <div><label>String id</label> {{ string.id }}</div>
-    <div><label>String language</label> {{ string.language }}
-    <div><label>String text</label> <span style="font-size: larger;">{{ string.text }}</span></div>
-    {% if string.language.code == 'it' %}
-    	<div>{% for l in other_languages %}
-    	<a class="btn btn-sm" href="/string_translate/{{ string.id }}/{{ l.code }}/">Translate to {{ l }}</a>&nbsp;&nbsp;
-    	{% endfor %}</div>
-    {% endif %}
+    <div><label>String language</label> <span class="{{ source_language.code }}">{{ source_language.name }}</span>
+    <div><label>String text</label> <span  class="{{ source_language.code }}">{{ string.text }}</span></div>
+   	<div>{% for l in other_languages %}
+   	<a class="btn btn-sm" href="/string_translate/{{ string.id }}/{{ l.code }}/">Translate to {{ l }}</a>&nbsp;&nbsp;
+   	{% endfor %}</div>
     <table style="width: 100%">
     <tbody>
-    {% if string.language.code == 'it' %}{% with translations=string.get_translations %}{% if translations %}
+   {% with translations=string.get_translations %}{% if translations %}
     <tr><td colspan=4 style="padding-top: 0.5em; padding-bottom: 0.5em; font-size: large; font-weight: bold;">Available translations</td></tr>
 	<tr><th>language</th><th>source</th><th>reliab.</th><th style="text-align: left">translation</th></tr>
 	{% for l, tt in string.get_translations %}
 	{% for t in tt %}
-    <tr class="{% cycle 'odd' 'even' %}">{% with target=t.target %}
-    	<td>{{ l }}</td>
+    <tr class="{% cycle 'odd' 'even' %}">
+    	<td class="{{ l.code }}">{{ l.name }}</td>
     	<td style="text-align: center">{{ t.provider }}</td>
     	<td style="text-align: center">{{ t.reliability }}</td>
-    	<td><a href="/string_view/{{ target.id }}/">{{ target.text }}</a></td>
-   	{% endwith %}</tr>
+    	{% if t.source_code == source_language.code  %}
+    	<td><a href="/string/{{ t.target.id }}/" class="{{ l.code }}">{{ t.target.text }}</a></td>
+    	{% else  %}
+    	<td><a href="/string/{{ t.source.id }}/" class="{{ l.code }}">{{ t.source.text }}</a></td>
+    	{% endif  %}
+   	</tr>
 	{% endfor %}
 	{% endfor %}
     {% endif %}
    	{% endwith %}
-    {% endif %}
 
     {% if similar_strings %}
     <tr><td colspan=4 style="padding-top: 0.5em; padding-bottom: 0.5em; font-size: large; font-weight: bold;">Similar strings</td></tr>
 	{% for score, s in similar_strings %}
     <tr class="{% cycle 'odd' 'even' %}">
-    	<td colspan=4>{{ score|floatformat:1 }} &nbsp; <a href="/string_view/{{ s.id }}/" title="view info">{{ s.text }}</a></td>
+    	<td colspan=4>{{ score|floatformat:1 }} &nbsp; <a href="/string/{{ s.id }}/" title="view info" class="{{ source_language.code }}">{{ s.text }}</a></td>
    	</tr>
 	{% endfor %}
     {% endif %}
