@@ -9,7 +9,7 @@
     tr.odd { background: LightGray; }
     tr.even { background: white; }
 .it { color: LimeGreen; }
-.en { color: #FF0066; }
+.en { color: #FF0088; }
 .es { color: OrangeRed; }
 .fr { color: blue; }   
 </style>
@@ -26,7 +26,7 @@
     <div><label>String language</label> <span class="{{ source_language.code }}">{{ source_language.name }}</span>
     <div><label>String text</label> <span  class="{{ source_language.code }}">{{ string.text }}</span></div>
    	<div>{% for l in other_languages %}
-   	<a class="btn btn-sm" href="/string_translate/{{ string.id }}/{{ l.code }}/">Translate to {{ l }}</a>&nbsp;&nbsp;
+   	<a class="btn btn-sm" href="/string_translate/{{ string.id }}/{{ l.code }}/">Translate to <span class="{{ l.code }}">{{ l }}</span></a>&nbsp;&nbsp;
    	{% endfor %}</div>
     <table style="width: 100%">
     <tbody>
@@ -37,13 +37,9 @@
 	{% for t in tt %}
     <tr class="{% cycle 'odd' 'even' %}">
     	<td class="{{ l.code }}">{{ l.name }}</td>
-    	<td style="text-align: center">{{ t.provider }}</td>
+    	<td style="text-align: center">{{ t.txu.provider }}</td>
     	<td style="text-align: center">{{ t.reliability }}</td>
-    	{% if t.source_code == source_language.code  %}
-    	<td><a href="/string/{{ t.target.id }}/" class="{{ l.code }}">{{ t.target.text }}</a></td>
-    	{% else  %}
-    	<td><a href="/string/{{ t.source.id }}/" class="{{ l.code }}">{{ t.source.text }}</a></td>
-    	{% endif  %}
+    	<td><a href="/string/{{ t.id }}/" class="{{ l.code }}">{{ t.text }}</a></td>
    	</tr>
 	{% endfor %}
 	{% endfor %}

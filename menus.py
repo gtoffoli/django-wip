@@ -36,10 +36,6 @@ def strings_children(request):
 
 def italian_strings_children(request):
     children = []
-    children.append (MenuItem(
-         'with no translations',
-         url='/strings/it/untranslated/',
-        ))
     targets = Language.objects.exclude(code='it').order_by('code')
     for target in targets:
         children.append (MenuItem(

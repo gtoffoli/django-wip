@@ -461,6 +461,7 @@ def block_translate(request, block_id):
     BlockSequencerForm.base_fields['translation_languages'].queryset = Language.objects.filter(code__in=proxy_codes)
     BlockSequencerForm.base_fields['extract_strings'] = forms.BooleanField(required=False, label='Extract strings', )
     save_block = apply_filter = goto = extract = '' 
+    create = modify = ''
     segments = block.get_strings()
     segments = [segment.strip(' .,;:*+-=').lower() for segment in segments]
     extract_strings = False
@@ -556,10 +557,6 @@ def block_translate(request, block_id):
             source_strings.append(like_strings)
             translations = segment_string.get_translations(proxy_languages)
             source_translations.append(translations)
-            """
-            for language, txus in translations:
-                setattr(segment_string, language.code, txus)
-            """
         else:
             segment_string.id = 0
             source_strings.append([])
@@ -810,9 +807,6 @@ def extract_blocks(page_id):
                     blocks_in_page.save()
     return n_1, n_2, n_3
 
-def strings(request):
-    return render_to_response('strings.html', {}, context_instance=RequestContext(request))
-
 def string_view(request, string_id):
     var_dict = {}
     var_dict['string'] = string = get_object_or_404(String, pk=string_id)
@@ -934,6 +928,9 @@ def find_like_strings(source_string, translation_languages=[], with_translations
     return like_strings[:max_strings]
 
 def list_strings(request, sources, state, targets=[]):
+    """
+    list strings in the source languages with translations in the target languages
+    """
     post = request.POST
     if post and post.get('delete_strings', ''):
         string_ids = post.getlist('delete')
@@ -1002,15 +999,23 @@ def find_strings(source_languages=[], target_languages=[], translated=None):
             qs = qs.all()
     elif translated: # translated = True
         if target_languages:
-            qs = qs.filter(as_source__target_code__in=target_codes).distinct()
+            # qs = qs.filter(as_source__target_code__in=target_codes).distinct()
+            qs = qs.filter(txu__string__language_id__in=target_codes).distinct()
+        """
         else:
             qs = qs.filter(as_source__isnull=False)
+        """
     else: # translated = False
         if target_languages:
+            """
             # qs = qs.exclude(as_source__target_code__in=target_codes)
             qs = qs.annotate(nt = RawSQL("SELECT COUNT(*) FROM wip_txu WHERE source_id = wip_string.id and target_code IN ('%s')" % "','".join(target_codes), ())).filter(nt=0)
+            """
+            qs = qs.exclude(txu__string__language_id__in=target_codes)
+        """
         else:
             qs = qs.filter(as_source__isnull=True)
+        """
     return qs.order_by('language', 'text')
 
 def get_language(language_code):

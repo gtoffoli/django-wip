@@ -1,6 +1,21 @@
 {% extends "wip_base.html" %}
 {% load staticfiles i18n %}
 
+{% block extra_head %}
+<style>
+label { display: inline; font-weight: bold; margin-right: 1.0em; padding: 0.2em 0em; }
+pre { display: inline;  padding: 0; }
+pre code { display: inline; }
+tr.odd { background: LightGray; }
+tr.even { background: white; }
+table { border-spacing: 10px 0; border-collapse: separate; }
+.it { color: LimeGreen; }
+.en { color: #FF0088; }
+.es { color: OrangeRed; }
+.fr { color: blue; }   
+</style>
+{% endblock %}
+
 {% block head_title %}WIP -
 Strings
 {% if source_languages %} in
@@ -15,11 +30,11 @@ Strings
 {% block title-page %}WIP -
 Strings
 {% if source_languages %} in
-{% for l in source_languages %}{{ l.name }}{% endfor %}
+{% for l in source_languages %}<span class="{{ l.code }}">{{ l.name }}</span>{% endfor %}
 {% endif %}
 {{ state }}
 {% if target_languages %} to
-{% for l in target_languages %}{{ l.name }}{% if not forloop.last %}, {% endif %}{% endfor %}
+{% for l in target_languages %}<span class="{{ l.code }}">{{ l.name }}</span>{% if not forloop.last %}, {% endif %}{% endfor %}
 {% endif %}
 {% endblock %}
 
@@ -39,8 +54,8 @@ Strings
 	{% if can_delete %}<form method="post" action="{{ request.path }}">{% csrf_token %}{% endif %}
 	<table>
 	<thead><th></th>
-		{% for l in source_languages %}<th>{{ l.name }}</th>{% endfor %}
-		{% for l in target_languages %}<th>{{ l.name }}</th>{% endfor %}
+		{% for l in source_languages %}<th><span class="{{ l.code }}">{{ l.name }}</span></th>{% endfor %}
+		{% for l in target_languages %}<th><span class="{{ l.code }}">{{ l.name }}</span></th>{% endfor %}
 	</thead>
 	<tbody>
 		{% for string in strings %}
@@ -48,11 +63,11 @@ Strings
 		<td style="text-align: right; padding-right: 1.0em;">{{forloop.counter|add:offset}}</td>
 		<td>
 		{% if can_delete %}<input type="checkbox" name="delete" value="{{ string.id }}" />{% endif %}
-		<a href="/string/{{ string.id }}/" title="view info">{{ string.text }}</a></td>
+		<a href="/string/{{ string.id }}/" title="view info"><span class="{{ string.language_id }}">{{ string.text }}</span></a></td>
 		{% for translation in string.get_translations %}
 			{% if translation.0.code in target_codes %}
-				<td>{% if translation.1 %}{% for t in translation.1 %}<a href="/string/{{ t.target.id }}/" title="view info">{{ t.target.text }}</a>{% if not forloop.last %}, {% endif %}{% endfor %}
-					{% else %}<a href="/string_translate/{{ string.id }}/{% for l in target_languages %}{{ l.code }}{% if not forloop.last %}-{% endif %}{% endfor %}/">translate</a>
+				<td>{% if translation.1 %}{% for t in translation.1 %}<a href="/string/{{ t.id }}/" title="view info"><span class="{{ translation.0.code }}">{{ t.text }}</span></a>{% if not forloop.last %}, {% endif %}{% endfor %}
+					{% else %}<a href="/string_translate/{{ string.id }}/{% for l in target_languages %}{{ l.code }}{% if not forloop.last %}-{% endif %}{% endfor %}/"><span class="{{ l.code }}">translate</span></a>
 					{% endif %}</td>
 			{% endif %}
 		{% endfor %}

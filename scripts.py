@@ -6,6 +6,7 @@ sys.stdout = codecs.getwriter('utf8')(sys.stdout)
 sys.stderr = codecs.getwriter('utf8')(sys.stderr)
 
 import os
+from collections import defaultdict
 from settings import DATA_ROOT
 from models import Site, Block, String, Txu, TxuSubject
 from vocabularies import Language, Subject
@@ -21,32 +22,12 @@ def set_blocks_language(slug, dry=False):
             block.language_id = code
             block.save()
 
-def no_empty(sublists):
-    for sublist in sublists:
-        if not sublist:
-            return False
-    return True
-
-def all_equal(terms):
-    first_text = terms[0][0]
-    for term in terms[1:]:
-        if not term[0] == first_text:
-            return False
-    return True
-
 migration = '2811'
 health = '2841'
 education = '3206'
 
 IATE_path = os.path.join(DATA_ROOT, 'IATE')
-"""
-allow_subjects = (education,)
-allow_subjects = (migration,)
-allow_subjects = (health,)
-"""
 LANGUAGES = ['it', 'en', 'es', 'fr',]
-SOURCE_LANGUAGE = 'it'
-TARGET_LANGUAGES = ['en', 'es', 'fr',]
 N_LANGUAGES = len(LANGUAGES)
 filename_template = 'export_EN_ES_FR_IT_2016-02-16_All_Langs_Domain_%s.tbx'
 
@@ -64,7 +45,7 @@ def import_tbx(path='', base_path=IATE_path, filename=filename_template, sector=
     print root.find('martifHeader').find('fileDesc').find('sourceDesc').find('p').text
     entries = root.find('text').find('body').findall('termEntry')
     n_entries = len(entries)
-    n_tigs = n_terms = 0 
+    n_tigs = n_terms = n_strings = 0 
     for entry in entries:
         entry_id = entry.attrib['id']
         # print entry_id
@@ -79,11 +60,9 @@ def import_tbx(path='', base_path=IATE_path, filename=filename_template, sector=
                     break
             if not in_subjects:
                 continue
-        entry_dict = {}
+        entry_dict = defaultdict(list)
         for langset in entry.findall('langSet'):
             language_code = langset.items()[0][1]
-            # print entry_id, language_code
-            entry_dict[language_code] = []
             tigs = langset.findall('tig')
             for tig in tigs:
                 n_tigs += 1
@@ -98,73 +77,47 @@ def import_tbx(path='', base_path=IATE_path, filename=filename_template, sector=
                 if not text.lower() == text:
                     continue
                 words = text.split()
-                if len(words) > 3:
+                # if len(words) > 3:
+                if len(words) > 10:
                     continue
-                # entry_dict[language_code].append(text)
                 entry_dict[language_code].append([text, reliability])
-        dict_values = entry_dict.values()
-        # print dict_values
-        terms = [term for sublist in dict_values for term in sublist]
-        # terms = [term for term in sublist for sublist in dict_values]
-        # if no_empty(dict_values) and len(terms) == N_LANGUAGES and not all_equal(terms):
-        # if len(terms) == N_LANGUAGES:
-        if no_empty(dict_values) and len(terms) == N_LANGUAGES:
-            # print N_LANGUAGES, terms
-            n_terms += 1
+        txus = Txu.objects.filter(provider=provider, entry_id=entry_id)
+        if len(entry_dict) == N_LANGUAGES:
             if dry:
-                # print entry_id, ', '.join([entry_dict[language_code][0][0] for language_code in LANGUAGES])
                 sys.stdout.write('.')
             else:
-                # print entry_id
                 sys.stdout.write('.')
-                source_term = entry_dict['it'][0]
-                text = source_term[0]
-                reliability = source_term[1]
-                try:
-                    source_string = String.objects.get(text=text, language_id='it')
-                except:
-                    source_string = String(text=text, language_id='it')
-                    source_string.save()
-                for language_code in TARGET_LANGUAGES:
-                    target_term = entry_dict[language_code][0]
-                    text = target_term[0]
-                    # print text
-                    reliability = target_term[1]
-                    try:
-                        target_string = String.objects.get(text=text, language_id=language_code)
-                    except:
-                        # print text
-                        target_string = String(text=text, language_id=language_code)
-                        target_string.save()
-                    txus = Txu.objects.filter(provider=provider, entry_id=entry_id, target=target_string)
-                    if txus:
-                        continue                        
-                    # txu = Txu(source=source_string, target=target_string, provider=provider, entry_id=entry_id, reliability=reliability)
-                    txu = Txu(source=source_string, target=target_string, source_code='it', target_code=language_code, provider=provider, entry_id=entry_id, reliability=reliability)
+                txus = Txu.objects.filter(provider=provider, entry_id=entry_id)
+                if txus:
+                    txu = txus[0]
+                else:                       
+                    txu = Txu(provider=provider, entry_id=entry_id)
                     txu.save()
-                    for subject_code in subject_codes:
-                        try:
-                            subject = Subject.objects.get(code=subject_code)
-                        except:
-                            subject = Subject(code=subject_code)
-                            subject.save()
-                        try:
-                            txu_subject = TxuSubject.objects.get(txu=txu, subject=subject)
-                        except:
-                            txu_subject = TxuSubject(txu=txu, subject=subject)
-                            txu_subject.save()
-                        
+                    n_terms += 1
+                for subject_code in subject_codes:
+                    try:
+                        subject = Subject.objects.get(code=subject_code)
+                    except:
+                        subject = Subject(code=subject_code)
+                        subject.save()
+                    try:
+                        txu_subject = TxuSubject.objects.get(txu=txu, subject=subject)
+                    except:
+                        txu_subject = TxuSubject(txu=txu, subject=subject)
+                        txu_subject.save()
+                for language_code in LANGUAGES:
+                    for text, reliability in entry_dict[language_code]:
+                        strings = String.objects.filter(txu=txu, language_id=language_code, text=text)
+                        if not strings:
+                            string = String(txu=txu, language_id=language_code, text=text, reliability=reliability)
+                            string.save()
+                            n_strings += 1
+
     print n_entries, ' entries'
     print n_tigs, ' tigs'
     print n_terms, ' terms'
+    print n_strings, ' strings'
 
-def fix_txus():
-    txus=Txu.objects.all()
-    for txu in txus:
-        txu.source_code = txu.source.language_id
-        txu.target_code = txu.target.language_id
-        txu.save()
-    print txus.count()
 
 def test(request):
     var_dict = {}

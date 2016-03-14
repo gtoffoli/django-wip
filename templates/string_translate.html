@@ -8,8 +8,8 @@ pre { display: inline;  padding: 0; }
 pre code { display: inline; }
 tr.odd { background: LightGray; }
 tr.even { background: white; }
-.it { color: green; }
-.en { color: #FF0066; }
+.it { color: LimeGreen; }
+.en { color: #FF0088; }
 .es { color: OrangeRed; }
 .fr { color: blue; }   
 </style>
@@ -33,7 +33,7 @@ function capFirst(id) {
 
 {% block head_title %}Translate string: {{ string.text }}{% endblock %}
 
-{% block title-page %}<span style="color: black; font-size: smaller;">Translate string: </span> <span style="font-size: smaller;">{{ string.text|truncatechars:80 }}</span>{% endblock %}
+{% block title-page %}<span style="color: black; font-size: smaller;">Translate string: </span> <span class="{{ source_language.code }}" style="font-size: smaller;">{{ string.text }}</span>{% endblock %}
 
 {% block content-page %}
 <form action="/string_translate/{{ string.id }}/{{ target_code }}/" method="post">
@@ -43,7 +43,7 @@ function capFirst(id) {
     <div><label>Source text</label> <a href="/string/{{ string.id }}/" class="{{ source_language.code }}" style="font-size: larger;">{{ string.text }}</a></div>
     <table style="width: 100%">
     <tbody>
-    <tr><td colspan=4 style="padding-top: 0.5em; padding-bottom: 0.5em; font-size: large; font-weight: bold;">{{ target_language }} translation</td></tr>
+    <tr><td colspan=4 style="padding-top: 0.5em; padding-bottom: 0.5em; font-size: large; font-weight: bold;" class="{{ target_language.code }}">{{ target_language }} translation</td></tr>
     <tr><td colspan=4 style="width: 100%">{% comment %}<a onclick="capFirst('translation')"><span class="fa fa-arrow-up" style="font-size: 1.0em;" title="make 1st char uppercase"></span></a> &nbsp;
     	{% endcomment %}{{ form.translation }}</td></tr>
 	<tr><td colspan=4><label>Site </label> {{ form.site }}</td></tr>
@@ -51,49 +51,33 @@ function capFirst(id) {
 	<tr><td colspan=4><input type="submit" name="save_{{ target_language.code }}" value="Save {{ l.name }} translation" class="btn btn-sm" /></td></tr>
     <tr><td colspan=4 style="width: 100%"><hr></td></tr>
 
-{% comment %}
-    {% if translations %}
+   {% if translations %}
     <tr><td colspan=4 style="padding-top: 0.5em; padding-bottom: 0.5em; font-size: large; font-weight: bold;">Available translations</td></tr>
-	<tr><th></th><th>source</th><th>reliab.</th><th style="text-align: left">translation</th></tr>
-	{% for t in translations.0.1 %}
-    <tr class="{% cycle 'odd' 'even' %}">{% with target=t.target %}
-    	<td></td>
-    	<td style="text-align: center">{{ t.provider }}</td>
-    	<td style="text-align: center">{{ t.reliability }}</td>
-    	<td>{{ target.text }}
-    		&nbsp; <a onclick="addText(this.parentNode, 'id_translation')"><span class="fa fa-copy" style="font-size: 1.0em;" title="append this translation to your translation"></span></a>
-    	</td>
-   	{% endwith %}</tr>
-	{% endfor %}
-    {% endif %}
-{% endcomment %}
-
-   {% with translations=string.get_translations %}{% if translations %}
-    <tr><td colspan=4 style="padding-top: 0.5em; padding-bottom: 0.5em; font-size: large; font-weight: bold;">Available translations</td></tr>
-	<tr><th>language</th><th>source</th><th>reliab.</th><th style="text-align: left">translation</th></tr>
-	{% for l, tt in string.get_translations %}
+	<tr><th>language</th><th>transl. unit</th><th>reliab.</th><th style="text-align: left">translation</th></tr>
+	{% for l, tt in translations %}
 	{% for t in tt %}
     <tr class="{% cycle 'odd' 'even' %}">
     	<td class="{{ l.code }}">{{ l.name }}</td>
-    	<td style="text-align: center">{{ t.provider }}</td>
+    	<td style="text-align: left">{{ t.txu.entry_id }}</td>
     	<td style="text-align: center">{{ t.reliability }}</td>
-    	<td class="{{ l.code }}">{% if t.source_code == source_language.code  %}{{ t.target.text }}{% else  %}{{ t.source.text }}{% endif  %}<a onclick="addText(this.parentNode, 'id_translation')"><span class="fa fa-copy" style="font-size: 1.0em; padding-left: 1.0em;" title="append this translation to your translation"></span></a></td>
+    	<td class="{{ l.code }}">{{ t.text }}<a onclick="addText(this.parentNode, 'id_translation')"><span class="fa fa-copy" style="font-size: 1.0em; padding-left: 1.0em;" title="append this translation to your translation"></span></a></td>
    	</tr>
 	{% endfor %}
 	{% endfor %}
     {% endif %}
-   	{% endwith %}
 
+	{% if similar_strings %}
     <tr><td colspan=4 style="padding-top: 0.5em; padding-bottom: 0.5em; font-size: large; font-weight: bold;">{{ target_language }} translations of similar strings</td></tr>
-	<tr><th></th><th>source</th><th>reliab.</th><th style="text-align: left">translation</th></tr>
+	<tr><th></th><th>transl. unit</th><th>reliab.</th><th style="text-align: left">translation</th></tr>
 	{% for score, s, lltt in similar_strings %}{% for l, tt in lltt %}{% for t in tt %}
     <tr class="{% cycle 'odd' 'even' %}">
     	<td>{% if forloop.counter == 1 %}{{ score|floatformat:1 }} &nbsp; <a href="/string/{{ s.id }}/" class="{{ source_language.code }}">{{ s.text }}</a>{% endif %}</td>
-    	<td style="text-align: center">{{ t.provider }}</td>
+    	<td style="text-align: left">{{ t.txu.entry_id }}</td>
     	<td style="text-align: center">{{ t.reliability }}</td>
-    	<td>{% if t.source_code == source_language.code %}{% for token in t.target.tokens %}<a onclick="addText(this, 'id_translation')" style="cursor: pointer;" title="append this word to your translation">{{ token }} </a>{% endfor %}{% else %}{% for token in t.source.tokens %}<a onclick="addText(this, 'id_translation')" style="cursor: pointer;" title="append this word to your translation">{{ token }} </a>{% endfor %}{% endif %}<a onclick="addText(this.parentNode, 'id_translation')"><span class="fa fa-copy" style="font-size: 1.0em; padding-left: 1.0em;" title="append this translation to your translation"></span></a></td>
+    	<td>{% for token in t.tokens %}<a onclick="addText(this, 'id_translation')" style="cursor: pointer;" title="append this word to your translation">{{ token }} </a>{% endfor %}<a onclick="addText(this.parentNode, 'id_translation')"><span class="fa fa-copy" style="font-size: 1.0em; padding-left: 1.0em;" title="append this translation to your translation"></span></a></td>
    	</tr>
 	{% endfor %}{% endfor %}{% endfor %}
+    {% endif %}
 	</tbody>
 	</table>
 </form>

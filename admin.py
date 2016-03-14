@@ -55,11 +55,14 @@ class PageVersionAdmin(admin.ModelAdmin):
 
 class StringAdmin(admin.ModelAdmin):
     list_filter = ['language']
-    list_display = ['id', 'language', 'text',]
+    # list_display = ['id', 'language', 'text',]
+    list_display = ['id', 'language', 'text', 'reliability', 'txu',]
 
 class TxuAdmin(admin.ModelAdmin):
-    list_filter = ['source__language', 'target__language', 'user',]
-    list_display = ['id', 'source', 'target', 'user', 'created', 'modified',]
+    # list_filter = ['source__language', 'target__language', 'user',]
+    list_filter = ['user',]
+    # list_display = ['id', 'source', 'target', 'user', 'created', 'modified',]
+    list_display = ['id', 'user', 'created', 'modified',]
 
 class TxuSubjectAdmin(admin.ModelAdmin):
     # list_filter = ['subject',]
@@ -77,7 +80,8 @@ class TxuSubjectAdmin(admin.ModelAdmin):
     def txu_link(self, obj):
         txu = obj.txu
         url = '/admin/wip/txu/%d/' % txu.id
-        label = '%s -> %s' % (txu.source.text, txu.target.text)
+        # label = '%s -> %s' % (txu.source.text, txu.target.text)
+        label = obj.txu.entry_id or obj.txu.id
         link = '<a href="%s">%s</a>' % (url, label)
         return link
     txu_link.short_description = 'Txu'

@@ -44,7 +44,6 @@ urlpatterns = [
     url(r"^string_translate/(?P<string_id>[\d]+)/(?P<target_code>[\w]+)/$", views.string_translate, name="string_translate"),
     url(r"^strings/(?P<sources>[\w-]*)/(?P<state>[\w-]*)/(?P<targets>[\w-]*)/$", views.list_strings, name="list_strings"),
     url(r"^strings/(?P<sources>[\w-]*)/(?P<state>[\w-]*)/$", views.list_strings, name="list_strings_notarget"),
-    url(r"^strings/$", views.strings, name="strings"),
     url(r"^page_scan/(?P<fetched_id>[\d]+)/$", views.page_scan, name="page_scan"),
     url(r"^proxies/$", views.proxies, name="proxies"),
     url(r"^proxy/(?P<proxy_slug>[\w-]+)/$", views.proxy, name="proxy"),

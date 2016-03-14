@@ -330,15 +330,61 @@ class TranslatedVersion(models.Model):
     class Meta:
         verbose_name = _('translated version')
         verbose_name_plural = _('translated versions')
-
-class String(models.Model):
-    language = models.ForeignKey(Language)
-    # text = models.CharField(max_length=1000)
-    text = models.TextField()
+# ContentType, currently not used, could be Site, Webpage or Block
+class Txu(models.Model):
+    """
+    source = models.ForeignKey(String, verbose_name='source string', related_name='as_source')
+    target = models.ForeignKey(String, verbose_name='target string', related_name='as_target')
+    source_code = models.CharField(max_length=5, blank=True, null=True)
+    target_code = models.CharField(max_length=5, blank=True, null=True)
+    """
+    provider = models.CharField(verbose_name='txu source', max_length=100, blank=True, null=True)
+    entry_id = models.CharField(verbose_name='id by provider', max_length=100, blank=True, null=True)
+    subjects = models.ManyToManyField('Subject', through='TxuSubject', related_name='txu', blank=True, verbose_name='subjects')
+    """
+    context_type = models.ForeignKey(ContentType, verbose_name=_(u"Context type"), blank=True, null=True)
+    context_id = models.PositiveIntegerField(verbose_name=_(u"Context id"), blank=True, null=True) # 
+    context = GenericForeignKey(ct_field="context_type", fk_field="context_id")
+    reliability = models.IntegerField(default=1)
+    """
+    created = CreationDateTimeField()
+    modified = ModificationDateTimeField()
+    user = models.ForeignKey(User, null=True)
+    comments = models.TextField(blank=True, null=True)
 
     class Meta:
-        verbose_name = _('source or target string')
-        verbose_name_plural = _('source or target strings')
+        verbose_name = _('translation unit')
+        verbose_name_plural = _('translation units')
+        ordering = ('-created',)
+
+    """
+    def __unicode__(self):
+        source = self.source
+        text = source.text
+        display = u'%s-%s %s' % (source.language_id.upper(), self.target.language_id.upper(), text[:32])
+        if len(text) > 32: display += '...'
+        return display
+    """
+    def __unicode__(self):
+        return self.entry_id or self.id
+
+class TxuSubject(models.Model):
+    txu = models.ForeignKey(Txu, related_name='txu')
+    subject = models.ForeignKey(Subject, related_name='subject')
+
+    class Meta:
+        verbose_name = _('txu subject')
+        verbose_name_plural = _('txu subjects')
+
+class String(models.Model):
+    txu = models.ForeignKey(Txu, null=True, related_name='string')
+    language = models.ForeignKey(Language)
+    text = models.TextField()
+    reliability = models.IntegerField(default=1)
+
+    class Meta:
+        verbose_name = _('string')
+        verbose_name_plural = _('strings')
         ordering = ('text',)
 
     def __unicode__(self):
@@ -354,6 +400,7 @@ class String(models.Model):
     def tokens(self):
         return self.text.split()
 
+    """
     def get_translations(self, target_languages=[]):
         if not target_languages:
             target_languages = Language.objects.exclude(code=self.language.code).distinct().order_by('code')
@@ -366,44 +413,20 @@ class String(models.Model):
                 txus = []
             translations.append([language, txus])
         return translations
+    """
 
-# ContentType, currently not used, could be Site, Webpage or Block
-class Txu(models.Model):
-    source = models.ForeignKey(String, verbose_name='source string', related_name='as_source')
-    target = models.ForeignKey(String, verbose_name='target string', related_name='as_target')
-    source_code = models.CharField(max_length=5, blank=True, null=True)
-    target_code = models.CharField(max_length=5, blank=True, null=True)
-    provider = models.CharField(verbose_name='txu source', max_length=100, blank=True, null=True)
-    entry_id = models.CharField(verbose_name='id by provider', max_length=100, blank=True, null=True)
-    reliability = models.IntegerField(default=1)
-    subjects = models.ManyToManyField('Subject', through='TxuSubject', related_name='txu', blank=True, verbose_name='subjects')
-    context_type = models.ForeignKey(ContentType, verbose_name=_(u"Context type"), blank=True, null=True)
-    context_id = models.PositiveIntegerField(verbose_name=_(u"Context id"), blank=True, null=True) # 
-    context = GenericForeignKey(ct_field="context_type", fk_field="context_id")
-    created = CreationDateTimeField()
-    modified = ModificationDateTimeField()
-    user = models.ForeignKey(User, null=True)
-    comments = models.TextField(blank=True, null=True)
-
-    class Meta:
-        verbose_name = _('translation unit')
-        verbose_name_plural = _('translation units')
-        ordering = ('source__text', 'target__text',)
-
-    def __unicode__(self):
-        source = self.source
-        text = source.text
-        display = u'%s-%s %s' % (source.language_id.upper(), self.target.language_id.upper(), text[:32])
-        if len(text) > 32: display += '...'
-        return display
-
-class TxuSubject(models.Model):
-    txu = models.ForeignKey(Txu, related_name='txu')
-    subject = models.ForeignKey(Subject, related_name='subject')
-
-    class Meta:
-        verbose_name = _('txu subject')
-        verbose_name_plural = _('txu subjects')
+    def get_translations(self, target_languages=[]):
+        if not target_languages:
+            target_languages = Language.objects.exclude(code=self.language.code).distinct().order_by('code')
+        translations = []
+        has_translations = False
+        txu = self.txu
+        for language in target_languages:
+            strings = String.objects.filter(txu=txu, language_id=language.code)
+            if strings:
+                has_translations = True
+            translations.append([language, strings])
+        return has_translations and translations or []
 
 class Block(models.Model):
     site = models.ForeignKey(Site)
