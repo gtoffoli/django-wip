@@ -43,6 +43,16 @@ from settings import DATA_ROOT, RESOURCES_ROOT, tagger_filename, BLOCK_TAGS, SEP
 from utils import strings_from_html, elements_from_element, block_checksum, ask_mymemory
 import srx_segmenter
 
+def robots(request):
+    response = render_to_response('robots.txt', {}, context_instance=RequestContext(request))
+    response['Content-Type'] = 'text/plain; charset=utf-8'
+    return response
+
+def empty_page(request):
+    response = render_to_response('robots.txt', {}, context_instance=RequestContext(request))
+    response['Content-Type'] = 'text/plain; charset=utf-8'
+    return response
+
 def steps_before(page):
     steps = list(PAGE_STEPS)
     steps.reverse()
@@ -817,6 +827,8 @@ def extract_blocks(page_id):
     return n_1, n_2, n_3
 
 def string_view(request, string_id):
+    if not request.user.is_superuser:
+        return empty_page(request);
     print string_id
     var_dict = {}
     var_dict['string'] = string = get_object_or_404(String, pk=string_id)
@@ -882,6 +894,8 @@ def string_view(request, string_id):
     return render_to_response('string_view.html', var_dict, context_instance=RequestContext(request))
 
 def string_translate(request, string_id, target_code):
+    if not request.user.is_superuser:
+        return empty_page(request);
     var_dict = {}
     var_dict['string'] = string = get_object_or_404(String, pk=string_id)
     var_dict['source_language'] = source_language = string.language
@@ -1066,6 +1080,8 @@ def list_strings(request, sources, state, targets=[]):
     """
     list strings in the source languages with translations in the target languages
     """
+    if not request.user.is_superuser:
+        return empty_page(request);
     post = request.POST
     if post and post.get('delete_strings', ''):
         string_ids = post.getlist('delete')

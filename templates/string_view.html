@@ -30,7 +30,8 @@ th, td { text-align: left; vertical-align: top; }
    	<a class="btn btn-sm" href="/string_translate/{{ string.id }}/{{ l.code }}/">Translate to <span class="{{ l.code }}">{{ l }}</span></a>&nbsp;&nbsp;
    	{% endfor %}</div>
 
-    <div style="margin-top: 1.0em;">
+{% if user.is_superuser %}
+        <div style="margin-top: 1.0em;">
 		<input type="submit" name="apply_filter" class="btn btn-sm" value="Apply filter below"> &nbsp;&nbsp;
 		{% if previous %}<input type="submit" name="goto-{{ previous.id }}" class="btn btn-sm" value="Previous">{% endif %}
 		{% if next %}<input type="submit" name="goto-{{ next.id }}" class="btn btn-sm" value="Next">{% endif %}
@@ -41,6 +42,7 @@ th, td { text-align: left; vertical-align: top; }
 		<td>{{ sequencer_form.translation_state }}</td>
 		<td>{{ sequencer_form.translation_languages }}</td>
 	</tr></tbody></table>    	
+{% endif %}
 
     <table style="width: 100%">
     <tbody>

@@ -73,6 +73,8 @@ function apply_translation (target_code, id_from, id_to) {
 		<a class="btn btn-sm" href="/block/{{ page_block.id }}/">View</a>
  		{% if not extract_strings %}<input type="submit" name="extract" class="btn btn-sm" value="Extract strings">{% endif %}
 	</div>
+
+{% if user.is_superuser %}
     <div>
 		<input type="submit" name="apply_filter" class="btn btn-sm" value="Apply filter below"> &nbsp;&nbsp;
 		{% if previous %}<input type="submit" name="goto-{{ previous.id }}" class="btn btn-sm" value="Previous">{% endif %}
@@ -89,6 +91,7 @@ function apply_translation (target_code, id_from, id_to) {
 		<td>{{ sequencer_form.extract_strings }}</td>
 	</tr></tbody></table>    	
 	</form>
+{% endif %}
 
 	<table style="border-collapse: separate; border-spacing: 5px;">
 	<thead>

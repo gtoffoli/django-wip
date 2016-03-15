@@ -35,6 +35,8 @@ th, td { text-align: left; vertical-align: top; }
    	{% if user.is_superuser %}
    	<div><a class="btn btn-sm" href="/block/{{ page_block.id }}/translate/">Edit translations</a></div>
 	{% endif %}
+
+{% if user.is_superuser %}
     <div>
 		<input type="submit" name="apply_filter" class="btn btn-sm" value="Apply filter below"> &nbsp;&nbsp;
 		{% if previous %}<input type="submit" name="goto-{{ previous.id }}" class="btn btn-sm" value="Previous">{% endif %}
@@ -49,6 +51,7 @@ th, td { text-align: left; vertical-align: top; }
 		<td>{{ sequencer_form.translation_languages }}</td>
 		<td>{{ sequencer_form.translation_age }}</td>
 	</tr></tbody></table>    	
+{% endif %}
 	</form>
 
     <h4>HTML fragment</h4>

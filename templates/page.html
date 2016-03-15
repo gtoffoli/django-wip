@@ -32,6 +32,8 @@ th, td { text-align: left; vertical-align: top; }
 		<input type="submit" name="save_page" value="Save" class="btn btn-sm" />
 		{% endif %}
 	</div>
+
+{% if user.is_superuser %}
     <div style="margin-top: 0.5em;">
 		<input type="submit" name="apply_filter" class="btn btn-sm" value="Apply filter below"> &nbsp;&nbsp;
 		{% if previous %}<input type="submit" name="goto-{{ previous.id }}" class="btn btn-sm" value="Previous">{% endif %}
@@ -45,6 +47,7 @@ th, td { text-align: left; vertical-align: top; }
 		<td>{{ sequencer_form.translation_languages }}</td>
 		<td>{{ sequencer_form.translation_age }}</td>
 	</tr></tbody></table>    	
+{% endif %}
 	</form>
 
 <h4>Translation state of page blocks</h4>

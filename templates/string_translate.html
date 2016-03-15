@@ -55,6 +55,7 @@ function capFirst(id) {
 		<td>{{ sequencer_form.translation_languages }}</td>
 	</tr></tbody></table>    	
  
+{% if user.is_superuser %}
     <table style="width: 100%">
     <tbody>
     <tr><td colspan=4 style="padding-top: 0.5em; padding-bottom: 0.5em; font-size: large; font-weight: bold;" class="{{ target_language.code }}">{{ target_language }} translation</td></tr>
@@ -68,7 +69,7 @@ function capFirst(id) {
 		</td></tr>
 	<tr><td colspan=4><label>add to same TU</label> {{ translation_form.same_txu }} &nbsp; <input type="submit" name="save_{{ target_language.code }}" value="Save {{ l.name }} translation" class="btn btn-sm" /></td></tr>
     <tr><td colspan=4 style="width: 100%"><hr></td></tr>
-
+{% endif %}
 
 	{% if external_translations %}
     <tr><td colspan=4 style="padding-top: 0.5em; padding-bottom: 0.5em; font-size: large; font-weight: bold;">Translations by {{ translation_service }}</td></tr>

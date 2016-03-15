@@ -26,7 +26,7 @@ def strings_children(request):
     for language in languages:
         children.append (MenuItem(
              '%s strings' % language.name,
-             url='/strings/%s///' % language.code,
+             url='/strings/%s/' % language.code,
             ))
     children.append (MenuItem(
          'Italian strings with translations',
