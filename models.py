@@ -29,6 +29,17 @@ from settings import RESOURCES_ROOT, BLOCK_TAGS
 from utils import strings_from_html
 import srx_segmenter
 
+
+MYMEMORY = 1
+MATECAT = 2
+GOOGLE = 3
+TRANSLATION_SERVICE_CHOICES = (
+    (MYMEMORY, _('MyMemory')),
+    (MATECAT, _('Matecat')),
+    (GOOGLE, _('GoogleTranslate')),
+)
+TRANSLATION_SERVICE_DICT = dict(TRANSLATION_SERVICE_CHOICES)
+
 def text_to_list(text):
     lines = text.split('\n')
     output = []
@@ -53,6 +64,13 @@ TRANSLATION_STATE_CHOICES = (
     (ALREADY,  _('already in target language'),),
 )
 TRANSLATION_STATE_DICT = dict(TRANSLATION_STATE_CHOICES)
+
+STRING_TRANSLATION_STATE_CHOICES = (
+    (0, _('any'),),
+    (TO_BE_TRANSLATED, _('to be translated'),),
+    (TRANSLATED,  _('translated'),),
+)
+STRING_TRANSLATION_STATE_DICT = dict(STRING_TRANSLATION_STATE_CHOICES)
 
 class Site(models.Model):
     name = models.CharField(max_length=100)
@@ -427,6 +445,19 @@ class String(models.Model):
                 has_translations = True
             translations.append([language, strings])
         return has_translations and translations or []
+
+    def get_navigation(self, translation_state='', translation_codes=[], order_by='text'):
+        text = self.text
+        qs = String.objects.filter(language_id=self.language_id)
+        if translation_state == TRANSLATED:
+            qs = qs.filter(txu__string__language_id__in=translation_codes)
+        elif translation_state == TO_BE_TRANSLATED:
+            qs = qs.exclude(txu__string__language_id__in=translation_codes)
+        qs_before = qs.filter(text__lt=text).order_by('-'+order_by)
+        qs_after = qs.filter(text__gt=text).order_by(order_by)
+        previous = qs_before.count() and qs_before[0] or None
+        next = qs_after.count() and qs_after[0] or None
+        return previous, next
 
 class Block(models.Model):
     site = models.ForeignKey(Site)

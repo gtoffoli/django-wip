@@ -12,6 +12,7 @@ tr.even { background: white; }
 .en { color: #FF0088; }
 .es { color: OrangeRed; }
 .fr { color: blue; }   
+th, td { text-align: left; vertical-align: top; }
 </style>
 <script>
 function addText(from, to_id) {
@@ -41,23 +42,54 @@ function capFirst(id) {
     <div><label>String id</label> {{ string.id }}</div>
     <div><label>Source language</label> {{ source_language }}
     <div><label>Source text</label> <a href="/string/{{ string.id }}/" class="{{ source_language.code }}" style="font-size: larger;">{{ string.text }}</a></div>
+ 
+    <div style="margin-top: 1.0em;">
+		<input type="submit" name="apply_filter" class="btn btn-sm" value="Apply filter below"> &nbsp;&nbsp;
+		{% if previous %}<input type="submit" name="goto-{{ previous.id }}" class="btn btn-sm" value="Previous">{% endif %}
+		{% if next %}<input type="submit" name="goto-{{ next.id }}" class="btn btn-sm" value="Next">{% endif %}
+    </div>
+    <table><thead>
+    	<tr>{% for field in sequencer_form.visible_fields %}<th>{{ field.label_tag }}</th>{% endfor %}</tr>
+   	</thead><tbody><tr>
+		<td>{{ sequencer_form.translation_state }}</td>
+		<td>{{ sequencer_form.translation_languages }}</td>
+	</tr></tbody></table>    	
+ 
     <table style="width: 100%">
     <tbody>
     <tr><td colspan=4 style="padding-top: 0.5em; padding-bottom: 0.5em; font-size: large; font-weight: bold;" class="{{ target_language.code }}">{{ target_language }} translation</td></tr>
     <tr><td colspan=4 style="width: 100%">{% comment %}<a onclick="capFirst('translation')"><span class="fa fa-arrow-up" style="font-size: 1.0em;" title="make 1st char uppercase"></span></a> &nbsp;
-    	{% endcomment %}{{ form.translation }}</td></tr>
-	<tr><td colspan=4><label>Site </label> {{ form.site }}</td></tr>
-	<tr><td colspan=4><label>Sectors </label> {{ form.subjects }}</td></tr>
-	<tr><td colspan=4><input type="submit" name="save_{{ target_language.code }}" value="Save {{ l.name }} translation" class="btn btn-sm" /></td></tr>
+    	{% endcomment %}{{ translation_form.translation }}</td></tr>
+	<tr><td colspan=4><label>Site </label> {{ translation_form.translation_site }}</td></tr>
+	<tr><td colspan=2><label>Sectors </label> {{ translation_form.translation_subjects }}</td>
+		<td colspan=2><div style="padding-bottom: 0.5em;font-weight: bold;">External services</div>
+					<div>{{ translation_service_form.translation_services }}</div>
+					<div><input type="submit" name="ask_service" value="Ask service" class="btn btn-sm" /></div>
+		</td></tr>
+	<tr><td colspan=4><label>add to same TU</label> {{ translation_form.same_txu }} &nbsp; <input type="submit" name="save_{{ target_language.code }}" value="Save {{ l.name }} translation" class="btn btn-sm" /></td></tr>
     <tr><td colspan=4 style="width: 100%"><hr></td></tr>
 
-   {% if translations %}
-    <tr><td colspan=4 style="padding-top: 0.5em; padding-bottom: 0.5em; font-size: large; font-weight: bold;">Available translations</td></tr>
-	<tr><th>language</th><th>transl. unit</th><th>reliab.</th><th style="text-align: left">translation</th></tr>
+
+	{% if external_translations %}
+    <tr><td colspan=4 style="padding-top: 0.5em; padding-bottom: 0.5em; font-size: large; font-weight: bold;">Translations by {{ translation_service }}</td></tr>
+	<tr><th>segment</th><th>entry id</th><th>quality</th><th style="text-align: left">translation</th></tr>
+	{% for t in external_translations %}
+    <tr class="{% cycle 'odd' 'even' %}">
+    	<td class="{{ source_language.code }}">{{ t.segment }}</td>
+    	<td style="text-align: left">{{ t.entry_id }}</td>
+    	<td style="text-align: center">{{ t.quality }}</td>
+    	<td class="{{ target_language.code }}">{{ t.translation }}<a onclick="addText(this.parentNode, 'id_translation')"><span class="fa fa-copy" style="font-size: 1.0em; padding-left: 1.0em;" title="append this translation to your translation"></span></a></td>
+   	</tr>
+	{% endfor %}
+    {% endif %}
+
+    {% if translations %}
+    <tr><td colspan=4 style="padding-top: 0.5em; padding-bottom: 0.5em; font-size: large; font-weight: bold;">Translations in internal memory</td></tr>
+	<tr><th></th><th>transl. unit</th><th>reliab.</th><th style="text-align: left">translation</th></tr>
 	{% for l, tt in translations %}
 	{% for t in tt %}
     <tr class="{% cycle 'odd' 'even' %}">
-    	<td class="{{ l.code }}">{{ l.name }}</td>
+    	<td class="{{ l.code }}"></td>
     	<td style="text-align: left">{{ t.txu.entry_id }}</td>
     	<td style="text-align: center">{{ t.reliability }}</td>
     	<td class="{{ l.code }}">{{ t.text }}<a onclick="addText(this.parentNode, 'id_translation')"><span class="fa fa-copy" style="font-size: 1.0em; padding-left: 1.0em;" title="append this translation to your translation"></span></a></td>
@@ -78,6 +110,7 @@ function capFirst(id) {
    	</tr>
 	{% endfor %}{% endfor %}{% endfor %}
     {% endif %}
+
 	</tbody>
 	</table>
 </form>

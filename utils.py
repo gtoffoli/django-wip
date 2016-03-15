@@ -14,6 +14,8 @@ from scrapy.utils.misc import md5sum
 
 from lxml import html, etree
 from guess_language import guessLanguage
+import urllib
+import unirest
 
 # from wip.settings import BLOCK_TAGS, TO_DROP_TAGS
 from django.conf import settings
@@ -109,3 +111,35 @@ def guess_block_language(block):
         if len(code) == 2:
             return code
     return '?'
+
+translated_key = 'fbcc885cdb0971380e33'
+def ask_mymemory(string, langpair):
+    baseurl = "https://translated-mymemory---translation-memory.p.mashape.com/api/get?"
+    querydict = { 'key': translated_key, 'langpair': langpair, 'mt': 1, 'of': 'json', 'q': string, }
+    headers={"X-Mashape-Key": "vBhqkjRytAmsh3COr4xRHcX2whEcp1mm26TjsnMw7ZFZSK6XIU", "Accept": "application/json"}
+    querystring = urllib.urlencode(querydict)
+    r = unirest.get(baseurl+querystring, headers=headers)
+    code = r.code
+    body = r.body
+    status = body.get('responseStatus', 'no status')
+    translations = []
+    if status == 200:
+        details = body.get('responseDetails', 'no details')
+        data = body.get('responseData', {})
+        translatedText = data.get('translatedText', '')
+        matches = []
+        if data.get('match', 0):
+            matches = body.get('matches', [])
+        for match in matches:
+            translation = {}
+            translation['segment'] = match.get('segment', '')
+            translation['translation'] = match.get('translation', '')
+            translation['quality'] = int(round(float(match.get('quality', 0)) / 25))
+            translation['entry_id'] = 'Matecat-%s' % match.get('id', '')
+            translations.append(translation)
+    return status, translatedText, translations
+
+
+    
+    
+    

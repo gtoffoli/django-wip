@@ -30,10 +30,8 @@ def string_post_delete_handler(sender, **kwargs):
     string = kwargs['instance']
     StringIndex().remove_object(string)
 
-"""
 post_save.connect(string_post_save_handler, sender=String)
 post_delete.connect(string_post_delete_handler, sender=String)
-"""
 
 from django.shortcuts import render
 

@@ -3,15 +3,16 @@
 
 {% block extra_head %}
 <style>
-    label { display: inline; font-weight: bold; margin-right: 1.0em; padding: 0.2em 0em; }
-    pre { display: inline;  padding: 0; }
-    pre code { display: inline; }
-    tr.odd { background: LightGray; }
-    tr.even { background: white; }
+label { display: inline; font-weight: bold; margin-right: 1.0em; padding: 0.2em 0em; }
+pre { display: inline;  padding: 0; }
+pre code { display: inline; }
+tr.odd { background: LightGray; }
+tr.even { background: white; }
 .it { color: LimeGreen; }
 .en { color: #FF0088; }
 .es { color: OrangeRed; }
 .fr { color: blue; }   
+th, td { text-align: left; vertical-align: top; }
 </style>
 {% endblock %}
 
@@ -20,7 +21,7 @@
 {% block title-page %}<span style="color: black; font-size: smaller;">String: </span> <span class="{{ source_language.code }}" style="font-size: smaller;">{{ string.text|truncatechars:80 }}</span>{% endblock %}
 
 {% block content-page %}
-<form action="/string_translate/{{ string.id }}/translate/" method="post">
+<form action="/string/{{ string.id }}/" method="post">
 	{% csrf_token %}
     <div><label>String id</label> {{ string.id }}</div>
     <div><label>String language</label> <span class="{{ source_language.code }}">{{ source_language.name }}</span>
@@ -28,6 +29,19 @@
    	<div>{% for l in other_languages %}
    	<a class="btn btn-sm" href="/string_translate/{{ string.id }}/{{ l.code }}/">Translate to <span class="{{ l.code }}">{{ l }}</span></a>&nbsp;&nbsp;
    	{% endfor %}</div>
+
+    <div style="margin-top: 1.0em;">
+		<input type="submit" name="apply_filter" class="btn btn-sm" value="Apply filter below"> &nbsp;&nbsp;
+		{% if previous %}<input type="submit" name="goto-{{ previous.id }}" class="btn btn-sm" value="Previous">{% endif %}
+		{% if next %}<input type="submit" name="goto-{{ next.id }}" class="btn btn-sm" value="Next">{% endif %}
+    </div>
+    <table><thead>
+    	<tr>{% for field in sequencer_form.visible_fields %}<th>{{ field.label_tag }}</th>{% endfor %}</tr>
+   	</thead><tbody><tr>
+		<td>{{ sequencer_form.translation_state }}</td>
+		<td>{{ sequencer_form.translation_languages }}</td>
+	</tr></tbody></table>    	
+
     <table style="width: 100%">
     <tbody>
    {% with translations=string.get_translations %}{% if translations %}
