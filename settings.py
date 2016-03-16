@@ -58,6 +58,8 @@ INSTALLED_APPS = [
     'bootstrap3',
     'menu',
     'httpproxy',
+    'actstream',
+    # 'roles',
     # 'kombu.transport.django',
     'wip',
 ]

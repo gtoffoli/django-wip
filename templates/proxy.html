@@ -15,6 +15,27 @@
 
 {% block content-page %}
     <div><label>Site</label> <a href="{% url 'site' site.slug %}">{{ site.name }}</a></div>
-    <div><label>Language</label> {{ proxy.language.name }}</div>
+    <div><label>Proxy language</label> {{ proxy.language.name }}</div>
     <div><label>Base path</label> {{ proxy.base_path }}</div>
+    <div><label>Translated pages</label> {{ page_count }}</div>
+    <div><label>Translated blocks</label> {{ block_count }}</div>
+
+	{% if user.is_superuser %}
+   	<form action="/proxy/{{ proxy.slug }}/" method="post">{% csrf_token %}
+		{% if page_count %}
+   		<div>{{ manage_form.delete_pages_confirmation }} Yes, I want to delete all translated pages
+			 <input type="submit" name="delete_pages" value="Delete pages" title="delete translated pages" class="btn btn-sm" />
+		{% endif %}
+		{% if block_count %}
+   		<div>{{ manage_form.delete_blocks_confirmation }} Yes, I want to delete all translated blocks
+			 <input type="submit" name="delete_blocks" value="Delete blocks" title="delete translated blocks" class="btn btn-sm" />
+		</div>
+		{% endif %}
+		{% if not page_count and not block_count %}
+   		<div>{{ manage_form.delete_proxy_confirmation }} Yes, I am fully aware
+			 <input type="submit" name="delete_proxy" value="Delete proxy" title="Delete all proxy info" class="btn btn-sm" />
+		</div>
+		{% endif %}
+	</form>
+	{% endif %}
 {% endblock %}

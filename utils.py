@@ -134,7 +134,8 @@ def ask_mymemory(string, langpair):
             translation = {}
             translation['segment'] = match.get('segment', '')
             translation['translation'] = match.get('translation', '')
-            translation['quality'] = int(round(float(match.get('quality', 0)) / 25))
+            quality = match.get('quality', '0')
+            translation['quality'] = quality.isdigit() and int(round(float(quality) / 25)) or 0
             translation['entry_id'] = 'Matecat-%s' % match.get('id', '')
             translations.append(translation)
     return status, translatedText, translations

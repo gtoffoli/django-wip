@@ -8,6 +8,16 @@ from models import Site
 from models import STRING_TRANSLATION_STATE_CHOICES, TRANSLATION_STATE_CHOICES, TRANSLATION_SERVICE_CHOICES
 from vocabularies import Language, Subject
 
+class SiteManageForm(forms.Form):
+    clear_pages = forms.BooleanField(required=False, label='Clear pages')
+    clear_blocks = forms.BooleanField(required=False, label='Clear blocks')
+    delete_confirmation = forms.BooleanField(required=False, label='Delete confirmation')
+
+class ProxyManageForm(forms.Form):
+    delete_pages_confirmation = forms.BooleanField(required=False, label='Delete pages confirmation')
+    delete_blocks_confirmation = forms.BooleanField(required=False, label='Delete blocks confirmation')
+    delete_proxy_confirmation = forms.BooleanField(required=False, label='Delete proxy confirmation')
+
 class PageEditForm(forms.Form):
     no_translate = forms.BooleanField(required=False, label='No translate')
 

@@ -11,7 +11,7 @@ sys.setdefaultencoding('utf8')
 
 import os
 import re
-from lxml import html
+from lxml import html, etree
 from django.db import models
 from django.db.models import Q
 from django.db.models.expressions import RawSQL
@@ -26,7 +26,7 @@ from vocabularies import Language, Subject, ApprovalStatus
 from wip.wip_sd.sd_algorithm import SDAlgorithm
 
 from settings import RESOURCES_ROOT, BLOCK_TAGS
-from utils import strings_from_html
+from utils import strings_from_html, elements_from_element, block_checksum
 import srx_segmenter
 
 
@@ -314,6 +314,46 @@ class Webpage(models.Model):
             proxy_list.append([language, t_dict])
         return blocks, total, invariant, proxy_list
 
+    def extract_blocks(self):
+        # page = Webpage.objects.get(pk=page_id)
+        site = self.site
+        versions = PageVersion.objects.filter(webpage=self).order_by('-time')
+        if not versions:
+            return None
+        last_version = versions[0]
+        html_string = last_version.body
+        # http://stackoverflow.com/questions/1084741/regexp-to-strip-html-comments
+        html_string = re.sub("(<!--(.*?)-->)", "", html_string, flags=re.MULTILINE)
+        doc = html.document_fromstring(html_string)
+        tree = doc.getroottree()
+        top_els = doc.getchildren()
+        n_1 = n_2 = n_3 = 0
+        for top_el in top_els:
+            for el in elements_from_element(top_el):
+                if el.tag in BLOCK_TAGS:
+                    save_failed = False
+                    n_1 += 1
+                    xpath = tree.getpath(el)
+                    checksum = block_checksum(el)
+                    blocks = Block.objects.filter(site=site, xpath=xpath, checksum=checksum).order_by('-time')
+                    if blocks:
+                        block = blocks[0]
+                    else:
+                        string = etree.tostring(el)
+                        block = Block(site=site, xpath=xpath, checksum=checksum, body=string)
+                        try:
+                            block.save()
+                            n_2 += 1
+                        except:
+                            print '--- save error in page ---', self.id
+                            save_failed = True
+                    blocks_in_page = BlockInPage.objects.filter(block=block, webpage=self)
+                    if not blocks_in_page and not save_failed:
+                        n_3 += 1
+                        blocks_in_page = BlockInPage(block=block, webpage=self)
+                        blocks_in_page.save()
+        return n_1, n_2, n_3
+
 class PageVersion(models.Model):
     webpage = models.ForeignKey(Webpage)
     time = CreationDateTimeField()
@@ -350,39 +390,23 @@ class TranslatedVersion(models.Model):
         verbose_name_plural = _('translated versions')
 # ContentType, currently not used, could be Site, Webpage or Block
 class Txu(models.Model):
-    """
-    source = models.ForeignKey(String, verbose_name='source string', related_name='as_source')
-    target = models.ForeignKey(String, verbose_name='target string', related_name='as_target')
-    source_code = models.CharField(max_length=5, blank=True, null=True)
-    target_code = models.CharField(max_length=5, blank=True, null=True)
-    """
     provider = models.CharField(verbose_name='txu source', max_length=100, blank=True, null=True)
     entry_id = models.CharField(verbose_name='id by provider', max_length=100, blank=True, null=True)
     subjects = models.ManyToManyField('Subject', through='TxuSubject', related_name='txu', blank=True, verbose_name='subjects')
-    """
-    context_type = models.ForeignKey(ContentType, verbose_name=_(u"Context type"), blank=True, null=True)
-    context_id = models.PositiveIntegerField(verbose_name=_(u"Context id"), blank=True, null=True) # 
-    context = GenericForeignKey(ct_field="context_type", fk_field="context_id")
-    reliability = models.IntegerField(default=1)
-    """
     created = CreationDateTimeField()
     modified = ModificationDateTimeField()
     user = models.ForeignKey(User, null=True)
     comments = models.TextField(blank=True, null=True)
+    en = models.BooleanField(default=False)
+    es = models.BooleanField(default=False)
+    fr = models.BooleanField(default=False)
+    it = models.BooleanField(default=False)
 
     class Meta:
         verbose_name = _('translation unit')
         verbose_name_plural = _('translation units')
         ordering = ('-created',)
 
-    """
-    def __unicode__(self):
-        source = self.source
-        text = source.text
-        display = u'%s-%s %s' % (source.language_id.upper(), self.target.language_id.upper(), text[:32])
-        if len(text) > 32: display += '...'
-        return display
-    """
     def __unicode__(self):
         return self.entry_id or self.id
 
@@ -406,10 +430,6 @@ class String(models.Model):
         ordering = ('text',)
 
     def __unicode__(self):
-        """
-        text = self.text[:32]
-        if len(self.text) > 32: text += '...'
-        """
         return self.text
 
     def language_code(self):
@@ -417,21 +437,6 @@ class String(models.Model):
 
     def tokens(self):
         return self.text.split()
-
-    """
-    def get_translations(self, target_languages=[]):
-        if not target_languages:
-            target_languages = Language.objects.exclude(code=self.language.code).distinct().order_by('code')
-        source_code = self.language_id
-        translations = []
-        for language in target_languages:
-            if source_code == 'it' or language.code == 'it':
-                txus = Txu.objects.filter(Q(source=self, target_code=language.code) | (Q(target=self, source_code=language.code)))
-            else:
-                txus = []
-            translations.append([language, txus])
-        return translations
-    """
 
     def get_translations(self, target_languages=[]):
         if not target_languages:
@@ -448,13 +453,28 @@ class String(models.Model):
 
     def get_navigation(self, translation_state='', translation_codes=[], order_by='text'):
         text = self.text
+        id = self.id
         qs = String.objects.filter(language_id=self.language_id)
         if translation_state == TRANSLATED:
             qs = qs.filter(txu__string__language_id__in=translation_codes)
         elif translation_state == TO_BE_TRANSLATED:
+            """
             qs = qs.exclude(txu__string__language_id__in=translation_codes)
-        qs_before = qs.filter(text__lt=text).order_by('-'+order_by)
-        qs_after = qs.filter(text__gt=text).order_by(order_by)
+            """
+            if 'en' in translation_codes:
+                qs = qs.filter(txu__en=False)
+            if 'es' in translation_codes:
+                qs = qs.filter(txu__es=False)
+            if 'fr' in translation_codes:
+                qs = qs.filter(txu__fr=False)
+            if 'it' in translation_codes:
+                qs = qs.filter(txu__it=False)
+        if order_by == 'text':
+            qs_before = qs.filter(text__lt=text).order_by('-'+order_by)
+            qs_after = qs.filter(text__gt=text).order_by(order_by)
+        elif order_by == 'id':
+            qs_before = qs.filter(id__lt=id).order_by('-id')
+            qs_after = qs.filter(id__gt=id).order_by('id')
         previous = qs_before.count() and qs_before[0] or None
         next = qs_after.count() and qs_after[0] or None
         return previous, next

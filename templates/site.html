@@ -27,18 +27,33 @@
 	{% if proxies %}
 	<div><label>Proxies</label>
 	    {% for proxy in proxies %}
-	    <a href="{% url 'proxy' proxy.slug %}">{{ proxy.name }}</a>
+	    <a href="{% url 'proxy' proxy.slug %}">{{ proxy.name }}</a>{% if not forloop.last %}, &nbsp;{% endif %}
 	    {% endfor %}
 	</div>
 	{% else %}
-		<p style="margin-top: 0.5em">No proxies are available.</p>
+		<div style="margin-top: 0.5em">No proxies are available.</div>
 	{% endif %}
-	{% if user.is_authenticated %}
+	{% if user.is_superuser %}
+{% comment %}
 		{% if page_count %}
     		<div><a class="btn btn-default" href="/site/{{ site.slug }}/crawl/">Re-crawl</a></div>
 		{% else %}
 			<div><a class="btn btn-default" href="/site/{{ site.slug }}/crawl/">Crawl</a></div>
 		{% endif %}
+{% endcomment %}
+   	<form action="/site/{{ site.slug }}/" method="post">{% csrf_token %}
+	{% if missing_languages %}
+	<div>{% for l in missing_languages %}<input type="submit" name="addproxy-{{ l.code }}" value="Add {{ l.name }} proxy" class="btn btn-sm" />{% endfor %}</div>
+	{% endif %}
+	<div>{{ manage_form.clear_pages }} Clear all saved pages
+		<input type="submit" name="site_crawl" value="{% if page_count %}Re-crawl{% else %}Crawl{% endif %}" title="scan pages" class="btn btn-sm" />
+	<div>{{ manage_form.clear_blocks }} Clear all saved blocks
+		<input type="submit" name="extract_blocks" value="Extract blocks" title="Extract" class="btn btn-sm" /></div>
+	{% if not page_count and not block_count and not proxies %}
+  	<div>{{ manage_form.delete_confirmation }} Yes, I am fully aware
+		<input type="submit" name="delete_site" value="Delete site" title="Delete all site info" class="btn btn-sm" /></div>
+	{% endif %}
+	</form>
 	{% endif %}
 
 <h4>Translation state of site pages</h4>

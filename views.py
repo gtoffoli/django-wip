@@ -29,19 +29,31 @@ from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from django.template import RequestContext
 from django.http import HttpResponse, HttpResponseRedirect
 from django.shortcuts import render_to_response, get_object_or_404
+from django.db import connection
 # from django.db.models import Q, Count
 from django.db.models.expressions import RawSQL
 from django import forms
+from actstream import action, registry
 
 from models import Language, Site, Proxy, Webpage, PageVersion, TranslatedVersion, Block, TranslatedBlock, BlockInPage, String, Txu #, TranslatedVersion
 from models import TO_BE_TRANSLATED, MYMEMORY
-from forms import PageEditForm, PageSequencerForm, BlockEditForm, BlockSequencerForm, StringSequencerForm, StringTranslationForm, TranslationServiceForm
+from forms import SiteManageForm, ProxyManageForm, PageEditForm, PageSequencerForm, BlockEditForm, BlockSequencerForm
+from forms import StringSequencerForm, StringTranslationForm, TranslationServiceForm
 from spiders import WipSiteCrawlerScript, WipCrawlSpider
 
 from settings import PAGE_SIZE, PAGE_STEPS
 from settings import DATA_ROOT, RESOURCES_ROOT, tagger_filename, BLOCK_TAGS, SEPARATORS, EMPTY_WORDS
 from utils import strings_from_html, elements_from_element, block_checksum, ask_mymemory
 import srx_segmenter
+
+registry.register(Site)
+registry.register(Proxy)
+registry.register(Webpage)
+registry.register(PageVersion)
+registry.register(TranslatedVersion)
+registry.register(Block)
+registry.register(TranslatedBlock)
+#     action.send(user, verb='Create', action_object=forum, target=project)
 
 def robots(request):
     response = render_to_response('robots.txt', {}, context_instance=RequestContext(request))
@@ -109,8 +121,46 @@ def site(request, site_slug):
     site = get_object_or_404(Site, slug=site_slug)
     var_dict = {}
     var_dict['site'] = site
+    post = request.POST
+    if post:
+        site_crawl = post.get('site_crawl', '')
+        extract_blocks = post.get('extract_blocks', '')
+        delete_site = post.get('delete_site', '')
+        form = SiteManageForm(post)
+        if form.is_valid():
+            data = form.cleaned_data
+            if site_crawl:
+                clear_pages = data['clear_pages']
+                if clear_pages:
+                    Webpage.objects.filter(site=site).delete()
+                print 'site_crawl : ', site.name
+                t = crawl_site.delay(site.id)
+                print 'task id: ', t
+            elif extract_blocks:
+                clear_blocks = data['clear_blocks']
+                if clear_blocks:
+                    Block.objects.filter(site=site).delete()
+                webpages = Webpage.objects.filter(site=site)
+                for webpage in webpages:
+                    n_1, n_2, n_3 = webpage.extract_blocks()
+                    print webpage.id, n1, n2, n3
+            elif delete_site:
+                delete_confirmation = data['delete_confirmation']
+                if delete_confirmation:
+                    site.delete()
+                    return HttpResponseRedirect('/')
+            else:
+                for key in post.keys():
+                    if key.startswith('addproxy-'):
+                        code = key.split('-')[1]
+                        proxy = Proxy(site=site, language_id=code, name='%s %s' % (site.name, code.upper()), base_path='%s/%s' % (site.path_prefix, code))
+                        proxy.save()
+                        break
     var_dict['proxies'] =  proxies = site.get_proxies()
     var_dict['proxy_languages'] = proxy_languages = [proxy.language for proxy in proxies]
+    missing_languages = Language.objects.exclude(code=site.language_id)
+    missing_languages = missing_languages.exclude(code__in=[l.code for l in proxy_languages])
+    var_dict['missing_languages'] = missing_languages
     var_dict['page_count'] = page_count = Webpage.objects.filter(site=site).count()
     var_dict['block_count'] = block_count = Block.objects.filter(site=site).count()
     pages, pages_total, pages_invariant, pages_proxy_list = site.pages_summary()
@@ -121,7 +171,40 @@ def site(request, site_slug):
     var_dict['blocks_total'] = blocks_total
     var_dict['blocks_invariant'] = blocks_invariant
     var_dict['blocks_proxy_list'] = blocks_proxy_list
+    var_dict['manage_form'] = SiteManageForm()
     return render_to_response('site.html', var_dict, context_instance=RequestContext(request))
+ 
+def proxy(request, proxy_slug):
+    proxy = get_object_or_404(Proxy, slug=proxy_slug)
+    var_dict = {}
+    var_dict['proxy'] = proxy
+    var_dict['site'] = site = proxy.site
+    var_dict['language'] = language = proxy.language
+    post = request.POST
+    if post:
+        delete_pages = post.get('delete_pages', '')
+        delete_blocks = post.get('delete_pages', '')
+        delete_proxy = post.get('delete_proxy', '')
+        form = ProxyManageForm(post)
+        if form.is_valid():
+            data = form.cleaned_data
+            if delete_pages:
+                delete_pages_confirmation = data['delete_pages_confirmation']
+                if delete_pages_confirmation:
+                    TranslatedVersion.objects.filter(webpage__site=site, language=language).delete()
+            elif delete_blocks:
+                delete_blocks_confirmation = data['delete_blocks_confirmation']
+                if delete_blocks_confirmation:
+                    TranslatedBlock.objects.filter(block__site=site, language=language).delete()
+            elif delete_proxy:
+                delete_proxy_confirmation = data['delete_proxy_confirmation']
+                if delete_proxy_confirmation:
+                    proxy.delete()
+                    return HttpResponseRedirect('/site/%s/' % site.slug)
+    var_dict['page_count'] = page_count = TranslatedVersion.objects.filter(webpage__site=site, language=language).count()
+    var_dict['block_count'] = block_count = TranslatedBlock.objects.filter(block__site=site, language=language).count()
+    var_dict['manage_form'] = ProxyManageForm()
+    return render_to_response('proxy.html', var_dict, context_instance=RequestContext(request))
 
 def site_crawl(site_pk):
     crawler = WipSiteCrawlerScript()
@@ -209,14 +292,6 @@ def site_pages(request, site_slug):
     var_dict['after'] = steps_after(page, paginator.num_pages)
     var_dict['site_pages'] = site_pages
     return render_to_response('pages.html', var_dict, context_instance=RequestContext(request))
-
-"""
-def proxy(request, proxy_slug):
-    proxy = get_object_or_404(Proxy, slug=proxy_slug)
-    var_dict = {}
-    var_dict['proxy'] = proxy
-    return render_to_response('proxy.html', var_dict, context_instance=RequestContext(request))
-"""
 
 def page(request, page_id):
     var_dict = {}
@@ -322,13 +397,6 @@ def page_proxy(request, page_id, language_code):
         return HttpResponse(content, content_type="text/html")
     else:
         return HttpResponseRedirect('/page/%d/' % page_id)
-  
-def proxy(request, proxy_slug):
-    proxy = get_object_or_404(Proxy, slug=proxy_slug)
-    var_dict = {}
-    var_dict['proxy'] = proxy
-    var_dict['site'] = proxy.site
-    return render_to_response('proxy.html', var_dict, context_instance=RequestContext(request))
 
 def site_blocks(request, site_slug):
     var_dict = {}
@@ -379,7 +447,7 @@ def get_or_add_string(text, language, add=False, txu=None, reliability=1):
         is_model_instance = True
     except:
     """
-    strings = String.objects.get(text=text, language=language)
+    strings = String.objects.filter(text=text, language=language)
     if strings:
         is_model_instance = True
         string = strings[0]
@@ -786,6 +854,7 @@ def extract_terms(text, language='it', tagger=None, chunker=None):
         phrases.append(phrase)
     return phrases
 
+"""
 def extract_blocks(page_id):
     page = Webpage.objects.get(pk=page_id)
     site = page.site
@@ -825,6 +894,7 @@ def extract_blocks(page_id):
                     blocks_in_page = BlockInPage(block=block, webpage=page)
                     blocks_in_page.save()
     return n_1, n_2, n_3
+"""
 
 def string_view(request, string_id):
     if not request.user.is_superuser:
@@ -1018,10 +1088,6 @@ def filtered_tokens(text, language_code, tokens=[], truncate=False, min_chars=10
             continue
         if token in EMPTY_WORDS[language_code]:
             continue
-        """
-        if truncate and n_chars>min_chars:
-            token = token[:n_chars-1]
-        """
         filtered_tokens.append(token)
     return filtered_tokens
 
@@ -1159,10 +1225,16 @@ def find_strings(source_languages=[], target_languages=[], translated=None):
     else: # translated = False
         if target_languages:
             """
-            # qs = qs.exclude(as_source__target_code__in=target_codes)
-            qs = qs.annotate(nt = RawSQL("SELECT COUNT(*) FROM wip_txu WHERE source_id = wip_string.id and target_code IN ('%s')" % "','".join(target_codes), ())).filter(nt=0)
-            """
             qs = qs.exclude(txu__string__language_id__in=target_codes)
+            """
+            if 'en' in target_codes:
+                qs = qs.filter(txu__en=False)
+            if 'es' in target_codes:
+                qs = qs.filter(txu__es=False)
+            if 'fr' in target_codes:
+                qs = qs.filter(txu__fr=False)
+            if 'it' in target_codes:
+                qs = qs.filter(txu__it=False)
         """
         else:
             qs = qs.filter(as_source__isnull=True)

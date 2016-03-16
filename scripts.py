@@ -6,6 +6,7 @@ sys.stdout = codecs.getwriter('utf8')(sys.stdout)
 sys.stderr = codecs.getwriter('utf8')(sys.stderr)
 
 import os
+from datetime import datetime
 from collections import defaultdict
 from settings import DATA_ROOT
 from models import Site, Block, String, Txu, TxuSubject
@@ -118,6 +119,28 @@ def import_tbx(path='', base_path=IATE_path, filename=filename_template, sector=
     print n_terms, ' terms'
     print n_strings, ' strings'
 
+def feed_txu_index():
+    print datetime.now()
+    codes = ['en', 'es', 'fr', 'it']
+    txus = Txu.objects.all()
+    n_entries = n_strings = 0
+    for txu in txus:
+        n_entries +=1
+        strings = String.objects.filter(txu=txu)
+        for string in strings:
+            n_strings +=1
+            code = string.language_id
+            if code == 'en':
+                txu.en = True
+            elif code == 'es':
+                txu.es = True
+            elif code == 'fr':
+                txu.fr = True
+            elif code == 'it':
+                txu.it = True
+        txu.save()
+    print n_entries, n_strings
+    print datetime.now()
 
 def test(request):
     var_dict = {}
