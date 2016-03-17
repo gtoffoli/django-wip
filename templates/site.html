@@ -22,8 +22,10 @@
     <div><label>Allowed domains</label> {{ site.allowed_domains }}</div>
     <div><label>Start urls</label> {{ site.start_urls }}</div>
     {% if site.deny %}<div><label>Deny</label> {{ site.deny }}</div>{% endif %}
-    <div><label>Pages</label> {% if page_count %} <a href="/site/{{ site.slug }}/pages/" title="list pages">{{ page_count }}</a> {% else %}0{% endif %}</div>
-    <div><label>Page blocks</label> {% if block_count %} <a href="/site/{{ site.slug }}/blocks/" title="list blocks">{{ block_count }}</a> {% else %}0{% endif %}</div>
+    <div><label>Pages</label> {% if page_count %} <a href="/site/{{ site.slug }}/pages/" title="list pages">{{ page_count }}</a> {% else %}0{% endif %}
+    	{% if page_count %}&nbsp; <a href="/page/{{ first_page.id }}/" title="browse all pages"><span class="fa fa-caret-square-o-right"></span></a>{% endif %}</div>
+    <div><label>Page blocks</label> {% if block_count %} <a href="/site/{{ site.slug }}/blocks/" title="list blocks">{{ block_count }}</a> {% else %}0{% endif %}
+		{% if block_count %}&nbsp; <a href="/block/{{ first_block.id }}/" title="browse all blocks"><span class="fa fa-caret-square-o-right"></span></a>{% endif %}</div>
 	{% if proxies %}
 	<div><label>Proxies</label>
 	    {% for proxy in proxies %}
@@ -34,13 +36,6 @@
 		<div style="margin-top: 0.5em">No proxies are available.</div>
 	{% endif %}
 	{% if user.is_superuser %}
-{% comment %}
-		{% if page_count %}
-    		<div><a class="btn btn-default" href="/site/{{ site.slug }}/crawl/">Re-crawl</a></div>
-		{% else %}
-			<div><a class="btn btn-default" href="/site/{{ site.slug }}/crawl/">Crawl</a></div>
-		{% endif %}
-{% endcomment %}
    	<form action="/site/{{ site.slug }}/" method="post">{% csrf_token %}
 	{% if missing_languages %}
 	<div>{% for l in missing_languages %}<input type="submit" name="addproxy-{{ l.code }}" value="Add {{ l.name }} proxy" class="btn btn-sm" />{% endfor %}</div>
@@ -52,6 +47,9 @@
 	{% if not page_count and not block_count and not proxies %}
   	<div>{{ manage_form.delete_confirmation }} Yes, I am fully aware
 		<input type="submit" name="delete_site" value="Delete site" title="Delete all site info" class="btn btn-sm" /></div>
+	{% endif %}
+	{% if proxies %}
+  	<div><input type="submit" name="guess_blocks_language" value="Guess blocks' language" title="Guess blocks' language" class="btn btn-sm" /></div>
 	{% endif %}
 	</form>
 	{% endif %}
@@ -69,7 +67,7 @@
 {% for language, dict in pages_proxy_list %}<tr>
    <th><a href="/page/{{ page.id }}/proxy/{{ language.code }}/">{{ language.name }}</a></th>
    <td class="r">{{ pages_total }}</td>
-   <td class="r">{{ pages_invariant }}</td>
+   <td class="r">{{ pages_invariant }}{% if pages_invariant %}&nbsp; <a href="/page/0/?site={{ site.slug }}&filter=no_translate" title="browse all blocks"><span class="fa fa-caret-square-o-right"></span></a>{% endif %}</td>
    <td class="r">{{ dict.partially }}</td>
    <td class="r">{{ dict.translated }}</td>
    <td class="r">{{ dict.revised }}</td>
@@ -92,8 +90,8 @@
 {% for language, dict in blocks_proxy_list %}<tr>
    <th><a href="/page/{{ page.id }}/proxy/{{ language.code }}/">{{ language.name }}</a></th>
    <td class="r">{{ blocks_total }}</td>
-   <td class="r">{{ blocks_invariant }}</td>
-   <td class="r">{{ dict.already }}</td>
+   <td class="r">{{ blocks_invariant }}{% if blocks_invariant %}&nbsp; <a href="/block/0/?site={{ site.slug }}&filter=no_translate" title="browse invariant blocks"><span class="fa fa-caret-square-o-right"></span></a>{% endif %}</td>
+   <td class="r">{{ dict.already }}{% if dict.already %}&nbsp; <a href="/block/0/?site={{ site.slug }}&filter=already&lang={{ language.code }}" title="browse blocks already in target language"><span class="fa fa-caret-square-o-right"></span></a>{% endif %}</td>
    <td class="r">{{ dict.partially }}</td>
    <td class="r">{{ dict.translated }}</td>
    <td class="r">{{ dict.revised }}</td>

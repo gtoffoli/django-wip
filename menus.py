@@ -26,7 +26,7 @@ def strings_children(request):
     for language in languages:
         children.append (MenuItem(
              '%s strings' % language.name,
-             url='/strings/%s/' % language.code,
+             url='/strings/%s/any/' % language.code,
             ))
     children.append (MenuItem(
          'Italian strings with translations',
@@ -50,11 +50,13 @@ def italian_strings_children(request):
     return children        
 
 # Add a few items to our main menu
+"""
 Menu.add_item("main", MenuItem(ugettext_lazy("Home"),
                                url='/',
                                icon='',
                                weight=10,
                                separator=True))
+"""
 Menu.add_item("main", MenuItem(ugettext_lazy("Sites"),
                                url='/sites/',
                                icon='',

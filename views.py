@@ -36,7 +36,8 @@ from django import forms
 from actstream import action, registry
 
 from models import Language, Site, Proxy, Webpage, PageVersion, TranslatedVersion, Block, TranslatedBlock, BlockInPage, String, Txu #, TranslatedVersion
-from models import TO_BE_TRANSLATED, MYMEMORY
+from models import TO_BE_TRANSLATED, TRANSLATED, INVARIANT, ALREADY
+from models import MYMEMORY
 from forms import SiteManageForm, ProxyManageForm, PageEditForm, PageSequencerForm, BlockEditForm, BlockSequencerForm
 from forms import StringSequencerForm, StringTranslationForm, TranslationServiceForm
 from spiders import WipSiteCrawlerScript, WipCrawlSpider
@@ -94,15 +95,6 @@ def home(request):
         site_dict['translated_blocks'] = TranslatedBlock.objects.filter(block__site=site)
         sites.append(site_dict)
     var_dict['sites'] = sites
-    """
-    DO NOT REMOVE
-    var_dict['source_strings'] = find_strings(source_languages=['it'])
-    var_dict['untraslated_strings'] = {
-       'en': find_strings(source_languages=['it'], target_languages=['en'], translated=False),
-       'fr': find_strings(source_languages=['it'], target_languages=['fr'], translated=False),
-       'es': find_strings(source_languages=['it'], target_languages=['es'], translated=False),
-       }
-    """
     return render_to_response('homepage.html', var_dict, context_instance=RequestContext(request))
 
 def sites(request):
@@ -121,11 +113,14 @@ def site(request, site_slug):
     site = get_object_or_404(Site, slug=site_slug)
     var_dict = {}
     var_dict['site'] = site
+    var_dict['proxies'] =  proxies = site.get_proxies()
+    var_dict['proxy_languages'] = proxy_languages = [proxy.language for proxy in proxies]
     post = request.POST
     if post:
         site_crawl = post.get('site_crawl', '')
         extract_blocks = post.get('extract_blocks', '')
         delete_site = post.get('delete_site', '')
+        guess_blocks_language = post.get('guess_blocks_language', '')
         form = SiteManageForm(post)
         if form.is_valid():
             data = form.cleaned_data
@@ -142,13 +137,28 @@ def site(request, site_slug):
                     Block.objects.filter(site=site).delete()
                 webpages = Webpage.objects.filter(site=site)
                 for webpage in webpages:
-                    n_1, n_2, n_3 = webpage.extract_blocks()
-                    print webpage.id, n1, n2, n3
+                    try:
+                        n_1, n_2, n_3 = webpage.extract_blocks()
+                        # print webpage.id, n_1, n_2, n_3
+                    except:
+                        print 'extract_blocks: error on page ', webpage.id
             elif delete_site:
                 delete_confirmation = data['delete_confirmation']
                 if delete_confirmation:
                     site.delete()
                     return HttpResponseRedirect('/')
+            elif guess_blocks_language:
+                from wip.utils import guess_block_language
+                blocks = Block.objects.filter(site=site, language__isnull=True)
+                if proxy_languages:
+                    proxy_codes = [l.code for l in proxy_languages]
+                    for block in blocks:
+                        if block.language_id or block.no_translate:
+                            continue
+                        code = guess_block_language(block)
+                        if code in proxy_codes:
+                            block.language_id = code
+                            block.save()
             else:
                 for key in post.keys():
                     if key.startswith('addproxy-'):
@@ -156,13 +166,15 @@ def site(request, site_slug):
                         proxy = Proxy(site=site, language_id=code, name='%s %s' % (site.name, code.upper()), base_path='%s/%s' % (site.path_prefix, code))
                         proxy.save()
                         break
-    var_dict['proxies'] =  proxies = site.get_proxies()
-    var_dict['proxy_languages'] = proxy_languages = [proxy.language for proxy in proxies]
     missing_languages = Language.objects.exclude(code=site.language_id)
     missing_languages = missing_languages.exclude(code__in=[l.code for l in proxy_languages])
     var_dict['missing_languages'] = missing_languages
-    var_dict['page_count'] = page_count = Webpage.objects.filter(site=site).count()
-    var_dict['block_count'] = block_count = Block.objects.filter(site=site).count()
+    webpages = Webpage.objects.filter(site=site).order_by('id')
+    var_dict['page_count'] = page_count = webpages.count()
+    var_dict['first_page'] = webpages and webpages[0] or None
+    blocks = Block.objects.filter(site=site).order_by('id')
+    var_dict['block_count'] = block_count = blocks.count()
+    var_dict['first_block'] = blocks and blocks[0] or None
     pages, pages_total, pages_invariant, pages_proxy_list = site.pages_summary()
     var_dict['pages_total'] = pages_total
     var_dict['pages_invariant'] = pages_invariant
@@ -295,8 +307,20 @@ def site_pages(request, site_slug):
 
 def page(request, page_id):
     var_dict = {}
-    webpage = get_object_or_404(Webpage, pk=page_id)
-    var_dict['site'] = site = webpage.site
+    first_page = None
+    if int(page_id) == 0:
+        site_slug = request.GET.get('site', '')
+        filter = request.GET.get('filter', '')
+        if site_slug and filter:
+            site = get_object_or_404(Site, slug=site_slug)
+            webpages = Webpage.objects.filter(site=site)
+            if filter == 'no_translate':
+                webpages = webpages.filter(no_translate=True)
+            if webpages:
+                first_page = webpage = webpages.order_by('id')[0]
+    else:
+        webpage = get_object_or_404(Webpage, pk=page_id)
+        var_dict['site'] = site = webpage.site
     var_dict['proxy_languages'] = proxy_languages = [proxy.language for proxy in site.get_proxies()]
     proxy_codes = [proxy.language_id for proxy in site.get_proxies()]
     var_dict['scans'] = PageVersion.objects.filter(webpage=webpage).order_by('-time')
@@ -327,25 +351,34 @@ def page(request, page_id):
                 translation_languages = data['translation_languages']
                 translation_codes = [l.code for l in translation_languages]
                 translation_age = data['translation_age']
+                list_blocks = data['list_blocks']
     if not post or save_page:
+        translation_state = None
+        translation_codes = []
+        if not post and first_page:
+            if filter == 'no_translate':
+                translation_state = INVARIANT
         sequencer_context = request.session.get('page_sequencer_context', {})
         if sequencer_context:
-            page_age = sequencer_context['page_age']
-            translation_state = sequencer_context['translation_state']
-            translation_codes = sequencer_context['translation_codes']
-            translation_age = sequencer_context['translation_age']
+            page_age = sequencer_context.get('page_age', '')
+            translation_state = translation_state or sequencer_context.get('translation_state', TO_BE_TRANSLATED)
+            translation_codes = sequencer_context.get('translation_codes', [])
+            translation_age = sequencer_context.get('translation_age', '')
+            list_blocks = sequencer_context.get('list_blocks', False)
             request.session['page_sequencer_context'] = {}
         else:
             page_age = ''
-            translation_state = TO_BE_TRANSLATED
+            translation_state = translation_state or TO_BE_TRANSLATED
             translation_codes = [proxy.language.code for proxy in site.get_proxies()]
             translation_age = ''
+            list_blocks = False
         translation_languages = translation_codes and Language.objects.filter(code__in=translation_codes) or []
     sequencer_context = {}
     sequencer_context['page_age'] = page_age
     sequencer_context['translation_state'] = translation_state
     sequencer_context['translation_codes'] = translation_codes
     sequencer_context['translation_age'] = translation_age
+    sequencer_context['list_blocks'] = list_blocks
     request.session['page_sequencer_context'] = sequencer_context
     var_dict['webpage'] = webpage
     previous, next = webpage.get_navigation(translation_state=translation_state, translation_codes=translation_codes)
@@ -355,10 +388,11 @@ def page(request, page_id):
     if save_page or goto:
         return HttpResponseRedirect('/page/%d/' % webpage.id)        
     var_dict['edit_form'] = PageEditForm(initial={'no_translate': webpage.no_translate,})
-    var_dict['sequencer_form'] = PageSequencerForm(initial={'page_age': page_age, 'translation_state': translation_state, 'translation_languages': translation_languages, 'translation_age': translation_age,})
+    var_dict['sequencer_form'] = PageSequencerForm(initial={'page_age': page_age, 'translation_state': translation_state, 'translation_languages': translation_languages, 'translation_age': translation_age, 'list_blocks': list_blocks, })
     blocks, total, invariant, proxy_list = webpage.blocks_summary()
     print total, invariant, proxy_list
     var_dict['blocks'] = blocks
+    var_dict['list_blocks'] = list_blocks
     var_dict['total'] = total
     var_dict['invariant'] = invariant
     var_dict['proxy_list'] = proxy_list
@@ -469,7 +503,28 @@ def block(request, block_id):
     - translation_: as , but with reference to the translated blocks
     - state: translated (at least one language), untranslated (at least one language), all
     """
-    block = get_object_or_404(Block, pk=block_id)
+    first_block = None
+    if int(block_id) == 0:
+        site_slug = request.GET.get('site', '')
+        filter = request.GET.get('filter', '')
+        target_code =request.GET.get('lang', '')
+        if site_slug and filter:
+            site = get_object_or_404(Site, slug=site_slug)
+            blocks = Block.objects.filter(site=site)
+            if filter == 'no_translate':
+                blocks = blocks.filter(no_translate=True)
+            elif filter == 'already' and target_code:
+                blocks = blocks.filter(language_id=target_code)
+            elif filter == 'partially' and target_code:
+                pass
+            elif filter == 'translated' and target_code:
+                pass
+            elif filter == 'revised' and target_code:
+                pass
+            if blocks:
+                first_block = block = blocks.order_by('id')[0]
+    else:
+        block = get_object_or_404(Block, pk=block_id)
     proxy_codes = [proxy.language_id for proxy in block.site.get_proxies()]
     BlockSequencerForm.base_fields['translation_languages'].queryset = Language.objects.filter(code__in=proxy_codes)
     save_block = apply_filter = goto = create = modify = '' 
@@ -501,14 +556,24 @@ def block(request, block_id):
                 translation_languages = data['translation_languages']
                 translation_codes = [l.code for l in translation_languages]
                 translation_age = data['translation_age']
+                list_pages = data['list_pages']
     if not post or save_block or create or modify:
+        translation_state = None
+        translation_codes = []
+        if not post and first_block:
+            if filter == 'no_translate':
+                translation_state = INVARIANT
+            elif filter == 'already':
+                translation_state = ALREADY
+                translation_codes = [target_code]
         sequencer_context = request.session.get('sequencer_context', {})
         if sequencer_context:
             webpage_id = sequencer_context.get('webpage', None)
-            block_age = sequencer_context['block_age']
-            translation_state = sequencer_context['translation_state']
-            translation_codes = sequencer_context['translation_codes']
-            translation_age = sequencer_context['translation_age']
+            block_age = sequencer_context.get('block_age', '')
+            translation_state = translation_state or sequencer_context.get('translation_state', TO_BE_TRANSLATED)
+            translation_codes = translation_codes or sequencer_context.get('translation_codes', [])
+            translation_age = sequencer_context.get('translation_age', '')
+            list_pages = sequencer_context.get('list_pages', False)
             request.session['sequencer_context'] = {}
         else:
             webpage_id = None
@@ -516,6 +581,7 @@ def block(request, block_id):
             translation_state = TO_BE_TRANSLATED
             translation_codes = [proxy.language.code for proxy in block.site.get_proxies()]
             translation_age = ''
+            list_pages = False
         webpage_id = request.GET.get('webpage', webpage_id)
         translation_languages = translation_codes and Language.objects.filter(code__in=translation_codes) or []
     sequencer_context = {}
@@ -524,6 +590,7 @@ def block(request, block_id):
     sequencer_context['translation_state'] = translation_state
     sequencer_context['translation_codes'] = translation_codes
     sequencer_context['translation_age'] = translation_age
+    sequencer_context['list_pages'] = list_pages
     request.session['sequencer_context'] = sequencer_context
     var_dict = {}
     var_dict['page_block'] = block
@@ -534,10 +601,11 @@ def block(request, block_id):
     var_dict['site'] = site = block.site
     var_dict['language'] = block.language or site.language
     var_dict['pages'] = block.webpages.all()
+    var_dict['list_pages'] = list_pages
     if save_block or goto:
         return HttpResponseRedirect('/block/%d/' % block.id)        
     var_dict['edit_form'] = BlockEditForm(initial={'language': block.language, 'no_translate': block.no_translate,})
-    var_dict['sequencer_form'] = BlockSequencerForm(initial={'webpage': webpage_id, 'block_age': block_age, 'translation_state': translation_state, 'translation_languages': translation_languages, 'translation_age': translation_age,})
+    var_dict['sequencer_form'] = BlockSequencerForm(initial={'webpage': webpage_id, 'block_age': block_age, 'translation_state': translation_state, 'translation_languages': translation_languages, 'translation_age': translation_age, 'list_pages': list_pages, })
     return render_to_response('block.html', var_dict, context_instance=RequestContext(request))
 
 def block_translate(request, block_id):
@@ -1174,6 +1242,8 @@ def list_strings(request, sources, state, targets=[]):
     elif state == 'untranslated':
         translated = False
         can_delete = not targets and request.user.is_superuser
+    else:
+        translated = None
     var_dict['can_delete'] = can_delete
     var_dict['source_languages'] = source_languages
     var_dict['target_languages'] = target_languages

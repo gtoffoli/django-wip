@@ -46,6 +46,7 @@ th, td { text-align: left; vertical-align: top; }
 		<td>{{ sequencer_form.translation_state }}</td>
 		<td>{{ sequencer_form.translation_languages }}</td>
 		<td>{{ sequencer_form.translation_age }}</td>
+		<td>{{ sequencer_form.list_blocks }}</td>
 	</tr></tbody></table>    	
 {% endif %}
 	</form>
@@ -96,7 +97,8 @@ th, td { text-align: left; vertical-align: top; }
 	{% endif %}
  
   	{% if blocks %}
-	    <h4>Blocks included in this page</h4>
+  		{% if list_blocks %}
+	    <h4>Blocks contained in this page</h4>
     	<table>
    		<thead>
    			<tr><th> # </th><th> Id </th><th>Chars</th><th> xPath </th><th> Pages </th><th> Date/Time </th>
@@ -114,6 +116,7 @@ th, td { text-align: left; vertical-align: top; }
 		{% endfor %}
 	    </tbody>
     	</table>
+		{% endif %}
 	{% else %}
 		<p><i>No pages include this HTML fragment.</i></p>
 	{% endif %}
