@@ -128,9 +128,8 @@ def site(request, site_slug):
                 clear_pages = data['clear_pages']
                 if clear_pages:
                     Webpage.objects.filter(site=site).delete()
-                print 'site_crawl : ', site.name
                 t = crawl_site.delay(site.id)
-                print 'task id: ', t
+                print 'site_crawl : ', site.name, 'task id: ', t
             elif extract_blocks:
                 clear_blocks = data['clear_blocks']
                 if clear_blocks:
@@ -139,7 +138,6 @@ def site(request, site_slug):
                 for webpage in webpages:
                     try:
                         n_1, n_2, n_3 = webpage.extract_blocks()
-                        # print webpage.id, n_1, n_2, n_3
                     except:
                         print 'extract_blocks: error on page ', webpage.id
             elif delete_site:
