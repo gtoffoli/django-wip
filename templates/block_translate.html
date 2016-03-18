@@ -60,7 +60,7 @@ function apply_translation (target_code, id_from, id_to) {
     <div><label>Checksum</label> {{ page_block.checksum }}</div>
     <div><label>Time</label> {{ page_block.time|date:"SHORT_DATETIME_FORMAT" }}</div>
 
-<form action="/block/{{ page_block.id }}/translate/" method="post">{% csrf_token %}
+<form action="/block/{{ page_block.id }}/translate/{{ target_code }}/" method="post">{% csrf_token %}
 	<input type="hidden" id="segment" name="segment" value="" />
 	<input type="hidden" id="string" name="string" value="" />
     <div style="vertical-align: middle;">
@@ -114,7 +114,7 @@ function apply_translation (target_code, id_from, id_to) {
 				<button type="submit" onclick="make_string('seg-{{ forloop.counter }}'); return false;" class="fa fa-caret-square-o-up" style="background-color: white; color: blue; border: none;" title="extract this string" />
 				{% endif %}</td></tr>
 		{% for language, translations in language_translations %}{% for t in translations %}
-		<tr><td></td><td><span   id="tra-{{ forloop.counter }}" class="{{ language.code }}">{{ t.target.text }}</span>
+		<tr><td></td><td><span   id="tra-{{ forloop.counter }}" class="{{ language.code }}">{{ t.text }}</span>
 				<a onclick="apply_translation('{{ language.code }}', 'str-{{ forloop.parentloop.parentloop.counter }}', 'tra-{{ forloop.counter }}'); return true;" class="fa fa-check" style="background-color: white; color: blue; border: none;" title="apply this translation" /></td></tr>
 		{% endfor %}{% endfor %}
 		{% for score, string in strings %}
@@ -126,15 +126,15 @@ function apply_translation (target_code, id_from, id_to) {
 	</td>
 	</tr>
 	{% if not page_block.no_translate %}
-	{% for language, block, segment_strings in target_list %}
-	<tr style="vertical-align: top;"><td>{{ language.name }}</td>
+	{% comment %}{% for language, block, segment_strings in target_list %}{% endcomment %}
+	<tr style="vertical-align: top;"><td>{{ target_language.name }}</td>
 	<td>
-	{% if block %}
-	<textarea id="{{ language.code }}" name="translation-{{ language.code }}" class="rounded-box {{ language.code }}" style="width: 96%; height:100px; margin-top: 0.5em;">{{ block.body }}</textarea>
-	<input type="submit" value="Modify translation" name="modify-{{ language.code }}" />
+	{% if translated_block %}
+	<textarea id="{{ target_code }}" name="translation-{{ target_code }}" class="rounded-box {{ target_code }}" style="width: 96%; height:100px; margin-top: 0.5em;">{{ translated_block.body }}</textarea>
+	<input type="submit" value="Modify translation" name="modify-{{ target_code }}" />
 	{% else %}
-	<textarea id="{{ language.code }}" name="translation-{{ language.code }}" name="translation-{{ language.code }}"  style="width: 96%; height:100px;">{{ page_block.body }}</textarea>
-	<input type="submit" class="btn btn-sm" value="Create translation" name="create-{{ language.code }}" />
+	<textarea id="{{ target_code }}" name="translation-{{ target_code }}" name="translation-{{ target_code }}"  style="width: 96%; height:100px;">{{ page_block.body }}</textarea>
+	<input type="submit" class="btn btn-sm" value="Create translation" name="create-{{ target_code }}" />
 	{% endif %}
 	</td>
 	<td style="vertical-align: top;">{% for strings in segment_strings %}
@@ -143,7 +143,7 @@ function apply_translation (target_code, id_from, id_to) {
 		{% endif %}
 	{% endfor %}</td>
 	</tr>
-	{% endfor %}
+	{% comment %}{% endfor %}{% endcomment %}
 	{% endif %}
 	</tbody>
 	</table>

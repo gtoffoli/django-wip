@@ -35,7 +35,7 @@ from django.db.models.expressions import RawSQL
 from django import forms
 from actstream import action, registry
 
-from models import Language, Site, Proxy, Webpage, PageVersion, TranslatedVersion, Block, TranslatedBlock, BlockInPage, String, Txu #, TranslatedVersion
+from models import Language, Site, Proxy, Webpage, PageVersion, TranslatedVersion, Block, TranslatedBlock, BlockInPage, String, Txu, TxuSubject #, TranslatedVersion
 from models import TO_BE_TRANSLATED, TRANSLATED, INVARIANT, ALREADY
 from models import MYMEMORY
 from forms import SiteManageForm, ProxyManageForm, PageEditForm, PageSequencerForm, BlockEditForm, BlockSequencerForm
@@ -523,7 +523,9 @@ def block(request, block_id):
                 first_block = block = blocks.order_by('id')[0]
     else:
         block = get_object_or_404(Block, pk=block_id)
-    proxy_codes = [proxy.language_id for proxy in block.site.get_proxies()]
+    proxy_languages = [proxy.language for proxy in block.site.get_proxies()]
+    proxy_codes = [l.code for l in proxy_languages]
+    target_languages = [l for l in proxy_languages if not l == block.language]
     BlockSequencerForm.base_fields['translation_languages'].queryset = Language.objects.filter(code__in=proxy_codes)
     save_block = apply_filter = goto = create = modify = '' 
     post = request.POST
@@ -598,6 +600,7 @@ def block(request, block_id):
     var_dict['next'] = next
     var_dict['site'] = site = block.site
     var_dict['language'] = block.language or site.language
+    var_dict['target_languages'] = target_languages
     var_dict['pages'] = block.webpages.all()
     var_dict['list_pages'] = list_pages
     if save_block or goto:
@@ -606,11 +609,13 @@ def block(request, block_id):
     var_dict['sequencer_form'] = BlockSequencerForm(initial={'webpage': webpage_id, 'block_age': block_age, 'translation_state': translation_state, 'translation_languages': translation_languages, 'translation_age': translation_age, 'list_pages': list_pages, })
     return render_to_response('block.html', var_dict, context_instance=RequestContext(request))
 
-def block_translate(request, block_id):
+# def block_translate(request, block_id):
+def block_translate(request, block_id, target_code):
     block = get_object_or_404(Block, pk=block_id)
     proxy_languages = [proxy.language for proxy in block.site.get_proxies()]
     proxy_codes = [proxy.language_id for proxy in block.site.get_proxies()]
     source_language = block.get_language()
+    target_language = get_object_or_404(Language, code=target_code)
     BlockSequencerForm.base_fields['translation_languages'].queryset = Language.objects.filter(code__in=proxy_codes)
     BlockSequencerForm.base_fields['extract_strings'] = forms.BooleanField(required=False, label='Extract strings', )
     save_block = apply_filter = goto = extract = '' 
@@ -716,6 +721,7 @@ def block_translate(request, block_id):
             source_translations.append([])
         source_segments.append(segment_string)
     source_segments = zip(source_segments, source_strings, source_translations)
+    """
     target_list = []
     for proxy_language in proxy_languages:
         if proxy_language == source_language:
@@ -739,6 +745,25 @@ def block_translate(request, block_id):
                     pass
             target_strings.append(translated_strings)
         target_list.append([proxy_language, translated_block, target_strings])
+    """
+    try:
+        translated_block = TranslatedBlock.objects.get(block=block, language=target_language)
+    except:
+        translated_block = None
+    target_strings = []
+    for segment_strings in source_strings:
+        translated_strings = []
+        for s in segment_strings:
+            try:
+                string = String.objects.get(language=source_language, text=s)
+                translations = Txu.objects.filter(source=string, target__language=target_language)
+                for translation in translations:
+                    text = translation.target.text
+                    if not text in translated_strings:
+                        translated_strings.append(text)
+            except:
+                pass
+        target_strings.append(translated_strings)
 
     var_dict = {}
     var_dict['page_block'] = block
@@ -748,13 +773,17 @@ def block_translate(request, block_id):
     var_dict['next'] = next
     var_dict['site'] = site = block.site
     var_dict['language'] = block.language or site.language
-    var_dict['pages'] = block.webpages.all()
+    var_dict['target_language'] = target_language
+    var_dict['target_code'] = target_code
+    # var_dict['pages'] = block.webpages.all()
     if save_block or goto:
-        return HttpResponseRedirect('/block/%d/translate/' % block.id)        
+        return HttpResponseRedirect('/block/%d/translate/%s/' % (block.id, target_code) )       
     var_dict['edit_form'] = BlockEditForm(initial={'language': block.language, 'no_translate': block.no_translate,})
     var_dict['sequencer_form'] = BlockSequencerForm(initial={'webpage': webpage_id, 'block_age': block_age, 'translation_state': translation_state, 'translation_languages': translation_languages, 'translation_age': translation_age,})
     var_dict['source_segments'] = source_segments
-    var_dict['target_list'] = target_list
+    # var_dict['target_list'] = target_list
+    var_dict['translated_block'] = translated_block
+    var_dict['target_strings'] = target_strings
     return render_to_response('block_translate.html', var_dict, context_instance=RequestContext(request))
 
 def propagate_block_translation(request, block, translated_block):
@@ -1017,7 +1046,7 @@ def string_view(request, string_id):
     string_context['translation_state'] = translation_state
     string_context['translation_codes'] = translation_codes
     string_context['translation_site'] = translation_site
-    string_context['translation_subjects'] = translation_subjects
+    # string_context['translation_subjects'] = translation_subjects
     request.session['string_context'] = string_context
     if goto:
         return HttpResponseRedirect('/string/%d/' % string.id)        
@@ -1044,14 +1073,14 @@ def string_translate(request, string_id, target_code):
 
     string_context = request.session.get('string_context', {})
     if string_context:
-        translation_state = string_context['translation_state']
-        translation_codes = string_context['translation_codes']
+        translation_state = string_context.get('translation_state', TO_BE_TRANSLATED)
+        translation_codes = string_context.get('translation_codes', [target_code])
         translation_services = string_context.get('translation_services', [])
         translation_site = string_context.get('translation_site', None)
         translation_subjects = string_context.get('translation_subjects', [])
     else:
         translation_state = TO_BE_TRANSLATED
-        translation_codes = [l.code for l in translation_languages]
+        translation_codes = [target_code]
         translation_services = []
         translation_site = None
         translation_subjects = []
@@ -1060,17 +1089,22 @@ def string_translate(request, string_id, target_code):
     var_dict['similar_strings'] = find_like_strings(string, translation_languages=[target_language], with_translations=True, max_strings=10)
     translation_form = StringTranslationForm()
     translation_service_form = TranslationServiceForm()
-    apply_filter = goto = '' 
+    apply_filter = goto = save_translation = '' 
     post = request.POST
     if post:
         apply_filter = post.get('apply_filter', '')
         ask_service = post.get('ask_service', '')
+        """
         save_translation = post.get('save_translation', '')
         if not (apply_filter or ask_service or save_translation):
+        """
+        if not (apply_filter or ask_service):
             for key in post.keys():
                 if key.startswith('goto-'):
                     goto = int(key.split('-')[1])
                     string = get_object_or_404(String, pk=goto)
+                elif key.startswith('save-'):
+                    save_translation = key.split('-')[1]
         if ask_service:
             translation_service_form = TranslationServiceForm(request.POST)
             if translation_service_form.is_valid():
@@ -1088,24 +1122,32 @@ def string_translate(request, string_id, target_code):
             translation_form = StringTranslationForm(request.POST)
             if translation_form.is_valid():
                 data = translation_form.cleaned_data
+                print data
                 translation = data['translation']
+                site = data['translation_site']
+                translation_subjects = data['translation_subjects']
                 same_txu = data['same_txu']
-                site = data['site']
-                if same_txu:
-                    txu = string.txu
+                txu = string.txu
+                if txu and same_txu:
+                    target_txu = string.txu
                 else:
                     provider = site and site.name or ''
-                    txu = Txu(provider=provider, user=request.user)
-                    txu.save()
-                is_model_instance, target = get_or_add_string(translation, target_language, add=True, txu=txu, reliability=5)
+                    target_txu = Txu(provider=provider, user=request.user)
+                    target_txu.save()
+                is_model_instance, target = get_or_add_string(translation, target_language, add=True, txu=target_txu, reliability=5)
+                if not txu or not same_txu:
+                    string.txu = target_txu
+                    string.reliability = 5
+                    string.save()
                 for subject in translation_subjects:
                     try:
                         txu_subject = TxuSubject.objects.get(txu=txu, subject=subject)
                     except:
-                        txu_subject = TxuSubject(txu=txu, subject=subject)
+                        txu_subject = TxuSubject(txu=target_txu, subject=subject)
                         txu_subject.save()
             else:
                 print 'error', translation_form.errors
+                return render_to_response('string_translate.html', {'translation_form': translation_form,}, context_instance=RequestContext(request))
             translation_service_form = TranslationServiceForm()
         else: # apply_filter
             form = StringSequencerForm(post)
@@ -1118,7 +1160,7 @@ def string_translate(request, string_id, target_code):
     string_context['translation_state'] = translation_state
     string_context['translation_codes'] = translation_codes
     string_context['translation_site'] = translation_site
-    string_context['translation_subjects'] = translation_subjects
+    # string_context['translation_subjects'] = translation_subjects
     request.session['string_context'] = string_context
     if goto:
         return HttpResponseRedirect('/string_translate/%d/%s/' % (string.id, target_code))

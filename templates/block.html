@@ -33,7 +33,7 @@ th, td { text-align: left; vertical-align: top; }
 		{% endif %}
 	</div>
    	{% if user.is_superuser %}
-   	<div><a class="btn btn-sm" href="/block/{{ page_block.id }}/translate/">Edit translations</a></div>
+   	<div>{% for language in target_languages %}<a class="btn btn-sm" href="/block/{{ page_block.id }}/translate/{{ language.code }}/">{{ language }} translation</a> &nbsp; {% endfor %}</div>
 	{% endif %}
 
 {% if user.is_superuser %}

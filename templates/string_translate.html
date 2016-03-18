@@ -60,14 +60,14 @@ function capFirst(id) {
     <tbody>
     <tr><td colspan=4 style="padding-top: 0.5em; padding-bottom: 0.5em; font-size: large; font-weight: bold;" class="{{ target_language.code }}">{{ target_language }} translation</td></tr>
     <tr><td colspan=4 style="width: 100%">{% comment %}<a onclick="capFirst('translation')"><span class="fa fa-arrow-up" style="font-size: 1.0em;" title="make 1st char uppercase"></span></a> &nbsp;
-    	{% endcomment %}{{ translation_form.translation }}</td></tr>
-	<tr><td colspan=4><label>Site </label> {{ translation_form.translation_site }}</td></tr>
+    	{% endcomment %}{{ translation_form.translation.errors }}{{ translation_form.translation }}</td></tr>
+	<tr><td colspan=4><label>Site </label> <span class="txt-error">{{ translation_form.translation_site.errors }}</span>{{ translation_form.translation_site }}</td></tr>
 	<tr><td colspan=2><label>Sectors </label> {{ translation_form.translation_subjects }}</td>
 		<td colspan=2><div style="padding-bottom: 0.5em;font-weight: bold;">External services</div>
 					<div>{{ translation_service_form.translation_services }}</div>
 					<div><input type="submit" name="ask_service" value="Ask service" class="btn btn-sm" /></div>
 		</td></tr>
-	<tr><td colspan=4><label>add to same TU</label> {{ translation_form.same_txu }} &nbsp; <input type="submit" name="save_{{ target_language.code }}" value="Save {{ l.name }} translation" class="btn btn-sm" /></td></tr>
+	<tr><td colspan=4><label>add to same TU</label> {{ translation_form.same_txu }} &nbsp; <input type="submit" name="save-{{ target_language.code }}" value="Save {{ target_language.name }} translation" class="btn btn-sm" /></td></tr>
     <tr><td colspan=4 style="width: 100%"><hr></td></tr>
 {% endif %}
 

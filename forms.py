@@ -46,7 +46,7 @@ class StringSequencerForm(forms.Form):
 
 class StringTranslationForm(forms.Form):
     translation = forms.CharField(required=True, widget=forms.Textarea(attrs={'style': 'width: 100%;'}))
-    translation_site = forms.ModelChoiceField(required=False, queryset=Site.objects.all(), widget=forms.Select(attrs={'style':'height: 24px;',}))
+    translation_site = forms.ModelChoiceField(required=True, queryset=Site.objects.all(), widget=forms.Select(attrs={'style':'height: 24px;',}))
     translation_subjects = forms.ModelMultipleChoiceField(required=False, queryset=Subject.objects.exclude(name='').exclude(name__isnull=True).order_by('code'), widget=forms.SelectMultiple(attrs={'size': 8,}))
     same_txu = forms.BooleanField(required=False, label='Add to same TU')
 

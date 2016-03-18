@@ -260,6 +260,7 @@ EMPTY_WORDS = {
        'fra', 'tra', 'uno', 'una', 'tutti', 'tutte',
        'tuo', 'tua', 'tuoi', 'tue',
        'quello', 'quella', 'questo', 'questa',
+       'chi', 'che',
        'poco', 'molto', 'tanto',
        'circa', 'solo', 'anche', 'pure', 'però',
 ],

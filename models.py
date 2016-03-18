@@ -22,6 +22,7 @@ from django.contrib.contenttypes.models import ContentType
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.utils.translation import ugettext_lazy as _
 from django_extensions.db.fields import CreationDateTimeField, ModificationDateTimeField, AutoSlugField
+
 from vocabularies import Language, Subject, ApprovalStatus
 from wip.wip_sd.sd_algorithm import SDAlgorithm
 
@@ -408,7 +409,20 @@ class Txu(models.Model):
         ordering = ('-created',)
 
     def __unicode__(self):
-        return self.entry_id or self.id
+        return self.entry_id or str(self.id)
+
+    def update_languages(self):
+        strings = String.objects.filter(txu=self)
+        l_dict = { 'en': False, 'es': False, 'fr': False, 'it': False, }
+        for s in strings:
+            l_dict[s.language_id] = True
+        updated = False
+        for code in l_dict.keys():
+            if getattr(self, code) != l_dict[code]:
+                setattr(self, code, l_dict[code])
+                updated = True
+        if updated:
+            self.save()
 
 class TxuSubject(models.Model):
     txu = models.ForeignKey(Txu, related_name='txu')
@@ -427,7 +441,7 @@ class String(models.Model):
     class Meta:
         verbose_name = _('string')
         verbose_name_plural = _('strings')
-        ordering = ('text',)
+        ordering = ('-id',)
 
     def __unicode__(self):
         return self.text

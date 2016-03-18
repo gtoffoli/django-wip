@@ -3,11 +3,12 @@ Created on 18/Feb/2016
 @author: giovanni
 '''
 
+from django.shortcuts import render
 from django.db.models.signals import post_save, post_delete
 from haystack import indexes
 from haystack.query import SearchQuerySet
 
-from wip.models import String
+from models import String
 
 class StringIndex(indexes.SearchIndex, indexes.Indexable):
 
@@ -25,15 +26,22 @@ class StringIndex(indexes.SearchIndex, indexes.Indexable):
 def string_post_save_handler(sender, **kwargs):
     string = kwargs['instance']
     StringIndex().update_object(string)
+    txu = string.txu
+    if txu:
+        txu.update_languages()
 
 def string_post_delete_handler(sender, **kwargs):
     string = kwargs['instance']
+    try:
+        txu = string.txu
+    except:
+        txu = None
     StringIndex().remove_object(string)
+    if txu:
+        txu.update_languages()
 
 post_save.connect(string_post_save_handler, sender=String)
 post_delete.connect(string_post_delete_handler, sender=String)
-
-from django.shortcuts import render
 
 q_extra = ['(', ')', '[', ']', '"']
 def clean_q(q):

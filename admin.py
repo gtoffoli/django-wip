@@ -55,14 +55,11 @@ class PageVersionAdmin(admin.ModelAdmin):
 
 class StringAdmin(admin.ModelAdmin):
     list_filter = ['language']
-    # list_display = ['id', 'language', 'text',]
     list_display = ['id', 'language', 'text', 'reliability', 'txu',]
 
 class TxuAdmin(admin.ModelAdmin):
-    # list_filter = ['source__language', 'target__language', 'user',]
     list_filter = ['user',]
-    # list_display = ['id', 'source', 'target', 'user', 'created', 'modified',]
-    list_display = ['id', 'user', 'created', 'modified',]
+    list_display = ['id', 'provider', 'entry_id', 'en', 'es', 'fr', 'it', 'user', 'created', 'modified',]
 
 class TxuSubjectAdmin(admin.ModelAdmin):
     # list_filter = ['subject',]
