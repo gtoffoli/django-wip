@@ -37,7 +37,7 @@ if sys.platform.count('linux'):
     ALLOWED_HOSTS = ["localhost", ".fairvillage.eu", ".fairvillage.it"]
 else:
     DEBUG = True
-    TEMPLATE_STRING_IF_INVALID = '%s'
+    # TEMPLATE_STRING_IF_INVALID = '%s'
 
 # Application definition
 
@@ -97,6 +97,8 @@ TEMPLATES = [
         },
     },
 ]
+if DEBUG:
+    TEMPLATES[0]['OPTIONS']['string_if_invalid'] = '%s'
 
 WSGI_APPLICATION = 'wip.wsgi.application'
 
@@ -243,18 +245,25 @@ BLOCK_TAGS = [
    'address', 'article', 'field', 'section', 'nav',
    'div', 'p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'ol', 'li', 'dl', 'dt', 'dd',
    'table', 'thead', 'tbody', 'tfoot', 'tr', 'th', 'td',
-   'a', 'blockquote', 'pre', 'noscript',
+   'blockquote', 'pre', 'noscript',
    'img', 'figure', 'figcaption', 'canvas', 'video',
    'form', 'fieldset', 'input', 'button', 'select', 'option', 'textarea', 'output',
 ]
 TO_DROP_TAGS = [
     'link', 'script', 'style','iframe',
 ]
+
+QUOTES = (
+ ('"', '"',),
+ ('“', '”',),
+ ('‘', '’',),
+)
 EMPTY_WORDS = {
 'en': [],
 'es': [],
 'fr': [],
 'it': [
+       'e', 'o', 'ma',
        'di', 'a', 'da', 'in', 'con', 'su', 'per',
        'del', 'della', 'dei', 'al', 'alla', 'ai', 'sui',
        'fra', 'tra', 'uno', 'una', 'tutti', 'tutte',
@@ -265,12 +274,20 @@ EMPTY_WORDS = {
        'circa', 'solo', 'anche', 'pure', 'però',
 ],
 }
+
 SEPARATORS =  {
-'en': ' .,;:?*',
-'es': ' .,;:?*',
-'fr': ' .,;:?*',
-'it': ' .,;:?*',
+'en': ' \xc2\xa0.,;:?*/+-–()[]{}',
+'es': ' \xc2\xa0.,;:?*/+-–()[]{}',
+'fr': ' \xc2\xa0.,;:?*/+-–()[]{}',
+'it': ' \xc2\xa0.,;:?*/+-–()[]{}',
 }
+STRIPPED =  {
+'en': ' \xc2\xa0.,;:?*/+-–()[]{}\"\“\”',
+'es': ' \xc2\xa0.,;:?*/+-–()[]{}\"\“\”',
+'fr': ' \xc2\xa0.,;:?*/+-–()[]{}\"\“\”',
+'it': ' \xc2\xa0.,;:?*/+-–()[]{}\"\“\”',
+}
+
 LANGUAGE_COLORS = { 'it': 'green', 'en': 'grey', 'es': 'red', 'fr': 'blue', }
 
 # configure graph_models command of django-extensions

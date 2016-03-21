@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-"""
+
 """
 Django models for wip application of wip project.
 
@@ -355,6 +357,13 @@ class Webpage(models.Model):
                         blocks_in_page.save()
         return n_1, n_2, n_3
 
+def get_strings(text, language, site=None):
+    if site:
+        strings = String.objects.filter(text=text, language=language, site=site)
+    else:
+        strings = String.objects.filter(text=text, language=language)
+    return strings
+
 class PageVersion(models.Model):
     webpage = models.ForeignKey(Webpage)
     time = CreationDateTimeField()
@@ -376,13 +385,45 @@ class PageVersion(models.Model):
         except:
             return None
 
+    def get_segments(self):
+        srx_filepath = os.path.join(RESOURCES_ROOT, 'segment.srx')
+        srx_rules = srx_segmenter.parse(srx_filepath)
+        italian_rules = srx_rules['Italian']
+        segmenter = srx_segmenter.SrxSegmenter(italian_rules)
+        re_parentheses = re.compile(r'\(([^)]+)\)')
+
+        site = self.webpage.site
+        language = site.language
+        strings = []
+        html_string = re.sub("(<!--(.*?)-->)", "", self.body, flags=re.MULTILINE)
+        for string in list(strings_from_html(html_string, fragment=False)):
+            string = string.replace(u"\u2018", "'").replace(u"\u2019", "'").replace(' - ', ' – ')
+            if string.count('window') and string.count('document'):
+                continue
+            if string.count('flickr'):
+                continue
+            found = get_strings(string, language, site=site)
+            if found and found[0].invariant:
+                continue
+            matches = []
+            if string.count('(') and string.count(')'):
+                matches = re_parentheses.findall(string)
+                if matches:
+                    for match in matches:
+                        string = string.replace('(%s)' % match, '')
+            strings.extend(segmenter.extract(string)[0])
+            for match in matches:
+                strings.extend(segmenter.extract(match)[0])
+        return strings
+
 class TranslatedVersion(models.Model):
     webpage = models.ForeignKey(Webpage)
     language = models.ForeignKey(Language)
     body = models.TextField(blank=True, null=True)
     created = CreationDateTimeField()
     modified = ModificationDateTimeField()
-    approval_status = models.ForeignKey(ApprovalStatus)
+    # approval_status = models.ForeignKey(ApprovalStatus)
+    state = models.IntegerField(default=0)
     user = models.ForeignKey(User, null=True)
     comments = models.TextField(blank=True, null=True)
 
@@ -437,6 +478,8 @@ class String(models.Model):
     language = models.ForeignKey(Language)
     text = models.TextField()
     reliability = models.IntegerField(default=1)
+    invariant = models.BooleanField(default=False)
+    site = models.ForeignKey(Site, null=True)
 
     class Meta:
         verbose_name = _('string')
@@ -608,7 +651,7 @@ class Block(models.Model):
             states.append(state)
         return states
 
-    def get_strings(self):
+    def get_segments(self):
         srx_filepath = os.path.join(RESOURCES_ROOT, 'segment.srx')
         srx_rules = srx_segmenter.parse(srx_filepath)
         italian_rules = srx_rules['Italian']
@@ -617,7 +660,7 @@ class Block(models.Model):
 
         strings = []
         for string in list(strings_from_html(self.body, fragment=True)):
-            string = string.replace(u"\u2018", "'").replace(u"\u2019", "'")
+            string = string.replace(u"\u2018", "'").replace(u"\u2019", "'").replace(' - ', ' – ')
             if string.count('window') and string.count('document'):
                 continue
             matches = []

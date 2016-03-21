@@ -35,6 +35,7 @@
 	{% else %}
 		<div style="margin-top: 0.5em">No proxies are available.</div>
 	{% endif %}
+
 	{% if user.is_superuser %}
    	<form action="/site/{{ site.slug }}/" method="post">{% csrf_token %}
 	{% if missing_languages %}
@@ -48,6 +49,12 @@
   	<div>{{ manage_form.delete_confirmation }} Yes, I am fully aware
 		<input type="submit" name="delete_site" value="Delete site" title="Delete all site info" class="btn btn-sm" /></div>
 	{% endif %}
+	{% if page_count %}
+  	<div><input type="submit" name="extract_segments" value="Extract segments" title="Extract segments" class="btn btn-sm" /></div>
+	{% endif %}
+  	<div>{{ manage_form.clear_invariants }} Clear invariant strings
+  		<input type="submit" name="import_invariants" value="Import invariants" title="Import invariants" class="btn btn-sm" /></div>
+  	<div><input type="submit" name="export_untranslated" value="Export untranslated strings" title="Export untranslated strings" class="btn btn-sm" /></div>
 	{% if proxies %}
   	<div><input type="submit" name="guess_blocks_language" value="Guess blocks' language" title="Guess blocks' language" class="btn btn-sm" /></div>
 	{% endif %}

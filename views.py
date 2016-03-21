@@ -31,7 +31,7 @@ from django.http import HttpResponse, HttpResponseRedirect
 from django.shortcuts import render_to_response, get_object_or_404
 from django.db import connection
 # from django.db.models import Q, Count
-from django.db.models.expressions import RawSQL
+from django.db.models.expressions import RawSQL, Q
 from django import forms
 from actstream import action, registry
 
@@ -43,7 +43,7 @@ from forms import StringSequencerForm, StringTranslationForm, TranslationService
 from spiders import WipSiteCrawlerScript, WipCrawlSpider
 
 from settings import PAGE_SIZE, PAGE_STEPS
-from settings import DATA_ROOT, RESOURCES_ROOT, tagger_filename, BLOCK_TAGS, SEPARATORS, EMPTY_WORDS
+from settings import DATA_ROOT, RESOURCES_ROOT, tagger_filename, BLOCK_TAGS, QUOTES, SEPARATORS, STRIPPED, EMPTY_WORDS
 from utils import strings_from_html, elements_from_element, block_checksum, ask_mymemory
 import srx_segmenter
 
@@ -109,6 +109,9 @@ def proxies(request):
     var_dict['proxies'] = proxies
     return render_to_response('proxies.html', var_dict, context_instance=RequestContext(request))
 
+def can_strip(word):
+    return word.count('#') or word.count('@') or word.count('http') or word.replace(',', '.').isnumeric()
+
 def site(request, site_slug):
     site = get_object_or_404(Site, slug=site_slug)
     var_dict = {}
@@ -119,6 +122,7 @@ def site(request, site_slug):
     if post:
         site_crawl = post.get('site_crawl', '')
         extract_blocks = post.get('extract_blocks', '')
+        extract_segments = post.get('extract_segments', '')
         delete_site = post.get('delete_site', '')
         guess_blocks_language = post.get('guess_blocks_language', '')
         form = SiteManageForm(post)
@@ -140,6 +144,51 @@ def site(request, site_slug):
                         n_1, n_2, n_3 = webpage.extract_blocks()
                     except:
                         print 'extract_blocks: error on page ', webpage.id
+            elif extract_segments:
+                language = site.language
+                language_code = language.code
+                webpages = Webpage.objects.filter(site=site)
+                for webpage in webpages:
+                    page_versions = PageVersion.objects.filter(webpage=webpage).order_by('-time')
+                    if not page_versions:
+                        continue
+                    segments = page_versions[0].get_segments()
+                    for s in segments:
+                        if not s: continue
+                        s = s.strip(SEPARATORS[language_code])
+                        if not s: continue
+                        for left, right in QUOTES:
+                            if s[0]==left and s.count(right)<=1:
+                                s = s[1:]
+                                if not s: break
+                                s = s.replace(right, '').strip()
+                                if not s: break
+                            if s[-1]==right and s.count(left)<=1:
+                                s = s[:-1]
+                                if not s: break
+                                s = s.replace(right, '').strip()
+                                if not s: break
+                        if not s: continue
+                        words = re.split(" |\'", s)
+                        if len(words) > 1:
+                            stripped = False
+                            while words and can_strip(words[0]):
+                                words = words[1:]
+                                stripped = True
+                            while words and can_strip(words[-1]):
+                                words = words[:-1]
+                                stripped = True
+                            if not words: continue
+                            if stripped:
+                                s = ' '.join(words)
+                        if len(words) == 1:
+                            word = words[0]
+                            if can_strip(word) or word.isupper() or word.lower() in EMPTY_WORDS[language_code]:
+                                continue
+                        if s.startswith('Home'):
+                            continue
+                        is_model_instance, string = get_or_add_string(s, language, add=True, txu=None, site=site, reliability=0)
+                        sys.stdout.write('.')
             elif delete_site:
                 delete_confirmation = data['delete_confirmation']
                 if delete_confirmation:
@@ -469,28 +518,21 @@ def site_translated_blocks(request, site_slug):
     var_dict['translated_blocks_count'] = blocks.count()
     return render_to_response('translated_blocks.html', var_dict, context_instance=RequestContext(request))
 
-def get_or_add_string(text, language, add=False, txu=None, reliability=1):
+def get_or_add_string(text, language, site=None, add=False, txu=None, reliability=1):
     if isinstance(language, str):
         language = Language.objects.get(code=language)
     is_model_instance = False
-    """
-    try:
-        string = String.objects.get(text=text, language=language)
-        is_model_instance = True
-    except:
-    """
     strings = String.objects.filter(text=text, language=language)
     if strings:
         is_model_instance = True
         string = strings[0]
     else:
         if add:
-            string = String(text=text, language=language, txu=txu, reliability=reliability)
+            string = String(text=text, language=language, txu=txu, site=site, reliability=reliability)
             string.save()
             is_model_instance = True
         else:
-            string = String(text=text, language=language)
-    # StringIndex().update_object(string)
+            string = String(text=text, language=language, site=site)
     return is_model_instance, string
 
 def block(request, block_id):
@@ -620,7 +662,7 @@ def block_translate(request, block_id, target_code):
     BlockSequencerForm.base_fields['extract_strings'] = forms.BooleanField(required=False, label='Extract strings', )
     save_block = apply_filter = goto = extract = '' 
     create = modify = ''
-    segments = block.get_strings()
+    segments = block.get_segments()
     segments = [segment.strip(' .,;:*+-=').lower() for segment in segments]
     extract_strings = False
     post = request.POST
@@ -1176,7 +1218,7 @@ def raw_tokens(text, language_code):
     tokens = re.split(" |\'", text)
     raw_tokens = []
     for token in tokens:
-        token = token.strip(SEPARATORS[language_code])
+        token = token.strip(STRIPPED[language_code])
         if not token:
             continue
         raw_tokens.append(token)
@@ -1337,14 +1379,15 @@ def find_strings(source_languages=[], target_languages=[], translated=None):
             """
             qs = qs.exclude(txu__string__language_id__in=target_codes)
             """
+            qs = qs.exclude(invariant=True)
             if 'en' in target_codes:
-                qs = qs.filter(txu__en=False)
+                qs = qs.filter(Q(txu__isnull=True) | Q(txu__en=False))
             if 'es' in target_codes:
-                qs = qs.filter(txu__es=False)
+                qs = qs.filter(Q(txu__isnull=True) | Q(txu__es=False))
             if 'fr' in target_codes:
-                qs = qs.filter(txu__fr=False)
+                qs = qs.filter(Q(txu__isnull=True) | Q(txu__fr=False))
             if 'it' in target_codes:
-                qs = qs.filter(txu__it=False)
+                qs = qs.filter(Q(txu__isnull=True) | Q(txu__it=False))
         """
         else:
             qs = qs.filter(as_source__isnull=True)

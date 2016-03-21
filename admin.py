@@ -55,7 +55,7 @@ class PageVersionAdmin(admin.ModelAdmin):
 
 class StringAdmin(admin.ModelAdmin):
     list_filter = ['language']
-    list_display = ['id', 'language', 'text', 'reliability', 'txu',]
+    list_display = ['id', 'language', 'text', 'site', 'invariant', 'reliability', 'txu',]
 
 class TxuAdmin(admin.ModelAdmin):
     list_filter = ['user',]

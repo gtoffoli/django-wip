@@ -11,6 +11,7 @@ from vocabularies import Language, Subject
 class SiteManageForm(forms.Form):
     clear_pages = forms.BooleanField(required=False, label='Clear pages')
     clear_blocks = forms.BooleanField(required=False, label='Clear blocks')
+    clear_invariants = forms.BooleanField(required=False, label='Clear invariant strings')
     delete_confirmation = forms.BooleanField(required=False, label='Delete confirmation')
 
 class ProxyManageForm(forms.Form):

@@ -54,7 +54,8 @@ urlpatterns = [
     url(r"^test/$", TemplateView.as_view(template_name="test.html"), name="test"),
 ]
 
-urlpatterns += patterns('',
+# urlpatterns += patterns('',
+urlpatterns += (
     url(r'^accounts/', include('allauth.urls')),
     url(r'^accounts/profile/', TemplateView.as_view(template_name='accounts/profile.html'), name='welcome',),
 )   

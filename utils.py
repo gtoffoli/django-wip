@@ -27,8 +27,17 @@ def fix_html_structure(string):
 def etree_from_html(string):
     parser = etree.HTMLParser()
     return etree.parse(StringIO.StringIO(string), parser)
+    """
+    tree = etree.parse(StringIO.StringIO(string), parser)
+    comments = tree.xpath('//comment()')
+    for c in comments:
+        p = c.getparent()
+        p.remove(c)
+    return tree
+    """
 
 # http://stackoverflow.com/questions/4624062/get-all-text-inside-a-tag-in-lxml
+"""
 def strings_from_block(block):
     children = block.getchildren()
     block_children = [child for child in children if child.tag in settings.BLOCK_TAGS]
@@ -47,9 +56,54 @@ def strings_from_block(block):
     tail = block.tail
     if tail: tail = tail.strip()
     if tail: yield tail
+"""
+# http://stackoverflow.com/questions/4770191/lxml-etree-element-text-doesnt-return-the-entire-text-from-an-element
+def strings_from_block(block):
+    children = block.getchildren()
+    block_children = [child for child in children if child.tag in settings.BLOCK_TAGS]
+    if block_children:
+        text_list = []
+        text = block.text
+        if text: text = text.strip()
+        if text:
+            text_list.append(text)
+        for child in children:
+            if child.tag in settings.BLOCK_TAGS:
+                if text_list:
+                    yield ' '.join(text_list)
+                text_list = []
+                for el in strings_from_block(child):
+                    if el: el = el.strip()
+                    if el:
+                        yield el
+                if child.tail:
+                    text = child.tail.strip()
+                    if text:
+                        text_list.append(text)
+            else:
+                text = child.text_content()
+                if text: text = text.strip()
+                if text:
+                    text_list.append(text)
+        if text_list:
+            yield ' '.join(text_list)
+    else:
+        content = block.text_content()
+        if content: content = content.strip()
+        if content:
+            yield content
+    tail = block.tail
+    if tail: tail = tail.strip()
+    if tail:
+        yield tail
 
 def strings_from_html(string, fragment=False):
     doc = html.fromstring(string)
+    comments = doc.xpath('//comment()')
+    for c in comments:
+        p = c.getparent()
+        if p is not None:
+            p.remove(c)
     if fragment:
         body = doc
     else:

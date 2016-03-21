@@ -146,3 +146,28 @@ def test(request):
     var_dict = {}
     import_tbx(sector='32', dry=False)
     return render_to_response('homepage.html', var_dict, context_instance=RequestContext(request))
+
+def import_invariants(filename, language, site):
+    path = os.path.join(DATA_ROOT, filename)
+    file = open(path, 'r')
+    for line in file:
+        line = line.strip()
+        if line:
+            string = String(txu=None, language=language, site=site, text=line, reliability=0, invariant=True)
+            string.save()
+
+def export_segments():
+    from wip.views import find_strings
+    source = Language.objects.get(code='it')
+    target = Language.objects.get(code='en')
+    strings = find_strings(source_languages=[source], target_languages=[target], translated=False)
+    print strings.count()
+    file = open('alfa.txt', 'w')
+    for s in strings:
+      file.write(s.text + '\n')
+    file.close()
+    strings = strings.order_by('id')
+    file = open('time.txt', 'w')
+    for s in strings:
+      file.write(s.text + '\n')
+    file.close()
