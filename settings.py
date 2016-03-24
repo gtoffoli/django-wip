@@ -276,19 +276,32 @@ EMPTY_WORDS = {
 }
 
 SEPARATORS =  {
-'en': ' \xc2\xa0.,;:?*/+-–()[]{}',
-'es': ' \xc2\xa0.,;:?*/+-–()[]{}',
-'fr': ' \xc2\xa0.,;:?*/+-–()[]{}',
-'it': ' \xc2\xa0.,;:?*/+-–()[]{}',
+'en': ' .,;:?*/+-–()[]{}',
+'es': ' .,;:?*/+-–()[]{}',
+'fr': ' .,;:?*/+-–()[]{}',
+'it': ' .,;:?*/+-–()[]{}',
 }
 STRIPPED =  {
-'en': ' \xc2\xa0.,;:?*/+-–()[]{}\"\“\”',
-'es': ' \xc2\xa0.,;:?*/+-–()[]{}\"\“\”',
-'fr': ' \xc2\xa0.,;:?*/+-–()[]{}\"\“\”',
-'it': ' \xc2\xa0.,;:?*/+-–()[]{}\"\“\”',
+'en': ' .,;:?*/+-–()[]{}\"\“\”' + '\xc2\xa0',
+'es': ' .,;:?*/+-–()[]{}\"\“\”' + '\xc2\xa0',
+'fr': ' .,;:?*/+-–()[]{}\"\“\”' + '\xc2\xa0',
+'it': ' .,;:?*/+-–()[]{}\"\“\”' + '\xc2\xa0',
 }
 
 LANGUAGE_COLORS = { 'it': 'green', 'en': 'grey', 'es': 'red', 'fr': 'blue', }
+
+PAGES_EXCLUDE_BY_CONTENT = {
+  'scuolemigranti': [
+     '/category/archivio/notizie/',
+  ]
+}
+
+BLOCKS_EXCLUDE_BY_XPATH = {
+  'scuolemigranti': [
+     '/html/body/div/div/div[1]/div[3]/div[2]',
+  ]
+}
+
 
 # configure graph_models command of django-extensions
 GRAPH_MODELS = {

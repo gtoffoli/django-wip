@@ -28,7 +28,7 @@ from django_extensions.db.fields import CreationDateTimeField, ModificationDateT
 from vocabularies import Language, Subject, ApprovalStatus
 from wip.wip_sd.sd_algorithm import SDAlgorithm
 
-from settings import RESOURCES_ROOT, BLOCK_TAGS
+from settings import RESOURCES_ROOT, BLOCK_TAGS, BLOCKS_EXCLUDE_BY_XPATH
 from utils import strings_from_html, elements_from_element, block_checksum
 import srx_segmenter
 
@@ -393,10 +393,11 @@ class PageVersion(models.Model):
         re_parentheses = re.compile(r'\(([^)]+)\)')
 
         site = self.webpage.site
+        exclude_xpaths = BLOCKS_EXCLUDE_BY_XPATH.get(site.slug, [])
         language = site.language
         strings = []
         html_string = re.sub("(<!--(.*?)-->)", "", self.body, flags=re.MULTILINE)
-        for string in list(strings_from_html(html_string, fragment=False)):
+        for string in list(strings_from_html(html_string, fragment=False, exclude_xpaths=exclude_xpaths)):
             string = string.replace(u"\u2018", "'").replace(u"\u2019", "'").replace(' - ', ' – ')
             if string.count('window') and string.count('document'):
                 continue

@@ -58,7 +58,8 @@ def strings_from_block(block):
     if tail: yield tail
 """
 # http://stackoverflow.com/questions/4770191/lxml-etree-element-text-doesnt-return-the-entire-text-from-an-element
-def strings_from_block(block):
+# http://stackoverflow.com/questions/26304626/lxml-how-to-get-xpath-of-htmlelement
+def strings_from_block(block, tree=None, exclude_xpaths=[]):
     children = block.getchildren()
     block_children = [child for child in children if child.tag in settings.BLOCK_TAGS]
     if block_children:
@@ -68,11 +69,16 @@ def strings_from_block(block):
         if text:
             text_list.append(text)
         for child in children:
+            if exclude_xpaths:
+                xpath = tree.getpath(child)
+                # print xpath
+                if xpath in exclude_xpaths:
+                    continue
             if child.tag in settings.BLOCK_TAGS:
                 if text_list:
                     yield ' '.join(text_list)
                 text_list = []
-                for el in strings_from_block(child):
+                for el in strings_from_block(child, tree=tree, exclude_xpaths=exclude_xpaths):
                     if el: el = el.strip()
                     if el:
                         yield el
@@ -97,7 +103,7 @@ def strings_from_block(block):
     if tail:
         yield tail
 
-def strings_from_html(string, fragment=False):
+def strings_from_html(string, fragment=False, exclude_xpaths=[]):
     doc = html.fromstring(string)
     comments = doc.xpath('//comment()')
     for c in comments:
@@ -105,14 +111,16 @@ def strings_from_html(string, fragment=False):
         if p is not None:
             p.remove(c)
     if fragment:
+        tree = None
         body = doc
     else:
+        tree = doc.getroottree()
         body = doc.find('body')
     for tag in settings.TO_DROP_TAGS:
         els = body.findall(tag)
         for el in els:
             el.getparent().remove(el) 
-    for s in strings_from_block(body):
+    for s in strings_from_block(body, tree=tree, exclude_xpaths=exclude_xpaths):
         if s:
             yield s
 

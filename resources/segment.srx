@@ -5465,6 +5465,12 @@ It [really!] works. This is e.g. Mr. Smith, who talks slowly... And this is anot
 <beforebreak>\b(abbr|acron|agg|art|avv|card|compar|conf|cong|det|dim|f|fonosimb|ger|impers|indef|indet|inter|intr|inv|lat|loc|m|n|num|ord|p|pers|pl|pass|pres|pref|prep|pron|ponom|rel|s|sost|simb|suff|ter|tr|v|var)\.\s</beforebreak>
 <afterbreak></afterbreak>
 </rule>
+<!-- new: S. (saint) with or without following space -->
+<rule break="no">
+<beforebreak>\bS\.</beforebreak>
+<afterbreak></afterbreak>
+</rule>
+<!-- new: signed number -->
 <rule break="no">
 <beforebreak>[\+\-]\p{N}</beforebreak>
 <afterbreak></afterbreak>
@@ -5473,21 +5479,35 @@ It [really!] works. This is e.g. Mr. Smith, who talks slowly... And this is anot
 <beforebreak>\p{Ll}[\.]\p{Ll}</beforebreak>
 <afterbreak></afterbreak>
 </rule>
+<!-- new: dot as in dot.com -->
+<rule break="no">
+<beforebreak>[a-z]\.[a-z]</beforebreak>
+<afterbreak></afterbreak>
+</rule>
+<rule break="no">
+<beforebreak>[a-z]\.</beforebreak>
+<afterbreak>[a-z]</afterbreak>
+</rule>
 <rule break="yes">
-<beforebreak>[\.!?\;\:\…\–][\u00BB\u2019\u201D\u203A"'\p{Pe}\u0002¹²³]*</beforebreak>
+<beforebreak>[\.!?\;\:\…\–][\u00BB\u2019\u201D\u203A"'\u0002¹²³]*</beforebreak>
 <afterbreak></afterbreak>
 </rule>
 <rule break="yes">
-<beforebreak>[\+\=\-][\u00BB\u2019\u201D\u203A"'\p{Pe}\u0002¹²³]*\p{Zs}</beforebreak>
+<beforebreak>[\+\=\-][\s\u00A0]+</beforebreak>
 <afterbreak></afterbreak>
 </rule>
 <rule break="yes">
-<beforebreak>[\.!?\;\:\+\=\…\–]['"\u00BB\u2019\u201D\u203A\p{Pe}\u0002]*</beforebreak>
+<beforebreak>[\.!?\;\:\+\=\…\–]['"\u00BB\u2019\u201D\u203A\u0002]*</beforebreak>
 <afterbreak>\p{Lu}[^\p{Lu}]</afterbreak>
 </rule>
 <rule break="yes">
-<beforebreak>\s\p{L}[\.!?\;\:\+\=\…\–]\s</beforebreak>
+<beforebreak>\s[a-zA-Z][\.!?\;\:\+\=\…\–]\s</beforebreak>
 <afterbreak>\p{Lu}\p{Ll}</afterbreak>
+</rule>
+<!-- more Italian break rules -->
+<rule break="yes">
+<beforebreak>\n</beforebreak>
+<afterbreak></afterbreak>
 </rule>
 </languagerule>
 <languagerule languagerulename="Tamil">

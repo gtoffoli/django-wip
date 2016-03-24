@@ -43,7 +43,7 @@ from forms import StringSequencerForm, StringTranslationForm, TranslationService
 from spiders import WipSiteCrawlerScript, WipCrawlSpider
 
 from settings import PAGE_SIZE, PAGE_STEPS
-from settings import DATA_ROOT, RESOURCES_ROOT, tagger_filename, BLOCK_TAGS, QUOTES, SEPARATORS, STRIPPED, EMPTY_WORDS
+from settings import DATA_ROOT, RESOURCES_ROOT, tagger_filename, BLOCK_TAGS, QUOTES, SEPARATORS, STRIPPED, EMPTY_WORDS, PAGES_EXCLUDE_BY_CONTENT
 from utils import strings_from_html, elements_from_element, block_checksum, ask_mymemory
 import srx_segmenter
 
@@ -152,8 +152,17 @@ def site(request, site_slug):
                     page_versions = PageVersion.objects.filter(webpage=webpage).order_by('-time')
                     if not page_versions:
                         continue
-                    segments = page_versions[0].get_segments()
+                    page_version = page_versions[0]
+                    skip_page = False
+                    for content in PAGES_EXCLUDE_BY_CONTENT.get(site.slug, []):
+                        if page_version.body.count(content):
+                            skip_page = True
+                            break
+                    if skip_page:
+                        continue
+                    segments = page_version.get_segments()
                     for s in segments:
+                        s = s.replace('\xc2\xa0', ' ')
                         if not s: continue
                         s = s.strip(SEPARATORS[language_code])
                         if not s: continue
@@ -484,11 +493,7 @@ def site_blocks(request, site_slug):
     site = get_object_or_404(Site, slug=site_slug)
     var_dict['site'] = site
     var_dict['proxies'] = proxies = Proxy.objects.filter(site=site).order_by('language__code')   
-    """
-    var_dict['blocks'] = blocks = Block.objects.filter(site=site)
-    var_dict['block_count'] = blocks.count()
-    """
-    qs = Block.objects.filter(site=site)
+    qs = Block.objects.filter(site=site).order_by('xpath')
     var_dict['block_count'] = block_count = qs.count()
     paginator = Paginator(qs, PAGE_SIZE)
     page = request.GET.get('page', 1)
@@ -844,7 +849,8 @@ def propagate_block_translation(request, block, translated_block):
             similar_block_translation.block = similar_block
         similar_block_translation.save()
 
-srx_filepath = os.path.join(RESOURCES_ROOT, 'segment.srx')
+# srx_filepath = os.path.join(RESOURCES_ROOT, 'segment.srx')
+srx_filepath = os.path.join(RESOURCES_ROOT, 'it', 'segment.srx')
 srx_rules = srx_segmenter.parse(srx_filepath)
 italian_rules = srx_rules['Italian']
 segmenter = srx_segmenter.SrxSegmenter(italian_rules)

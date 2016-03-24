@@ -34,12 +34,8 @@ class NltkChunker(object):
         if self.grammar:
             grammar = self.grammar
         else:
-            """
-            this_dir, this_filename = os.path.split(__file__)
-            grammar_path = os.path.join(this_dir, 'data', '%s_chunk_grammar.txt' % self.language)
-            """
-            grammar_path = os.path.join(RESOURCES_ROOT, '%s_chunk_grammar.txt' % self.language)
-            # f = codecs.open(grammar_path, 'r', 'unicode_escape')
+            # grammar_path = os.path.join(RESOURCES_ROOT, '%s_chunk_grammar.txt' % self.language)
+            grammar_path = os.path.join(RESOURCES_ROOT, self.language, 'chunk_grammar.txt')
             f = open(grammar_path, 'r',)
             grammar = f.read()
             f.close()

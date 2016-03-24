@@ -21,6 +21,7 @@ django.setup()
 
 from django.utils import timezone
 from models import Site, Webpage, PageVersion
+from settings import PAGES_EXCLUDE_BY_CONTENT
 
 class WipCrawlPipeline(object):
 
@@ -30,6 +31,9 @@ class WipCrawlPipeline(object):
 
     def process_item(self, item, spider):
         site = Site.objects.get(pk=item['site_id'])
+        for content in PAGES_EXCLUDE_BY_CONTENT.get(site.slug, []):
+            if item['body'].count(content):
+                return item
         path = urlparse.urlparse(item['url']).path
         pages = Webpage.objects.filter(site=site, path=path)
         if pages:

@@ -8,7 +8,7 @@ sys.stderr = codecs.getwriter('utf8')(sys.stderr)
 import os
 from datetime import datetime
 from collections import defaultdict
-from settings import DATA_ROOT
+from settings import DATA_ROOT, RESOURCES_ROOT
 from models import Site, Block, String, Txu, TxuSubject
 from vocabularies import Language, Subject
 
@@ -171,3 +171,12 @@ def export_segments():
     for s in strings:
       file.write(s.text + '\n')
     file.close()
+
+import srx_segmenter
+srx_filepath = os.path.join(RESOURCES_ROOT, 'it', 'segment.srx')
+srx_rules = srx_segmenter.parse(srx_filepath)
+italian_rules = srx_rules['Italian']
+segmenter = srx_segmenter.SrxSegmenter(italian_rules)
+
+def segment(s):
+    return segmenter.extract(s)
