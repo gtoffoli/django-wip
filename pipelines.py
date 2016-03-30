@@ -9,7 +9,9 @@ try:
     from cStringIO import StringIO as BytesIO
 except ImportError:
     from io import BytesIO
+import time
 import urlparse
+import urllib2, json
 # from scrapy.exceptions import DropItem
 from scrapy.utils.misc import md5sum
 
@@ -57,4 +59,55 @@ class WipCrawlPipeline(object):
         return item
         # raise DropItem()
 
-        
+class L2MemberPipeline(object):
+
+    @classmethod
+    def from_crawler(cls, crawler):
+        return cls()
+
+    def process_item(self, item, spider):
+        phones = []
+        emails = []
+        if item['phone']:
+            phones.append(item['phone'])
+        if item['email']:
+            emails.append(item['email'])
+        if item['referent']:
+            if item['referent_phone']:
+                phones.append('%s (%s)' % (item['referent_phone'], item['referent']))
+            if item['referent_email']:
+                emails.append('%s (%s)' % (item['referent_email'], item['referent']))
+        webs = []
+        if item['web']:
+            webs.append(item['web'])
+        if item['facebook']:
+            webs.append('%s pagina Facebook' % item['facebook'])
+        if item['twitter']:
+            webs.append('%s pagina Twitter' % item['twitter'])
+        if item['youtube']:
+            webs.append(item['youtube'])
+        poi_dict = {
+          "fw_core": {
+            "source": {'name': 'FairVillage crawler', 'id': time.time()},
+            "category": "0635045140",
+            "name": item['name'],
+            "description": {"_def": "it", "it": item['description']},
+          },
+          "fw_contact": {
+            "phone": '|'.join(phones),
+            "mailto": '|'.join(emails),
+            "postal": item['address'] and [item['address']] or []
+          },
+          "fw_fairvillage": {
+           "web": '|'.join(webs),
+          }
+        }
+        data = json.dumps(poi_dict)
+        url = "http://www.romapaese.it/add_poi/"
+        urllib2.urlopen(url, data) # use the optional arg data to specify the POST method 
+        return item
+   
+class L2SchoolPipeline(object):
+
+    def process_item(self, item, spider):
+        return item
