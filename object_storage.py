@@ -10,7 +10,7 @@ import logging
 
 from settings import HOST_AUTH, FILAB_USERNAME, FILAB_PASSWORD
 
-TEST_CONTAINER_NAME = 'AlfaBeta'
+TEST_CONTAINER_NAME = 'TestContainerPython'
 TEST_OBJECT_NAME = 'TestObjectPython.txt'
 TEST_TEXT = 'Hello SWIFT World'
 
@@ -148,15 +148,28 @@ def os_test():
     logger.info('Security token is: ' + token)
 
     # extract authentication string required for addressing users resources
+    n = 0
     for i in auth_response['access']['serviceCatalog']:
         if i['name'] == 'swift':
+            n += 1
             # may take here any of the available entries that works
-            auth_url = i['endpoints'][1]['publicURL']
+            # auth_url = i['endpoints'][1]['publicURL']
+            endpoints = i['endpoints']
+            for endpoint in endpoints:
+                auth_url = endpoint['publicURL']
+                try:
+                    response = create_container(token, auth_url, TEST_CONTAINER_NAME)
+                    logger.info('Create Container Response: ' + response)
+                    break
+                except:
+                    continue
             break
-    logger.info('auth_url is: ' + auth_url)
+    logger.info('auth_url is: ' + auth_url + ' (%d)' % n)
 
+    """
     response = create_container(token, auth_url, TEST_CONTAINER_NAME)
     logger.info('Create Container Response: ' + response)
+    """
 
     response = list_container(token, auth_url, TEST_CONTAINER_NAME)
     logger.info('List Container Response: ' + response)
