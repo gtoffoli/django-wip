@@ -70,3 +70,4 @@ develop-eggs/
 .pydevproject
 .settings
 
+private.py

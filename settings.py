@@ -11,8 +11,9 @@ https://docs.djangoproject.com/en/1.9/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/1.9/ref/settings/
 """
+from private import *
 
-import os, sys
+import os
 
 # set the default Django settings module for the 'celery' program.
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'wip.settings')
@@ -21,26 +22,9 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'wip.settings')
 PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
 BASE_DIR = os.path.dirname(PROJECT_DIR)
 
-# Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/1.9/howto/deployment/checklist/
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = '8ex1mkis_48z89$=+08t^sd3h5zt&$@k+m*_5rn30!pqe6pbp)'
-
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
-
-ALLOWED_HOSTS = []
-
-if sys.platform.count('linux'):
-    DEBUG = False
-    ALLOWED_HOSTS = ["localhost", ".fairvillage.eu", ".fairvillage.it"]
-else:
-    DEBUG = True
-    # TEMPLATE_STRING_IF_INVALID = '%s'
 
 # Application definition
-
 INSTALLED_APPS = [
     'haystack',
     'django.contrib.admin',
@@ -79,7 +63,6 @@ ROOT_URLCONF = 'wip.urls'
 
 TEMPLATES = [
     {
-        #'TEMPLATE_STRING_IF_INVALID': '%s',
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
         'DIRS': [os.path.join(BASE_DIR, "wip", "templates")],
         'OPTIONS': {
@@ -101,24 +84,6 @@ if DEBUG:
     TEMPLATES[0]['OPTIONS']['string_if_invalid'] = '%s'
 
 WSGI_APPLICATION = 'wip.wsgi.application'
-
-# Database
-# https://docs.djangoproject.com/en/1.9/ref/settings/#databases
-
-DATABASES = {
-#   'default': {
-#        'ENGINE': 'django.db.backends.sqlite3',
-#        'NAME': os.path.join(BASE_DIR, 'db.sqlite3'),
-#    }
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql_psycopg2',
-        'NAME': 'wip',
-        'USER': 'admin',
-        'PASSWORD': 'giotto',
-        'HOST': 'localhost',
-        'PORT': '',
-    }
-}
 
 # Password validation
 # https://docs.djangoproject.com/en/1.9/ref/settings/#auth-password-validators
