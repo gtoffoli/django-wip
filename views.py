@@ -138,8 +138,19 @@ def site(request, site_slug):
                 clear_blocks = data['clear_blocks']
                 if clear_blocks:
                     Block.objects.filter(site=site).delete()
-                webpages = Webpage.objects.filter(site=site)
+                webpages = Webpage.objects.filter(site=site).exclude(no_translate=True)
+                translate_deny_list = site.translate_deny and site.translate_deny.split('\n') or []
                 for webpage in webpages:
+                    if webpage.last_unfound and (webpage.last_unfound > webpage.last_checked):
+                        continue
+                    should_skip = False
+                    path = webpage.path
+                    for deny_path in translate_deny_list:
+                        if path.startswith(deny_path):
+                            should_skip = True
+                            break
+                    if should_skip:
+                        continue
                     try:
                         n_1, n_2, n_3 = webpage.extract_blocks()
                     except:
@@ -148,7 +159,18 @@ def site(request, site_slug):
                 language = site.language
                 language_code = language.code
                 webpages = Webpage.objects.filter(site=site)
+                extract_deny_list = site.extract_deny and site.extract_deny.split('\n') or []
                 for webpage in webpages:
+                    if webpage.last_unfound and (webpage.last_unfound > webpage.last_checked):
+                        continue
+                    should_skip = False
+                    path = webpage.path
+                    for deny_path in extract_deny_list:
+                        if path.startswith(deny_path):
+                            should_skip = True
+                            break
+                    if should_skip:
+                        continue
                     page_versions = PageVersion.objects.filter(webpage=webpage).order_by('-time')
                     if not page_versions:
                         continue

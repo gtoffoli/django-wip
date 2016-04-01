@@ -9,6 +9,7 @@ import sys
 import logging
 
 from settings import HOST_AUTH, FILAB_USERNAME, FILAB_PASSWORD
+BudapestPublicUrl = u"http://148.6.80.5:8080/v1/AUTH_00000000000000000000000000008813"
 
 TEST_CONTAINER_NAME = 'TestContainerPython'
 TEST_OBJECT_NAME = 'TestObjectPython.txt'
@@ -83,10 +84,6 @@ def swift_request(verb, url, headers, body):
     logger.info('host is: ' + host)
     logger.info('resource is: ' + resource)
     conn = httplib.HTTPConnection(host)
-    print 'verb: ', verb
-    print 'resource: ', resource
-    print 'body: ', body
-    print 'headers: ', headers
     conn.request(verb, resource, body, headers)
     response = conn.getresponse()
 
@@ -136,7 +133,7 @@ def delete_container(token, auth, container_name):
     return swift_request('DELETE', url, headers, body)
 
 # perform some basic Object Store operations
-def os_test():
+def os_test(delete=False):
     # display basic info
     logger.info('Authorisation host is: ' + HOST_AUTH)
 
@@ -147,6 +144,7 @@ def os_test():
     token = auth_response['access']['token']['id']
     logger.info('Security token is: ' + token)
 
+    """
     # extract authentication string required for addressing users resources
     n = 0
     for i in auth_response['access']['serviceCatalog']:
@@ -164,12 +162,22 @@ def os_test():
                 except:
                     continue
             break
-    logger.info('auth_url is: ' + auth_url + ' (%d)' % n)
-
     """
+    auth_url = BudapestPublicUrl
+    logger.info('auth_url is: ' + auth_url)
+
+    if delete:
+        response = delete_object(token, auth_url, TEST_CONTAINER_NAME, TEST_OBJECT_NAME)
+        logger.info('Delete Object Response: ' + response)
+    
+        response = list_container(token, auth_url, TEST_CONTAINER_NAME)
+        logger.info('List Container Response: ' + response)
+    
+        response = delete_container(token, auth_url, TEST_CONTAINER_NAME)
+        logger.info('Delete Container Response: ' + response)
+
     response = create_container(token, auth_url, TEST_CONTAINER_NAME)
     logger.info('Create Container Response: ' + response)
-    """
 
     response = list_container(token, auth_url, TEST_CONTAINER_NAME)
     logger.info('List Container Response: ' + response)
@@ -182,15 +190,4 @@ def os_test():
 
     response = retrieve_text(token, auth_url, TEST_CONTAINER_NAME, TEST_OBJECT_NAME)
     logger.info('Retrieve Text Response: ' + response)
-
-    """
-    response = delete_object(token, auth_url, TEST_CONTAINER_NAME, TEST_OBJECT_NAME)
-    logger.info('Delete Object Response: ' + response)
-
-    response = list_container(token, auth_url, TEST_CONTAINER_NAME)
-    logger.info('List Container Response: ' + response)
-
-    response = delete_container(token, auth_url, TEST_CONTAINER_NAME)
-    logger.info('Delete Container Response: ' + response)
-    """
 

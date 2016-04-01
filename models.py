@@ -29,7 +29,7 @@ from vocabularies import Language, Subject, ApprovalStatus
 from wip.wip_sd.sd_algorithm import SDAlgorithm
 
 from settings import RESOURCES_ROOT, BLOCK_TAGS, BLOCKS_EXCLUDE_BY_XPATH
-from utils import strings_from_html, elements_from_element, block_checksum
+from utils import text_from_html, strings_from_html, elements_from_element, block_checksum
 import srx_segmenter
 
 
@@ -83,7 +83,9 @@ class Site(models.Model):
     url = models.CharField(max_length=100)
     allowed_domains = models.TextField()
     start_urls = models.TextField()
-    deny = models.TextField(blank=True, null=True)
+    deny = models.TextField(verbose_name='Deny spyder', blank=True, null=True, help_text="Paths the spider should not follow")
+    extract_deny = models.TextField(verbose_name='Deny extractor', blank=True, null=True, help_text="Paths of pages the string extractor should skip" )
+    translate_deny = models.TextField(verbose_name='Deny translation', blank=True, null=True, help_text="Paths of pages not to be submitted to offline translation" )
 
     def __unicode__(self):
         return self.name
@@ -139,16 +141,19 @@ class Site(models.Model):
 
     def blocks_summary(self):
         site_code = self.language_id
-        blocks = Block.objects.filter(block_in_page__webpage__site=self).order_by('xpath', 'checksum', '-time')
+        # blocks = Block.objects.filter(block_in_page__webpage__site=self).order_by('xpath', 'checksum', '-time')
+        blocks = Block.objects.filter(block_in_page__webpage__site=self).order_by('checksum', '-time')
         last_ids = []
-        xpath = ''
+        # xpath = ''
         checksum = '' 
         for block in blocks:
-            if not (block.xpath==xpath and block.checksum==checksum):
-                xpath = block.xpath
+            # if not (block.xpath==xpath and block.checksum==checksum):
+            if not (block.checksum==checksum):
+                # xpath = block.xpath
                 checksum = block.checksum
                 last_ids.append(block.id)
-        blocks = Block.objects.prefetch_related('source_block').filter(id__in=last_ids).order_by('xpath')
+        # blocks = Block.objects.prefetch_related('source_block').filter(id__in=last_ids).order_by('xpath')
+        blocks = Block.objects.prefetch_related('source_block').filter(id__in=last_ids).order_by('-time')
         proxy_codes = [proxy.language_id for proxy in Proxy.objects.filter(site=self)]
         proxy_list = [[code, {'already': 0, 'partially': 0, 'translated': 0, 'revised': 0}] for code in proxy_codes]
         proxy_dict = dict(proxy_list)
@@ -189,6 +194,7 @@ class Proxy(models.Model):
     host = models.CharField(max_length=100)
     base_path = models.CharField(max_length=100)
     enable_live_translation = models.BooleanField(default=False)
+    translate_deny = models.TextField(verbose_name='Deny translation', blank=True, null=True, help_text="Paths of pages not to processed online by the proxy" )
 
     class Meta:
         verbose_name = _('proxy site')
@@ -197,13 +203,15 @@ class Proxy(models.Model):
 class Webpage(models.Model):
     site = models.ForeignKey(Site)
     path = models.CharField(max_length=200)
-    no_translate = models.BooleanField(default=False)
+    language = models.ForeignKey(Language, null=True, blank=True, help_text="Possibly overrides the site language")
+    no_translate = models.BooleanField('Do not translate', default=False)
     created = CreationDateTimeField()
     # referer = models.ForeignKey('self', related_name='page_referer', blank=True, null=True)
     encoding = models.CharField(max_length=200, blank=True, null=True)
     last_modified = ModificationDateTimeField()
-    last_checked = models.DateTimeField()
+    last_checked = models.DateTimeField(null=True, help_text="Last time the page fetched with success")
     last_checked_response_code = models.IntegerField('Response code')
+    last_unfound = models.DateTimeField(null=True, help_text="Last time the page wasn't found")
     blocks = models.ManyToManyField('Block', through='BlockInPage', related_name='page', blank=True, verbose_name='blocks')
 
     class Meta:
@@ -276,15 +284,24 @@ class Webpage(models.Model):
     def blocks_summary(self):
         site = self.site
         site_code = site.language_id
-        blocks = Block.objects.filter(block_in_page__webpage=self).order_by('xpath', '-time')
+        # blocks = Block.objects.filter(block_in_page__webpage=self).order_by('xpath', '-time')
+        blocks = Block.objects.filter(block_in_page__webpage=self).order_by('checksum', '-time')
         last_ids = []
+        """
         xpath = ''
         for block in blocks:
             if not block.xpath == xpath:
                 xpath = block.xpath
                 last_ids.append(block.id)
         blocks = Block.objects.prefetch_related('source_block').filter(id__in=last_ids).order_by('xpath')
-        # blocks = Block.objects.filter(id__in=last_ids).order_by('xpath')
+        """
+        checksum = ''
+        for block in blocks:
+            if not block.checksum == checksum:
+                checksum = block.checksum
+                last_ids.append(block.id)
+        # blocks = Block.objects.prefetch_related('source_block').filter(id__in=last_ids).order_by('xpath')
+        blocks = Block.objects.prefetch_related('source_block').filter(id__in=last_ids).order_by('-time')
         proxy_codes = [proxy.language_id for proxy in Proxy.objects.filter(site=self.site)]
         proxy_list = [[code, {'already': 0, 'partially': 0, 'translated': 0, 'revised': 0}] for code in proxy_codes]
         proxy_dict = dict(proxy_list)
@@ -318,7 +335,6 @@ class Webpage(models.Model):
         return blocks, total, invariant, proxy_list
 
     def extract_blocks(self):
-        # page = Webpage.objects.get(pk=page_id)
         site = self.site
         versions = PageVersion.objects.filter(webpage=self).order_by('-time')
         if not versions:
@@ -338,22 +354,26 @@ class Webpage(models.Model):
                     n_1 += 1
                     xpath = tree.getpath(el)
                     checksum = block_checksum(el)
-                    blocks = Block.objects.filter(site=site, xpath=xpath, checksum=checksum).order_by('-time')
+                    # blocks = Block.objects.filter(site=site, xpath=xpath, checksum=checksum).order_by('-time')
+                    blocks = Block.objects.filter(site=site, checksum=checksum).order_by('-time')
                     if blocks:
                         block = blocks[0]
                     else:
                         string = etree.tostring(el)
-                        block = Block(site=site, xpath=xpath, checksum=checksum, body=string)
+                        # block = Block(site=site, xpath=xpath, checksum=checksum, body=string)
+                        block = Block(site=site, checksum=checksum, body=string)
                         try:
                             block.save()
                             n_2 += 1
                         except:
                             print '--- save error in page ---', self.id
                             save_failed = True
-                    blocks_in_page = BlockInPage.objects.filter(block=block, webpage=self)
+                    # blocks_in_page = BlockInPage.objects.filter(block=block, webpage=self)
+                    blocks_in_page = BlockInPage.objects.filter(block=block, xpath=xpath, webpage=self)
                     if not blocks_in_page and not save_failed:
                         n_3 += 1
-                        blocks_in_page = BlockInPage(block=block, webpage=self)
+                        # blocks_in_page = BlockInPage(block=block, webpage=self)
+                        blocks_in_page = BlockInPage(block=block, xpath=xpath, webpage=self)
                         blocks_in_page.save()
         return n_1, n_2, n_3
 
@@ -539,7 +559,7 @@ class String(models.Model):
 
 class Block(models.Model):
     site = models.ForeignKey(Site)
-    xpath = models.CharField(max_length=200, blank=True)
+    xpath = models.CharField(max_length=200, blank=True, default='')
     body = models.TextField(blank=True, null=True)
     language = models.ForeignKey(Language, null=True)
     no_translate = models.BooleanField(default=False)
@@ -552,8 +572,15 @@ class Block(models.Model):
         verbose_name_plural = _('page blocks')
         ordering = ('-time',)
 
+    def get_label(self):
+        label = text_from_html(self.body)
+        if len(label) > 80:
+            label = label[:80] + ' ...'
+        return label
+
     def __unicode__(self):
-        return self.xpath
+        # return self.xpath
+        return self.get_label()
 
     def pages_count(self):
         return self.webpages.all().count()
@@ -570,10 +597,12 @@ class Block(models.Model):
             id = self.id
             qs_before = qs.filter(id__lt=id)
             qs_after = qs.filter(id__gt=id)
+        """
         elif order_by == 'xpath':
             xpath = self.xpath
             qs_before = qs.filter(xpath__lt=xpath)
             qs_after = qs.filter(xpath__gt=xpath)
+        """
         qs_before = qs_before.order_by('-'+order_by)
         qs_after = qs_after.order_by(order_by)
         previous = qs_before.count() and qs_before[0] or None
@@ -606,10 +635,12 @@ class Block(models.Model):
             id = self.id
             qs_before = qs.filter(id__lt=id)
             qs_after = qs.filter(id__gt=id)
+        """
         elif order_by == 'xpath':
             xpath = self.xpath
             qs_before = qs.filter(xpath__lt=xpath)
             qs_after = qs.filter(xpath__gt=xpath)
+        """
         qs_before = qs_before.order_by('-'+order_by)
         qs_after = qs_after.order_by(order_by)
         previous = qs_before.count() and qs_before[0] or None
@@ -678,6 +709,8 @@ class Block(models.Model):
 class BlockInPage(models.Model):
     block = models.ForeignKey(Block, related_name='block_in_page')
     webpage = models.ForeignKey(Webpage, related_name='webpage')
+    xpath = models.CharField(max_length=200, blank=True)
+    time = CreationDateTimeField(null=True)
 
     class Meta:
         verbose_name = _('blok in page')

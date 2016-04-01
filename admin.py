@@ -106,7 +106,8 @@ class BlockAdmin(admin.ModelAdmin):
 
     def block_link(self, obj):
         url = '/admin/wip/block/%d/' % obj.id
-        label = '%s' % (obj.xpath)
+        # label = '%s' % (obj.xpath)
+        label = '%s' % obj.get_label()
         link = '<a href="%s" style="font-size:smaller;">%s</a>' % (url, label)
         return link
     block_link.short_description = 'Block'
@@ -145,12 +146,14 @@ class BlockAdmin(admin.ModelAdmin):
 
 class BlockInPageAdmin(admin.ModelAdmin):
     list_filter = ['block__site',]
-    list_display = ['id', 'page_link', 'block_link',]
+    # list_display = ['id', 'page_link', 'block_link',]
+    list_display = ['id', 'page_link', 'block_link', 'xpath']
 
     def block_link(self, obj):
         block = obj.block
         url = '/admin/wip/block/%d/' % block.id
-        label = '%s' % (block.xpath)
+        # label = '%s' % (block.xpath)
+        label = '%s' % block.get_label()
         link = '<a href="%s">%s</a>' % (url, label)
         return link
     block_link.short_description = 'Block'
@@ -175,13 +178,16 @@ class TranslatedBlockForm(forms.ModelForm):
 
 class TranslatedBlockAdmin(admin.ModelAdmin):
     list_filter = ['block__site__name', 'language',]
-    list_display = ['id', 'site_name', 'block_link', 'language', 'xpath', 'state', 'modified', 'editor',]
+    # list_display = ['id', 'site_name', 'block_link', 'language', 'xpath', 'state', 'modified', 'editor',]
+    list_display = ['id', 'site_name', 'block_link', 'language', 'state', 'modified', 'editor',]
 
     def site_name(self, obj):
         return obj.block.site.name
 
+    """
     def xpath(self, obj):
         return obj.block.xpath
+    """
 
     def block_link(self, obj):
         block = obj.block

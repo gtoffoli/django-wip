@@ -13,9 +13,9 @@ th, td { text-align: left; vertical-align: top; }
 </style>
 {% endblock %}
 
-{% block head_title %}Page block: {{ site.name }}{{ page_block.xpath }}{% endblock %}
+{% block head_title %}Page block: {{ site.name }}{{ page_block.get_label }}{% endblock %}
 
-{% block title-page %}<span style="color: black; font-size: smaller;">Page block:</span> <span style="font-size: small;">{{ page_block.xpath }}</span>{% endblock %}
+{% block title-page %}<span style="color: black; font-size: smaller;">Page block:</span> <span style="font-size: small;">{{ page_block.get_label }}</span>{% endblock %}
 
 {% block content-page %}
     <div><label>Site</label> <a href="/site/{{ site.slug }}/" style="font-size: larger;">{{ site.name }}</a></div>

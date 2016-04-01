@@ -36,6 +36,15 @@ def etree_from_html(string):
     return tree
     """
 
+def text_from_html(string):
+    doc = html.fromstring(string)
+    comments = doc.xpath('//comment()')
+    for c in comments:
+        p = c.getparent()
+        if p is not None:
+            p.remove(c)
+    return doc.text_content()
+
 # http://stackoverflow.com/questions/4624062/get-all-text-inside-a-tag-in-lxml
 """
 def strings_from_block(block):
