@@ -43,6 +43,7 @@ INSTALLED_APPS = [
     'menu',
     'httpproxy',
     'actstream',
+    'django_dag',
     # 'roles',
     # 'kombu.transport.django',
     'wip',

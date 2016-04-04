@@ -112,7 +112,7 @@ def strings_from_block(block, tree=None, exclude_xpaths=[]):
     if tail:
         yield tail
 
-def strings_from_html(string, fragment=False, exclude_xpaths=[]):
+def strings_from_html(string, fragment=False, exclude_xpaths=[], exclude_tx=False):
     doc = html.fromstring(string)
     comments = doc.xpath('//comment()')
     for c in comments:
@@ -127,6 +127,10 @@ def strings_from_html(string, fragment=False, exclude_xpaths=[]):
         body = doc.find('body')
     for tag in settings.TO_DROP_TAGS:
         els = body.findall(tag)
+        for el in els:
+            el.getparent().remove(el)
+    if exclude_tx:
+        els = body.findall('.//span[@tx]')
         for el in els:
             el.getparent().remove(el) 
     for s in strings_from_block(body, tree=tree, exclude_xpaths=exclude_xpaths):

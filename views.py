@@ -7,8 +7,8 @@ For more information on this file, see
 https://docs.djangoproject.com/en/1.9/topics/db/models/
 """
 import sys
-"""
 import codecs
+"""
 sys.stdout = codecs.getwriter('utf8')(sys.stdout)
 sys.stderr = codecs.getwriter('utf8')(sys.stderr)
 """
@@ -123,9 +123,11 @@ def site(request, site_slug):
         site_crawl = post.get('site_crawl', '')
         extract_blocks = post.get('extract_blocks', '')
         extract_segments = post.get('extract_segments', '')
+        import_invariants = post.get('import_invariants', '')
         delete_site = post.get('delete_site', '')
         guess_blocks_language = post.get('guess_blocks_language', '')
-        form = SiteManageForm(post)
+        # form = SiteManageForm(post)
+        form = SiteManageForm(post, request.FILES)
         if form.is_valid():
             data = form.cleaned_data
             if site_crawl:
@@ -138,6 +140,7 @@ def site(request, site_slug):
                 clear_blocks = data['clear_blocks']
                 if clear_blocks:
                     Block.objects.filter(site=site).delete()
+                    # BlockInPage.objects.filter(block__site=site).delete()
                 webpages = Webpage.objects.filter(site=site).exclude(no_translate=True)
                 translate_deny_list = site.translate_deny and site.translate_deny.split('\n') or []
                 for webpage in webpages:
@@ -146,13 +149,14 @@ def site(request, site_slug):
                     should_skip = False
                     path = webpage.path
                     for deny_path in translate_deny_list:
-                        if path.startswith(deny_path):
+                        if path.count(deny_path):
                             should_skip = True
                             break
                     if should_skip:
                         continue
                     try:
                         n_1, n_2, n_3 = webpage.extract_blocks()
+                        webpage.create_blocks_dag()
                     except:
                         print 'extract_blocks: error on page ', webpage.id
             elif extract_segments:
@@ -166,7 +170,7 @@ def site(request, site_slug):
                     should_skip = False
                     path = webpage.path
                     for deny_path in extract_deny_list:
-                        if path.startswith(deny_path):
+                        if path.count(deny_path):
                             should_skip = True
                             break
                     if should_skip:
@@ -225,6 +229,21 @@ def site(request, site_slug):
                 if delete_confirmation:
                     site.delete()
                     return HttpResponseRedirect('/')
+            elif import_invariants:
+                language = site.language
+                clear_invariants = data['clear_invariants']
+                if clear_invariants:
+                    strings = String.objects.filter(invariant=True, site=site)
+                    for string in strings:
+                        string.delete()
+                f = request.FILES.get('file', None)
+                if f:
+                    for line in f:
+                        line = line.strip()
+                        # print line
+                        if line and not String.objects.filter(site=site, text=line, invariant=True):
+                            string = String(txu=None, language=language, site=site, text=line, reliability=0, invariant=True)
+                            string.save()
             elif guess_blocks_language:
                 from wip.utils import guess_block_language
                 blocks = Block.objects.filter(site=site, language__isnull=True)
@@ -718,7 +737,7 @@ def block_translate(request, block_id, target_code):
                 block.no_translate = no_translate
                 block.save()
         elif create:
-            translation = TranslatedBlock(block=block, language=Language.objects.get(code=create), editor=request.user)
+            translation = TranslatedBlock(block=block, language=Language.objects.get(code=create), state=TRANSLATED, editor=request.user)
             translation.body = post.get('translation-%s' % create)
             translation.save()
         elif modify:
@@ -780,7 +799,10 @@ def block_translate(request, block_id, target_code):
             continue
         is_model_instance, segment_string = get_or_add_string(segment, source_language, add=extract or extract_strings)
         if is_model_instance:
+            """ NON CANCELLARE
             like_strings = find_like_strings(segment_string, max_strings=5)
+            """
+            like_strings = []
             source_strings.append(like_strings)
             translations = segment_string.get_translations(proxy_languages)
             source_translations.append(translations)

@@ -37,7 +37,7 @@
 	{% endif %}
 
 	{% if user.is_superuser %}
-   	<form action="/site/{{ site.slug }}/" method="post">{% csrf_token %}
+   	<form action="/site/{{ site.slug }}/" method="post" enctype="multipart/form-data">{% csrf_token %}
 	{% if missing_languages %}
 	<div>{% for l in missing_languages %}<input type="submit" name="addproxy-{{ l.code }}" value="Add {{ l.name }} proxy" class="btn btn-sm" />{% endfor %}</div>
 	{% endif %}
@@ -53,6 +53,7 @@
   	<div><input type="submit" name="extract_segments" value="Extract segments" title="Extract segments" class="btn btn-sm" /></div>
 	{% endif %}
   	<div>{{ manage_form.clear_invariants }} Clear invariant strings
+  		 {{ manage_form.file }} Choose a file to upload
   		<input type="submit" name="import_invariants" value="Import invariants" title="Import invariants" class="btn btn-sm" /></div>
   	<div><input type="submit" name="export_untranslated" value="Export untranslated strings" title="Export untranslated strings" class="btn btn-sm" /></div>
 	{% if proxies %}

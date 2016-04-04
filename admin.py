@@ -10,7 +10,9 @@ from django import forms
 from django.contrib import admin
 from tinymce.widgets import TinyMCE
 
-from models import Site, Proxy, Webpage, PageVersion, String, Txu, TxuSubject, TranslatedVersion, Block, BlockInPage, TranslatedBlock
+from models import Site, Proxy, Webpage, PageVersion, TranslatedVersion
+from models import String, Txu, TxuSubject
+from models import Block, BlockEdge, BlockInPage, TranslatedBlock
 
 class SiteAdmin(admin.ModelAdmin):
     list_display = ['name', 'language', 'slug', 'path_prefix', 'url', 'allowed_domains', 'start_urls', 'deny',]
@@ -144,10 +146,31 @@ class BlockAdmin(admin.ModelAdmin):
         return ' '.join(links)
     translations_list.short_description = 'Trans.'
 
+class BlockEdgeAdmin(admin.ModelAdmin):
+    list_display = ['id', 'parent_link', 'child_link']
+    
+    def parent_link(self, obj):
+        parent = obj.parent
+        url = '/admin/wip/block/%d/' % parent.id
+        label = parent
+        link = '<a href="%s">%s</a>' % (url, label)
+        return link
+    parent_link.short_description = 'Parent'
+    parent_link.allow_tags = True
+    def child_link(self, obj):
+        child = obj.child
+        url = '/admin/wip/block/%d/' % child.id
+        label = child
+        link = '<a href="%s">%s</a>' % (url, label)
+        return link
+    child_link.short_description = 'Child'
+    child_link.allow_tags = True
+
 class BlockInPageAdmin(admin.ModelAdmin):
     list_filter = ['block__site',]
     # list_display = ['id', 'page_link', 'block_link',]
     list_display = ['id', 'page_link', 'block_link', 'xpath']
+    search_fields = ['xpath',]
 
     def block_link(self, obj):
         block = obj.block
@@ -207,6 +230,7 @@ admin.site.register(Txu, TxuAdmin)
 admin.site.register(TxuSubject, TxuSubjectAdmin)
 admin.site.register(TranslatedVersion, TranslatedVersionAdmin)
 admin.site.register(Block, BlockAdmin)
+admin.site.register(BlockEdge, BlockEdgeAdmin)
 admin.site.register(BlockInPage, BlockInPageAdmin)
 admin.site.register(TranslatedBlock, TranslatedBlockAdmin)
 

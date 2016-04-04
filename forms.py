@@ -12,6 +12,8 @@ class SiteManageForm(forms.Form):
     clear_pages = forms.BooleanField(required=False, label='Clear pages')
     clear_blocks = forms.BooleanField(required=False, label='Clear blocks')
     clear_invariants = forms.BooleanField(required=False, label='Clear invariant strings')
+    # file = forms.FileField(required=False, label='Select a file to upload', widget=forms.FileInput(attrs={'class': 'btn btn-sm'}))
+    file = forms.FileField(required=False, label='Select a file to upload')
     delete_confirmation = forms.BooleanField(required=False, label='Delete confirmation')
 
 class ProxyManageForm(forms.Form):

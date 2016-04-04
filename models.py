@@ -24,6 +24,7 @@ from django.contrib.contenttypes.models import ContentType
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.utils.translation import ugettext_lazy as _
 from django_extensions.db.fields import CreationDateTimeField, ModificationDateTimeField, AutoSlugField
+from django_dag.models import node_factory, edge_factory
 
 from vocabularies import Language, Subject, ApprovalStatus
 from wip.wip_sd.sd_algorithm import SDAlgorithm
@@ -55,14 +56,17 @@ def text_to_list(text):
 def code_to_language(code):
     return Language.objects.get(pk=code)
 
-TO_BE_TRANSLATED = 1
+TO_BE_TRANSLATED = -1
+PARTIALLY = 1
 TRANSLATED = 2
-INVARIANT = 3
-ALREADY = 4
+REVISED = 3
+INVARIANT = 4
+ALREADY = 5
 TRANSLATION_STATE_CHOICES = (
     (0, _('any'),),
     (TO_BE_TRANSLATED, _('to be translated'),),
     (TRANSLATED,  _('translated'),),
+    (REVISED,  _('revised'),),
     (INVARIANT,  _('invariant'),),
     (ALREADY,  _('already in target language'),),
 )
@@ -242,6 +246,10 @@ class Webpage(models.Model):
         content = None
         has_translation = False
         language = get_object_or_404(Language, code=language_code)
+        translated_versions = TranslatedVersion.objects.filter(webpage=self, language=language).order_by('-modified')
+        translated_version = translated_versions and translated_versions[0] or None
+        if translated_version:
+            return translated_version.body, True        
         versions = PageVersion.objects.filter(webpage=self).order_by('-time')
         last_version = versions and versions[0] or None
         site = self.site
@@ -346,6 +354,7 @@ class Webpage(models.Model):
         doc = html.document_fromstring(html_string)
         tree = doc.getroottree()
         top_els = doc.getchildren()
+        el_block_dict = {}
         n_1 = n_2 = n_3 = 0
         for top_el in top_els:
             for el in elements_from_element(top_el):
@@ -360,8 +369,7 @@ class Webpage(models.Model):
                         block = blocks[0]
                     else:
                         string = etree.tostring(el)
-                        # block = Block(site=site, xpath=xpath, checksum=checksum, body=string)
-                        block = Block(site=site, checksum=checksum, body=string)
+                        block = Block(site=site, xpath=xpath, checksum=checksum, body=string)
                         try:
                             block.save()
                             n_2 += 1
@@ -376,6 +384,25 @@ class Webpage(models.Model):
                         blocks_in_page = BlockInPage(block=block, xpath=xpath, webpage=self)
                         blocks_in_page.save()
         return n_1, n_2, n_3
+
+    def create_blocks_dag(self):
+        blocks_in_page = list(BlockInPage.objects.filter(webpage=self).order_by('xpath'))
+        blocks = [None]
+        xpaths = ['no-xpath']
+        i = 0
+        for bip in blocks_in_page:
+            block = bip.block
+            xpath = bip.xpath
+            i += 1
+            for j in range(i):
+                if xpath.startswith(xpaths[j]):
+                    parent = blocks[j]
+                    if not BlockEdge.objects.filter(parent=parent, child=block):
+                        block_edge = BlockEdge(parent=parent, child=block)
+                        block_edge.save()
+                    break
+            blocks = [block]+blocks
+            xpaths = [xpath]+xpaths
 
 def get_strings(text, language, site=None):
     if site:
@@ -557,7 +584,8 @@ class String(models.Model):
         next = qs_after.count() and qs_after[0] or None
         return previous, next
 
-class Block(models.Model):
+# class Block(models.Model):
+class Block(node_factory('BlockEdge')):
     site = models.ForeignKey(Site)
     xpath = models.CharField(max_length=200, blank=True, default='')
     body = models.TextField(blank=True, null=True)
@@ -565,6 +593,7 @@ class Block(models.Model):
     no_translate = models.BooleanField(default=False)
     checksum = models.CharField(max_length=32)
     time = CreationDateTimeField()
+    state = models.IntegerField(default=0)
     webpages = models.ManyToManyField(Webpage, through='BlockInPage', related_name='block', blank=True, verbose_name='pages')
 
     class Meta:
@@ -587,6 +616,27 @@ class Block(models.Model):
 
     def get_language(self):
         return self.language or self.site.language or Language.objects.get(code='it')
+
+    """ substituted by integrating django_dag
+    def get_children(self, webpage=None):
+        if webpage:
+            blocks_in_pages = BlockInPage.objects.get(block=self, webpage=webpage).order_by('-time')
+            if blocks_in_pages.count():
+                block_in_page = blocks_in_pages[0]
+            else:
+                return []
+        else:
+            blocks_in_pages = BlockInPage.objects.filter(block=self).order_by('-time')
+            if blocks_in_pages.count():
+                block_in_page = blocks_in_pages[0]
+                webpage = block_in_page.webpage
+            else:
+                return []
+        xpath = block_in_page.xpath
+        step_count = xpath.count('/')
+        blocks_in_pages = BlockInPage.objects.filter(webpage=webpage, xpath__startswith=xpath)
+        return [bip.block for bip in blocks_in_pages if bip.xpath.count('/')==(step_count+1)]
+    """
 
     def get_previous_next(self, include_language=None, exclude_language=None, order_by='id', skip_no_translate=None):
         site = self.site
@@ -647,9 +697,12 @@ class Block(models.Model):
         next = qs_after.count() and qs_after[0] or None
         return previous, next
 
-    def get_last_translations(self):
-        proxies = Proxy.objects.filter(site=self.site).order_by('language__code')   
-        languages = [proxy.language for proxy in proxies]
+    def get_last_translations(self, language=None):
+        if language:
+            languages = [language]
+        else:
+            proxies = Proxy.objects.filter(site=self.site).order_by('language__code')   
+            languages = [proxy.language for proxy in proxies]
         language_translations = []
         has_translations = False
         for language in languages:
@@ -660,6 +713,9 @@ class Block(models.Model):
         return has_translations and language_translations or []
 
     def get_translation_states(self):
+        """
+        developed early for listing the blocks included in a page
+        """
         proxy_languages = [proxy.language for proxy in self.site.get_proxies()]
         invariant = self.no_translate
         states = []
@@ -674,14 +730,42 @@ class Block(models.Model):
                     state = 'U'
                 else:
                     translation = translations[0]
-                    if translation.state == 2:
-                        state = 'V'
-                    elif translation.state == 1:
+                    if translation.state == REVISED:
+                        state = 'R'
+                    elif translation.state == TRANSLATED:
                         state = 'T'
                     else:
                         state = 'P'
             states.append(state)
         return states
+
+    # def compute_translation_states(self, language, webpage=None):
+    def compute_translation_states(self, language,):
+        """
+        1st result: own translation state
+        2nd result: min translation state of children, if any, recursively computed
+        """
+        language_translations = self.get_last_translations(language=language)
+        if language_translations:
+            translations = language_translations.get(language.code, [])
+            if translations:
+                return translations[0].state, 0
+        # children = self.get_children(webpage=webpage)
+        children = self.children.all()
+        if children:
+            children_state = 0
+            for b in children:
+                # b_state, b_children_state = b.compute_translation_state(language, webpage=webpage)
+                b_state, b_children_state = b.compute_translation_state(language)
+                if b_state:
+                    children_state = min(children_state, b_state)
+                else:
+                    children_state = min(children_state, b_children_state)
+                if not children_state:
+                    break
+            return 0, children_state
+        else:
+            return 0, INVARIANT # INVARIANT here means don't care        
 
     def get_segments(self):
         srx_filepath = os.path.join(RESOURCES_ROOT, 'segment.srx')
@@ -706,6 +790,14 @@ class Block(models.Model):
                 strings.extend(segmenter.extract(match)[0])
         return strings
 
+    def real_translation_state(self, language):
+        language_translations = self.get_last_translations(language=language)
+        if language_translations:
+            translations = language_translations.get(language.code, [])
+            if not translations:
+                return 0
+        translated_block = translations[0]
+
 class BlockInPage(models.Model):
     block = models.ForeignKey(Block, related_name='block_in_page')
     webpage = models.ForeignKey(Webpage, related_name='webpage')
@@ -713,8 +805,8 @@ class BlockInPage(models.Model):
     time = CreationDateTimeField(null=True)
 
     class Meta:
-        verbose_name = _('blok in page')
-        verbose_name_plural = _('bloks in page')
+        verbose_name = _('block in page')
+        verbose_name_plural = _('blocks in page')
  
 class TranslatedBlock(models.Model):
     language = models.ForeignKey(Language)
@@ -722,34 +814,65 @@ class TranslatedBlock(models.Model):
     body = models.TextField(blank=True, null=True)
     created = CreationDateTimeField()
     modified = ModificationDateTimeField()
-    editor = models.ForeignKey(User, null=True, related_name='editor')
+    editor = models.ForeignKey(User, null=True, blank=True, related_name='editor')
     state = models.IntegerField(default=0)
-    revisor = models.ForeignKey(User, null=True, related_name='revisor')
+    revisor = models.ForeignKey(User, null=True, blank=True, related_name='revisor')
     comments = models.TextField(blank=True, null=True)
 
     class Meta:
         verbose_name = _('translated block')
         verbose_name_plural = _('translated blocks')
 
+TranslatedBlock.get_segments = Block.get_segments
+
+class BlockEdge(edge_factory('Block', concrete = False)):
+    created = CreationDateTimeField(_('created'))
+
+    class Meta:
+        verbose_name = _('block edge')
+        verbose_name_plural = _('block edges')
+
 # inspired by the algorithm of utils.elements_from_element
-def translated_element(element, site, page, language, xpath='/html'):
+def translated_element(element, site, webpage, language, xpath='/html'):
     has_translation = False
-    blocks = Block.objects.filter(site=site, xpath=xpath, webpages=page).order_by('-time')
+    """
+    blocks = Block.objects.filter(site=site, xpath=xpath, webpages=webpage).order_by('-time')
     if blocks:
-        translated_blocks = TranslatedBlock.objects.filter(block=blocks[0], language=language).order_by('-modified')
+        block = blocks[0]
+        translated_blocks = TranslatedBlock.objects.filter(block=block, language=language).order_by('-modified')
+    """
+    blocks_in_page = BlockInPage.objects.filter(xpath=xpath, webpage=webpage).order_by('-time')
+    print xpath
+    if blocks_in_page:
+        block = blocks_in_page[0].block
+        print 'page, block: ', webpage.id, block.id
+        if block.no_translate:
+            return element, True
+        # translated_blocks = TranslatedBlock.objects.filter(block=block, language=language).order_by('-modified')
+        translated_blocks = TranslatedBlock.objects.filter(block=block, language=language, state__gt=0).order_by('-modified')
+        print 'translated_blocks : ', translated_blocks
         if translated_blocks:
             element = html.fromstring(translated_blocks[0].body)
+            """
             has_translation = True
         else:
-            element = html.fromstring(blocks[0].body)
+            element = html.fromstring(block.body)
+            """
+            # retuen the complete translation of the block
+            return element, True
     child_tags_dict_1 = {}
     child_tags_dict_2 = {}
+    """
     text = element.text
     text = text and text.strip() and True
+    """
+    # build a dict with the number of occurrences of each type of block tag
     for child in element.getchildren():
         tag = child.tag
         if tag in BLOCK_TAGS:
             child_tags_dict_1[tag] = child_tags_dict_1.setdefault(tag, 0)+1
+    # for each child element with a block tag, compute the incremental xpath (branch)
+    # and replace it with its translation
     for child in element.getchildren():
         tag = child.tag
         if tag in BLOCK_TAGS:
@@ -757,8 +880,9 @@ def translated_element(element, site, page, language, xpath='/html'):
             branch = tag
             if child_tags_dict_1[tag] > 1:
                 branch += '[%d]' % n
-            translated_child, child_has_translation = translated_element(child, site, page, language, xpath='%s/%s' % (xpath, branch))
+            translated_child, child_has_translation = translated_element(child, site, webpage, language, xpath='%s/%s' % (xpath, branch))
             if child_has_translation:
                 element.replace(child, translated_child)
                 has_translation = True
+    # return the original element with translated sub-elements replaced in it
     return element, has_translation

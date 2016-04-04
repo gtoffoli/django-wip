@@ -25,17 +25,18 @@ class StringIndex(indexes.SearchIndex, indexes.Indexable):
 
 def string_post_save_handler(sender, **kwargs):
     string = kwargs['instance']
-    StringIndex().update_object(string)
     txu = string.txu
+    if string.invariant:
+        return
+    StringIndex().update_object(string)
     if txu:
         txu.update_languages()
 
 def string_post_delete_handler(sender, **kwargs):
     string = kwargs['instance']
-    try:
-        txu = string.txu
-    except:
-        txu = None
+    txu = string.txu
+    if string.invariant:
+        return
     StringIndex().remove_object(string)
     if txu:
         txu.update_languages()

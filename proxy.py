@@ -22,9 +22,7 @@ class WipHttpProxy(HttpProxy):
             return response
 
         response = super(HttpProxy, self).dispatch(request, *args, **kwargs)
-        """
-        content_type = response.headers['Content-Type']
-        """
+        # content_type = response.headers['Content-Type']
         trailer = response.content[:100]
         if trailer.count('<') and trailer.lower().count('html'):
             print 'base_url: ', self.base_url
@@ -45,15 +43,16 @@ class WipHttpProxy(HttpProxy):
 
     def translate(self, response):
         content = response.content
-        # language = Language.objects.get(code=self.language_code)
         proxy = Proxy.objects.get(pk=self.proxy_id)
         site = proxy.site
         path = urlparse.urlparse(self.url).path
         print 'translate - path: ', path
-        pages = Webpage.objects.filter(site=site, path=path).order_by('-created')
-        if pages:
-            content, has_translation = pages[0].get_translation(self.language_code)
-            if has_translation:
-                response.content = content
+        webpages = Webpage.objects.filter(site=site, path=path).order_by('-created')
+        if webpages:
+            webpage = webpages[0]
+            if not webpage.no_translate:
+                content, has_translation = webpage.get_translation(self.language_code)
+                if has_translation:
+                    response.content = content
         return response
 
