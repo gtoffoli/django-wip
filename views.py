@@ -33,9 +33,11 @@ from django.db import connection
 # from django.db.models import Q, Count
 from django.db.models.expressions import RawSQL, Q
 from django import forms
+from django.contrib import messages
 from actstream import action, registry
 
-from models import Language, Site, Proxy, Webpage, PageVersion, TranslatedVersion, Block, TranslatedBlock, BlockInPage, String, Txu, TxuSubject #, TranslatedVersion
+from models import Language, Site, Proxy, Webpage, PageVersion, TranslatedVersion
+from models import Block, BlockEdge, TranslatedBlock, BlockInPage, String, Txu, TxuSubject #, TranslatedVersion
 from models import TO_BE_TRANSLATED, TRANSLATED, INVARIANT, ALREADY
 from models import MYMEMORY
 from forms import SiteManageForm, ProxyManageForm, PageEditForm, PageSequencerForm, BlockEditForm, BlockSequencerForm
@@ -124,6 +126,7 @@ def site(request, site_slug):
         extract_blocks = post.get('extract_blocks', '')
         extract_segments = post.get('extract_segments', '')
         import_invariants = post.get('import_invariants', '')
+        apply_invariants = post.get('apply_invariants', '')
         delete_site = post.get('delete_site', '')
         guess_blocks_language = post.get('guess_blocks_language', '')
         # form = SiteManageForm(post)
@@ -140,7 +143,8 @@ def site(request, site_slug):
                 clear_blocks = data['clear_blocks']
                 if clear_blocks:
                     Block.objects.filter(site=site).delete()
-                    # BlockInPage.objects.filter(block__site=site).delete()
+                    BlockInPage.objects.filter(block__site=site).delete()
+                    BlockEdge.objects.filter(parent__site=site).delete()
                 webpages = Webpage.objects.filter(site=site).exclude(no_translate=True)
                 translate_deny_list = site.translate_deny and site.translate_deny.split('\n') or []
                 for webpage in webpages:
@@ -154,10 +158,12 @@ def site(request, site_slug):
                             break
                     if should_skip:
                         continue
-                    try:
+                    # try:
+                    if True:
                         n_1, n_2, n_3 = webpage.extract_blocks()
                         webpage.create_blocks_dag()
-                    except:
+                    # except:
+                    else:
                         print 'extract_blocks: error on page ', webpage.id
             elif extract_segments:
                 language = site.language
@@ -186,7 +192,7 @@ def site(request, site_slug):
                             break
                     if skip_page:
                         continue
-                    segments = page_version.get_segments()
+                    segments = page_version.page_version_get_segments()
                     for s in segments:
                         s = s.replace('\xc2\xa0', ' ')
                         if not s: continue
@@ -241,9 +247,41 @@ def site(request, site_slug):
                     for line in f:
                         line = line.strip()
                         # print line
-                        if line and not String.objects.filter(site=site, text=line, invariant=True):
-                            string = String(txu=None, language=language, site=site, text=line, reliability=0, invariant=True)
-                            string.save()
+                        try:
+                            if line and not String.objects.filter(site=site, text=line, invariant=True):
+                                string = String(txu=None, language=language, site=site, text=line, reliability=0, invariant=True)
+                                string.save()
+                        except:
+                            pass
+                else:
+                    messages.add_message(request, messages.ERROR, 'Please, select a file to upload.')
+            elif apply_invariants:
+                blocks = Block.objects.filter(site=site, language__isnull=True, no_translate=False)
+                if blocks:
+                    srx_filepath = os.path.join(RESOURCES_ROOT, 'segment.srx')
+                    srx_rules = srx_segmenter.parse(srx_filepath)
+                    italian_rules = srx_rules['Italian']
+                    segmenter = srx_segmenter.SrxSegmenter(italian_rules)
+                n_invariants = 0
+                for block in blocks:
+                    """
+                    segments = block.get_segments()
+                    invariant = True
+                    for segment in segments:
+                        if segment.isnumeric() or segment.replace(',', '.').isnumeric():
+                            continue
+                        matches = String.objects.filter(site=site, text=segment, invariant=True)
+                        if not matches:
+                            invariant = False
+                            break
+                    if invariant:
+                        n_invariants += 1
+                        block.no_translate = True
+                        block.save()
+                    """
+                    if block.apply_invariants(segmenter):
+                        n_invariants += 1
+                messages.add_message(request, messages.INFO, '%d blocks marked as invariant.' % n_invariants)
             elif guess_blocks_language:
                 from wip.utils import guess_block_language
                 blocks = Block.objects.filter(site=site, language__isnull=True)
@@ -291,9 +329,12 @@ def proxy(request, proxy_slug):
     var_dict['language'] = language = proxy.language
     post = request.POST
     if post:
+        print 'request.POST: ', post
         delete_pages = post.get('delete_pages', '')
-        delete_blocks = post.get('delete_pages', '')
+        delete_blocks = post.get('delete_blocks', '')
         delete_proxy = post.get('delete_proxy', '')
+        apply_tm = post.get('apply_tm', '')
+        propagate_up = post.get('propagate_up', '')
         form = ProxyManageForm(post)
         if form.is_valid():
             data = form.cleaned_data
@@ -309,9 +350,34 @@ def proxy(request, proxy_slug):
                 delete_proxy_confirmation = data['delete_proxy_confirmation']
                 if delete_proxy_confirmation:
                     proxy.delete()
+                    messages.add_message(request, messages.INFO, 'Proxy deleted.')
                     return HttpResponseRedirect('/site/%s/' % site.slug)
-    var_dict['page_count'] = page_count = TranslatedVersion.objects.filter(webpage__site=site, language=language).count()
-    var_dict['block_count'] = block_count = TranslatedBlock.objects.filter(block__site=site, language=language).count()
+            elif apply_tm:
+                n_ready, n_translated, n_partially = proxy.apply_translation_memory()
+                messages.add_message(request, messages.INFO, 'TM applied to %d blocks: %d fully translated, %d partially translated.' % (n_ready, n_translated, n_partially))
+            elif propagate_up:
+                print 'propagate_up'
+                n_new, n_updated, n_no_updated = proxy.propagate_up_block_updates()
+                messages.add_message(request, messages.INFO, 'Up propagation: %d new, %d updated, %d not updated blocks' % (n_new, n_updated, n_no_updated))
+    webpages = Webpage.objects.filter(site=site).order_by('id')
+    var_dict['page_count'] = page_count = webpages.count()
+    var_dict['first_page'] = webpages and webpages[0] or None
+    blocks = Block.objects.filter(site=site).order_by('id')
+    var_dict['block_count'] = block_count = blocks.count()
+    var_dict['first_block'] = blocks and blocks[0] or None
+    pages, pages_total, pages_invariant, pages_proxy_list = site.pages_summary()
+    var_dict['pages_total'] = pages_total
+    var_dict['pages_invariant'] = pages_invariant
+    var_dict['pages_proxy_list'] = pages_proxy_list
+    blocks, blocks_total, blocks_invariant, blocks_proxy_list = site.blocks_summary()
+    var_dict['blocks_total'] = blocks_total
+    var_dict['blocks_invariant'] = blocks_invariant
+    var_dict['blocks_proxy_list'] = blocks_proxy_list
+    
+    var_dict['translated_pages_count'] = page_count = TranslatedVersion.objects.filter(webpage__site=site, language=language).count()
+    var_dict['translated_blocks__count'] = block_count = TranslatedBlock.objects.filter(block__site=site, language=language).count()
+    var_dict['blocks_ready'] = blocks_ready = proxy.blocks_ready()
+    var_dict['ready_count'] = len(blocks_ready)
     var_dict['manage_form'] = ProxyManageForm()
     return render_to_response('proxy.html', var_dict, context_instance=RequestContext(request))
 
@@ -708,7 +774,7 @@ def block_translate(request, block_id, target_code):
     BlockSequencerForm.base_fields['extract_strings'] = forms.BooleanField(required=False, label='Extract strings', )
     save_block = apply_filter = goto = extract = '' 
     create = modify = ''
-    segments = block.get_segments()
+    segments = block.block_get_segments()
     segments = [segment.strip(' .,;:*+-=').lower() for segment in segments]
     extract_strings = False
     post = request.POST
@@ -741,7 +807,7 @@ def block_translate(request, block_id, target_code):
             translation.body = post.get('translation-%s' % create)
             translation.save()
         elif modify:
-            translation = TranslatedBlock.objects.filter(block=block, language=Language.objects.get(code=modify).order_by('-modified')[0])
+            translation = TranslatedBlock.objects.filter(block=block, language=Language.objects.get(code=modify)).order_by('-modified')[0]
             translation.body = post.get('translation-%s' % modify)
             translation.save()
         elif (apply_filter or goto):

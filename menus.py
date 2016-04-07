@@ -3,7 +3,7 @@ from django.core.urlresolvers import reverse
 from django.utils.translation import ugettext as _, ugettext_lazy
 # from settings import SITE_NAME
 from vocabularies import Language
-from models import Site
+from models import Site, Proxy
 
 # print SITE_NAME
 
@@ -19,6 +19,15 @@ def sites_children(request):
             ))
     return children        
 
+def proxies_children(request):
+    children = []
+    for site in Site.objects.all().order_by('name'):
+        for proxy in Proxy.objects.filter(site=site).order_by('name'):
+            children.append (MenuItem(
+                 proxy.name,
+                 url='/proxy/%s/' % proxy.slug,
+                ))
+    return children        
 
 def strings_children(request):
     children = []
@@ -63,13 +72,13 @@ Menu.add_item("main", MenuItem(ugettext_lazy("Sites"),
                                weight=20,
                                children=sites_children,
                                separator=True))
-"""
 Menu.add_item("main", MenuItem(ugettext_lazy("Proxies"),
                                url='/proxies/',
                                icon='',
                                weight=30,
+                               children=proxies_children,
                                separator=True))     
-"""
+
 Menu.add_item("main", MenuItem(ugettext_lazy("Strings"),
                                url='/strings/',
                                icon='',

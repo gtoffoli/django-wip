@@ -11,8 +11,11 @@ import sys
 reload(sys)  
 sys.setdefaultencoding('utf8')
 
+from collections import defaultdict
 import os
 import re
+import datetime
+# from Levenshtein.StringMatcher import StringMatcher
 from lxml import html, etree
 from django.db import models
 from django.db.models import Q
@@ -29,7 +32,7 @@ from django_dag.models import node_factory, edge_factory
 from vocabularies import Language, Subject, ApprovalStatus
 from wip.wip_sd.sd_algorithm import SDAlgorithm
 
-from settings import RESOURCES_ROOT, BLOCK_TAGS, BLOCKS_EXCLUDE_BY_XPATH
+from settings import RESOURCES_ROOT, BLOCK_TAGS, BLOCKS_EXCLUDE_BY_XPATH, SEPARATORS, STRIPPED, EMPTY_WORDS
 from utils import text_from_html, strings_from_html, elements_from_element, block_checksum
 import srx_segmenter
 
@@ -203,6 +206,152 @@ class Proxy(models.Model):
     class Meta:
         verbose_name = _('proxy site')
         verbose_name_plural = _('proxy sites')
+
+    def blocks_ready(self, min_state=TRANSLATED):
+        """ return blocks "ready for translation" """
+        site = self.site
+        # qs = Block.objects.filter(site=site, Block_child__isnull=True)
+        qs = Block.objects.filter(site=site)
+        qs = qs.annotate(n_pages = RawSQL("SELECT COUNT(*) FROM wip_blockinpage WHERE wip_blockinpage.block_id = wip_block.id", ()))
+        qs = qs.order_by('-n_pages')
+        blocks = []
+        for block in qs:
+            if block.no_translate:
+                continue
+            if block.compute_translation_state(self.language) >= min_state:
+                continue
+            ready = True
+            if ready:
+                blocks.append(block)
+        return blocks
+
+    def apply_translation_memory(self):
+        # string_matcher = StringMatcher()
+        site = self.site
+        language = self.language
+        language_code = language.code
+        empty_words = EMPTY_WORDS[language_code]
+        target_codes = [language_code]
+        blocks_ready = self.blocks_ready()
+        n_ready = len(blocks_ready)
+        n_partially = 0
+        n_translated = 0
+        if blocks_ready:
+            srx_filepath = os.path.join(RESOURCES_ROOT, 'segment.srx')
+            srx_rules = srx_segmenter.parse(srx_filepath)
+            italian_rules = srx_rules['Italian']
+            segmenter = srx_segmenter.SrxSegmenter(italian_rules)
+        for block in blocks_ready:
+            last_translations = block.get_last_translations(language=language)
+            translated_blocks = last_translations and dict(last_translations).get(language_code, []) or []
+            translated = True
+            n_substitutions = 0
+            if translated_blocks:
+                translated_block = translated_blocks[0]
+                body = translated_block.body
+                segments = translated_block.translated_block_get_segments(segmenter=segmenter)
+            else:
+                translated_block = None
+                segments = block.block_get_segments(segmenter=segmenter)                
+            if not segments:
+                continue # ???
+            for segment in segments:
+                if segment.isnumeric() or segment.replace(',', '.').isnumeric():
+                    continue
+                if String.objects.filter(site=site, text=segment, invariant=True):
+                    continue
+                words = segment.split()
+                translated_segment = None
+                matches = String.objects.filter(text__iexact=segment, txu__string__language_id__in=target_codes).distinct()
+                # if matches:
+                if matches.count() == 1:
+                    print 'segment: ', segment
+                    match = matches[0]
+                    translations = String.objects.filter(language=language, txu=match.txu)
+                    if translations.count() == 1:
+                        translated_segment = translations[0].text
+                        print 'exact'
+                elif len(words) == 1:
+                    matches = String.objects.filter(text__istartswith=segment, txu__string__language_id__in=target_codes).distinct()
+                    matches_count = matches.count()
+                    if matches_count > 1:
+                        print 'segment: ', segment, ', matches_count: ', matches_count
+                        word_count_dict = defaultdict(int)
+                        for match in matches:
+                            if match.text.split()[0].lower() == segment.lower():
+                                translations = String.objects.filter(language=language, txu=match.txu)
+                                for translation in translations:
+                                    for word in translation.text.split():
+                                        if not word in empty_words:
+                                            word_count_dict[word.lower()] += 1
+                        if word_count_dict:
+                            word_count_list = sorted(word_count_dict.items(), key=lambda tup: tup[1], reverse=True)
+                            if len(word_count_list) > 1:
+                                # print 'word_count_list: ', list(word_count_dict)
+                                top_word_count = word_count_list[0]
+                                top_word = top_word_count[0]
+                                top_count = top_word_count[1]
+                                second_count = word_count_list[1][1]
+                                if top_count > second_count and top_count >= matches_count/2:
+                                    translated_segment = top_word
+                                    print 'fuzzy'
+                if translated_segment:
+                    if segment[0].isupper() and translated_segment[0].islower():
+                        translated_segment = translated_segment[0].upper() + translated_segment[1:]
+                    if not translated_block:
+                        translated_block = block.clone(language)
+                        body = translated_block.body
+                    print 'translation: ', translated_segment
+                    if body.count(segment):
+                        body = body.replace(segment, '<span tx="auto">%s</span>' % translated_segment)
+                        n_substitutions += 1
+                        continue
+                translated = False
+            if n_substitutions:
+                if translated:
+                    translated_block.state = TRANSLATED
+                    n_translated += 1
+                else:
+                    translated_block.state = PARTIALLY
+                    n_partially += 1
+                translated_block.body = body
+                translated_block.save()
+        return n_ready, n_translated, n_partially
+
+    def propagate_up_block_updates(self):
+        site = self.site
+        language = self.language
+        # language_code = language.code
+        n_new = 0
+        n_updated = 0
+        n_no_updated = 0
+        blocks_ready = self.blocks_ready()
+        for block in blocks_ready:
+            label = block.get_label()
+            translated_blocks = TranslatedBlock.objects.filter(block=block, language=language, state__gt=0).order_by('-modified')
+            if translated_blocks:
+                translated_block = translated_blocks[0]
+                element = html.fromstring(translated_block.body)
+            else:
+                translated_block = None
+                element = None                
+            translated_element, translation_date = block.translated_block_element(language, element=element)
+            if translation_date:
+                if translated_block:
+                    if translated_block.modified > translation_date:
+                        print 'no_updated', label
+                        n_no_updated +=1
+                        continue
+                    else:
+                        n_updated +=1
+                        print 'updated', label
+                else:
+                    translated_block = TranslatedBlock(block=block, language=language)
+                    n_new +=1
+                    print 'new', label
+                translated_block.body = html.tostring(translated_element)
+                translated_block.save()
+        return n_new, n_updated, n_no_updated
 
 class Webpage(models.Model):
     site = models.ForeignKey(Site)
@@ -386,6 +535,7 @@ class Webpage(models.Model):
         return n_1, n_2, n_3
 
     def create_blocks_dag(self):
+        # BlockEdge.objects.all().delete()
         blocks_in_page = list(BlockInPage.objects.filter(webpage=self).order_by('xpath'))
         blocks = [None]
         xpaths = ['no-xpath']
@@ -398,8 +548,11 @@ class Webpage(models.Model):
                 if xpath.startswith(xpaths[j]):
                     parent = blocks[j]
                     if not BlockEdge.objects.filter(parent=parent, child=block):
+                        """
                         block_edge = BlockEdge(parent=parent, child=block)
                         block_edge.save()
+                        """
+                        parent.add_child(block)
                     break
             blocks = [block]+blocks
             xpaths = [xpath]+xpaths
@@ -432,16 +585,19 @@ class PageVersion(models.Model):
         except:
             return None
 
-    def get_segments(self):
-        srx_filepath = os.path.join(RESOURCES_ROOT, 'segment.srx')
-        srx_rules = srx_segmenter.parse(srx_filepath)
-        italian_rules = srx_rules['Italian']
-        segmenter = srx_segmenter.SrxSegmenter(italian_rules)
+    def page_version_get_segments(self, segmenter=None):
+        if not segmenter:
+            srx_filepath = os.path.join(RESOURCES_ROOT, 'segment.srx')
+            srx_rules = srx_segmenter.parse(srx_filepath)
+            italian_rules = srx_rules['Italian']
+            segmenter = srx_segmenter.SrxSegmenter(italian_rules)
         re_parentheses = re.compile(r'\(([^)]+)\)')
 
         site = self.webpage.site
         exclude_xpaths = BLOCKS_EXCLUDE_BY_XPATH.get(site.slug, [])
         language = site.language
+        stripped_chars = STRIPPED[language.code]
+        separators = SEPARATORS[language.code]
         strings = []
         html_string = re.sub("(<!--(.*?)-->)", "", self.body, flags=re.MULTILINE)
         for string in list(strings_from_html(html_string, fragment=False, exclude_xpaths=exclude_xpaths)):
@@ -450,6 +606,12 @@ class PageVersion(models.Model):
                 continue
             if string.count('flickr'):
                 continue
+            string = string.strip(stripped_chars)
+            if not string:
+                continue
+            for char in separators:
+                if char in string:
+                    continue
             found = get_strings(string, language, site=site)
             if found and found[0].invariant:
                 continue
@@ -697,6 +859,9 @@ class Block(node_factory('BlockEdge')):
         next = qs_after.count() and qs_after[0] or None
         return previous, next
 
+    def clone(self, language):
+        return TranslatedBlock(block=self, language=language, body=self.body)
+
     def get_last_translations(self, language=None):
         if language:
             languages = [language]
@@ -739,46 +904,38 @@ class Block(node_factory('BlockEdge')):
             states.append(state)
         return states
 
-    # def compute_translation_states(self, language, webpage=None):
-    def compute_translation_states(self, language,):
-        """
-        1st result: own translation state
-        2nd result: min translation state of children, if any, recursively computed
-        """
+    def compute_translation_state(self, language):
         language_translations = self.get_last_translations(language=language)
         if language_translations:
-            translations = language_translations.get(language.code, [])
+            #translations = language_translations.get(language.code, [])
+            translations = dict(language_translations).get(language.code, [])
             if translations:
-                return translations[0].state, 0
-        # children = self.get_children(webpage=webpage)
-        children = self.children.all()
-        if children:
-            children_state = 0
-            for b in children:
-                # b_state, b_children_state = b.compute_translation_state(language, webpage=webpage)
-                b_state, b_children_state = b.compute_translation_state(language)
-                if b_state:
-                    children_state = min(children_state, b_state)
-                else:
-                    children_state = min(children_state, b_children_state)
-                if not children_state:
-                    break
-            return 0, children_state
-        else:
-            return 0, INVARIANT # INVARIANT here means don't care        
+                return translations[0].state
+        return 0
 
-    def get_segments(self):
-        srx_filepath = os.path.join(RESOURCES_ROOT, 'segment.srx')
-        srx_rules = srx_segmenter.parse(srx_filepath)
-        italian_rules = srx_rules['Italian']
-        segmenter = srx_segmenter.SrxSegmenter(italian_rules)
+    def block_get_segments(self, segmenter=None):
+        if not segmenter:
+            srx_filepath = os.path.join(RESOURCES_ROOT, 'segment.srx')
+            srx_rules = srx_segmenter.parse(srx_filepath)
+            italian_rules = srx_rules['Italian']
+            segmenter = srx_segmenter.SrxSegmenter(italian_rules)
         re_parentheses = re.compile(r'\(([^)]+)\)')
+        site = self.site
+        """
+        stripped_chars = STRIPPED[site.language.code]
+        separators = SEPARATORS[site.language.code]
 
         strings = []
         for string in list(strings_from_html(self.body, fragment=True)):
             string = string.replace(u"\u2018", "'").replace(u"\u2019", "'").replace(' - ', ' – ')
             if string.count('window') and string.count('document'):
                 continue
+            string = string.strip(stripped_chars)
+            if not string:
+                continue
+            for char in separators:
+                if char in string:
+                    continue
             matches = []
             if string.count('(') and string.count(')'):
                 matches = re_parentheses.findall(string)
@@ -789,6 +946,23 @@ class Block(node_factory('BlockEdge')):
             for match in matches:
                 strings.extend(segmenter.extract(match)[0])
         return strings
+        """
+        return get_segments(self.body, site, segmenter)
+
+    def apply_invariants(self, segmenter):
+        segments = self.block_get_segments(segmenter=segmenter)
+        invariant = True
+        for segment in segments:
+            if segment.isnumeric() or segment.replace(',', '.').isnumeric():
+                continue
+            matches = String.objects.filter(site=self.site, text=segment, invariant=True)
+            if not matches:
+                invariant = False
+                break
+        if invariant:
+            self.no_translate = True
+            self.save()
+        return invariant
 
     def real_translation_state(self, language):
         language_translations = self.get_last_translations(language=language)
@@ -797,6 +971,54 @@ class Block(node_factory('BlockEdge')):
             if not translations:
                 return 0
         translated_block = translations[0]
+
+    # def translated_element(element, site, webpage, language, xpath='/html'):
+    def translated_block_element(self, language, element=None, webpage=None, xpath=None):
+        site = self.site
+        translation_date = None
+        if xpath:
+            translated_blocks = TranslatedBlock.objects.filter(block=self, language=language, state__gt=0).order_by('-modified')
+            if translated_blocks:
+                translated_block = translated_blocks[0]
+                element = html.fromstring(translated_block.body)
+                translation_date = translated_block.modified
+                return element, translation_date
+        if element is None:
+            element = html.fromstring(self.body)
+        if not webpage:
+            blocks_in_page = BlockInPage.objects.filter(block=self, webpage__site=site)
+            block_in_page = sorted(blocks_in_page, cmp=lambda x,y: len(x.xpath) < len(y.xpath))[0]
+            webpage = block_in_page.webpage
+            xpath = block_in_page.xpath
+        child_tags_dict_1 = {}
+        child_tags_dict_2 = {}
+        # build a dict with the number of occurrences of each type of block tag
+        for child_element in element.getchildren():
+            tag = child_element.tag
+            if tag in BLOCK_TAGS:
+                child_tags_dict_1[tag] = child_tags_dict_1.setdefault(tag, 0)+1
+        # for each child element with a block tag, compute the incremental xpath (branch)
+        # and replace it with its translation
+        for child_element in element.getchildren():
+            tag = child_element.tag
+            if tag in BLOCK_TAGS:
+                child_tags_dict_2[tag] = n = child_tags_dict_2.setdefault(tag, 0)+1
+                branch = tag
+                if child_tags_dict_1[tag] > 1:
+                    branch += '[%d]' % n
+                child_xpath = '%s/%s' % (xpath, branch)
+                blocks_in_page = BlockInPage.objects.filter(webpage=webpage, xpath=child_xpath).order_by('-block__time')
+                if blocks_in_page:
+                    child_block = blocks_in_page[0].block           
+                    translated_child, child_translation_date = child_block.translated_block_element(language, element=child_element, webpage=webpage, xpath=child_xpath)
+                    if child_translation_date:
+                        element.replace(child, translated_child)
+                        if translation_date:
+                            translation_date = max(translation_date, child_translation_date)
+                        else:
+                            translation_date = child_translation_date
+        # return the original element with translated sub-elements replaced in it
+        return element, translation_date
 
 class BlockInPage(models.Model):
     block = models.ForeignKey(Block, related_name='block_in_page')
@@ -823,7 +1045,42 @@ class TranslatedBlock(models.Model):
         verbose_name = _('translated block')
         verbose_name_plural = _('translated blocks')
 
-TranslatedBlock.get_segments = Block.get_segments
+    def translated_block_get_segments(self, segmenter=None):
+        if not segmenter:
+            srx_filepath = os.path.join(RESOURCES_ROOT, 'segment.srx')
+            srx_rules = srx_segmenter.parse(srx_filepath)
+            italian_rules = srx_rules['Italian']
+            segmenter = srx_segmenter.SrxSegmenter(italian_rules)
+        re_parentheses = re.compile(r'\(([^)]+)\)')
+
+        site = self.block.site
+        """
+        stripped_chars = STRIPPED[site.language.code]
+        separators = SEPARATORS[site.language.code]
+        strings = []
+        for string in list(strings_from_html(self.body, fragment=True, exclude_tx=True)):
+            string = string.replace(u"\u2018", "'").replace(u"\u2019", "'").replace(' - ', ' – ')
+            if string.count('window') and string.count('document'):
+                continue
+            string = string.strip(stripped_chars)
+            if not string:
+                continue
+            for char in separators:
+                if char in string:
+                    continue
+            matches = []
+            if string.count('(') and string.count(')'):
+                matches = re_parentheses.findall(string)
+                if matches:
+                    for match in matches:
+                        string = string.replace('(%s)' % match, '')
+            strings.extend(segmenter.extract(string)[0])
+            for match in matches:
+                strings.extend(segmenter.extract(match)[0])
+        return strings
+        """
+        return get_segments(self.body, site, segmenter)
+
 
 class BlockEdge(edge_factory('Block', concrete = False)):
     created = CreationDateTimeField(_('created'))
@@ -835,37 +1092,21 @@ class BlockEdge(edge_factory('Block', concrete = False)):
 # inspired by the algorithm of utils.elements_from_element
 def translated_element(element, site, webpage, language, xpath='/html'):
     has_translation = False
-    """
-    blocks = Block.objects.filter(site=site, xpath=xpath, webpages=webpage).order_by('-time')
-    if blocks:
-        block = blocks[0]
-        translated_blocks = TranslatedBlock.objects.filter(block=block, language=language).order_by('-modified')
-    """
     blocks_in_page = BlockInPage.objects.filter(xpath=xpath, webpage=webpage).order_by('-time')
-    print xpath
+    # print xpath
     if blocks_in_page:
         block = blocks_in_page[0].block
-        print 'page, block: ', webpage.id, block.id
+        # print 'page, block: ', webpage.id, block.id
         if block.no_translate:
             return element, True
-        # translated_blocks = TranslatedBlock.objects.filter(block=block, language=language).order_by('-modified')
         translated_blocks = TranslatedBlock.objects.filter(block=block, language=language, state__gt=0).order_by('-modified')
-        print 'translated_blocks : ', translated_blocks
+        # print 'translated_blocks : ', translated_blocks
         if translated_blocks:
             element = html.fromstring(translated_blocks[0].body)
-            """
-            has_translation = True
-        else:
-            element = html.fromstring(block.body)
-            """
             # retuen the complete translation of the block
             return element, True
     child_tags_dict_1 = {}
     child_tags_dict_2 = {}
-    """
-    text = element.text
-    text = text and text.strip() and True
-    """
     # build a dict with the number of occurrences of each type of block tag
     for child in element.getchildren():
         tag = child.tag
@@ -886,3 +1127,54 @@ def translated_element(element, site, webpage, language, xpath='/html'):
                 has_translation = True
     # return the original element with translated sub-elements replaced in it
     return element, has_translation
+
+def get_segments(body, site, segmenter, fragment=True, exclude_tx=True, exclude_xpaths=False):
+    if not segmenter:
+        srx_filepath = os.path.join(RESOURCES_ROOT, 'segment.srx')
+        srx_rules = srx_segmenter.parse(srx_filepath)
+        italian_rules = srx_rules['Italian']
+        segmenter = srx_segmenter.SrxSegmenter(italian_rules)
+    re_parentheses = re.compile(r'\(([^)]+)\)')
+
+    # exclude_xpaths = BLOCKS_EXCLUDE_BY_XPATH.get(site.slug, [])
+    language = site.language
+    stripped_chars = STRIPPED[language.code]
+    separators = SEPARATORS[language.code]
+    strings = []
+    html_string = re.sub("(<!--(.*?)-->)", "", body, flags=re.MULTILINE)
+    for string in list(strings_from_html(html_string, fragment=fragment, exclude_tx=exclude_tx, exclude_xpaths=exclude_xpaths)):
+        string = string.replace(u"\u2018", "'").replace(u"\u2019", "'").replace(' - ', ' – ')
+        if string.count('window') and string.count('document'):
+            continue
+        if string.count('flickr'):
+            continue
+        found = get_strings(string, language, site=site)
+        if found and found[0].invariant:
+            continue
+        matches = []
+        if string.count('(') and string.count(')'):
+            matches = re_parentheses.findall(string)
+            if matches:
+                for match in matches:
+                    string = string.replace('(%s)' % match, '')
+        strings.extend(segmenter.extract(string)[0])
+        for match in matches:
+            strings.extend(segmenter.extract(match)[0])
+    filtered = []
+    for string in strings:
+        string = string.strip(stripped_chars)
+        # if not string:
+        if len(string) < 2:
+            continue
+        for char in separators:
+            if char in string:
+                continue
+        """
+        for char in '@#':
+            if char in string:
+                continue
+        """
+        filtered.append(string)
+    return filtered
+
+    

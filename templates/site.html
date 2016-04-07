@@ -52,9 +52,10 @@
 	{% if page_count %}
   	<div><input type="submit" name="extract_segments" value="Extract segments" title="Extract segments" class="btn btn-sm" /></div>
 	{% endif %}
-  	<div>{{ manage_form.clear_invariants }} Clear invariant strings
-  		 {{ manage_form.file }} Choose a file to upload
-  		<input type="submit" name="import_invariants" value="Import invariants" title="Import invariants" class="btn btn-sm" /></div>
+  	<div>{{ manage_form.clear_invariants }} Clear invariant
+  		 {{ manage_form.file }}
+		<input type="submit" name="import_invariants" value="Import invariants" title="Import invariants" class="btn btn-sm" />
+		<input type="submit" name="apply_invariants" value="Apply invariants" title="Mark invariant segments" class="btn btn-sm" /> (Mark invariant segments)</div>
   	<div><input type="submit" name="export_untranslated" value="Export untranslated strings" title="Export untranslated strings" class="btn btn-sm" /></div>
 	{% if proxies %}
   	<div><input type="submit" name="guess_blocks_language" value="Guess blocks' language" title="Guess blocks' language" class="btn btn-sm" /></div>

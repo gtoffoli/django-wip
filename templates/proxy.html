@@ -17,18 +17,24 @@
     <div><label>Site</label> <a href="{% url 'site' site.slug %}">{{ site.name }}</a></div>
     <div><label>Proxy language</label> {{ proxy.language.name }}</div>
     <div><label>Base path</label> {{ proxy.base_path }}</div>
-    <div><label>Translated pages</label> {{ page_count }}</div>
-    <div><label>Translated blocks</label> {{ block_count }}</div>
+
+    <div><label>Pages</label> {% if page_count %} <a href="/site/{{ site.slug }}/pages/" title="list pages">{{ page_count }}</a> {% else %}0{% endif %}
+    	{% if page_count %}&nbsp; <a href="/page/{{ first_page.id }}/" title="browse all pages"><span class="fa fa-caret-square-o-right"></span></a>{% endif %}</div>
+    <div><label>Page blocks</label> {% if block_count %} <a href="/site/{{ site.slug }}/blocks/" title="list blocks">{{ block_count }}</a> {% else %}0{% endif %}
+		{% if block_count %}&nbsp; <a href="/block/{{ first_block.id }}/" title="browse all blocks"><span class="fa fa-caret-square-o-right"></span></a>{% endif %}</div>
+
+    <div><label>Translated pages</label> {{ translated_pages_count }}</div>
+    <div><label>Translated blocks</label> {{ translated_blocks__count }}</div>
 
 	{% if user.is_superuser %}
    	<form action="/proxy/{{ proxy.slug }}/" method="post">{% csrf_token %}
 		{% if page_count %}
    		<div>{{ manage_form.delete_pages_confirmation }} Yes, I want to delete all translated pages
-			 <input type="submit" name="delete_pages" value="Delete pages" title="delete translated pages" class="btn btn-sm" />
+			 <input type="submit" name="delete_pages" value="Delete translated pages" title="delete translated pages" class="btn btn-sm" />
 		{% endif %}
 		{% if block_count %}
    		<div>{{ manage_form.delete_blocks_confirmation }} Yes, I want to delete all translated blocks
-			 <input type="submit" name="delete_blocks" value="Delete blocks" title="delete translated blocks" class="btn btn-sm" />
+			 <input type="submit" name="delete_blocks" value="Delete translated blocks" title="delete translated blocks" class="btn btn-sm" />
 		</div>
 		{% endif %}
 		{% if not page_count and not block_count %}
@@ -36,6 +42,37 @@
 			 <input type="submit" name="delete_proxy" value="Delete proxy" title="Delete all proxy info" class="btn btn-sm" />
 		</div>
 		{% endif %}
+
+  		{% if blocks_ready %}
+	    <h4>In blocks ready for translation ..</h4>
+   		<div>
+   			<input type="submit" name="apply_tm" value="Apply TM" title="Apply TM" class="btn btn-sm" /> (Replace segments with exact matches)
+   			<input type="submit" name="propagate_up" value="Propagate up" title="Apply TM" class="btn btn-sm" /> (Propagate up updates of translated blocks)
+		</div>
+		{% endif %}
 	</form>
+
+  	{% if blocks_ready %}
+	    <h4>{{ ready_count }} blocks ready for translation</h4>
+    	<table>
+   		<thead>
+   			<tr><th> # </th><th> Id </th><th> Parents </th><th> Pages </th><th>Chars</th><th> Text is / starts with .. </th><th> Date/Time </th></tr>
+   		</thead>
+   		<tbody>
+		{% for page_block in blocks_ready %}
+		<tr><td><pre><code>{{forloop.counter|rjust:"3"}}</code> </pre></td>
+			<td style="text-align: right;"> {{ page_block.id }} </td>
+			<td style="text-align: center;"> {{ page_block.parents.count }} </td>
+			<td style="text-align: center;"> <a href="/block/{{ page_block.id }}/">{{ page_block.webpages.count }}</a> </td>
+			<td style="text-align: right;"> {{ page_block.body|length }} </td>
+			<td> <a href="/block/{{ page_block.id }}/">{{ page_block.get_label }}</a> </td>
+			<td> {{ page_block.time|date:"SHORT_DATETIME_FORMAT" }} </td>
+		{% endfor %}
+	    </tbody>
+    	</table>
+	{% else %}
+		<p><i>No pages include this block.</i></p>
+	{% endif %}
+
 	{% endif %}
 {% endblock %}

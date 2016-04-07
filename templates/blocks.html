@@ -25,7 +25,7 @@
 
    	<table>
    		<thead>
-   			<th> # </th><th> Id </th><th>Chars</th><th> xPath </th><th> Pages </th><th> Date/Time </th>
+   			<th> # </th><th> Id </th><th>Chars</th><th> Text is / starts with .. </th><th> xPath </th><th> Pages </th><th> Date/Time </th>
 			{% for proxy in proxies %}<th> {{ proxy.language.code }} </th>{% endfor %} 			
    		</thead>
    		<tbody>
@@ -33,6 +33,7 @@
 		<tr><td><pre><code>{{forloop.counter|rjust:"3"}}</code></pre></td>
 			<td style="text-align: right;"> {{ site_block.id }} </td>
 			<td style="text-align: right;">{{ site_block.body|length }}</td>
+			<td> <a href="/block/{{ site_block.id }}/">{{ site_block.get_label|truncatechars_html:80 }}</a> </td>
 			<td><a href="/block/{{ site_block.id }}/">{{ site_block.xpath }}</a></td>
 			<td style="text-align: center;"><a href="/block/{{ site_block.id }}/pages/">{{ site_block.webpages.all.count }}</a></td>
 			<td>{{ site_block.time|date:"SHORT_DATETIME_FORMAT" }}</td>
