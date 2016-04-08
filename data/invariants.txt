@@ -1,0 +1,466 @@
+CPIA
+CTP
+
+Acli
+Acse
+Adra Italia
+AltraMente
+Anfe
+Apriti Sesamo
+APS
+Asgi
+Carminella
+Arci Civitavecchia
+Arci Rieti
+Arci Roma
+Arci Viterbo
+Asgi
+ARPJ Tetto
+Art'Incantiere
+Articolo Ventiquattro
+Asinitas
+ASSMI
+Astra 19
+Auser Latina
+Auser Lazio
+Auser Viterbo
+Bambini + Diritti
+Biblioteche di Roma
+Borgo Ragazzi Don Bosco
+Camminare Insieme
+Caritas di Palestrina
+Caritas di Roma
+Casa Africa
+Casa dei Diritti Sociali della Tuscia
+Casa dei Diritti Sociali Latina
+Casa dei Diritti Sociali Roma
+Casa dei Diritti Sociali Tivoli
+Casa del Popolo di Centocelle
+Casa del Popolo di Torpignattara
+Casa della Cultura
+Casa della Solidarietà
+Cemea del Mezzogiorno
+Centro Astalli
+Centro Islamico Culturale d'Italia
+Centro Welcome
+Che Guevara
+CIAO
+Cidis
+Cies
+Condividi
+Consulta Chiese Evangeliche di Roma
+Cooperativa Sociale Ninfea
+Cotrad
+Croce Rossa
+Donne in genere
+ESC Inforights
+Fare Integrazione
+Fondazione IntegrA/Azione
+Forum delle Comunità Straniere
+Franz Fanon
+Giovanni Paolo
+IIHOY!
+Humilitas
+In Migrazione
+InOpera
+Insensinverso
+Insieme Immigrati in Italia
+Insieme per tutti
+Integra Lab
+Io Noi
+Jonathan
+Juppiter
+Koinè Casa dei Popoli
+La LanternaLa
+Lingua del Sì
+La Maggiolina
+La Primula
+Laboratorio 53
+Liberi Nantes
+Maison Babel
+Martin Luther King Italia
+MATe11
+Mediterraneo Mosaico di Culture
+Monteverde Solidale
+Nova Urbs
+Oltre l'Occidente
+Palmyra
+Parrocchia SS. Annunziata di Sabaudia
+Passaparola Italia
+PerCorsi
+Peter Pan 2000
+Piuculture
+Polis
+Progetto Diritti
+Scuola Popolare Pigneto - Prenestino
+Senza Confine
+Senza Confine Aprilia
+Servizio Civile Internazionale
+Socrate
+Televita
+Villaggio Esquilino
+Voci della Terra
+Volontariato Missionario di Cristo Risorto
+Zai Saman
+Abitus
+ADOP
+Affabulazione
+Anolf
+Anthea
+Arci Frosinone
+Atdal Over 40
+Azzurra 84
+Bici x Umanità
+CEDIS
+CIPA.AT Lazio
+Comunità di Sant'Egidio
+Dialogo
+Il Ponte
+Istituto Fernando Santi
+Italian Language Centre
+Kappa Language School
+Kim
+Mus-e
+Nelson Mandela
+Palma del Sud
+Per Formare
+Roma Presente e Futuro
+Scud'It
+Scuolemigranti
+Torre di Babele
+Transglobal
+Traslochi ad Arte
+Upter Solidarietà
+Ziqqurat
+
+Largo Beato Placido Riccardi, 13 Roma
+Piazzale Rodari, Itri (LT)
+Via Calegna, 20 Gaeta
+Via dei Furi, 25 Roma
+Via dei Volsci, 12 Terracina
+Via del Cenacolo, 43 Roma
+Via del Pioppeto, 13 Latina Scalo
+Via delle Acacie, 88 Roma
+Via di Monte Testaccio, 23/A Roma
+Via Divisione Julia, 62 Formia
+Via Luigi Cadorna, Minturno (LT)
+Via Mola Santa Maria, Fondi
+Via Ostiense, 95 Roma
+Via Prenestina, 286 Roma
+
+Largo Alessandrina Ravizza, 2 Roma
+Largo Beato Placido Riccardi, 13 Roma
+Largo Monreale, snc Roma
+Lungomare Caboto, 524/526 Gaeta (LT)
+Piazza Aonio Paleario, 7 Frosinone
+Piazza Pio VI, 7 Pontinia (LT)
+Piazza Regina Margherita, 6 Sabaudia
+Piazza Tempio d'Ercole, 1 Tivoli (RM)
+Piazzale Rodari, Itri (LT)
+Via Alba, 35 Roma
+Via Appia, Formia (LT)
+Via Avigliana, 3 Roma
+Via Calegna, 20 Gaeta
+Via Cesare Balbo, 12 Fondi (LT)
+Via dei Lincei, 93 Roma
+Via dei Volsci, 12 Terracina
+Via del Buon Consiglio, 19 Roma
+Via dell'Esquilino, 31 Roma
+Via della Croce, 21 Palestrina
+Via delle Meduse, 63 Fiumicino
+Via Divisione Julia, 62 Formia
+Via Giggi Pizzirani, 25 Roma
+Via Grotta di Gregna, 37 Roma
+Via Luigi Cadorna, Minturno (LT)
+Via Magenta, 25 Roma
+Via Makallè, 4 Roma
+Via Mola Santa Maria, Fondi
+Via Olivetani, 3 Formia (LT)
+Via Olivetti, 1 Terracina (LT)
+Via Olmata, 6 Roma
+Via Ostiense, 152 b Roma
+Via Panama, 13 Roma
+Via Policastro, 45 Roma
+Via Pompei, 7 Roma
+Via Roma, 120/122 Guidonia Montecelio
+Via Roma, 71 Labico
+Via S. Croce in Gerusalemme, 106 Roma
+Via Saffi, 44 Latina
+Via Scalo San Lorenzo, 33 Roma
+Via Tasso, Latina
+Via Tiburtina, 1116 Roma
+Via Tito, Roma
+Via XX Settembre, 42 Monterotondo
+Viale Giuseppe Stefanini, 15 Roma
+
+Corso Garibaldi, 192 Orte Scalo
+Largo Alessandrina Ravizza, 2 Roma
+Largo Beato Placido Riccardi, 13 Roma
+Largo Monreale, snc Roma
+Lungomare Caboto, 524/526 Gaeta (LT)
+Piazza Aonio Paleario, 7 Frosinone
+Piazza Pia, 20 Anzio
+Piazza Pio VI, 7 Pontinia (LT)
+Piazza Regina Margherita, 6 Sabaudia
+Piazza Tempio d'Ercole, 1 Tivoli (RM)
+Piazzale Rodari, Itri (LT)
+Via Adolfo Cozza, 7 Ostia (RM)
+Via Alba, 35 Roma
+Via Alberto Fassini, 1 Rieti
+Via Appia Nuova, 361 Roma
+Via Appia, Formia (LT)
+Via Casal de’ Pazzi, 88 Roma
+Via Cattaneo, 4 Aprilia
+Via Cesare Balbo, 12 Fondi (LT)
+Via Covelli, 14 Roma
+Via degli Armatori, 3 Roma
+Via degli Artisti, 32 Roma
+Via dei Furi, 25 Roma
+Via dei Lincei, 93 Roma
+Via dei Sosii, 39 Tivoli (RM)
+Via dei Volsci, 12 Terracina
+Via del Banco di Santo Spirito, 3 Roma
+Via del Buon Consiglio, 19 Roma
+Via del Cenacolo, 43 Roma
+Via del Fosso di Centocelle, 62b Roma
+Via dell'Esquilino, 31 Roma
+Via della Croce, 21 Palestrina
+Via delle Meduse, 63 Fiumicino
+Via Dino Penazzato, 112 Roma
+Via Divisione Julia, 62 Formia
+Via Federico Borromeo, 67 Roma
+Via Fontanellato, 69 Roma
+Via Fortebraccio, 1 Roma
+Via G. Giolitti 241/g Roma
+Via Galilei, 57 Roma
+Via Galilei, 57 Roma
+Via Gerolamo Cardano, 135 Roma
+Via La Spezia, 21 Roma
+Via Luigi Cadorna, Minturno (LT)
+Via Magenta, 25 Roma
+Via Makallè, 4 Roma
+Via Marchetti, 36 Roma
+Via Mola Santa Maria, Fondi
+Via Monte Pollino, Monterotondo
+Via Olivella, 16a Albano Laziale
+Via Olivetani, 3 Formia (LT)
+Via Olivetti, 1 Terracina (LT)
+Via Olmata, 6 Roma
+Via Ostiense, 152 b Roma
+Via Palombini, 39 Roma
+Via Panama, 13 Roma
+Via Pietro Bonfante, Roma
+Via Policastro, 45 Roma
+Via Pompei, 7 Roma
+Via Prospero Alpino, 20 Roma
+Via Roma, 71 Labico
+Via S. Croce in Gerusalemme, 106 Roma
+Via Saffi, 44 Latina
+Via Sesto Miglio, 78 Roma
+Via Stazione, 55 Arce (Frosinone)
+Via Tasso, Latina
+Via Tiburtina, 1116 Roma
+Via Tito, Roma
+Via Tito, Roma
+Via Umberto Lilloni, 39/45 Acilia (RM)
+Via Verzuolo, 1 Roma
+Via Virginia Agnelli, 21 Roma
+Via Vittorio Amedeo II, 14 Roma
+Via Vittorio Amedeo II, 14 Roma
+Via XX Settembre, 42 Monterotondo
+Viale Camillo Sabatini, 111 Roma
+Viale Giuseppe Stefanini, 15 Roma
+
+Corso Garibaldi, 192 Orte Scalo
+Largo Alessandrina Ravizza, 2 Roma
+Largo Beato Placido Riccardi, 13 Roma
+Lungomare Caboto, 524/526 Gaeta (LT)
+Piazza Aonio Paleario, 7 Frosinone
+Piazza Duomo, 17 Fabrica di Roma (VT)
+Piazza Pia, 20 Anzio
+Piazza Pio VI, 7 Pontinia (LT)
+Piazza Regina Margherita, 6 Sabaudia
+Piazza Tempio d'Ercole, 1 Tivoli (RM)
+Piazzale Rodari, Itri (LT)
+Via Adolfo Cozza, 7 Ostia (RM)
+Via Alba, 35 Roma
+Via Alberto Fassini, 1 Rieti
+Via Appia Nuova, 361 Roma
+Via Appia, Formia (LT)
+Via Calegna, 20 Gaeta
+Via Casal de’ Pazzi, 88 Roma
+Via Cassia Sutrina, 2 Vetralla
+Via Cattaneo, 4 Aprilia
+Via Cesare Balbo, 12 Fondi (LT)
+Via Covelli, 14 Roma
+Via degli Armatori, 3 Roma
+Via degli Artisti, 32 Roma
+Via dei Furi, 25 Roma
+Via dei Lincei, 93 Roma
+Via dei Sesami, 20 Roma
+Via dei Sosii, 39 Tivoli (RM)
+Via dei Volsci, 12 Terracina
+Via del Banco di Santo Spirito, 3 Roma
+Via del Buon Consiglio, 19 Roma
+Via del Cenacolo, 43 Roma
+Via del Pioppeto, 13 Latina Scalo
+Via dell'Esquilino, 31 Roma
+Via della Croce, 21 Palestrina
+Via delle Meduse, 63 Fiumicino
+Via Dino Penazzato, 112 Roma
+Via Divisione Julia, 62 Formia
+Via Federico Borromeo, 67 Roma
+Via Fontanellato, 69 Roma
+Via Fortebraccio, 1 Roma
+Via Galilei, 57 Roma
+Via Galilei, 57 Roma
+Via Gerolamo Cardano, 135 Roma
+Via Giggi Pizzirani, 25 Roma
+Via La Spezia, 21 Roma
+Via Luigi Cadorna, Minturno (LT)
+Via Magenta, 25 Roma
+Via Makallè, 4 Roma
+Via Marchetti, 36 Roma
+Via Martucci, 11 Terracina
+Via Mola Santa Maria, Fondi
+Via Monte Pollino, Monterotondo
+Via Olivella, 16a Albano Laziale
+Via Olivetani, 3 Formia (LT)
+Via Olivetti, 1 Terracina (LT)
+Via Olmata, 6 Roma
+Via Ostiense, 152 b Roma
+Via Palombini, 39 Roma
+Via Panama, 13 Roma
+Via Pietro Bonfante, Roma
+Via Pompei, 7 Roma
+Via Prenestina, 286 Roma
+Via Prospero Alpino, 20 Roma
+Via Roma, 71 Labico
+Via S. Croce in Gerusalemme, 106 Roma
+Via Saffi, 44 Latina
+Via Sesto Miglio, 78 Roma
+Via Tasso, Latina
+Via Tiburtina, 1116 Roma
+Via Tito, Roma
+Via Tito, Roma
+Via Umberto Lilloni, 39/45 Acilia (RM)
+Via Vittorio Amedeo II, 14 Roma
+Via Vittorio Amedeo II, 14 Roma
+Via XX Settembre, 42 Monterotondo
+Viale Camillo Sabatini, 111 Roma
+Viale Giuseppe Stefanini, 15 Roma
+
+Lungomare Caboto, 524/526 Gaeta (LT)
+Piazza Pia, 20 Anzio
+Piazza Regina Margherita, 6 Sabaudia
+Via Adolfo Cozza, 7 Ostia (RM)
+Via Alba, 35 Roma
+Via dei Furi, 25 Roma
+Via del Buon Consiglio, 19 Roma
+Via dell'Esquilino, 31 Roma
+Via della Croce, 21 Palestrina
+Via delle Ciliegie, 42 Roma
+Via Dino Penazzato, 112 Roma
+Via Fortebraccio, 1 Roma
+Via Galilei, 57 Roma
+Via Gerolamo Cardano, 135 Roma
+Via La Spezia, 21 Roma
+Via Marchetti, 36 Roma
+Via Olivella, 16a Albano Laziale
+Via Olivetani, 3 Formia (LT)
+Via Olmata, 6 Roma
+Via Panama, 13 Roma
+Via Roma, 71 Labico
+Via Tito, Roma
+Viale Camillo Sabatini, 111 Roma
+Viale Giuseppe Stefanini, 15 Roma
+
+Via dei Furi, 25 Roma
+Via dell'Esquilino, 31 Roma
+Via delle Ciliegie, 42 Roma
+Via Divisione Julia, 62 Formia
+Via Luigi Cadorna, Minturno (LT)
+Via Marchetti, 36 Roma
+Via Olivetani, 3 Formia (LT)
+Via Olmata, 6 Roma
+Via Roma, 71 Labico
+Via Tito, Roma
+Via XX Settembre, 42 Monterotondo
+
+Via Divisione Julia, 62 Formia
+Via Luigi Cadorna, Minturno (LT)
+Via Roma, 71 Labico
+Via Tito, Roma
+
+Via Makallè, 4 Roma
+
+Acquapendente
+Albano Laziale
+Anagni
+Anzio
+Aprilia
+Arce
+Ardea
+Campagnano
+Capranica
+Cassino
+Ciampino
+Cisterna di Latina
+Civita Castellana
+Civitavecchia
+Colleferro
+Fabrica di Roma
+Fiumicino
+Fondi
+Formia
+Frascati
+Frosinone
+Gaeta
+Genzano
+Guidonia
+Guidonia Montecelio
+Itri
+Labico
+Ladispoli
+Latina
+Minturno
+Monterotondo
+Nepi 
+Nettuno
+Orte
+Palestrina
+Pomezia
+Pontecorvo 
+Rieti
+Roma
+Sabaudia
+Sora
+Subiaco
+Terracina
+Tivoli
+Velletri
+Vetralla
+Viterbo
+
+MUNICIPIO I
+MUNICIPIO II
+MUNICIPIO III
+MUNICIPIO IV
+MUNICIPIO V
+MUNICIPIO VI
+MUNICIPIO VII
+MUNICIPIO VIII
+MUNICIPIO IX
+MUNICIPIO X
+MUNICIPIO XI
+MUNICIPIO XII
+MUNICIPIO XIII
+MUNICIPIO XIV
+MUNICIPIO XV
+
+A1
+A2
+B1
+B2
+C1
+C2

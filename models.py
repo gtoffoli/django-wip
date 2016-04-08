@@ -249,10 +249,10 @@ class Proxy(models.Model):
             if translated_blocks:
                 translated_block = translated_blocks[0]
                 body = translated_block.body
-                segments = translated_block.translated_block_get_segments(segmenter=segmenter)
+                segments = translated_block.translated_block_get_segments(segmenter)
             else:
                 translated_block = None
-                segments = block.block_get_segments(segmenter=segmenter)                
+                segments = block.block_get_segments(segmenter)                
             if not segments:
                 continue # ???
             for segment in segments:
@@ -262,7 +262,8 @@ class Proxy(models.Model):
                     continue
                 words = segment.split()
                 translated_segment = None
-                matches = String.objects.filter(text__iexact=segment, txu__string__language_id__in=target_codes).distinct()
+                # matches = String.objects.filter(text__iexact=segment, txu__string__language_id__in=target_codes).distinct()
+                matches = String.objects.filter(text=segment.upper(), txu__string__language_id=language_code).distinct()
                 # if matches:
                 if matches.count() == 1:
                     print 'segment: ', segment
@@ -532,6 +533,7 @@ class Webpage(models.Model):
                         # blocks_in_page = BlockInPage(block=block, webpage=self)
                         blocks_in_page = BlockInPage(block=block, xpath=xpath, webpage=self)
                         blocks_in_page.save()
+        print self.path, n_1, n_2, n_3
         return n_1, n_2, n_3
 
     def create_blocks_dag(self):
@@ -548,10 +550,6 @@ class Webpage(models.Model):
                 if xpath.startswith(xpaths[j]):
                     parent = blocks[j]
                     if not BlockEdge.objects.filter(parent=parent, child=block):
-                        """
-                        block_edge = BlockEdge(parent=parent, child=block)
-                        block_edge.save()
-                        """
                         parent.add_child(block)
                     break
             blocks = [block]+blocks
@@ -674,6 +672,7 @@ class Txu(models.Model):
                 updated = True
         if updated:
             self.save()
+        return updated
 
 class TxuSubject(models.Model):
     txu = models.ForeignKey(Txu, related_name='txu')
@@ -913,44 +912,16 @@ class Block(node_factory('BlockEdge')):
                 return translations[0].state
         return 0
 
-    def block_get_segments(self, segmenter=None):
+    def block_get_segments(self, segmenter):
         if not segmenter:
             srx_filepath = os.path.join(RESOURCES_ROOT, 'segment.srx')
             srx_rules = srx_segmenter.parse(srx_filepath)
             italian_rules = srx_rules['Italian']
             segmenter = srx_segmenter.SrxSegmenter(italian_rules)
-        re_parentheses = re.compile(r'\(([^)]+)\)')
-        site = self.site
-        """
-        stripped_chars = STRIPPED[site.language.code]
-        separators = SEPARATORS[site.language.code]
-
-        strings = []
-        for string in list(strings_from_html(self.body, fragment=True)):
-            string = string.replace(u"\u2018", "'").replace(u"\u2019", "'").replace(' - ', ' – ')
-            if string.count('window') and string.count('document'):
-                continue
-            string = string.strip(stripped_chars)
-            if not string:
-                continue
-            for char in separators:
-                if char in string:
-                    continue
-            matches = []
-            if string.count('(') and string.count(')'):
-                matches = re_parentheses.findall(string)
-                if matches:
-                    for match in matches:
-                        string = string.replace('(%s)' % match, '')
-            strings.extend(segmenter.extract(string)[0])
-            for match in matches:
-                strings.extend(segmenter.extract(match)[0])
-        return strings
-        """
-        return get_segments(self.body, site, segmenter)
+        return get_segments(self.body, self.site, segmenter)
 
     def apply_invariants(self, segmenter):
-        segments = self.block_get_segments(segmenter=segmenter)
+        segments = self.block_get_segments(segmenter)
         invariant = True
         for segment in segments:
             if segment.isnumeric() or segment.replace(',', '.').isnumeric():
@@ -1045,42 +1016,8 @@ class TranslatedBlock(models.Model):
         verbose_name = _('translated block')
         verbose_name_plural = _('translated blocks')
 
-    def translated_block_get_segments(self, segmenter=None):
-        if not segmenter:
-            srx_filepath = os.path.join(RESOURCES_ROOT, 'segment.srx')
-            srx_rules = srx_segmenter.parse(srx_filepath)
-            italian_rules = srx_rules['Italian']
-            segmenter = srx_segmenter.SrxSegmenter(italian_rules)
-        re_parentheses = re.compile(r'\(([^)]+)\)')
-
-        site = self.block.site
-        """
-        stripped_chars = STRIPPED[site.language.code]
-        separators = SEPARATORS[site.language.code]
-        strings = []
-        for string in list(strings_from_html(self.body, fragment=True, exclude_tx=True)):
-            string = string.replace(u"\u2018", "'").replace(u"\u2019", "'").replace(' - ', ' – ')
-            if string.count('window') and string.count('document'):
-                continue
-            string = string.strip(stripped_chars)
-            if not string:
-                continue
-            for char in separators:
-                if char in string:
-                    continue
-            matches = []
-            if string.count('(') and string.count(')'):
-                matches = re_parentheses.findall(string)
-                if matches:
-                    for match in matches:
-                        string = string.replace('(%s)' % match, '')
-            strings.extend(segmenter.extract(string)[0])
-            for match in matches:
-                strings.extend(segmenter.extract(match)[0])
-        return strings
-        """
-        return get_segments(self.body, site, segmenter)
-
+    def translated_block_get_segments(self, segmenter):
+        return get_segments(self.body, self.block.site, segmenter)
 
 class BlockEdge(edge_factory('Block', concrete = False)):
     created = CreationDateTimeField(_('created'))

@@ -39,7 +39,7 @@ from actstream import action, registry
 from models import Language, Site, Proxy, Webpage, PageVersion, TranslatedVersion
 from models import Block, BlockEdge, TranslatedBlock, BlockInPage, String, Txu, TxuSubject #, TranslatedVersion
 from models import TO_BE_TRANSLATED, TRANSLATED, INVARIANT, ALREADY
-from models import MYMEMORY
+from models import MYMEMORY, TRANSLATION_SERVICE_DICT
 from forms import SiteManageForm, ProxyManageForm, PageEditForm, PageSequencerForm, BlockEditForm, BlockSequencerForm
 from forms import StringSequencerForm, StringTranslationForm, TranslationServiceForm
 from spiders import WipSiteCrawlerScript, WipCrawlSpider
@@ -114,6 +114,11 @@ def proxies(request):
 def can_strip(word):
     return word.count('#') or word.count('@') or word.count('http') or word.replace(',', '.').isnumeric()
 
+def text_to_list(text):
+    list = text.splitlines()
+    list = [item.strip() for item in list]
+    return [item for item in list if len(item)]
+    
 def site(request, site_slug):
     site = get_object_or_404(Site, slug=site_slug)
     var_dict = {}
@@ -146,12 +151,20 @@ def site(request, site_slug):
                     BlockInPage.objects.filter(block__site=site).delete()
                     BlockEdge.objects.filter(parent__site=site).delete()
                 webpages = Webpage.objects.filter(site=site).exclude(no_translate=True)
-                translate_deny_list = site.translate_deny and site.translate_deny.split('\n') or []
+                extract_deny_list = text_to_list(site.extract_deny)
+                translate_deny_list = text_to_list(site.translate_deny)
                 for webpage in webpages:
                     if webpage.last_unfound and (webpage.last_unfound > webpage.last_checked):
                         continue
                     should_skip = False
                     path = webpage.path
+                    for deny_path in extract_deny_list:
+                        if path.count(deny_path):
+                            should_skip = True
+                            break
+                    if should_skip:
+                        continue
+                    should_skip = False
                     for deny_path in translate_deny_list:
                         if path.count(deny_path):
                             should_skip = True
@@ -244,15 +257,25 @@ def site(request, site_slug):
                         string.delete()
                 f = request.FILES.get('file', None)
                 if f:
+                    i = 0
+                    m = 0
+                    n = 0
+                    d = 0
                     for line in f:
                         line = line.strip()
-                        # print line
-                        try:
-                            if line and not String.objects.filter(site=site, text=line, invariant=True):
-                                string = String(txu=None, language=language, site=site, text=line, reliability=0, invariant=True)
-                                string.save()
-                        except:
-                            pass
+                        i += 1
+                        if line:
+                            m += 1
+                            try:
+                                if String.objects.filter(site=site, text=line, invariant=True):
+                                    d += 1
+                                else:
+                                    string = String(txu=None, language=language, site=site, text=line, reliability=0, invariant=True)
+                                    string.save()
+                                    n += 1
+                            except:
+                                print 'error: ', i
+                    messages.add_message(request, messages.INFO, 'Imported %d invariants out of %d (%d repetitions).' % (n, m, d))
                 else:
                     messages.add_message(request, messages.ERROR, 'Please, select a file to upload.')
             elif apply_invariants:
@@ -264,21 +287,6 @@ def site(request, site_slug):
                     segmenter = srx_segmenter.SrxSegmenter(italian_rules)
                 n_invariants = 0
                 for block in blocks:
-                    """
-                    segments = block.get_segments()
-                    invariant = True
-                    for segment in segments:
-                        if segment.isnumeric() or segment.replace(',', '.').isnumeric():
-                            continue
-                        matches = String.objects.filter(site=site, text=segment, invariant=True)
-                        if not matches:
-                            invariant = False
-                            break
-                    if invariant:
-                        n_invariants += 1
-                        block.no_translate = True
-                        block.save()
-                    """
                     if block.apply_invariants(segmenter):
                         n_invariants += 1
                 messages.add_message(request, messages.INFO, '%d blocks marked as invariant.' % n_invariants)
@@ -878,31 +886,6 @@ def block_translate(request, block_id, target_code):
             source_translations.append([])
         source_segments.append(segment_string)
     source_segments = zip(source_segments, source_strings, source_translations)
-    """
-    target_list = []
-    for proxy_language in proxy_languages:
-        if proxy_language == source_language:
-            continue
-        try:
-            translated_block = TranslatedBlock.objects.get(block=block, language=proxy_language)
-        except:
-            translated_block = None
-        target_strings = []
-        for segment_strings in source_strings:
-            translated_strings = []
-            for s in segment_strings:
-                try:
-                    string = String.objects.get(language=source_language, text=s)
-                    translations = Txu.objects.filter(source=string, target__language=proxy_language)
-                    for translation in translations:
-                        text = translation.target.text
-                        if not text in translated_strings:
-                            translated_strings.append(text)
-                except:
-                    pass
-            target_strings.append(translated_strings)
-        target_list.append([proxy_language, translated_block, target_strings])
-    """
     try:
         translated_block = TranslatedBlock.objects.get(block=block, language=target_language)
     except:
@@ -1106,48 +1089,6 @@ def extract_terms(text, language='it', tagger=None, chunker=None):
         phrase = ' '.join([tagged_token[0] for tagged_token in chunk])
         phrases.append(phrase)
     return phrases
-
-"""
-def extract_blocks(page_id):
-    page = Webpage.objects.get(pk=page_id)
-    site = page.site
-    versions = PageVersion.objects.filter(webpage=page).order_by('-time')
-    if not versions:
-        return None
-    last_version = versions[0]
-    html_string = last_version.body
-    # http://stackoverflow.com/questions/1084741/regexp-to-strip-html-comments
-    html_string = re.sub("(<!--(.*?)-->)", "", html_string, flags=re.MULTILINE)
-    doc = html.document_fromstring(html_string)
-    tree = doc.getroottree()
-    top_els = doc.getchildren()
-    n_1 = n_2 = n_3 = 0
-    for top_el in top_els:
-        for el in elements_from_element(top_el):
-            if el.tag in BLOCK_TAGS:
-                save_failed = False
-                n_1 += 1
-                xpath = tree.getpath(el)
-                checksum = block_checksum(el)
-                blocks = Block.objects.filter(site=site, xpath=xpath, checksum=checksum)
-                if blocks:
-                    block = blocks[0]
-                else:
-                    string = etree.tostring(el)
-                    block = Block(site=site, xpath=xpath, checksum=checksum, body=string)
-                    try:
-                        block.save()
-                        n_2 += 1
-                    except:
-                        print '--- save error in page ---', page_id
-                        save_failed = True
-                blocks_in_page = BlockInPage.objects.filter(block=block, webpage=page)
-                if not blocks_in_page and not save_failed:
-                    n_3 += 1
-                    blocks_in_page = BlockInPage(block=block, webpage=page)
-                    blocks_in_page.save()
-    return n_1, n_2, n_3
-"""
 
 def string_view(request, string_id):
     if not request.user.is_superuser:

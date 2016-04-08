@@ -46,26 +46,6 @@ def text_from_html(string):
     return doc.text_content()
 
 # http://stackoverflow.com/questions/4624062/get-all-text-inside-a-tag-in-lxml
-"""
-def strings_from_block(block):
-    children = block.getchildren()
-    block_children = [child for child in children if child.tag in settings.BLOCK_TAGS]
-    if block_children:
-        text = block.text
-        if text: text = text.strip()
-        if text: yield text
-        for child in children:
-            for el in strings_from_block(child):
-                if el: el = el.strip()
-                if el: yield el
-    else:
-        content = block.text_content()
-        if content: content = content.strip()
-        if content: yield content
-    tail = block.tail
-    if tail: tail = tail.strip()
-    if tail: yield tail
-"""
 # http://stackoverflow.com/questions/4770191/lxml-etree-element-text-doesnt-return-the-entire-text-from-an-element
 # http://stackoverflow.com/questions/26304626/lxml-how-to-get-xpath-of-htmlelement
 def strings_from_block(block, tree=None, exclude_xpaths=[]):
@@ -215,7 +195,13 @@ def ask_mymemory(string, langpair):
             translations.append(translation)
     return status, translatedText, translations
 
+# http://stackoverflow.com/questions/8898294/convert-utf-8-with-bom-to-utf-8-with-no-bom-in-python
+def remove_bom(filepath):
+    fp = open(filepath, 'rw')
+    s = fp.read()
+    u = s.decode('utf-8-sig')
+    s = u.encode('utf-8')
+    fp.write(s)
+    fp.close()
 
-    
-    
     
