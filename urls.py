@@ -17,7 +17,7 @@ Including another URLconf
     3. Add a URL to urlpatterns:  url(r'^blog/', include(blog_urls))
 """
 
-from settings import USE_NLTK
+from settings import USE_SCRAPY, USE_NLTK
 from django.conf.urls import patterns, include, url
 from django.views.generic import TemplateView
 from django.contrib import admin
@@ -33,7 +33,6 @@ urlpatterns = [
     url(r"^$", views.home, name="home"),
     url(r"^sites/$", views.sites, name="sites"),
     url(r"^site/(?P<site_slug>[\w-]+)/$", views.site, name="site"),
-    url(r"^site/(?P<site_slug>[\w-]+)/crawl/$", views.site_crawl_by_slug, name="site_crawl"),
     url(r"^site/(?P<site_slug>[\w-]+)/pages/$", views.site_pages, name="site_pages"),
     url(r"^site/(?P<site_slug>[\w-]+)/blocks/$", views.site_blocks, name="site_blocks"),
     url(r"^page/(?P<page_id>[\d]+)/blocks/$", views.page_blocks, name="page_blocks"),
@@ -59,6 +58,11 @@ urlpatterns += (
     url(r'^accounts/profile/', TemplateView.as_view(template_name='accounts/profile.html'), name='welcome',),
 )   
 
+
+if USE_SCRAPY:
+    urlpatterns += (
+        url(r"^site/(?P<site_slug>[\w-]+)/crawl/$", views.site_crawl_by_slug, name="site_crawl"),
+    )   
 if USE_NLTK:
     urlpatterns += (
         url(r"^create_tagger/$", views.create_tagger, name="create_tagger"),

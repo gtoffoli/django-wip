@@ -978,7 +978,9 @@ class Block(node_factory('BlockEdge')):
                 if child_tags_dict_1[tag] > 1:
                     branch += '[%d]' % n
                 child_xpath = '%s/%s' % (xpath, branch)
+                print child_xpath
                 blocks_in_page = BlockInPage.objects.filter(webpage=webpage, xpath=child_xpath).order_by('-block__time')
+                print blocks_in_page.count(), webpage
                 if blocks_in_page:
                     child_block = blocks_in_page[0].block           
                     translated_child, child_translation_date = child_block.translated_block_element(language, element=child_element, webpage=webpage, xpath=child_xpath)

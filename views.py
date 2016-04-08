@@ -19,12 +19,10 @@ import os
 import re
 from math import sqrt
 from lxml import html, etree
-from scrapy.spiders import Rule #, CrawlSpider
-from scrapy.linkextractors import LinkExtractor
-from scrapy.crawler import CrawlerProcess
+
+from settings import USE_SCRAPY, USE_NLTK
 from haystack.query import SearchQuerySet
 # from search_indexes import StringIndex
-
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from django.template import RequestContext
 from django.http import HttpResponse, HttpResponseRedirect
@@ -42,11 +40,9 @@ from models import TO_BE_TRANSLATED, TRANSLATED, INVARIANT, ALREADY
 from models import MYMEMORY, TRANSLATION_SERVICE_DICT
 from forms import SiteManageForm, ProxyManageForm, PageEditForm, PageSequencerForm, BlockEditForm, BlockSequencerForm
 from forms import StringSequencerForm, StringTranslationForm, TranslationServiceForm
-from spiders import WipSiteCrawlerScript, WipCrawlSpider
 
 from settings import PAGE_SIZE, PAGE_STEPS
 from settings import DATA_ROOT, RESOURCES_ROOT, tagger_filename, BLOCK_TAGS, QUOTES, SEPARATORS, STRIPPED, EMPTY_WORDS, PAGES_EXCLUDE_BY_CONTENT
-from settings import USE_NLTK
 from utils import strings_from_html, elements_from_element, block_checksum, ask_mymemory
 import srx_segmenter
 
@@ -390,61 +386,6 @@ def proxy(request, proxy_slug):
     var_dict['manage_form'] = ProxyManageForm()
     return render_to_response('proxy.html', var_dict, context_instance=RequestContext(request))
 
-def site_crawl(site_pk):
-    crawler = WipSiteCrawlerScript()
-    site = Site.objects.get(pk=site_pk)
-    crawler.crawl(
-      site.id,
-      site.slug,
-      site.name,
-      site.get_allowed_domains(),
-      site.get_start_urls(),
-      site.get_deny()
-      )
-
-def site_crawl_by_slug(request, site_slug):
-    site = get_object_or_404(Site, slug=site_slug)
-    notask = request.GET.get('notask', False)
-    if notask:
-        site_name = site.name
-        allowed_domains = site.get_allowed_domains()
-        start_urls = site.get_start_urls()
-        deny = site.get_deny()
-        rules = [Rule(LinkExtractor(deny=deny), callback='parse_item', follow=True),]
-        spider_class = type(str(site_slug), (WipCrawlSpider,), {'site_id': site.id, 'name':site_name, 'allowed_domains':allowed_domains, 'start_urls':start_urls, 'rules': rules})
-        spider = spider_class()
-        process = CrawlerProcess()
-        process.crawl(spider)
-        process.start() # the script will block here until the crawling is finished
-        process.stop()
-    else:
-        print 'site_crawl_by_slug : ', site_slug
-        """
-        crawl_site.apply_async(args=(site.id,))
-        """
-        t = crawl_site.delay(site.id)
-        print 'task id: ', t
-    # return home(request)
-    return HttpResponseRedirect('/site/%s/' % site_slug)
-
-from celery.utils.log import get_task_logger
-from celery_apps import app
-
-@app.task()
-def crawl_site(site_pk):
-    logger = get_task_logger(__name__)
-    logger.info('Crawling site {0}'.format(site_pk))
-    return site_crawl(site_pk)
-
-"""
-@app.task(ignore_result=True)
-def my_task(request):
-    print('executing my_task')
-    logger = get_task_logger(__name__)
-    logger.debug('executing my_task')
-    var_dict = {}
-    return render_to_response('homepage.html', var_dict, context_instance=RequestContext(request))
-"""
 
 def site_pages(request, site_slug):
     var_dict = {}
@@ -1339,6 +1280,69 @@ def find_strings(source_languages=[], target_languages=[], translated=None):
 
 def get_language(language_code):
     return Language.objects.get(code=language_code)
+
+if USE_SCRAPY:
+
+    from scrapy.spiders import Rule #, CrawlSpider
+    from scrapy.linkextractors import LinkExtractor
+    from scrapy.crawler import CrawlerProcess
+    from spiders import WipSiteCrawlerScript, WipCrawlSpider
+
+    def site_crawl(site_pk):
+        crawler = WipSiteCrawlerScript()
+        site = Site.objects.get(pk=site_pk)
+        crawler.crawl(
+          site.id,
+          site.slug,
+          site.name,
+          site.get_allowed_domains(),
+          site.get_start_urls(),
+          site.get_deny()
+          )
+    
+    def site_crawl_by_slug(request, site_slug):
+        site = get_object_or_404(Site, slug=site_slug)
+        notask = request.GET.get('notask', False)
+        if notask:
+            site_name = site.name
+            allowed_domains = site.get_allowed_domains()
+            start_urls = site.get_start_urls()
+            deny = site.get_deny()
+            rules = [Rule(LinkExtractor(deny=deny), callback='parse_item', follow=True),]
+            spider_class = type(str(site_slug), (WipCrawlSpider,), {'site_id': site.id, 'name':site_name, 'allowed_domains':allowed_domains, 'start_urls':start_urls, 'rules': rules})
+            spider = spider_class()
+            process = CrawlerProcess()
+            process.crawl(spider)
+            process.start() # the script will block here until the crawling is finished
+            process.stop()
+        else:
+            print 'site_crawl_by_slug : ', site_slug
+            """
+            crawl_site.apply_async(args=(site.id,))
+            """
+            t = crawl_site.delay(site.id)
+            print 'task id: ', t
+        # return home(request)
+        return HttpResponseRedirect('/site/%s/' % site_slug)
+    
+    from celery.utils.log import get_task_logger
+    from celery_apps import app
+    
+    @app.task()
+    def crawl_site(site_pk):
+        logger = get_task_logger(__name__)
+        logger.info('Crawling site {0}'.format(site_pk))
+        return site_crawl(site_pk)
+    
+    """
+    @app.task(ignore_result=True)
+    def my_task(request):
+        print('executing my_task')
+        logger = get_task_logger(__name__)
+        logger.debug('executing my_task')
+        var_dict = {}
+        return render_to_response('homepage.html', var_dict, context_instance=RequestContext(request))
+    """
 
 if USE_NLTK:
 
