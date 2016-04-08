@@ -46,6 +46,7 @@ from spiders import WipSiteCrawlerScript, WipCrawlSpider
 
 from settings import PAGE_SIZE, PAGE_STEPS
 from settings import DATA_ROOT, RESOURCES_ROOT, tagger_filename, BLOCK_TAGS, QUOTES, SEPARATORS, STRIPPED, EMPTY_WORDS, PAGES_EXCLUDE_BY_CONTENT
+from settings import USE_NLTK
 from utils import strings_from_html, elements_from_element, block_checksum, ask_mymemory
 import srx_segmenter
 
@@ -975,121 +976,6 @@ def block_pages(request, block_id):
     var_dict['after'] = steps_after(page, paginator.num_pages)
     return render_to_response('block_pages.html', var_dict, context_instance=RequestContext(request))
 
-def page_scan(request, fetched_id, language='it'):
-    string = request.GET.get('strings', False)
-    tag = request.GET.get('tag', False)
-    chunk = request.GET.get('chunk', False)
-    ext = request.GET.get('ext', False)
-    string = tag = chunk = True
-    if tag or chunk or ext:
-        tagger = NltkTagger(language=language, tagger_input_file=os.path.join(DATA_ROOT, tagger_filename))
-    if chunk or ext:
-        chunker = NltkChunker(language='it')
-    var_dict = {} 
-    var_dict['scan'] = fetched = get_object_or_404(PageVersion, pk=fetched_id)
-    var_dict['page'] = page = fetched.webpage
-    var_dict['site'] = site = page.site
-    page = fetched.webpage
-    if page.encoding.count('html'):
-        if request.GET.get('region', False):
-            region = page.get_region()
-            var_dict['text_xpath'] = region and region.root
-            var_dict['page_text'] = region and region.full_text.replace("\n"," ") or ''
-        if string:
-            var_dict['strings'] = [s for s in strings_from_html(fetched.body)]
-        if chunk or tag:
-            strings = []
-            tags = []
-            chunks = []
-            for string in strings_from_html(fetched.body):
-                string = string.replace(u"\u2018", "'").replace(u"\u2019", "'")
-                if string.count('window') and string.count('document'):
-                    continue
-                if tag or chunk:
-                    tagged_tokens = tagger.tag(text=string)
-                    if tag:
-                        tags.extend(tagged_tokens)
-                if chunk:
-                    noun_chunks = chunker.main_chunker(tagged_tokens, chunk_tag='NP')
-                    chunks.extend(noun_chunks)
-                if not (tag or chunk):
-                    matches = []
-                    if string.count('(') and string.count(')'):
-                        matches = re_parentheses.findall(string)
-                        if matches:
-                            for match in matches:
-                                string = string.replace('(%s)' % match, '')
-                    strings.extend(segmenter.extract(string)[0])
-                    for match in matches:
-                        strings.extend(segmenter.extract(match)[0])
-                    if ext:
-                        terms = extract_terms(string, language=language, tagger=tagger, chunker=chunker)
-                        terms = ['- %s -' % term for term in terms]
-                        strings.extend(terms)
-            var_dict['tags'] = tags
-            var_dict['chunks'] = chunks
-    return render_to_response('page_scan.html', var_dict, context_instance=RequestContext(request))
-
-import nltk
-from wip.wip_nltk.corpora import NltkCorpus
-from wip.wip_nltk.taggers import NltkTagger
-from wip.wip_nltk.chunkers import NltkChunker
-from wip.wip_nltk.util import filter_unicode
-
-tagged_corpus_id = 'itwac'
-file_ids = ['ITWAC-1.xml']
-tagger_types = ['BigramTagger', 'UnigramTagger', 'AffixTagger', 'DefaultTagger',]
-# default_tag = 'NOUN'
-default_tag = None
-filename = 'tagger'
-
-def create_tagger(request, language='it', filename=''):
-    corpus_loader = getattr(nltk.corpus, tagged_corpus_id)
-    tagged_corpus = NltkCorpus(corpus_loader=corpus_loader, language=language)
-    tagged_sents = tagged_corpus.corpus_loader.tagged_sents(fileids=file_ids, simplify_tags=True)
-    tagger = NltkTagger(language=language, tagger_types=tagger_types, default_tag=default_tag, train_sents=tagged_sents)
-    tagger.train()
-    data = pickle.dumps(tagger.tagger)
-    if not filename:
-        filename = '.'.join(file_ids)
-    ext = '.pickle'
-    if not filename.endswith(ext):
-        filename += ext
-    if request.GET.get('auto', False):
-        filepath = os.path.join(DATA_ROOT, filename)
-        f = open(filepath, 'wb')
-        f.write(data)
-        return HttpResponseRedirect('/')
-    else:
-        content_type = 'application/octet-stream'
-        response = HttpResponse(data, content_type=content_type)
-        response['Content-Disposition'] = 'attachment; filename="%s"' % filename
-        return response
-
-def extract_terms(text, language='it', tagger=None, chunker=None):
-    if text.startswith(u'\ufeff'):
-        text = text[1:]
-    if not tagger:
-        tagger = NltkTagger(language=language, tagger_input_file=os.path.join(DATA_ROOT, tagger_filename))
-    tagged_tokens = tagger.tag(text=text)
-    if not chunker:
-        chunker = NltkChunker(language='it')
-    noun_chunks = chunker.main_chunker(tagged_tokens, chunk_tag='NP')
-    phrases = []
-    for chunk in noun_chunks:
-        """
-        tag = chunk[0][1].split(u':')[0]
-        if tag in [u'ART', u'ARTPRE', 'DET']:
-            chunk = chunk[1:]
-            tag = chunk[0][1].split(u':')[0]
-            if tag in ['DET']:
-                chunk = chunk[1:]
-        """
-        # phrase = u' '.join([tagged_token[0] for tagged_token in chunk])
-        phrase = ' '.join([tagged_token[0] for tagged_token in chunk])
-        phrases.append(phrase)
-    return phrases
-
 def string_view(request, string_id):
     if not request.user.is_superuser:
         return empty_page(request);
@@ -1453,3 +1339,120 @@ def find_strings(source_languages=[], target_languages=[], translated=None):
 
 def get_language(language_code):
     return Language.objects.get(code=language_code)
+
+if USE_NLTK:
+
+    import nltk
+    from wip.wip_nltk.corpora import NltkCorpus
+    from wip.wip_nltk.taggers import NltkTagger
+    from wip.wip_nltk.chunkers import NltkChunker
+    from wip.wip_nltk.util import filter_unicode
+    
+    tagged_corpus_id = 'itwac'
+    file_ids = ['ITWAC-1.xml']
+    tagger_types = ['BigramTagger', 'UnigramTagger', 'AffixTagger', 'DefaultTagger',]
+    # default_tag = 'NOUN'
+    default_tag = None
+    filename = 'tagger'
+    
+    def create_tagger(request, language='it', filename=''):
+        corpus_loader = getattr(nltk.corpus, tagged_corpus_id)
+        tagged_corpus = NltkCorpus(corpus_loader=corpus_loader, language=language)
+        tagged_sents = tagged_corpus.corpus_loader.tagged_sents(fileids=file_ids, simplify_tags=True)
+        tagger = NltkTagger(language=language, tagger_types=tagger_types, default_tag=default_tag, train_sents=tagged_sents)
+        tagger.train()
+        data = pickle.dumps(tagger.tagger)
+        if not filename:
+            filename = '.'.join(file_ids)
+        ext = '.pickle'
+        if not filename.endswith(ext):
+            filename += ext
+        if request.GET.get('auto', False):
+            filepath = os.path.join(DATA_ROOT, filename)
+            f = open(filepath, 'wb')
+            f.write(data)
+            return HttpResponseRedirect('/')
+        else:
+            content_type = 'application/octet-stream'
+            response = HttpResponse(data, content_type=content_type)
+            response['Content-Disposition'] = 'attachment; filename="%s"' % filename
+            return response
+    
+    def extract_terms(text, language='it', tagger=None, chunker=None):
+        if text.startswith(u'\ufeff'):
+            text = text[1:]
+        if not tagger:
+            tagger = NltkTagger(language=language, tagger_input_file=os.path.join(DATA_ROOT, tagger_filename))
+        tagged_tokens = tagger.tag(text=text)
+        if not chunker:
+            chunker = NltkChunker(language='it')
+        noun_chunks = chunker.main_chunker(tagged_tokens, chunk_tag='NP')
+        phrases = []
+        for chunk in noun_chunks:
+            """
+            tag = chunk[0][1].split(u':')[0]
+            if tag in [u'ART', u'ARTPRE', 'DET']:
+                chunk = chunk[1:]
+                tag = chunk[0][1].split(u':')[0]
+                if tag in ['DET']:
+                    chunk = chunk[1:]
+            """
+            # phrase = u' '.join([tagged_token[0] for tagged_token in chunk])
+            phrase = ' '.join([tagged_token[0] for tagged_token in chunk])
+            phrases.append(phrase)
+        return phrases
+    
+    def page_scan(request, fetched_id, language='it'):
+        string = request.GET.get('strings', False)
+        tag = request.GET.get('tag', False)
+        chunk = request.GET.get('chunk', False)
+        ext = request.GET.get('ext', False)
+        string = tag = chunk = True
+        if tag or chunk or ext:
+            tagger = NltkTagger(language=language, tagger_input_file=os.path.join(DATA_ROOT, tagger_filename))
+        if chunk or ext:
+            chunker = NltkChunker(language='it')
+        var_dict = {} 
+        var_dict['scan'] = fetched = get_object_or_404(PageVersion, pk=fetched_id)
+        var_dict['page'] = page = fetched.webpage
+        var_dict['site'] = site = page.site
+        page = fetched.webpage
+        if page.encoding.count('html'):
+            if request.GET.get('region', False):
+                region = page.get_region()
+                var_dict['text_xpath'] = region and region.root
+                var_dict['page_text'] = region and region.full_text.replace("\n"," ") or ''
+            if string:
+                var_dict['strings'] = [s for s in strings_from_html(fetched.body)]
+            if chunk or tag:
+                strings = []
+                tags = []
+                chunks = []
+                for string in strings_from_html(fetched.body):
+                    string = string.replace(u"\u2018", "'").replace(u"\u2019", "'")
+                    if string.count('window') and string.count('document'):
+                        continue
+                    if tag or chunk:
+                        tagged_tokens = tagger.tag(text=string)
+                        if tag:
+                            tags.extend(tagged_tokens)
+                    if chunk:
+                        noun_chunks = chunker.main_chunker(tagged_tokens, chunk_tag='NP')
+                        chunks.extend(noun_chunks)
+                    if not (tag or chunk):
+                        matches = []
+                        if string.count('(') and string.count(')'):
+                            matches = re_parentheses.findall(string)
+                            if matches:
+                                for match in matches:
+                                    string = string.replace('(%s)' % match, '')
+                        strings.extend(segmenter.extract(string)[0])
+                        for match in matches:
+                            strings.extend(segmenter.extract(match)[0])
+                        if ext:
+                            terms = extract_terms(string, language=language, tagger=tagger, chunker=chunker)
+                            terms = ['- %s -' % term for term in terms]
+                            strings.extend(terms)
+                var_dict['tags'] = tags
+                var_dict['chunks'] = chunks
+        return render_to_response('page_scan.html', var_dict, context_instance=RequestContext(request))
