@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+from collections import defaultdict
 import scrapy
 from scrapy.spiders import CrawlSpider, Rule
 from scrapy.linkextractors import LinkExtractor
@@ -136,22 +137,37 @@ class L2MemberScraper(CrawlSpider):
 class L2SchoolItem(scrapy.Item):
     url = scrapy.Field()
     status = scrapy.Field()
-    title = scrapy.Field()
+    name = scrapy.Field()
     address = scrapy.Field()
+    referent = scrapy.Field()
+    organizer = scrapy.Field()
     phone = scrapy.Field()
     email = scrapy.Field()
-    site = scrapy.Field()
-    referent = scrapy.Field()
-    phone_referent = scrapy.Field()
-    email_referent = scrapy.Field()
-
+    web = scrapy.Field()
+    description = scrapy.Field()
+    text = scrapy.Field()
+    
+course_levels = ['Analfabeti', 'Base', 'A1', 'A2', 'B1', 'B2', 'C1', 'C2', 'Avanzato',]
+course_levels_exclude = ['civica', 'Recupero', 'rinforzo', 'donne',]
+week_days = ['LUN', 'MAR', 'MER', 'GIO', 'VEN', 'SAB', 'DOM',]
 class L2SchoolScraper(CrawlSpider):
     name = 'scuolemigranti_schools'
     custom_settings = {'ITEM_PIPELINES': {'wip.pipelines.L2SchoolPipeline': 300}}
     DOMAIN = 'www.scuolemigranti.org'
     URL = 'http://%s' % DOMAIN
     allowed_domains = (DOMAIN,)
-    start_urls = (URL,)
+    start_urls = (
+      URL,
+      '%s/?s=all&comune=all-comune&municipio=all-roma&livello=Analfabeti&post_type=sedi' % URL,
+      '%s/?s=all&comune=all-comune&municipio=all-roma&livello=Base&post_type=sedi' % URL,
+      '%s/?s=all&comune=all-comune&municipio=all-roma&livello=A1&post_type=sedi' % URL,
+      '%s/?s=all&comune=all-comune&municipio=all-roma&livello=A2&post_type=sedi' % URL,
+      '%s/?s=all&comune=all-comune&municipio=all-roma&livello=B1&post_type=sedi' % URL,
+      '%s/?s=all&comune=all-comune&municipio=all-roma&livello=B2&post_type=sedi' % URL,
+      '%s/?s=all&comune=all-comune&municipio=all-roma&livello=C1&post_type=sedi' % URL,
+      '%s/?s=all&comune=all-comune&municipio=all-roma&livello=C2&post_type=sedi' % URL,
+      '%s/?s=all&comune=all-comune&municipio=all-roma&livello=Avanzato&post_type=sedi' % URL,
+      )
     rules = [Rule(LinkExtractor(
                     allow=('^%s/sedi/.+/' % URL,), 
                     deny=('\.pdf', '\.doc', '\.docx', '\.xls', '\.xlsx', '\.ppt', '\.pptx', '\.ppsx', '\.rtf',)),
@@ -163,5 +179,67 @@ class L2SchoolScraper(CrawlSpider):
         item = L2SchoolItem()
         item['url'] = response.url
         item['status'] = response.status
-        item['title'] = response.xpath('/html/head/title/text()/text()').extract()
+        address = response.xpath('//h1/text()').extract()
+        item['address'] = address and address[0].strip() or ''
+        item['name'] = 'Italiano L2 a %s' % item['address']
+        organizer = response.xpath('//h3/a/text()').extract()
+        item['organizer'] = organizer and organizer[0].strip() or ''
+        web = response.xpath('//h3/a/@href').extract()
+        item['web'] = web and web[0].strip() or ''
+        times = response.xpath('//div[@class="container-orari clearfix"]/descendant::*/text()').extract()
+        text = ''
+        for time in times: text = text+time
+        levels = [level for level in course_levels if text.count(level)]
+        item['description'] = levels and 'Corsi gratuiti di livello %s' % ', '.join(levels) or 'Corsi gratuiti di Italiano per stranieri'
+        time_list = []
+        if times:
+            for time in times:
+                time_words = time.split()
+                if not time_words:
+                    continue
+                time_start = True
+                for word in course_levels_exclude:
+                    if word in time_words:
+                        time_start = False
+                        break
+                if time_start:
+                    time_start = False
+                    for word in course_levels:
+                        if word in time_words:
+                            time_start = True
+                            break
+                if time_start:
+                    if time_list:
+                        time_list.append('</li>')
+                    else:
+                        time_list.append('<div><b>Orario dei corsi</b></div><ul>')
+                    time_list.append('<li>')
+                time = ' '.join(time_words)
+                time = time.replace(' - ', '-'). replace(' – ', '–')
+                time_list.append(time)
+            if time_list:
+                time_list.append('</li></ul>')
+        item['text'] = time_list and ' '.join(time_list) or ''
+        infos = response.xpath('//div[@class="col-md-12"]/descendant::*/text()').extract()
+        words = []
+        for info in infos:
+            words.extend(info.strip().split())
+        emails = []
+        for word in words:
+            if word.count('@') and word.count('.') and not word in emails:
+                emails.append(word)
+        while '-' in words: words.remove('-')
+        while ';' in words: words.remove(';')
+        item['email'] = emails and '\n'.join(emails) or ''
+        phones = []
+        n = len(words)
+        for i in range(len(words)):
+            if words[i] == 'Tel.':
+                while i < (n-2):
+                    prefix = words[i+1]
+                    number = words[i+2]
+                    if prefix.isdigit() and len(prefix)<=3 and number.isdigit() and len(number)>=5:
+                        phones.append(prefix + ' ' + number)
+                    i += 2                 
+        item['phone'] = phones and '\n'.join(phones) or ''
         return item

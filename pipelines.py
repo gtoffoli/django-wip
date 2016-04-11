@@ -109,5 +109,38 @@ class L2MemberPipeline(object):
    
 class L2SchoolPipeline(object):
 
+    @classmethod
+    def from_crawler(cls, crawler):
+        return cls()
+
     def process_item(self, item, spider):
+        webs = []
+        if item['web']:
+            webs.append("%s informazione sull'organizzazione" %item['web'])
+        if item['url']:
+            webs.append("%s informazione sui corsi" % item['url'])
+        text = "<div>(verifica sempre l'informazione sui siti in riferimento)</div>"
+        if item['organizer']:
+            text += "<div>Corsi organizzati da %s</div>" % item['organizer']
+        text += item['text']
+        poi_dict = {
+          "fw_core": {
+            "source": 'FairVillage crawler',
+            "category": "0532039401",
+            "name": item['name'],
+            "description": {"_def": "it", "it": item['description']},
+          },
+          "fw_contact": {
+            "phone": item['phone'],
+            "mailto": item['email'],
+            "postal": item['address'] and [item['address']] or []
+          },
+          "fw_fairvillage": {
+            "web": '|'.join(webs),
+            "text": {"_def": "it", "it": text}
+          }
+        }
+        data = json.dumps(poi_dict)
+        url = "http://www.romapaese.it/add_poi/"
+        urllib2.urlopen(url, data) # use the optional arg data to specify the POST method 
         return item
