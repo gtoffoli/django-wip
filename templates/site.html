@@ -93,7 +93,7 @@
     <tbody>
     {% for language, dict in pages_proxy_list %}
       <tr>
-        <td><a href="/page/{{ page.id }}/proxy/{{ language.code }}/">{{ language.name }}</a></td>
+        <td>{{ language.name }}</td>
         <td>{{ pages_total }}</td>
         <td><span class="mR10">{{ pages_invariant }}</span>{% if pages_invariant %}<a href="/page/0/?site={{ site.slug }}&filter=no_translate" title="{% trans "browse invariant pages" %}"><i class="fa fa-caret-square-o-right"></i></a>{% endif %}</td>
         <td>{{ dict.partially }}</td>
@@ -120,7 +120,7 @@
     <tbody>
     {% for language, dict in blocks_proxy_list %}
       <tr>
-        <td><a href="/page/{{ page.id }}/proxy/{{ language.code }}/">{{ language.name }}</a></td>
+        <td>{{ language.name }}</td>
         <td>{{ blocks_total }}</td>
         <td><span class="mR10">{{ blocks_invariant }}</span>{% if blocks_invariant %}<a href="/block/0/?site={{ site.slug }}&filter=no_translate" title="{% trans "browse invariant blocks" %}"><i class="fa fa-caret-square-o-right"></i></a>{% endif %}</td>
         <td><span class="mR10">{{ dict.already }}</span>{% if dict.already %}<a href="/block/0/?site={{ site.slug }}&filter=already&lang={{ language.code }}" title="{% trans "browse blocks already in target language" %}"><i class="fa fa-caret-square-o-right"></i></a>{% endif %}</td>

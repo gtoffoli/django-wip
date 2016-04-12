@@ -5,7 +5,7 @@ from httpproxy.views import HttpProxy
 from models import Language, Proxy, Webpage, PageVersion, TranslatedVersion
 
 class WipHttpProxy(HttpProxy):
-    prefix = '/proxy'
+    prefix = '/dummy'
     rewrite_links = False
     proxy_id = ''
     language_code = ''
@@ -14,7 +14,7 @@ class WipHttpProxy(HttpProxy):
     def dispatch(self, request, url, *args, **kwargs):
         self.url = url
         self.host = request.META.get('HTTP_HOST', '')
-        if self.prefix == '/proxy':
+        if self.prefix == '/dummy':
             for proxy in Proxy.objects.all():
                 if proxy.host and self.host.count(proxy.host):
                     self.proxy = proxy
@@ -52,7 +52,7 @@ class WipHttpProxy(HttpProxy):
         return response
 
     def replace_links(self, response):
-        if self.prefix=='/proxy' and not self.host.count('localhost'):
+        if self.prefix=='/dummy' and not self.host.count('localhost'):
             response.content = response.content.replace(self.base_url, '/')
         else:
             response.content = response.content.replace(self.base_url, self.prefix)

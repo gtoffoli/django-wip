@@ -7,7 +7,6 @@ For more information on this file, see
 https://docs.djangoproject.com/en/1.9/topics/db/models/
 """
 import sys
-import codecs
 """
 sys.stdout = codecs.getwriter('utf8')(sys.stdout)
 sys.stderr = codecs.getwriter('utf8')(sys.stderr)
@@ -724,7 +723,7 @@ def block_translate(request, block_id, target_code):
     BlockSequencerForm.base_fields['extract_strings'] = forms.BooleanField(required=False, label='Extract strings', )
     save_block = apply_filter = goto = extract = '' 
     create = modify = ''
-    segments = block.block_get_segments()
+    segments = block.block_get_segments(None)
     segments = [segment.strip(' .,;:*+-=').lower() for segment in segments]
     extract_strings = False
     post = request.POST
@@ -1236,7 +1235,7 @@ def list_strings(request, sources, state, targets=[]):
     var_dict['strings'] = strings
     return render_to_response('list_strings.html', var_dict, context_instance=RequestContext(request))
 
-def find_strings(source_languages=[], target_languages=[], translated=None, site=site):
+def find_strings(source_languages=[], target_languages=[], translated=None, site=None):
     if isinstance(source_languages, Language):
         source_languages = [source_languages]
     if isinstance(target_languages, Language):

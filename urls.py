@@ -28,7 +28,7 @@ import scripts
 from proxy import WipHttpProxy
 
 urlpatterns = [
-    url(r'^proxy/(?P<url>.*)$', WipHttpProxy.as_view(rewrite_links=True)),
+    url(r'^dummy/(?P<url>.*)$', WipHttpProxy.as_view(rewrite_links=True)),
     url(r'^admin/', admin.site.urls),
     url(r'^tinymce/', include('tinymce.urls')),
     url(r"^$", views.home, name="home"),
