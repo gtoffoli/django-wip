@@ -1236,7 +1236,7 @@ def list_strings(request, sources, state, targets=[]):
     var_dict['strings'] = strings
     return render_to_response('list_strings.html', var_dict, context_instance=RequestContext(request))
 
-def find_strings(source_languages=[], target_languages=[], translated=None):
+def find_strings(source_languages=[], target_languages=[], translated=None, site=site):
     if isinstance(source_languages, Language):
         source_languages = [source_languages]
     if isinstance(target_languages, Language):
@@ -1244,6 +1244,8 @@ def find_strings(source_languages=[], target_languages=[], translated=None):
     source_codes = [l.code for l in source_languages]
     target_codes = [l.code for l in target_languages]
     qs = String.objects
+    if site:
+        qs = qs.filter(site=site)
     if source_languages:
         source_codes = [l.code for l in source_languages]
         qs = qs.filter(language_id__in=source_codes)

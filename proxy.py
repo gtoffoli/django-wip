@@ -9,6 +9,7 @@ class WipHttpProxy(HttpProxy):
     rewrite_links = False
     proxy_id = ''
     language_code = ''
+    proxy = None
 
     def dispatch(self, request, url, *args, **kwargs):
         self.url = url
@@ -22,6 +23,16 @@ class WipHttpProxy(HttpProxy):
             return response
 
         response = super(HttpProxy, self).dispatch(request, *args, **kwargs)
+
+        if not self.proxy_id:
+            host = request.META.get('HTTP_HOST', '')
+            for proxy in Proxy.objects.all():
+                if proxy.host == host:
+                    self.proxy = proxy
+                    self.proxy_id = proxy.id
+                    self.language_code = proxy.language.code
+                    break
+
         # content_type = response.headers['Content-Type']
         trailer = response.content[:100]
         if trailer.count('<') and trailer.lower().count('html'):
@@ -43,7 +54,10 @@ class WipHttpProxy(HttpProxy):
 
     def translate(self, response):
         content = response.content
-        proxy = Proxy.objects.get(pk=self.proxy_id)
+        if self.proxy:
+            proxy = self.proxy
+        else:
+            proxy = Proxy.objects.get(pk=self.proxy_id)
         site = proxy.site
         path = urlparse.urlparse(self.url).path
         print 'translate - path: ', path

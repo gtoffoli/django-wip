@@ -156,18 +156,26 @@ def import_invariants(filename, language, site):
             string = String(txu=None, language=language, site=site, text=line, reliability=0, invariant=True)
             string.save()
 
-def export_segments():
+# def export_segments():
+def export_segments(site, source_code='it', target_code='it'):
     from wip.views import find_strings
+    """
     source = Language.objects.get(code='it')
     target = Language.objects.get(code='en')
     strings = find_strings(source_languages=[source], target_languages=[target], translated=False)
+    """
+    source = Language.objects.get(code=source_code)
+    target = Language.objects.get(code=target_code)
+    strings = find_strings(site=site, source_languages=[source], target_languages=[target], translated=False)
     print strings.count()
-    file = open('alfa.txt', 'w')
+    # file = open('alfa.txt', 'w')
+    file = open('%s_alfa.txt' % site.slug, 'w')
     for s in strings:
       file.write(s.text + '\n')
     file.close()
     strings = strings.order_by('id')
-    file = open('time.txt', 'w')
+    # file = open('time.txt', 'w')
+    file = open('%s_time.txt' % site.slug, 'w')
     for s in strings:
       file.write(s.text + '\n')
     file.close()
