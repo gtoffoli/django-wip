@@ -1,7 +1,8 @@
-{% extends "wip_base.html" %}
+{% extends "base.html" %}
 {% load staticfiles i18n %}
 
 {% block extra_head %}
+{% comment %}
 <style>
     label { display: inline; font-weight: bold; margin-right: 1.0em; padding: 0.2em 0em;}
     pre { display: inline; padding: 0; }
@@ -10,31 +11,44 @@
     .r { text-align: right; }
     table { border-spacing: 10px 0; border-collapse: separate;
 </style>
+{% endcomment %}
 {% endblock %}
 
-{% block head_title %}WIP - Site: {{ site.name }}{% endblock %}
+{% block head_title %}Site: {{ site.name }}{% endblock %}
 
-{% block title-page %}WIP - Site: {{ site.name }}{% endblock %}
+{% block body_id %}site{% endblock %}
+
+{% block title-page %}WIP Site: {{ site.name }}{% endblock %}
 
 {% block content-page %}
-    <div><label>URL</label> {{ site.url }}</div>
-    <div><label>Path prefix</label> {{ site.path_prefix }}</div>
-    <div><label>Allowed domains</label> {{ site.allowed_domains }}</div>
-    <div><label>Start urls</label> {{ site.start_urls }}</div>
-    {% if site.deny %}<div><label>Deny</label> {{ site.deny }}</div>{% endif %}
-    <div><label>Pages</label> {% if page_count %} <a href="/site/{{ site.slug }}/pages/" title="list pages">{{ page_count }}</a> {% else %}0{% endif %}
-    	{% if page_count %}&nbsp; <a href="/page/{{ first_page.id }}/" title="browse all pages"><span class="fa fa-caret-square-o-right"></span></a>{% endif %}</div>
-    <div><label>Page blocks</label> {% if block_count %} <a href="/site/{{ site.slug }}/blocks/" title="list blocks">{{ block_count }}</a> {% else %}0{% endif %}
-		{% if block_count %}&nbsp; <a href="/block/{{ first_block.id }}/" title="browse all blocks"><span class="fa fa-caret-square-o-right"></span></a>{% endif %}</div>
-	{% if proxies %}
-	<div><label>Proxies</label>
-	    {% for proxy in proxies %}
-	    <a href="{% url 'proxy' proxy.slug %}">{{ proxy.name }}</a>{% if not forloop.last %}, &nbsp;{% endif %}
-	    {% endfor %}
-	</div>
-	{% else %}
-		<div style="margin-top: 0.5em">No proxies are available.</div>
-	{% endif %}
+  <table class="table table-responsive table-bordered table-striped">
+    <thead>
+      <tr><th>URL</th><th>{% trans "path prefix"|capfirst %}</th><th>{% trans "allowed domains"|capfirst %}</th><th>{% trans "start urls"|capfirst %}</th>{% if site.deny %}<th>{% trans "deny"|capfirst %}</th>{% endif %}</tr>
+    </thead>
+    <tbody>
+      <tr><td>{{ site.url }}</td><td>{{ site.path_prefix }}</td><td>{{ site.allowed_domains }}</td><td>{{ site.start_urls }}</td>{% if site.deny %}<td>{{ site.deny }}</td>{% endif %}</tr>
+    </tbody>
+  </table>
+
+  <table class="table table-responsive table-bordered table-striped">
+    <thead>
+      <tr><th>{% trans "pages"|capfirst %}</th><th>{% trans "page blocks"|capfirst %}</th><th>{% trans "proxies"|capfirst %}</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>{% if page_count %}<span class="mR10">{{ page_count }}</span><span class="mR10"><a href="/site/{{ site.slug }}/pages/" title="{% trans "list pages" %}"><i class="fa fa-th-list"></i></a></span><a href="/page/{{ first_page.id }}/" title="{% trans "browse all pages" %}"><i class="fa fa-caret-square-o-right"></i></a>{% else %}0{% endif %}</td>
+        <td>{% if block_count %}<span class="mR10">{{ block_count }}</span><span class="mR10"><a href="/site/{{ site.slug }}/blocks/" title="{% trans "list blocks" %}"><i class="fa fa-th-list"></i></a></span><a href="/block/{{ first_block.id }}/" title="{% trans "browse all blocks" %}"><i class="fa fa-caret-square-o-right"></i></a>{% else %}0{% endif %}</td>
+        <td>{% if proxies %}
+              {% for proxy in proxies %}
+                <a href="{% url 'proxy' proxy.slug %}">{{ proxy.name }}</a>{% if not forloop.last %}<br>{% endif %}
+              {% endfor %}
+            {% else %}
+              {% trans "no proxies are available."|capfirst %}
+            {% endif %}
+        </td>
+      </tr>
+    </tbody>
+  </table>
 
 	{% if user.is_superuser %}
    	<form action="/site/{{ site.slug }}/" method="post" enctype="multipart/form-data">{% csrf_token %}
@@ -42,7 +56,7 @@
 	<div>{% for l in missing_languages %}<input type="submit" name="addproxy-{{ l.code }}" value="Add {{ l.name }} proxy" class="btn btn-sm" />{% endfor %}</div>
 	{% endif %}
 	<div>{{ manage_form.clear_pages }} Clear all saved pages
-		<input type="submit" name="site_crawl" value="{% if page_count %}Re-crawl{% else %}Crawl{% endif %}" title="scan pages" class="btn btn-sm" />
+	<input type="submit" name="site_crawl" value="{% if page_count %}Re-crawl{% else %}Crawl{% endif %}" title="scan pages" class="btn btn-sm"></div>
 	<div>{{ manage_form.clear_blocks }} Clear all saved blocks
 		<input type="submit" name="extract_blocks" value="Extract blocks" title="Extract" class="btn btn-sm" /></div>
 	{% if not page_count and not block_count and not proxies %}
@@ -63,50 +77,59 @@
 	</form>
 	{% endif %}
 
-<h4>Translation state of site pages</h4>
-<table border="0"><thead>
-	<th class="l">Proxy</th>
-	<th class="r">TOTAL</th>
-	<th class="r">invariant</th>
-	<th class="r">partially<br/>translated</th>
-	<th class="r">translated</th>
-	<th class="r">revised</th>
-	<th class="r">to be translated</th>
-</thead><tbody>
-{% for language, dict in pages_proxy_list %}<tr>
-   <th><a href="/page/{{ page.id }}/proxy/{{ language.code }}/">{{ language.name }}</a></th>
-   <td class="r">{{ pages_total }}</td>
-   <td class="r">{{ pages_invariant }}{% if pages_invariant %}&nbsp; <a href="/page/0/?site={{ site.slug }}&filter=no_translate" title="browse all blocks"><span class="fa fa-caret-square-o-right"></span></a>{% endif %}</td>
-   <td class="r">{{ dict.partially }}</td>
-   <td class="r">{{ dict.translated }}</td>
-   <td class="r">{{ dict.revised }}</td>
-   <td class="r">{{ dict.left }}</td>
-</tr>{% endfor %}
-</tbody>
-</table>
+  <h4>{% trans "translation state of site pages"|capfirst %}</h4>
+  <table class="table table-responsive table-bordered table-striped">
+    <thead>
+      <tr>
+        <th>{% trans "proxy"|capfirst %}</th>
+        <th>{% trans "total"|upper %}</th>
+        <th>{% trans "invariant" %}</th>
+        <th>{% trans "partially translated" %}</th>
+        <th>{% trans "translated" %}</th>
+        <th>{% trans "revised" %}</th>
+        <th>{% trans "to be translated" %}</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for language, dict in pages_proxy_list %}
+      <tr>
+        <td><a href="/page/{{ page.id }}/proxy/{{ language.code }}/">{{ language.name }}</a></td>
+        <td>{{ pages_total }}</td>
+        <td><span class="mR10">{{ pages_invariant }}</span>{% if pages_invariant %}<a href="/page/0/?site={{ site.slug }}&filter=no_translate" title="{% trans "browse invariant pages" %}"><i class="fa fa-caret-square-o-right"></i></a>{% endif %}</td>
+        <td>{{ dict.partially }}</td>
+        <td>{{ dict.translated }}</td>
+        <td>{{ dict.revised }}</td>
+        <td>{{ dict.left }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
 
-<h4>Translation state of site blocks</h4>
-<table border="0"><thead>
-	<th class="l">Proxy</th>
-	<th class="r">TOTAL</th>
-	<th class="r">invariant</th>
-	<th class="r">in target<br/>language</th>
-	<th class="r">partially<br/>translated</th>
-	<th class="r">translated</th>
-	<th class="r">revised</th>
-	<th class="r">to be translated</th>
-</thead><tbody>
-{% for language, dict in blocks_proxy_list %}<tr>
-   <th><a href="/page/{{ page.id }}/proxy/{{ language.code }}/">{{ language.name }}</a></th>
-   <td class="r">{{ blocks_total }}</td>
-   <td class="r">{{ blocks_invariant }}{% if blocks_invariant %}&nbsp; <a href="/block/0/?site={{ site.slug }}&filter=no_translate" title="browse invariant blocks"><span class="fa fa-caret-square-o-right"></span></a>{% endif %}</td>
-   <td class="r">{{ dict.already }}{% if dict.already %}&nbsp; <a href="/block/0/?site={{ site.slug }}&filter=already&lang={{ language.code }}" title="browse blocks already in target language"><span class="fa fa-caret-square-o-right"></span></a>{% endif %}</td>
-   <td class="r">{{ dict.partially }}</td>
-   <td class="r">{{ dict.translated }}</td>
-   <td class="r">{{ dict.revised }}</td>
-   <td class="r">{{ dict.left }}</td>
-</tr>{% endfor %}
-</tbody>
-</table>
-
+  <h4>{% trans "translation state of site blocks"|capfirst %}</h4>
+  <table class="table table-responsive table-bordered table-striped mB0">
+    <thead>
+      <th>{% trans "proxy"|capfirst %}</th>
+      <th>{% trans "total"|upper %}</th>
+      <th>{% trans "invariant" %}</th>
+      <th>{% trans "in target language" %}</th>
+      <th>{% trans "partially translated" %}</th>
+      <th>{% trans "translated" %}</th>
+      <th>{% trans "revised" %}</th>
+      <th>{% trans "to be translated" %}</th>
+    </thead>
+    <tbody>
+    {% for language, dict in blocks_proxy_list %}
+      <tr>
+        <td><a href="/page/{{ page.id }}/proxy/{{ language.code }}/">{{ language.name }}</a></td>
+        <td>{{ blocks_total }}</td>
+        <td><span class="mR10">{{ blocks_invariant }}</span>{% if blocks_invariant %}<a href="/block/0/?site={{ site.slug }}&filter=no_translate" title="{% trans "browse invariant blocks" %}"><i class="fa fa-caret-square-o-right"></i></a>{% endif %}</td>
+        <td><span class="mR10">{{ dict.already }}</span>{% if dict.already %}<a href="/block/0/?site={{ site.slug }}&filter=already&lang={{ language.code }}" title="{% trans "browse blocks already in target language" %}"><i class="fa fa-caret-square-o-right"></i></a>{% endif %}</td>
+        <td>{{ dict.partially }}</td>
+        <td>{{ dict.translated }}</td>
+        <td>{{ dict.revised }}</td>
+        <td>{{ dict.left }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
 {% endblock %}

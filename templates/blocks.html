@@ -1,20 +1,26 @@
-{% extends "wip_base.html" %}
+{% extends "base.html" %}
 {% load staticfiles i18n %}
 
-{% block head_title %}WIP - Blocks of site {{ site.name }}{% endblock %}
-
-{% block title-page %}WIP - Blocks of site <a href="/site/{{ site.slug }}/">{{ site.name }}</a>{% endblock %}
+{% block head_title %}{% trans "blocks of site"|capfirst %}: {{ site.name }}{% endblock %}
 
 {% block extra_head %}
+{% comment %}
 <style>
     pre { display: inline; padding: 0; }
     pre code { line-height: 0.5; }
 </style>
+{% endcomment %}
 {% endblock %}
 
+
+{% block body_id %}blocks{% endblock %}
+
+{% block title-page %}WIP - {% trans "blocks of site"|capfirst %}: <a href="/site/{{ site.slug }}/">{{ site.name }}</a>{% endblock %}
+
 {% block content-page %}
-	{% if block_count %}
-	<div>{{ block_count }} page blocks found in this site.</div>
+  {% if block_count %}
+    <p>{% trans "page blocks found"|capfirst %}: {{ block_count }}</p>
+{% comment %}
 	<div class="pagination">
     <span class="step-links">
     	{% for p in before %}<a href="?page={{ p }}">{% if forloop.first %}<i class="fa fa-fast-backward"></i> {% else %}{{ p }}{% endif %}</a>&nbsp;{% endfor %}
@@ -22,30 +28,62 @@
     	{% for p in after %}&nbsp;<a href="?page={{ p }}">{% if forloop.last %} <i class="fa fa-fast-forward"></i> {% else %} {{ p }} {% endif %}</a></a>{% endfor %}
     </span>
 	</div>
+{% endcomment %}
 
-   	<table>
-   		<thead>
-   			<th> # </th><th> Id </th><th>Chars</th><th> Text is / starts with .. </th><th> xPath </th><th> Pages </th><th> Date/Time </th>
-			{% for proxy in proxies %}<th> {{ proxy.language.code }} </th>{% endfor %} 			
-   		</thead>
-   		<tbody>
-		{% for site_block in site_blocks %}
-		<tr><td><pre><code>{{forloop.counter|rjust:"3"}}</code></pre></td>
-			<td style="text-align: right;"> {{ site_block.id }} </td>
-			<td style="text-align: right;">{{ site_block.body|length }}</td>
-			<td> <a href="/block/{{ site_block.id }}/">{{ site_block.get_label|truncatechars_html:80 }}</a> </td>
-			<td><a href="/block/{{ site_block.id }}/">{{ site_block.xpath }}</a></td>
-			<td style="text-align: center;"><a href="/block/{{ site_block.id }}/pages/">{{ site_block.webpages.all.count }}</a></td>
-			<td>{{ site_block.time|date:"SHORT_DATETIME_FORMAT" }}</td>
-			{% for language_code, translations in site_block.get_last_translations %}<td>
-				{% if translations %}
-					<a href="/block/{{ site_block }}/translate/">{{ translations.count }}</a>
-				{% endif %}
-			</td>{% endfor %}
-		</tr>
-		{% endfor %}
-	    </tbody>
-    	</table>
+    {% if site_blocks.paginator.num_pages > 1 %}
+      <div class="text-right">
+        <ul class="pagination mT0">
+          {% for p in before %}<li><a href="?page={{ p }}">{{ p }}</a></li>{% endfor %}
+          <li><span>{{ site_blocks.number }}</span></li>
+          {% for p in after %}<li><a href="?page={{ p }}">{{ p }}</a></li>{% endfor %}
+        </ul>
+      </div>
+    {% endif %}
+
+    <table class="table table-responsive table-bordered table-striped mB5">
+      <thead>
+        <th class="text-right">#</th>
+        <th class="text-right">Id</th>
+        <th class="text-right">Chars</th>
+        <th>Text is / starts with ..</th>
+        <th>xPath</th>
+        <th class="text-right">Pages</th>
+        <th>{% trans "date"|capfirst %}/{% trans "time"|capfirst %}</th>
+        {% for proxy in proxies %}<th>{{ proxy.language.code }}</th>{% endfor %}
+      </thead>
+      <tbody>
+        {% for site_block in site_blocks %}
+          <tr>
+            <td class="text-right">{{forloop.counter|rjust:"3"}}</td>
+            <td class="text-right">{{ site_block.id }}</td>
+            <td class="text-right">{{ site_block.body|length }}</td>
+            <td> <a href="/block/{{ site_block.id }}/">{{ site_block.get_label|truncatechars_html:80 }}</a></td>
+            <td><a href="/block/{{ site_block.id }}/">{{ site_block.xpath }}</a></td>
+            <td class="text-right"><a href="/block/{{ site_block.id }}/pages/">{{ site_block.webpages.all.count }}</a></td>
+            <td>{{ site_block.time|date:"SHORT_DATETIME_FORMAT" }}</td>
+            {% for language_code, translations in site_block.get_last_translations %}
+              <td>
+              {% if translations %}
+                <a href="/block/{{ site_block }}/translate/">{{ translations.count }}</a>
+              {% else %}
+                0
+              {% endif %}
+              </td>
+            {% endfor %}
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    {% if site_blocks.paginator.num_pages > 1 %}
+      <div class="text-right">
+        <ul class="pagination mB0">
+          {% for p in before %}<li><a href="?page={{ p }}">{{ p }}</a></li>{% endfor %}
+          <li><span>{{ site_blocks.number }}</span></li>
+          {% for p in after %}<li><a href="?page={{ p }}">{{ p }}</a></li>{% endfor %}
+        </ul>
+      </div>
+    {% endif %}
 	{% else %}
 		<p>No blocks are present.</p>
 	{% endif %}

@@ -1,24 +1,23 @@
-{% extends "wip_base.html" %}
+{% extends "base.html" %}
 {% load staticfiles i18n %}
 
-{% block head_title %}WIP - Proxies{% endblock %}
+{% block head_title %}{% trans "proxies"|capfirst %}{% endblock %}
 
-{% block title-page %}WIP - Sites{% endblock %}
+{% block body_id %}proxies{% endblock %}
+
+{% block title-page %}WIP - {% trans "sites"|capfirst %}{% endblock %}
 
 {% block content-page %}
 
-	{% if proxies %}
-	<div>
-	    {% for proxy in proxies %}
-	    <div>
-	        <h4><a href="{% url 'proxy' proxy.slug %}">
-	        {{ proxy.name }}
-	        </a></h4>
-	    </div>
-	    {% endfor %}
-	</div>
-	{% else %}
-		<p>No proxies are available.</p>
-	{% endif %}
-
+  {% if proxies %}
+    <div>
+    {% for proxy in proxies %}
+      <div>
+        <h4><a href="{% url 'proxy' proxy.slug %}">{{ proxy.name }}</a></h4>
+      </div>
+    {% endfor %}
+    </div>
+  {% else %}
+    <p>{% trans "no proxies are available"|capfirst %}</p>
+  {% endif %}
 {% endblock %}
