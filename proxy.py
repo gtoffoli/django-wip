@@ -13,10 +13,10 @@ class WipHttpProxy(HttpProxy):
 
     def dispatch(self, request, url, *args, **kwargs):
         self.url = url
-        host = request.META.get('HTTP_HOST', '')
+        self.host = request.META.get('HTTP_HOST', '')
         if self.prefix == '/proxy':
             for proxy in Proxy.objects.all():
-                if proxy.host and host.count(proxy.host):
+                if proxy.host and self.host.count(proxy.host):
                     self.proxy = proxy
                     self.proxy_id = proxy.id
                     self.language_code = proxy.language.code
@@ -47,13 +47,15 @@ class WipHttpProxy(HttpProxy):
                     self.record(response)
                 if self.rewrite:
                     response = self.rewrite_response(request, response)
-            # if self.rewrite_links:
-            if self.rewrite_links or host.count('localhost'):
+            if self.rewrite_links:
                 response = self.replace_links(response)
         return response
 
     def replace_links(self, response):
-        response.content = response.content.replace(self.base_url, self.prefix)
+        if self.prefix=='/proxy' and not self.host.count('localhost'):
+            response.content = response.content.replace(self.base_url, '/')
+        else:
+            response.content = response.content.replace(self.base_url, self.prefix)
         return response
 
     def translate(self, response):
