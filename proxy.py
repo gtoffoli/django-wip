@@ -5,7 +5,7 @@ from httpproxy.views import HttpProxy
 from models import Language, Proxy, Webpage, PageVersion, TranslatedVersion
 
 class WipHttpProxy(HttpProxy):
-    prefix = ''
+    prefix = '/proxy'
     rewrite_links = False
     proxy_id = ''
     language_code = ''
@@ -13,6 +13,18 @@ class WipHttpProxy(HttpProxy):
 
     def dispatch(self, request, url, *args, **kwargs):
         self.url = url
+        host = request.META.get('HTTP_HOST', '')
+        if self.prefix == '/proxy':
+            for proxy in Proxy.objects.all():
+                if proxy.host and host.count(proxy.host):
+                    self.proxy = proxy
+                    self.proxy_id = proxy.id
+                    self.language_code = proxy.language.code
+                    site = proxy.site
+                    self.site = site
+                    self.base_url = site.url
+                    break
+
         self.original_request_path = request.path
         request = self.normalize_request(request)
         if self.mode == 'play':
@@ -24,19 +36,10 @@ class WipHttpProxy(HttpProxy):
 
         response = super(HttpProxy, self).dispatch(request, *args, **kwargs)
 
-        if not self.proxy_id:
-            host = request.META.get('HTTP_HOST', '')
-            for proxy in Proxy.objects.all():
-                if proxy.host == host:
-                    self.proxy = proxy
-                    self.proxy_id = proxy.id
-                    self.language_code = proxy.language.code
-                    break
-
         # content_type = response.headers['Content-Type']
         trailer = response.content[:100]
         if trailer.count('<') and trailer.lower().count('html'):
-            print 'base_url: ', self.base_url
+            # print 'base_url: ', self.base_url
             if self.proxy_id and self.language_code:
                 self.translate(response)
             else:
@@ -44,7 +47,8 @@ class WipHttpProxy(HttpProxy):
                     self.record(response)
                 if self.rewrite:
                     response = self.rewrite_response(request, response)
-            if self.rewrite_links:
+            # if self.rewrite_links:
+            if self.rewrite_links or host.count('localhost'):
                 response = self.replace_links(response)
         return response
 
@@ -56,11 +60,12 @@ class WipHttpProxy(HttpProxy):
         content = response.content
         if self.proxy:
             proxy = self.proxy
+            site = self.site
         else:
             proxy = Proxy.objects.get(pk=self.proxy_id)
-        site = proxy.site
+            site = proxy.site
         path = urlparse.urlparse(self.url).path
-        print 'translate - path: ', path
+        # print 'translate - path: ', path
         webpages = Webpage.objects.filter(site=site, path=path).order_by('-created')
         if webpages:
             webpage = webpages[0]
