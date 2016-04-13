@@ -352,6 +352,7 @@ def proxy(request, proxy_slug):
         delete_pages = post.get('delete_pages', '')
         delete_blocks = post.get('delete_blocks', '')
         delete_proxy = post.get('delete_proxy', '')
+        import_translations = post.get('import_translations', '')
         apply_tm = post.get('apply_tm', '')
         propagate_up = post.get('propagate_up', '')
         form = ProxyManageForm(post)
@@ -371,6 +372,11 @@ def proxy(request, proxy_slug):
                     proxy.delete()
                     messages.add_message(request, messages.INFO, 'Proxy deleted.')
                     return HttpResponseRedirect('/site/%s/' % site.slug)
+            elif import_translations:
+                f = request.FILES.get('file', None)
+                if f:
+                    m, n = proxy.import_translations(f, request=request)
+                    messages.add_message(request, messages.INFO, '%d translations read, %d translations added.' % (m, n))
             elif apply_tm:
                 n_ready, n_translated, n_partially = proxy.apply_translation_memory()
                 messages.add_message(request, messages.INFO, 'TM applied to %d blocks: %d fully translated, %d partially translated.' % (n_ready, n_translated, n_partially))
@@ -801,16 +807,18 @@ def block_translate(request, block_id, target_code):
         if sequencer_context:
             webpage_id = sequencer_context.get('webpage', None)
             block_age = sequencer_context['block_age']
-            translation_state = sequencer_context['translation_state']
-            translation_codes = sequencer_context['translation_codes']
-            translation_age = sequencer_context['translation_age']
+            translation_state = sequencer_context.get('translation_state', TO_BE_TRANSLATED)
+            translation_codes = sequencer_context.get('translation_codes', [proxy.language.code for proxy in block.site.get_proxies()])
+            translation_age = sequencer_context.get('translation_age', '')
             extract_strings = sequencer_context.get('extract_strings', False)
             request.session['sequencer_context'] = {}
         else:
+            webpage_id = ''
             block_age = ''
             translation_state = TO_BE_TRANSLATED
             translation_codes = [proxy.language.code for proxy in block.site.get_proxies()]
             translation_age = ''
+            extract_strings = False
         webpage_id = request.GET.get('webpage', webpage_id)
         translation_languages = translation_codes and Language.objects.filter(code__in=translation_codes) or []
     sequencer_context = {}

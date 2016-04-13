@@ -58,7 +58,7 @@
 
   {% if user.is_superuser %}
     <div class="mB20">
-    <form action="/proxy/{{ proxy.slug }}/" method="post">{% csrf_token %}
+    <form action="/proxy/{{ proxy.slug }}/" method="post" enctype="multipart/form-data">{% csrf_token %}
       {% if page_count %}
         <div class="form-group">{{ manage_form.delete_pages_confirmation }} Yes, I want to delete all translated pages
           <input type="submit" name="delete_pages" value="Delete translated pages" title="delete translated pages" class="btn btn-sm">
@@ -74,6 +74,9 @@
           <input type="submit" name="delete_proxy" value="Delete proxy" title="Delete all proxy info" class="btn btn-sm">
         </div>
       {% endif %}
+        <div class="form-group">{{ manage_form.file }}
+          <input type="submit" name="import_translations" value="Import XLIFF translations" title="Import XLIFF translations" class="btn btn-sm">
+        </div>
 
       {% if blocks_ready %}
         <h4>In blocks ready for translation ..</h4>

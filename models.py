@@ -243,13 +243,15 @@ class Proxy(models.Model):
                 blocks.append(block)
         return blocks
 
-    def import_translations(self, filepath, request=None):
+    def import_translations(self, file, request=None):
         user_id = request and request.user.id or 1
         site = self.site
-        language = self.language
-        reliability = 3
-        tree = etree.iterparse(filepath)
-        m = 0
+        source_language = site.language
+        target_language = self.language
+        target_code = target_language.code
+        reliability = 5
+        tree = etree.iterparse(file)
+        m = n = 0
         for action, elem in tree:
             # print("--- %s: %s | %s | %s" % (action, elem.tag, elem.text, elem.tail))
             tag = elem.tag
@@ -262,15 +264,30 @@ class Proxy(models.Model):
                 target = mrk_text
             elif tag.endswith('trans-unit'):
                 m += 1
-                # is_model_instance, source_string = get_or_add_string(source, site.language, site=site, txu=txu, add=True, reliability=reliability)
-                source_string = String.objects.filter(language=site.language, site=site, txu__isnull=True)
-                if source_string:
-                    txu = Txu(provider=site.name, user_id=user_id)
-                    txu.save()
-                    source_string.txu = txu
-                    source_string.save()
-                    target_string = String(text=target, language=language, site=site, txu=txu, reliability=reliability)
+                sys.stdout.write('.')
+                qs = String.objects.filter(text=source, language=source_language, site=site)
+                print qs.count()
+                if target_code == 'en':
+                    qs = qs.filter(Q(txu__isnull=True) | Q(txu__en=False))
+                elif target_code == 'es':
+                    qs = qs.filter(Q(txu__isnull=True) | Q(txu__es=False))
+                elif target_code == 'fr':
+                    qs = qs.filter(Q(txu__isnull=True) | Q(txu__fr=False))
+                elif target_code == 'it':
+                    qs = qs.filter(Q(txu__isnull=True) | Q(txu__it=False))
+                print qs.count()
+                if qs.count() == 1:
+                    source_string = qs[0]
+                    txu = source_string.txu
+                    if not txu:
+                        txu = Txu(provider=site.name, user_id=user_id)
+                        txu.save()
+                        source_string.txu = txu
+                        source_string.save()
+                    target_string = String(text=target, language=target_language, site=site, txu=txu, reliability=reliability)
+                    target_string.save()
                     n += 1
+                    sys.stdout.write('+')
         return m, n
 
     def apply_translation_memory(self):
@@ -311,15 +328,17 @@ class Proxy(models.Model):
                 words = segment.split()
                 translated_segment = None
                 # matches = String.objects.filter(text__iexact=segment, txu__string__language_id__in=target_codes).distinct()
-                matches = String.objects.filter(text=segment.upper(), txu__string__language_id=language_code).distinct()
-                # if matches:
-                if matches.count() == 1:
-                    print 'segment: ', segment
+                # matches = String.objects.filter(text=segment.upper(), txu__string__language_id=language_code).distinct().order_by('-reliability')
+                matches = String.objects.filter(text=segment, txu__string__language_id=language_code).distinct().order_by('-reliability')
+                print language_code, matches
+                n_matches = matches.count()
+                if n_matches:
                     match = matches[0]
+                if n_matches == 1 or n_matches and match.reliability > 4:
+                    print n_matches, match.reliability
                     translations = String.objects.filter(language=language, txu=match.txu)
                     if translations.count() == 1:
                         translated_segment = translations[0].text
-                        print 'exact'
                 elif len(words) == 1:
                     matches = String.objects.filter(text__istartswith=segment, txu__string__language_id__in=target_codes).distinct()
                     matches_count = matches.count()
@@ -352,7 +371,7 @@ class Proxy(models.Model):
                         body = translated_block.body
                     print 'translation: ', translated_segment
                     if body.count(segment):
-                        body = body.replace(segment, '<span tx="auto">%s</span>' % translated_segment)
+                        body = body.replace(segment, '<span tx auto>%s</span>' % translated_segment)
                         n_substitutions += 1
                         continue
                 translated = False

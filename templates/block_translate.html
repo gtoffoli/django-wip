@@ -11,8 +11,6 @@ pre code { display: inline; }
 .en { border: 1px solid; border-color: red; margin: 1px; }
 .es { border: 1px solid; border-color: yellow; margin: 1px; }
 .fr { border: 1px solid; border-color: blue; margin: 1px; }   
-tx.en {color: red; }
-tx.fr {color: blue; }
 th, td { text-align: left; vertical-align: top; }
 </style>
 <script>
@@ -33,8 +31,10 @@ function apply_translation (target_code, id_from, id_to) {
 	translation = document.getElementById(id_to).textContent;
 	textarea = document.getElementById(target_code);
 	text = textarea.textContent;
-	tx_open = '<tx class="' + target_code + '">';
-	tx_close = '</tx>';
+	// tx_open = '<tx class="' + target_code + '">';
+	// tx_close = '</tx>';
+	tx_open = '<span tx man>';
+	tx_close = '</span>';
 	pos = text.toLowerCase().indexOf(segment);
 	if (pos >= 0) {
 		firstchar = text.charAt(pos);

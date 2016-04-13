@@ -64,7 +64,7 @@
             {% for language_code, translations in site_block.get_last_translations %}
               <td>
               {% if translations %}
-                <a href="/block/{{ site_block }}/translate/">{{ translations.count }}</a>
+                <a href="/block/{{ site_block.id }}/translate/{{ language_code }}/">{{ translations.count }}</a>
               {% else %}
                 0
               {% endif %}

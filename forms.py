@@ -20,6 +20,7 @@ class ProxyManageForm(forms.Form):
     delete_pages_confirmation = forms.BooleanField(required=False, label='Delete pages confirmation')
     delete_blocks_confirmation = forms.BooleanField(required=False, label='Delete blocks confirmation')
     delete_proxy_confirmation = forms.BooleanField(required=False, label='Delete proxy confirmation')
+    file = forms.FileField(required=False, label='Select a file to upload')
 
 class PageEditForm(forms.Form):
     no_translate = forms.BooleanField(required=False, label='No translate')
