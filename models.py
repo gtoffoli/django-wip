@@ -15,6 +15,7 @@ from collections import defaultdict
 import os
 import re
 import datetime
+from namedentities import unicode_entities
 # from Levenshtein.StringMatcher import StringMatcher
 from lxml import html, etree
 from django.db import models
@@ -370,10 +371,15 @@ class Proxy(models.Model):
                         translated_block = block.clone(language)
                         body = translated_block.body
                     print 'translation: ', translated_segment
+                    l1 = len(body)
+                    body = unicode_entities(body)
+                    l2 = len(body)
                     if body.count(segment):
                         body = body.replace(segment, '<span tx auto>%s</span>' % translated_segment)
                         n_substitutions += 1
                         continue
+                    else:
+                        print l1, l2
                 translated = False
             if n_substitutions:
                 if translated:
@@ -407,16 +413,16 @@ class Proxy(models.Model):
             if translation_date:
                 if translated_block:
                     if translated_block.modified > translation_date:
-                        print 'no_updated', label
+                        print 'no_updated' #, label
                         n_no_updated +=1
                         continue
                     else:
                         n_updated +=1
-                        print 'updated', label
+                        print 'updated' #, label
                 else:
                     translated_block = TranslatedBlock(block=block, language=language)
                     n_new +=1
-                    print 'new', label
+                    print 'new' #, label
                 translated_block.body = html.tostring(translated_element)
                 translated_block.save()
         return n_new, n_updated, n_no_updated
