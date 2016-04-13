@@ -36,6 +36,7 @@
     <thead>
       <th>{% trans "site"|capfirst %}</th>
       <th>{% trans "proxy language"|capfirst %}</th>
+      <th>{% trans "proxy domain"|capfirst %}</th>
       <th>{% trans "base path"|capfirst %}</th>
       <th>{% trans "pages"|capfirst %}</th>
       <th>{% trans "page blocks"|capfirst %}</th>
@@ -45,6 +46,7 @@
     <tbody>
       <td><a href="{% url 'site' site.slug %}">{{ site.name }}</a></td>
       <td>{{ proxy.language.name }}</td>
+      <td>{% if proxy.host %}<a href="{{ proxy.host }}">{{ proxy.host }}</a>{% else %}{% trans "not defined" %}{% endif %}</td>
       <td>{{ proxy.base_path }}</td>
       <td>{% if page_count %}<span class="mR10">{{ page_count }}</span><span class="mR10"><a href="/site/{{ site.slug }}/pages/" title="{% trans "list pages" %}"><i class="fa fa-th-list"></i></a></span><a href="/page/{{ first_page.id }}/" title="{% trans "browse all pages" %}"><i class="fa fa-caret-square-o-right"></i></a>{% else %}0{% endif %}</td>
       <td>{% if block_count %}<span class="mR10">{{ block_count }}</span><span class="mR10"><a href="/site/{{ site.slug }}/blocks/" title="{% trans "list blocks" %}"><i class="fa fa-th-list"></i></a></span><a href="/block/{{ first_block.id }}/" title="{% trans "browse all blocks" %}"><i class="fa fa-caret-square-o-right"></i></a>{% else %}0{% endif %}</td>

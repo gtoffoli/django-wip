@@ -94,6 +94,15 @@ class Site(models.Model):
     extract_deny = models.TextField(verbose_name='Deny extractor', blank=True, null=True, help_text="Paths of pages the string extractor should skip" )
     translate_deny = models.TextField(verbose_name='Deny translation', blank=True, null=True, help_text="Paths of pages not to be submitted to offline translation" )
 
+    def can_manage(self, user):
+        return user.is_superuser
+
+    def can_operate(self, user):
+        return user.is_superuser
+
+    def can_view(self, user):
+        return user.is_authenticated()
+
     def __unicode__(self):
         return self.name
 
@@ -206,6 +215,15 @@ class Proxy(models.Model):
     class Meta:
         verbose_name = _('proxy site')
         verbose_name_plural = _('proxy sites')
+
+    def can_manage(self, user):
+        return user.is_superuser
+
+    def can_operate(self, user):
+        return user.is_superuser
+
+    def can_view(self, user):
+        return user.is_authenticated()
 
     def blocks_ready(self, min_state=TRANSLATED):
         """ return blocks "ready for translation" """

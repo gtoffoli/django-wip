@@ -39,6 +39,7 @@ from models import TO_BE_TRANSLATED, TRANSLATED, INVARIANT, ALREADY
 from models import MYMEMORY, TRANSLATION_SERVICE_DICT
 from forms import SiteManageForm, ProxyManageForm, PageEditForm, PageSequencerForm, BlockEditForm, BlockSequencerForm
 from forms import StringSequencerForm, StringTranslationForm, TranslationServiceForm
+from session import get_language, set_language, get_site, set_site
 
 from settings import PAGE_SIZE, PAGE_STEPS
 from settings import DATA_ROOT, RESOURCES_ROOT, tagger_filename, BLOCK_TAGS, QUOTES, SEPARATORS, STRIPPED, EMPTY_WORDS, PAGES_EXCLUDE_BY_CONTENT
@@ -79,6 +80,7 @@ def steps_after(page, page_count):
     return steps
 
 def home(request):
+    user = request.user
     var_dict = {}
     var_dict['original_sites'] = original_sites = Site.objects.all().order_by('name')
     sites = []
@@ -94,6 +96,10 @@ def home(request):
         sites.append(site_dict)
     var_dict['sites'] = sites
     return render_to_response('homepage.html', var_dict, context_instance=RequestContext(request))
+
+def language(request, language_code):
+    set_language(request, language_code or '')
+    return HttpResponseRedirect(request.META.get('HTTP_REFERER'))
 
 def sites(request):
     var_dict = {}
@@ -116,9 +122,14 @@ def text_to_list(text):
     return [item for item in list if len(item)]
     
 def site(request, site_slug):
+    user = request.user
     site = get_object_or_404(Site, slug=site_slug)
+    set_site(request, site_slug)
     var_dict = {}
     var_dict['site'] = site
+    var_dict['can_manage'] = site.can_manage(user)
+    var_dict['can_operate'] = site.can_operate(user)
+    var_dict['can_view'] = site.can_view(user)
     var_dict['proxies'] =  proxies = site.get_proxies()
     var_dict['proxy_languages'] = proxy_languages = [proxy.language for proxy in proxies]
     post = request.POST
@@ -326,9 +337,13 @@ def site(request, site_slug):
     return render_to_response('site.html', var_dict, context_instance=RequestContext(request))
  
 def proxy(request, proxy_slug):
+    user = request.user
     proxy = get_object_or_404(Proxy, slug=proxy_slug)
     var_dict = {}
     var_dict['proxy'] = proxy
+    var_dict['can_manage'] = proxy.can_manage(user)
+    var_dict['can_operate'] = proxy.can_operate(user)
+    var_dict['can_view'] = proxy.can_view(user)
     var_dict['site'] = site = proxy.site
     var_dict['language'] = language = proxy.language
     post = request.POST
