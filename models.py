@@ -243,6 +243,36 @@ class Proxy(models.Model):
                 blocks.append(block)
         return blocks
 
+    def import_translations(self, filepath, request=None):
+        user_id = request and request.user.id or 1
+        site = self.site
+        language = self.language
+        reliability = 3
+        tree = etree.iterparse(filepath)
+        m = 0
+        for action, elem in tree:
+            # print("--- %s: %s | %s | %s" % (action, elem.tag, elem.text, elem.tail))
+            tag = elem.tag
+            text = elem.text
+            if tag.endswith('source') and not tag.endswith('seg-source'):
+                source = text
+            elif tag.endswith('mrk'):
+                mrk_text = text
+            elif tag.endswith('target'):
+                target = mrk_text
+            elif tag.endswith('trans-unit'):
+                m += 1
+                # is_model_instance, source_string = get_or_add_string(source, site.language, site=site, txu=txu, add=True, reliability=reliability)
+                source_string = String.objects.filter(language=site.language, site=site, txu__isnull=True)
+                if source_string:
+                    txu = Txu(provider=site.name, user_id=user_id)
+                    txu.save()
+                    source_string.txu = txu
+                    source_string.save()
+                    target_string = String(text=target, language=language, site=site, txu=txu, reliability=reliability)
+                    n += 1
+        return m, n
+
     def apply_translation_memory(self):
         # string_matcher = StringMatcher()
         site = self.site

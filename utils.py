@@ -221,4 +221,23 @@ def remove_bom(filepath):
     fp.write(s)
     fp.close()
 
-    
+def parse_xliff(filepath):
+    tree = etree.iterparse(filepath)
+    i = 0
+    for action, elem in tree:
+        # print("--- %s: %s | %s | %s" % (action, elem.tag, elem.text, elem.tail))
+        tag = elem.tag
+        text = elem.text
+        if tag.endswith('source') and not tag.endswith('seg-source'):
+            source = text
+        elif tag.endswith('mrk'):
+            mrk_text = text
+        elif tag.endswith('target'):
+            target = mrk_text
+        elif tag.endswith('trans-unit'):
+            i += 1
+            print i, source
+            print i, target
+
+
+ 

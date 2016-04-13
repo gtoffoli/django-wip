@@ -24,7 +24,7 @@ from django.contrib import admin
 from models import Site, Proxy
 import views
 import search_indexes
-import scripts
+# import scripts
 from proxy import WipHttpProxy
 
 urlpatterns = [
@@ -48,6 +48,7 @@ urlpatterns = [
     url(r"^strings/(?P<sources>[\w-]*)/(?P<state>[\w-]*)/(?P<targets>[\w-]*)/$", views.list_strings, name="list_strings"),
     url(r"^strings/(?P<sources>[\w-]*)/(?P<state>[\w-]*)/$", views.list_strings, name="list_strings_notarget"),
     url(r"^proxies/$", views.proxies, name="proxies"),
+    url(r"^proxy/(?P<proxy_slug>[\w-]+)/translations/$", views.proxy_string_translations, name="proxy_string_translations"),
     url(r"^proxy/(?P<proxy_slug>[\w-]+)/$", views.proxy, name="proxy"),
     # url(r"^my_task/$", views.my_task, name="my_task"),
     url(r'^navigation_autocomplete$', search_indexes.navigation_autocomplete, name='navigation_autocomplete'),

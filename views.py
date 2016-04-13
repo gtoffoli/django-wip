@@ -598,7 +598,10 @@ def get_or_add_string(text, language, site=None, add=False, txu=None, reliabilit
     if isinstance(language, str):
         language = Language.objects.get(code=language)
     is_model_instance = False
-    strings = String.objects.filter(text=text, language=language)
+    if site:
+        strings = String.objects.filter(text=text, language=language, site=site)
+    else:
+        strings = String.objects.filter(text=text, language=language)
     if strings:
         is_model_instance = True
         string = strings[0]
@@ -1190,6 +1193,48 @@ def find_like_strings(source_string, translation_languages=[], with_translations
     like_strings.sort(key=lambda x: x[0], reverse=True)
     return like_strings[:max_strings]
 
+def proxy_string_translations(request, proxy_id, state=''):
+    """
+    list translations from source language (code) to target language (code)
+    """
+    if not request.user.is_superuser:
+        return empty_page(request);
+    var_dict = {}
+    var_dict['proxy'] = proxy = Proxy.objects.get(slug=proxy_slug)
+    var_dict['site'] = site = proxy.site
+    PAGE_SIZE = 100
+    var_dict['state'] = state
+    translated = None
+    var_dict['source_language'] = source_language = site.language
+    var_dict['target_language'] = target_language = proxy.language
+    if state == 'translated':
+        translated = True
+    elif state == 'untranslated':
+        translated = False
+    else:
+        translated = None
+    qs = find_strings(source_languages=[source_language], target_languages=[target_language], site=site, translated=translated)
+    var_dict['string_count'] = qs.count()
+    paginator = Paginator(qs, PAGE_SIZE)
+    page = request.GET.get('page', 1)
+    try:
+        strings = paginator.page(page)
+    except PageNotAnInteger:
+        # If page is not an integer, deliver first page.
+        page = 1
+        strings = paginator.page(1)
+    except EmptyPage:
+        # If page is out of range (e.g. 9999), deliver last page of results.
+        page = paginator.num_pages
+        strings = paginator.page(paginator.num_pages)
+    var_dict['page_size'] = PAGE_SIZE
+    var_dict['page'] = page = int(page)
+    var_dict['offset'] = (page-1) * PAGE_SIZE
+    var_dict['before'] = steps_before(page)
+    var_dict['after'] = steps_after(page, paginator.num_pages)
+    var_dict['strings'] = strings
+    return render_to_response('proxy_string_translations.html', var_dict, context_instance=RequestContext(request))
+  
 def list_strings(request, sources, state, targets=[]):
     """
     list strings in the source languages with translations in the target languages
