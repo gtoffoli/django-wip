@@ -16,8 +16,11 @@ sys.setdefaultencoding('utf8')
 
 import os
 import re
+
 from math import sqrt
 from lxml import html, etree
+
+import json
 
 from settings import USE_SCRAPY, USE_NLTK
 from haystack.query import SearchQuerySet
@@ -1201,7 +1204,7 @@ def find_like_strings(source_string, translation_languages=[], with_translations
     like_strings.sort(key=lambda x: x[0], reverse=True)
     return like_strings[:max_strings]
 
-def proxy_string_translations(request, proxy_id, state=''):
+def proxy_string_translations(request, proxy_slug, state=''):
     """
     list translations from source language (code) to target language (code)
     """
@@ -1221,7 +1224,10 @@ def proxy_string_translations(request, proxy_id, state=''):
         translated = False
     else:
         translated = None
-    qs = find_strings(source_languages=[source_language], target_languages=[target_language], site=site, translated=translated)
+    # qs = find_strings(source_languages=[source_language], target_languages=[target_language], site=site, translated=translated)
+    
+    target_languages = Language.objects.order_by('code')
+    qs = find_strings(source_languages=[source_language], target_languages=target_languages, site=site, translated=translated)
     var_dict['string_count'] = qs.count()
     paginator = Paginator(qs, PAGE_SIZE)
     page = request.GET.get('page', 1)
@@ -1242,7 +1248,17 @@ def proxy_string_translations(request, proxy_id, state=''):
     var_dict['after'] = steps_after(page, paginator.num_pages)
     var_dict['strings'] = strings
     return render_to_response('proxy_string_translations.html', var_dict, context_instance=RequestContext(request))
-  
+
+def add_translated_string (request):
+    if (request.method == 'POST'):
+       post = request.POST
+       id = post.get('id')
+       txu_id = post.get('txu_id')
+       translation = post.get('translation')
+       return HttpResponse(json.dumps('Translation added.'), content_type = "application/json")
+    else:
+       return HttpResponse(json.dumps('NO Translation added.'), content_type = "application/json")
+
 def list_strings(request, sources, state, targets=[]):
     """
     list strings in the source languages with translations in the target languages

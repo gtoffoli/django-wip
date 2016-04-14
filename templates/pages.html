@@ -14,7 +14,7 @@
 
 {% block body_id %}pages{% endblock %}
 
-{% block title-page %}WIP - {% trans "pages of site"|capfirst %}: <a href="/site/{{ site.slug }}/">{{ site.name }}</a>{% endblock %}
+{% block title-page %}{% trans "pages of site"|capfirst %}: <a href="/site/{{ site.slug }}/">{{ site.name }}</a>{% endblock %}
 
 {% block content-page %}
   {% if page_count %}

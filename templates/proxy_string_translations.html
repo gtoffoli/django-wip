@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+{% load staticfiles i18n %}
+
+{% block extra_head %}
+{% comment %}
+<style>
+label { display: inline; font-weight: bold; margin-right: 1.0em; padding: 0.2em 0em; }
+pre { display: inline;  padding: 0; }
+pre code { display: inline; }
+tr.odd { background: LightGray; }
+tr.even { background: white; }
+table { border-spacing: 10px 0; border-collapse: separate; }
+.it { color: LimeGreen; }
+.en { color: #FF0088; }
+.es { color: OrangeRed; }
+.fr { color: blue; }   
+</style>
+{% endcomment %}
+{% endblock %}
+
+{% block head_title %}{% trans "strings"|capfirst %}
+{% if source_language %} in
+{{ source_language }}
+{% endif %}
+{{ state }}
+{% if target_language %} to
+{{ target_language }}
+{% endif %}
+{% endblock %}
+
+{% block body_id %}list_strings{% endblock %}
+
+{% block title-page %}{% trans "strings"|capfirst %}
+{% if source_language %} in
+<pre style="display:inline; font-size:22px; padding:4.5px 9.5px">{{ source_language }}</pre>
+{% endif %}
+{{ state }}
+{% if target_language %} to
+<pre style="display:inline; font-size:22px; padding:4.5px 9.5px">{{ target_language }}</pre>
+{% endif %}
+{% endblock %}
+
+{% block content-page %}
+  {% if string_count %}
+    <p>{% trans "strings found"|capfirst %}: {{ string_count }}</p>
+
+    {% if strings.paginator.num_pages > 1 %}
+      <div class="text-right">
+        <ul class="pagination mT0">
+          {% for p in before %}<li><a href="?page={{ p }}">{{ p }}</a></li>{% endfor %}
+          <li><span>{{ strings.number }}</span></li>
+          {% for p in after %}<li><a href="?page={{ p }}">{{ p }}</a></li>{% endfor %}
+        </ul>
+      </div>
+    {% endif %}
+
+{% comment %}
+{% if can_delete %}<form method="post" action="{{ request.path }}">{% csrf_token %}{% endif %}
+{% endcomment %}
+    <table class="table table-responsive table-bordered table-striped mB5">
+      <thead>
+        <th class="text-right">#</th>
+        <th style="width:46%">{{ source_language }}</th>
+        <th style="width:46%">{{ target_language }}</th>
+      </thead>
+      <tbody>
+      {% for string in strings %}
+        <tr>
+          <td class="text-right">{{forloop.counter|add:offset}}</td>
+          <td>
+{% comment %}
+		{% if can_delete %}<input type="checkbox" name="delete" value="{{ string.id }}" />{% endif %}
+{% endcomment %}
+            <a href="/string/{{ string.id }}/" title="view info">{{ string.text }}</a>
+          </td>
+          <td>
+            {% if string.txu_id %}
+              {% for translation in string.get_translations %}
+                {% if translation.0 == target_language %}
+                  {% if translation.1 %}
+                    {% for t in translation.1 %}
+                     {{ t.text }}{% if not forloop.last %}, {% endif %}
+                    {% endfor %}
+                  {% else %}
+                    <form action="/add_translated_string/" method="post">{% csrf_token %}<input type="hidden" name="id" value="{{ string.id }}"><input type="hidden" name="txu_id" value="{{ string.txu_id}} ">
+                      <div class="input-group">
+                        <textarea class="form-control custom-control" value="" name="translation" style="width:100%"></textarea><span class="input-group-btn"><button class="btn btn-sm" type="submit" name="button" value="{{ string.id }}">OK</button></span>
+                      </div>
+                    </form>
+                  {% endif %}
+                {% endif %}
+              {% endfor %}
+            {% else %}
+              <form action="/add_translated_string/" method="post">{% csrf_token %}<input type="hidden" name="id" value="{{ string.id }}"><input type="hidden" name="txu_id" value="0">
+                <div class="input-group">
+                  <textarea class="form-control custom-control" value="" name="translation" style="width:100%"></textarea><span class="input-group-btn"><button class="btn btn-sm" type="submit" name="button" value="{{ string.id }}">OK</button></span>
+                </div>
+              </form>
+          {% endif %}
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+{% comment %}
+	{% if can_delete %}
+	<div><input type="submit" name="delete_strings" value="Delete" class="btn btn-sm" /></div>
+	</form>
+	{% endif %}
+{% endcomment %}
+
+    {% if strings.paginator.num_pages > 1 %}
+      <div class="text-right">
+        <ul class="pagination mB0">
+          {% for p in before %}<li><a href="?page={{ p }}">{{ p }}</a></li>{% endfor %}
+          <li><span>{{ strings.number }}</span></li>
+          {% for p in after %}<li><a href="?page={{ p }}">{{ p }}</a></li>{% endfor %}
+        </ul>
+      </div>
+    {% endif %}
+
+  {% else %}
+    <p>{% trans "no strings were found"|capfirst %}</p>
+  {% endif %}
+
+{% endblock %}
+
+{% block extra_script %}
+<script type="text/javascript">
+	$(document).ready(function() {
+		$('form').submit(function() {
+			var data_form=$(this).serialize();
+			var textvalue = $(this).closest("form").find("textarea").val();
+			if (textvalue != '') {
+				$.ajax({
+					type: $(this).attr('method'),
+					dataType: "json", 
+					url: $(this).attr('action'),
+					data: $(this).serialize(),
+					success: function(json){
+							console.log ('ok');
+					}
+				});
+			}
+		 });
+		 
+  });
+</script>
+{% endblock %}
