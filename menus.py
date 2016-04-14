@@ -19,7 +19,7 @@ def sites_children(request):
             children.append (MenuItem(
                  site.name,
                  url='/site/%s/' % slug,
-                 selected=lambda site: get_site(request)==slug,
+                 # selected=lambda site: get_site(request)==slug,
                 ))
     return children        
 
@@ -31,7 +31,7 @@ def languages_children(request):
         children.append (MenuItem(
              language.name,
              url='/language/%s/set/' % code,
-             selected=lambda code: get_language(request)==code,
+             # selected=lambda code: get_language(request)==code,
             ))
     children.append (MenuItem(
          'none',
@@ -41,10 +41,10 @@ def languages_children(request):
 
 def proxies_children(request):
     children = []
-    # for site in Site.objects.all().order_by('name'):
-    for site in Site.objects.filter(slug=get_site(request)):
-        # for proxy in Proxy.objects.filter(site=site).order_by('name'):
-        for proxy in Proxy.objects.filter(site=site, language_id=get_language(request)).order_by('name'):
+    # for site in Site.objects.filter(slug=get_site(request)):
+    for site in Site.objects.all().order_by('name'):
+        # for proxy in Proxy.objects.filter(site=site, language_id=get_language(request)).order_by('name'):
+        for proxy in Proxy.objects.filter(site=site).order_by('name'):
             if proxy.can_view(request.user):
                 children.append (MenuItem(
                      proxy.name,
@@ -115,7 +115,8 @@ Menu.add_item("main", MenuItem(ugettext_lazy("Proxies"),
                                icon='',
                                weight=30,
                                children=proxies_children,
-                               check=check_proxies,
+                               # check=check_proxies,
+                               check=lambda request: request.user.is_authenticated(),
                                separator=True))     
 
 Menu.add_item("main", MenuItem(ugettext_lazy("Strings"),

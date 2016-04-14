@@ -379,7 +379,16 @@ class Proxy(models.Model):
                         n_substitutions += 1
                         continue
                     else:
-                        print l1, l2
+                        if len(segments)==1 and not block.children.exists():
+                            translated_element = html.fromstring(body)
+                            translated_element.text = '<span tx fuzzy>%s</span>' % translated_segment
+                            body = html.tostring(translated_element)
+                            l3 = len(body)
+                            n_substitutions += 1
+                            print l1, l2, l3
+                            continue
+                        else:
+                            print l1, l2
                 translated = False
             if n_substitutions:
                 if translated:
