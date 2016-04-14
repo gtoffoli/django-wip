@@ -40,7 +40,6 @@ class WipHttpProxy(HttpProxy):
         # content_type = response.headers['Content-Type']
         trailer = response.content[:100]
         if trailer.count('<') and trailer.lower().count('html'):
-            # print 'base_url: ', self.base_url
             if self.proxy_id and self.language_code:
                 self.translate(response)
             else:
@@ -53,10 +52,7 @@ class WipHttpProxy(HttpProxy):
         return response
 
     def replace_links(self, response):
-        if self.prefix=='/dummy' and not self.host.count('localhost'):
-            response.content = response.content.replace(self.base_url, '/')
-        else:
-            response.content = response.content.replace(self.base_url, self.prefix)
+        response.content = response.content.replace(self.base_url, self.prefix)
         return response
 
     def translate(self, response):
@@ -68,7 +64,6 @@ class WipHttpProxy(HttpProxy):
             proxy = Proxy.objects.get(pk=self.proxy_id)
             site = proxy.site
         path = urlparse.urlparse(self.url).path
-        # print 'translate - path: ', path
         webpages = Webpage.objects.filter(site=site, path=path).order_by('-created')
         if webpages:
             webpage = webpages[0]
