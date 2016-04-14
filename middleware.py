@@ -22,6 +22,6 @@ class ProxyMiddleware(object):
         """
         host = request.META.get('HTTP_HOST', '')
         for proxy in Proxy.objects.all():
-            if host.count(proxy.host):
+            if proxy.host and host.count(proxy.host):
                 request.urlconf = 'wip.proxy_urls'
                 break

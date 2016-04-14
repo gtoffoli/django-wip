@@ -230,10 +230,16 @@ def parse_xliff(filepath):
         text = elem.text
         if tag.endswith('source') and not tag.endswith('seg-source'):
             source = text
+            mrk_text = None
+        elif tag.endswith('seg-source'):
+            mrk_text = None
         elif tag.endswith('mrk'):
             mrk_text = text
         elif tag.endswith('target'):
-            target = mrk_text
+            if mrk_text is None:
+                target = text
+            else:
+                target = mrk_text
         elif tag.endswith('trans-unit'):
             i += 1
             print i, source
