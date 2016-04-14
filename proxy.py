@@ -2,10 +2,11 @@
 
 import urlparse
 from httpproxy.views import HttpProxy
-from models import Language, Proxy, Webpage, PageVersion, TranslatedVersion
+from models import Proxy, Webpage, PageVersion, TranslatedVersion
 
 class WipHttpProxy(HttpProxy):
-    prefix = '/dummy'
+    prefix = ''
+    # prefix = '/dummy'
     rewrite_links = False
     proxy_id = ''
     language_code = ''
@@ -14,16 +15,16 @@ class WipHttpProxy(HttpProxy):
     def dispatch(self, request, url, *args, **kwargs):
         self.url = url
         self.host = request.META.get('HTTP_HOST', '')
-        if self.prefix == '/dummy':
-            for proxy in Proxy.objects.all():
-                if proxy.host and self.host.count(proxy.host):
-                    self.proxy = proxy
-                    self.proxy_id = proxy.id
-                    self.language_code = proxy.language.code
-                    site = proxy.site
-                    self.site = site
-                    self.base_url = site.url
-                    break
+        # if self.prefix == '/dummy':
+        for proxy in Proxy.objects.all():
+            if proxy.host and self.host.count(proxy.host):
+                self.proxy = proxy
+                self.proxy_id = proxy.id
+                self.language_code = proxy.language.code
+                site = proxy.site
+                self.site = site
+                self.base_url = site.url
+                break
 
         self.original_request_path = request.path
         request = self.normalize_request(request)
