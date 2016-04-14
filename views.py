@@ -215,7 +215,10 @@ def site(request, site_slug):
                             break
                     if skip_page:
                         continue
-                    segments = page_version.page_version_get_segments()
+                    try:
+                        segments = page_version.page_version_get_segments()
+                    except: # Unicode strings with encoding declaration are not supported. Please use bytes input or XML fragments without declaration.
+                        continue
                     for s in segments:
                         s = s.replace('\xc2\xa0', ' ')
                         if not s: continue
