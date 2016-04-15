@@ -108,7 +108,7 @@
               <td class="text-right">{{forloop.counter|rjust:"3"}}</td>
               <td class="text-right">{{ page_block.id }}</td>
               <td>{{ page_block.parents.count }}</td>
-              <td>{{ page_block.children.exists }}</td>
+              <td>{{ page_block.num_children }}</td>
               <td><a href="/block/{{ page_block.id }}/">{{ page_block.webpages.count }}</a></td>
               <td class="text-right">{{ page_block.body|length }}</td>
               <td><a href="/block/{{ page_block.id }}/">{{ page_block.get_label }}</a></td>
@@ -117,7 +117,7 @@
         </tbody>
       </table>
     {% else %}
-      <p>{% trans "no pages include this block"|capfirst %</p>
+      <p>{% trans "no ready blocks"|capfirst %}</p>
     {% endif %}
   {% endif %}
 {% endblock %}

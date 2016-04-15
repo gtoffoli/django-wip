@@ -39,6 +39,8 @@ INSTALLED_APPS = [
     'allauth',
     'allauth.account',
     'allauth.socialaccount',
+    #'allauth.socialaccount.providers.oauth2',
+    'keyrock',
     'bootstrap3',
     'menu',
     'httpproxy',
@@ -217,7 +219,7 @@ BLOCK_TAGS = [
    'form', 'fieldset', 'input', 'button', 'select', 'option', 'textarea', 'output',
 ]
 TO_DROP_TAGS = [
-    'link', 'script', 'style','iframe',
+    'head', 'link', 'script', 'style','iframe',
 ]
 
 QUOTES = (

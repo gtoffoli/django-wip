@@ -61,6 +61,7 @@ def code_to_language(code):
     return Language.objects.get(pk=code)
 
 TO_BE_TRANSLATED = -1
+NONE = 0
 PARTIALLY = 1
 TRANSLATED = 2
 REVISED = 3
@@ -229,6 +230,7 @@ class Proxy(models.Model):
     def blocks_ready(self, min_state=TRANSLATED):
         """ return blocks "ready for translation" """
         site = self.site
+        language = self.language
         # qs = Block.objects.filter(site=site, Block_child__isnull=True)
         qs = Block.objects.filter(site=site)
         qs = qs.annotate(n_pages = RawSQL("SELECT COUNT(*) FROM wip_blockinpage WHERE wip_blockinpage.block_id = wip_block.id", ()))
@@ -237,9 +239,15 @@ class Proxy(models.Model):
         for block in qs:
             if block.no_translate:
                 continue
-            if block.compute_translation_state(self.language) >= min_state:
+            if block.compute_translation_state(language) >= min_state:
                 continue
+            children = block.get_children()
             ready = True
+            if children:
+                for child in children:
+                    if child.compute_translation_state(language) < min_state:
+                        ready = False
+                        break
             if ready:
                 blocks.append(block)
         return blocks
@@ -607,7 +615,8 @@ class Webpage(models.Model):
                         block = blocks[0]
                     else:
                         string = etree.tostring(el)
-                        block = Block(site=site, xpath=xpath, checksum=checksum, body=string)
+                        # block = Block(site=site, xpath=xpath, checksum=checksum, body=string)
+                        block = Block(site=site, checksum=checksum, body=string)
                         try:
                             block.save()
                             n_2 += 1
@@ -629,19 +638,33 @@ class Webpage(models.Model):
         blocks_in_page = list(BlockInPage.objects.filter(webpage=self).order_by('xpath'))
         blocks = [None]
         xpaths = ['no-xpath']
+        m = 0
+        n = 0
         i = 0
         for bip in blocks_in_page:
             block = bip.block
             xpath = bip.xpath
+            """
             i += 1
             for j in range(i):
+            """
+            for j in range(i, -1, -1):
                 if xpath.startswith(xpaths[j]):
                     parent = blocks[j]
+                    m += 1
                     if not BlockEdge.objects.filter(parent=parent, child=block):
                         parent.add_child(block)
+                        n += 1
+                        print xpaths[j], xpath
                     break
+            """
             blocks = [block]+blocks
             xpaths = [xpath]+xpaths
+            """
+            i += 1
+            blocks.append(block)
+            xpaths.append(xpath)
+        print m, n
 
 def get_strings(text, language, site=None):
     if site:
@@ -866,6 +889,15 @@ class Block(node_factory('BlockEdge')):
     def get_language(self):
         return self.language or self.site.language or Language.objects.get(code='it')
 
+    def get_children(self):
+        if not self.children.exists():
+            return []
+        down_edges = BlockEdge.objects.filter(parent=self) # .all()
+        return [edge.child for edge in down_edges]
+
+    def num_children(self):
+        return len(self.get_children())
+
     """ substituted by integrating django_dag
     def get_children(self, webpage=None):
         if webpage:
@@ -949,6 +981,10 @@ class Block(node_factory('BlockEdge')):
     def clone(self, language):
         return TranslatedBlock(block=self, language=language, body=self.body)
 
+    def get_last_translation(self, language):
+        translations = TranslatedBlock.objects.filter(block=self, language=language).order_by('-modified')
+        return translations.count() and translations[0] or None
+
     def get_last_translations(self, language=None):
         if language:
             languages = [language]
@@ -992,13 +1028,24 @@ class Block(node_factory('BlockEdge')):
         return states
 
     def compute_translation_state(self, language):
-        language_translations = self.get_last_translations(language=language)
-        if language_translations:
-            #translations = language_translations.get(language.code, [])
-            translations = dict(language_translations).get(language.code, [])
-            if translations:
-                return translations[0].state
-        return 0
+        if self.no_translate:
+            return INVARIANT
+        last_translation = self.get_last_translation(language)
+        if last_translation:
+            return last_translation.state
+        """
+        if not self.children.exists():
+            return 0
+        down_edges = BlockEdge.objects.filter(parent=self).all()
+        children = [edge.child for edge in down_edges]
+        """
+        children = self.get_children()
+        if not children:
+            return NONE
+        state = ALREADY
+        for child in children:
+            state = min(state, child.compute_translation_state(language))
+        return state            
 
     def block_get_segments(self, segmenter):
         if not segmenter:
