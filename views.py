@@ -1279,21 +1279,31 @@ def add_translated_string(request):
             string_new.save()
             translated_new_id = string_new.id
             print translated_new_id
-            return JsonResponse({"data": "add-txt-string","txu_id": target_txu_id,"translated_id": translated_new_id})
+            return JsonResponse({"data": "add-txt-string","txu_id": target_txu_id,"translated_id": translated_new_id,})
         else:
             string = String.objects.filter(pk=translated_id)
             if string:
                 print 'txu esiste update stringa'
                 string.update(text=translation)
-                return JsonResponse({"data": "modify",})
+                return JsonResponse({"data": "modify-string",})
             else:
                 print 'txu esiste nuova stringa'
                 string_new = String(txu_id=txu_id, language=target_language, site=None, text=translation, reliability=reliability, invariant=False)
                 string_new.save()
                 translated_new_id = string_new.id
-                return JsonResponse({"data": "add","translated_id": translated_new_id})
+                return JsonResponse({"data": "add-string","translated_id": translated_new_id,})
     return empty_page(request);
 
+def delete_translated_string(request):
+    if request.is_ajax() and request.method == 'GET':
+        form = request.GET
+        source_id = int(form.get('source_id'))
+        translated_id = int(form.get('translated_id'))
+        txu_id = int(form.get('txu_id'))
+        print source_id
+        return JsonResponse({"data": "delete-string",})
+    return empty_page(request);
+    
 def list_strings(request, sources, state, targets=[]):
     """
     list strings in the source languages with translations in the target languages

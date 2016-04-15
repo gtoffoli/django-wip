@@ -60,7 +60,7 @@
                   <div class="input-group">
                     {% if translation.1 %}
                       {% for s in translation.1 %}
-                        <input type="hidden" name="translated_id" value="{{ s.id }}"><span class="input-group-btn"><button class="btn" style="background:transparent; border:none" type="submit" name="delete" value="D"><i class="fa fa-times" aria-hidden="true"></i></button></span><textarea class="form-control custom-control" name="translation" style="width:100%">{{ s.text }}</textarea><span class="input-group-btn"><input class="btn btn-default btn-sm" type="submit" name="salva" value="{% trans "save"|capfirst %}"></span>
+                        <input type="hidden" name="translated_id" value="{{ s.id }}"><span class="input-group-btn"><button type="reset" class="btn" style="background:transparent; border:none" name="delete" value="D"><i class="fa fa-times" aria-hidden="true"></i></button></span><textarea class="form-control custom-control" name="translation" style="width:100%">{{ s.text }}</textarea><span class="input-group-btn"><input class="btn btn-default btn-sm" type="submit" name="salva" value="{% trans "save"|capfirst %}"></span>
                       {% endfor %}
                     {% else %}
                         <input type="hidden" name="translated_id" value="0"><textarea class="form-control custom-control" name="translation" style="width:100%"></textarea><span class="input-group-btn"><input class="btn btn-default btn-sm" type="submit" name="save" value="{% trans "save"|capfirst %}"></span>
@@ -104,11 +104,38 @@
 {% block extra_script %}
 <script type="text/javascript">
 	$(document).ready(function() {
+		$('button').click(function() {
+			console.log('delete');
+			var input = $(this).parent().closest("form").find("input");
+			for (var i=0; i<input.length; i++) {
+				switch (input[i].name) {
+					case 'source_id':
+						var source_id = $(input[i]).val();
+					case 'txu_id':
+						var txu_id = $(input[i]).val();
+						break;
+					case 'translated_id':
+						var translated_id = $(input[i]).val();
+				}
+			}
+			$.ajax({
+				type: 'GET', 
+				url: '/delete_translated_string/',
+				data: 'source_id='+source_id+'&translated_id='+translated_id+'&txu_id='+txu_id,
+				success: function(json){
+					console.log(json.data);
+				},
+				error: function() {
+					alert('Sorry! Something went wrong.');
+				}
+			});
+		});
 		$('form').submit(function(e) {
+			console.log('form');
 			e.preventDefault();
+			var form = $(this);
 			var textarea = $(this).closest("form").find("textarea");
 			var input = $(this).closest("form").find("input");
-console.log(input);
 			for (var i=0; i<input.length; i++) {
 				switch (input[i].name) {
 					case 'txu_id':
@@ -119,7 +146,7 @@ console.log(input);
 				}
 			}
 			var textvalue = textarea.val();
-			if (textvalue != '') {
+/*			if (textvalue != '') {
 				$.ajax({
 					type: $(this).attr('method'), 
 					url: '/add_translated_string/',
@@ -131,18 +158,16 @@ console.log(input);
 								$(translated_id).val(json.translated_id);
 								break;
 							case "add-string":
-								break;
-							case "modify-string":
-								break;
-							default:
-								alert('Sorry! Something went wrong.');
+								$(translated_id).val(json.translated_id);
+							// break;
+							// case "modify-string":
 						}
 					},
 					error: function() {
 						alert('Sorry! Something went wrong.');
 					}
 				});
-			}
+			}*/
 		 }); 
   });
 </script>

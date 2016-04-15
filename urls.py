@@ -51,6 +51,7 @@ urlpatterns = [
     url(r"^proxy/(?P<proxy_slug>[\w-]+)/translations/$", views.proxy_string_translations, name="proxy_string_translations"),
     url(r"^proxy/(?P<proxy_slug>[\w-]+)/$", views.proxy, name="proxy"),
     url(r"^add_translated_string/$", views.add_translated_string, name="add_translated_string"),
+    url(r"^delete_translated_string/$", views.delete_translated_string, name="delete_translated_string"),
     # url(r"^my_task/$", views.my_task, name="my_task"),
     url(r'^navigation_autocomplete$', search_indexes.navigation_autocomplete, name='navigation_autocomplete'),
     url(r"^test/$", TemplateView.as_view(template_name="test.html"), name="test"),
