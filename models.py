@@ -308,10 +308,10 @@ class Proxy(models.Model):
     def apply_translation_memory(self):
         # string_matcher = StringMatcher()
         site = self.site
-        language = self.language
-        language_code = language.code
-        empty_words = EMPTY_WORDS[language_code]
-        target_codes = [language_code]
+        target_language = self.language
+        target_code = target_language.code
+        empty_words = EMPTY_WORDS[target_code]
+        target_codes = [target_code]
         blocks_ready = self.blocks_ready()
         n_ready = len(blocks_ready)
         n_partially = 0
@@ -322,16 +322,23 @@ class Proxy(models.Model):
             italian_rules = srx_rules['Italian']
             segmenter = srx_segmenter.SrxSegmenter(italian_rules)
         for block in blocks_ready:
+            """
             last_translations = block.get_last_translations(language=language)
             translated_blocks = last_translations and dict(last_translations).get(language_code, []) or []
+            """
+            translated_block = block.get_last_translation(language=target_language)
             translated = True
             n_substitutions = 0
+            """
             if translated_blocks:
                 translated_block = translated_blocks[0]
+            """
+            if translated_block:
                 body = translated_block.body
                 segments = translated_block.translated_block_get_segments(segmenter)
             else:
                 translated_block = None
+                body = block.body
                 segments = block.block_get_segments(segmenter)                
             if not segments:
                 continue # ???
@@ -339,30 +346,39 @@ class Proxy(models.Model):
                 if segment.isnumeric() or segment.replace(',', '.').isnumeric():
                     continue
                 if String.objects.filter(site=site, text=segment, invariant=True):
+                    body = unicode_entities(body)
+                    if body.count(segment):
+                        body = body.replace(segment, '<span tx inv>%s</span>' % segment)
+                        n_substitutions += 1
+                        if not translated_block:
+                            translated_block = block.clone(target_language)
+                            translated_block.body = body
+                        translated_block.save()
                     continue
                 words = segment.split()
                 translated_segment = None
                 # matches = String.objects.filter(text__iexact=segment, txu__string__language_id__in=target_codes).distinct()
                 # matches = String.objects.filter(text=segment.upper(), txu__string__language_id=language_code).distinct().order_by('-reliability')
-                matches = String.objects.filter(text=segment, txu__string__language_id=language_code).distinct().order_by('-reliability')
-                print language_code, matches
+                matches = String.objects.filter(text=segment, txu__string__language_id=target_code).distinct().order_by('-reliability')
+                print target_code, matches
                 n_matches = matches.count()
                 if n_matches:
                     match = matches[0]
                 if n_matches == 1 or n_matches and match.reliability > 4:
                     print n_matches, match.reliability
-                    translations = String.objects.filter(language=language, txu=match.txu)
+                    translations = String.objects.filter(language=target_language, txu=match.txu)
                     if translations.count() == 1:
                         translated_segment = translations[0].text
                 elif len(words) == 1:
-                    matches = String.objects.filter(text__istartswith=segment, txu__string__language_id__in=target_codes).distinct()
+                    # matches = String.objects.filter(text__istartswith=segment, txu__string__language_id__in=target_codes).distinct()
+                    matches = String.objects.filter(text__istartswith=segment, txu__string__language_id=target_code).distinct()
                     matches_count = matches.count()
                     if matches_count > 1:
                         print 'segment: ', segment, ', matches_count: ', matches_count
                         word_count_dict = defaultdict(int)
                         for match in matches:
                             if match.text.split()[0].lower() == segment.lower():
-                                translations = String.objects.filter(language=language, txu=match.txu)
+                                translations = String.objects.filter(language=target_language, txu=match.txu)
                                 for translation in translations:
                                     for word in translation.text.split():
                                         if not word in empty_words:
@@ -382,7 +398,7 @@ class Proxy(models.Model):
                     if segment[0].isupper() and translated_segment[0].islower():
                         translated_segment = translated_segment[0].upper() + translated_segment[1:]
                     if not translated_block:
-                        translated_block = block.clone(language)
+                        translated_block = block.clone(target_language)
                         body = translated_block.body
                     print 'translation: ', translated_segment
                     l1 = len(body)
@@ -597,6 +613,7 @@ class Webpage(models.Model):
         html_string = last_version.body
         # http://stackoverflow.com/questions/1084741/regexp-to-strip-html-comments
         html_string = re.sub("(<!--(.*?)-->)", "", html_string, flags=re.MULTILINE)
+        html_string = unicode_entities(html_string)
         doc = html.document_fromstring(html_string)
         tree = doc.getroottree()
         top_els = doc.getchildren()
