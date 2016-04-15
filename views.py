@@ -27,7 +27,7 @@ from haystack.query import SearchQuerySet
 # from search_indexes import StringIndex
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from django.template import RequestContext
-from django.http import HttpResponse, HttpResponseRedirect
+from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
 from django.shortcuts import render_to_response, get_object_or_404
 from django.db import connection
 # from django.db.models import Q, Count
@@ -1221,6 +1221,7 @@ def proxy_string_translations(request, proxy_slug, state=''):
     translated = None
     var_dict['source_language'] = source_language = site.language
     var_dict['target_language'] = target_language = proxy.language
+    print target_language
     if state == 'translated':
         translated = True
     elif state == 'untranslated':
@@ -1252,15 +1253,46 @@ def proxy_string_translations(request, proxy_slug, state=''):
     var_dict['strings'] = strings
     return render_to_response('proxy_string_translations.html', var_dict, context_instance=RequestContext(request))
 
-def add_translated_string (request):
-    if (request.method == 'POST'):
-       post = request.POST
-       id = post.get('id')
-       txu_id = post.get('txu_id')
-       translation = post.get('translation')
-       return HttpResponse(json.dumps('Translation added.'), content_type = "application/json")
-    else:
-       return HttpResponse(json.dumps('NO Translation added.'), content_type = "application/json")
+def add_translated_string(request):
+    user = request.user
+    user_id = user.id
+    if request.is_ajax() and request.method == 'POST':
+        form = request.POST
+        source_id = int(form.get('source_id'))
+        translated_id = int(form.get('translated_id'))
+        txu_id = int(form.get('txu_id'))
+        translation = form.get('translation')
+        target_language = form.get('t_l')
+        source_language = form.get('s_l')
+        site_name = form.get('site_name')
+        target_language = Language.objects.get(name=target_language)
+        source_language = Language.objects.get(name=source_language)
+        reliability = 5
+        if (txu_id == 0):
+            print 'txu non esiste'
+            target_txu = Txu(provider=site_name, user=request.user)
+            target_txu.save()
+            target_txu_id = target_txu.id
+            print target_txu_id
+            string = String.objects.filter(pk=source_id).update(txu=target_txu.id)
+            string_new = String(text=translation, language=target_language, txu=target_txu, site=None, reliability=reliability, invariant=False)
+            string_new.save()
+            translated_new_id = string_new.id
+            print translated_new_id
+            return JsonResponse({"data": "add-txt-string","txu_id": target_txu_id,"translated_id": translated_new_id})
+        else:
+            string = String.objects.filter(pk=translated_id)
+            if string:
+                print 'txu esiste update stringa'
+                string.update(text=translation)
+                return JsonResponse({"data": "modify",})
+            else:
+                print 'txu esiste nuova stringa'
+                string_new = String(txu_id=txu_id, language=target_language, site=None, text=translation, reliability=reliability, invariant=False)
+                string_new.save()
+                translated_new_id = string_new.id
+                return JsonResponse({"data": "add","translated_id": translated_new_id})
+    return empty_page(request);
 
 def list_strings(request, sources, state, targets=[]):
     """

@@ -1,23 +1,6 @@
 {% extends "base.html" %}
 {% load staticfiles i18n %}
 
-{% block extra_head %}
-{% comment %}
-<style>
-label { display: inline; font-weight: bold; margin-right: 1.0em; padding: 0.2em 0em; }
-pre { display: inline;  padding: 0; }
-pre code { display: inline; }
-tr.odd { background: LightGray; }
-tr.even { background: white; }
-table { border-spacing: 10px 0; border-collapse: separate; }
-.it { color: LimeGreen; }
-.en { color: #FF0088; }
-.es { color: OrangeRed; }
-.fr { color: blue; }   
-</style>
-{% endcomment %}
-{% endblock %}
-
 {% block head_title %}{% trans "strings"|capfirst %}
 {% if source_language %} in
 {{ source_language }}
@@ -54,62 +37,55 @@ table { border-spacing: 10px 0; border-collapse: separate; }
       </div>
     {% endif %}
 
-{% comment %}
-{% if can_delete %}<form method="post" action="{{ request.path }}">{% csrf_token %}{% endif %}
-{% endcomment %}
+<div>{{ site.name }}</div>
     <table class="table table-responsive table-bordered table-striped mB5">
       <thead>
         <th class="text-right">#</th>
-        <th style="width:46%">{{ source_language }}</th>
-        <th style="width:46%">{{ target_language }}</th>
+        <th style="width:40%">{{ source_language }}</th>
+        <th style="width:54%">{{ target_language }}</th>
       </thead>
       <tbody>
       {% for string in strings %}
         <tr>
           <td class="text-right">{{forloop.counter|add:offset}}</td>
           <td>
-{% comment %}
-		{% if can_delete %}<input type="checkbox" name="delete" value="{{ string.id }}" />{% endif %}
-{% endcomment %}
-            <a href="/string/{{ string.id }}/" title="view info">{{ string.text }}</a>
+            {{ string.text }}
           </td>
           <td>
+          {% if not string.invariant %}
             {% if string.txu_id %}
               {% for translation in string.get_translations %}
                 {% if translation.0 == target_language %}
-                  {% if translation.1 %}
-                    {% for t in translation.1 %}
-                     {{ t.text }}{% if not forloop.last %}, {% endif %}
-                    {% endfor %}
-                  {% else %}
-                    <form action="/add_translated_string/" method="post">{% csrf_token %}<input type="hidden" name="id" value="{{ string.id }}"><input type="hidden" name="txu_id" value="{{ string.txu_id}} ">
-                      <div class="input-group">
-                        <textarea class="form-control custom-control" value="" name="translation" style="width:100%"></textarea><span class="input-group-btn"><button class="btn btn-sm" type="submit" name="button" value="{{ string.id }}">OK</button></span>
-                      </div>
-                    </form>
-                  {% endif %}
+                   <form action="#" method="post">{% csrf_token %}<input type="hidden" name="source_id" value="{{ string.id }}"><input type="hidden" name="txu_id" value="{{ string.txu_id}}">
+                  <div class="input-group">
+                    {% if translation.1 %}
+                      {% for s in translation.1 %}
+                        <input type="hidden" name="translated_id" value="{{ s.id }}"><span class="input-group-btn"><button class="btn" style="background:transparent; border:none" type="submit" name="delete" value="D"><i class="fa fa-times" aria-hidden="true"></i></button></span><textarea class="form-control custom-control" name="translation" style="width:100%">{{ s.text }}</textarea><span class="input-group-btn"><input class="btn btn-default btn-sm" type="submit" name="salva" value="{% trans "save"|capfirst %}"></span>
+                      {% endfor %}
+                    {% else %}
+                        <input type="hidden" name="translated_id" value="0"><textarea class="form-control custom-control" name="translation" style="width:100%"></textarea><span class="input-group-btn"><input class="btn btn-default btn-sm" type="submit" name="save" value="{% trans "save"|capfirst %}"></span>
+                    {% endif %}
+                  </div>
+                </form>
+
                 {% endif %}
+
               {% endfor %}
             {% else %}
-              <form action="/add_translated_string/" method="post">{% csrf_token %}<input type="hidden" name="id" value="{{ string.id }}"><input type="hidden" name="txu_id" value="0">
+              <form action="#" method="post">{% csrf_token %}<input type="hidden" name="source_id" value="{{ string.id }}"><input type="hidden" name="txu_id" value="0"><input type="hidden" name="translated_id" value="0">
                 <div class="input-group">
-                  <textarea class="form-control custom-control" value="" name="translation" style="width:100%"></textarea><span class="input-group-btn"><button class="btn btn-sm" type="submit" name="button" value="{{ string.id }}">OK</button></span>
+                  <span class="input-group-btn"></span><textarea class="form-control custom-control" name="translation" style="width:100%"></textarea><span class="input-group-btn"><input class="btn btn-default btn-sm" type="submit" name="save" value="{% trans "save"|capfirst %}"></span>
                 </div>
               </form>
+            {% endif %}
           {% endif %}
           </td>
         </tr>
       {% endfor %}
       </tbody>
     </table>
-{% comment %}
-	{% if can_delete %}
-	<div><input type="submit" name="delete_strings" value="Delete" class="btn btn-sm" /></div>
-	</form>
-	{% endif %}
-{% endcomment %}
 
-    {% if strings.paginator.num_pages > 1 %}
+    {% if strings.paginator.num_pages > 1 %} 
       <div class="text-right">
         <ul class="pagination mB0">
           {% for p in before %}<li><a href="?page={{ p }}">{{ p }}</a></li>{% endfor %}
@@ -128,22 +104,46 @@ table { border-spacing: 10px 0; border-collapse: separate; }
 {% block extra_script %}
 <script type="text/javascript">
 	$(document).ready(function() {
-		$('form').submit(function() {
-			var data_form=$(this).serialize();
-			var textvalue = $(this).closest("form").find("textarea").val();
+		$('form').submit(function(e) {
+			e.preventDefault();
+			var textarea = $(this).closest("form").find("textarea");
+			var input = $(this).closest("form").find("input");
+console.log(input);
+			for (var i=0; i<input.length; i++) {
+				switch (input[i].name) {
+					case 'txu_id':
+						var txu_id = input[i];
+						break;
+					case 'translated_id':
+						var translated_id = input[i];
+				}
+			}
+			var textvalue = textarea.val();
 			if (textvalue != '') {
 				$.ajax({
-					type: $(this).attr('method'),
-					dataType: "json", 
-					url: $(this).attr('action'),
-					data: $(this).serialize(),
+					type: $(this).attr('method'), 
+					url: '/add_translated_string/',
+					data: $(this).serialize()+'&t_l='+'{{ target_language }}'+'&s_l='+'{{ source_language }}'+'&site_name='+'{{ site.name}}',
 					success: function(json){
-							console.log ('ok');
+						switch (json.data){ 
+							case 'add-txt-string':
+								$(txu_id).val(json.txu_id);
+								$(translated_id).val(json.translated_id);
+								break;
+							case "add-string":
+								break;
+							case "modify-string":
+								break;
+							default:
+								alert('Sorry! Something went wrong.');
+						}
+					},
+					error: function() {
+						alert('Sorry! Something went wrong.');
 					}
 				});
 			}
-		 });
-		 
+		 }); 
   });
 </script>
 {% endblock %}
