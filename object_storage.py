@@ -191,3 +191,46 @@ def os_test(delete=False):
     response = retrieve_text(token, auth_url, TEST_CONTAINER_NAME, TEST_OBJECT_NAME)
     logger.info('Retrieve Text Response: ' + response)
 
+
+def put_page_version(token, auth_url, site_slug, action_id, page_path, version_time, page_body):
+    container_name = site_slug
+    action_string = str(action_id).zfill(6)
+    safe_path = page_path.replace('/', '_')
+    safe_time = version_time.strftime('%Y-%m-%d %H:%M')
+    object_name = '%s_%s' % (action_string, safe_path)
+    object_dict = {'name': object_name, 'site': site_slug, 'event': action_id, 'path': page_path, 'datetime': safe_time, 'html': page_body}
+    object_text = json.dumps(object_dict)
+    response = store_text(token, auth_url, container_name, object_name, object_text)
+    return response
+
+def put_pages_test(n_pages=1, description=''):
+    from django.contrib.auth.models import User
+    from actstream.models import Action
+    from wip.journal import site_archive_pages
+    from wip.models import Site, Webpage, PageVersion
+
+    # display basic info
+    logger.info('Authorisation host is: ' + HOST_AUTH)
+    # get authentication response
+    auth_response = authentication_request(FILAB_USERNAME, FILAB_PASSWORD)
+    # extract token
+    token = auth_response['access']['token']['id']
+    logger.info('Security token is: ' + token)
+    auth_url = BudapestPublicUrl
+    logger.info('auth_url is: ' + auth_url)
+
+    site_id = 1
+    site = Site.objects.get(pk=site_id)
+    user = User.objects.get(pk=1)
+    site_archive_pages(user, site, description=description)
+    action_id = Action.objects.latest('id').id
+    if n_pages:
+        pages = Webpage.objects.filter(site=site)[:n_pages]
+    else:
+        pages = Webpage.objects.filter(site=site).all()
+    for page in pages:
+        versions = PageVersion.objects.filter(webpage=page).order_by('-time')
+        last_version = versions and versions[0] or None
+        if last_version:
+            response = put_page_version(token, auth_url, site.slug, action_id, page.path, last_version.time, last_version.body)
+            logger.info('Store Text Response: ' + response)
