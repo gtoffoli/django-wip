@@ -13,6 +13,7 @@ https://docs.djangoproject.com/en/1.9/ref/settings/
 """
 from private import *
 
+import string
 import os
 
 # set the default Django settings module for the 'celery' program.
@@ -227,6 +228,15 @@ QUOTES = (
  ('“', '”',),
  ('‘', '’',),
 )
+BOTH_QUOTES = '\'"'
+# TRANS_QUOTES = string.maketrans("‘’“”", "''\"\"")
+TRANS_QUOTES = {
+    ord(u"‘"): u"'",
+    ord(u"’"): u"'",
+    ord(u'“'): u'"',
+    ord(u'”'): u'"',
+}
+
 EMPTY_WORDS = {
 'en': [
        'a', 'an', 'the', 

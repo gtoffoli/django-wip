@@ -13,6 +13,8 @@ except ImportError:
 # from scrapy.utils.misc import md5sum
 import hashlib
 
+from string import maketrans 
+from namedentities import unicode_entities
 from lxml import html, etree
 from guess_language import guessLanguage
 import urllib
@@ -154,6 +156,20 @@ def elements_from_element(element):
         if content: content = content.strip()
         if content: yield element
 
+def replace_element_content(element, text, tag=None, attrs={}):
+    for child in element:
+        element.remove(child)
+    if tag:
+        element.text = ''
+        if attrs:
+            child = etree.Element(tag, **attrs)
+        else:
+            child = etree.Element(tag)
+        child.text = text
+        element.append(child)
+    else:
+        element.text = text
+
 def md5sum(file):
     """Calculate the md5 checksum of a file-like object without reading its
     whole content in memory.
@@ -170,10 +186,21 @@ def md5sum(file):
         m.update(d)
     return m.hexdigest()
 
+def string_checksum(string):
+    m = hashlib.md5()
+    m.update(string)
+    return m.hexdigest()
+
 def block_checksum(block):
     string = etree.tostring(block)
+    """
     buf = BytesIO(string)
     return md5sum(buf)
+    m = hashlib.md5()
+    m.update(string)
+    return m.hexdigest()
+    """
+    return string_checksum(string)
 
 def guess_block_language(block):
     strings = strings_from_html(block.body, fragment=True)
@@ -220,6 +247,11 @@ def remove_bom(filepath):
     s = u.encode('utf-8')
     fp.write(s)
     fp.close()
+
+def normalize_string(s):
+    s = unicode_entities(s)
+    s.translate(settings.TRANS_QUOTES)
+    return s
 
 def parse_xliff(filepath):
     tree = etree.iterparse(filepath)

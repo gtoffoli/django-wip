@@ -14,8 +14,8 @@ sys.setdefaultencoding('utf8')
 from collections import defaultdict
 import os
 import re
-import datetime
-from namedentities import unicode_entities
+# import datetime
+# from namedentities import unicode_entities
 # from Levenshtein.StringMatcher import StringMatcher
 from lxml import html, etree
 from django.db import models
@@ -33,8 +33,8 @@ from django_dag.models import node_factory, edge_factory
 from vocabularies import Language, Subject, ApprovalStatus
 from wip.wip_sd.sd_algorithm import SDAlgorithm
 
-from settings import RESOURCES_ROOT, BLOCK_TAGS, BLOCKS_EXCLUDE_BY_XPATH, SEPARATORS, STRIPPED, EMPTY_WORDS
-from utils import text_from_html, strings_from_html, elements_from_element, block_checksum
+from settings import RESOURCES_ROOT, BLOCK_TAGS, BLOCKS_EXCLUDE_BY_XPATH, SEPARATORS, STRIPPED, EMPTY_WORDS, BOTH_QUOTES
+from utils import text_from_html, strings_from_html, elements_from_element, replace_element_content, block_checksum, normalize_string
 import srx_segmenter
 
 
@@ -345,16 +345,31 @@ class Proxy(models.Model):
             for segment in segments:
                 if segment.isnumeric() or segment.replace(',', '.').isnumeric():
                     continue
+                ls = len(segment)
                 if String.objects.filter(site=site, text=segment, invariant=True):
-                    body = unicode_entities(body)
+                    # body = unicode_entities(body)
+                    body = normalize_string(body)
+                    """
                     if body.count(segment):
                         body = body.replace(segment, '<span tx inv>%s</span>' % segment)
-                        n_substitutions += 1
-                        if not translated_block:
-                            translated_block = block.clone(target_language)
-                            translated_block.body = body
-                        translated_block.save()
-                    continue
+                    """
+                    l = len(body)
+                    i = 0
+                    while i < l:
+                        i = body.find(segment, i)
+                        if i < 0:
+                            break
+                        if not (i>0 and body[i-1] in BOTH_QUOTES) and not (i<l-1 and body[i+1] in BOTH_QUOTES):
+                            body = body.replace(segment, '<span tx inv>%s</span>' % segment)
+                            n_substitutions += 1
+                            if not translated_block:
+                                translated_block = block.clone(target_language)
+                                translated_block.body = body
+                            translated_block.save()
+                            break
+                        i += ls
+                    if i >= 0:
+                        continue
                 words = segment.split()
                 translated_segment = None
                 # matches = String.objects.filter(text__iexact=segment, txu__string__language_id__in=target_codes).distinct()
@@ -402,16 +417,31 @@ class Proxy(models.Model):
                         body = translated_block.body
                     print 'translation: ', translated_segment
                     l1 = len(body)
-                    body = unicode_entities(body)
+                    # body = unicode_entities(body)
+                    body = normalize_string(body)
                     l2 = len(body)
+                    """
                     if body.count(segment):
                         body = body.replace(segment, '<span tx auto>%s</span>' % translated_segment)
-                        n_substitutions += 1
+                    """
+                    l = len(body)
+                    i = 0
+                    while i < l:
+                        i = body.find(segment, i)
+                        if i < 0:
+                            break
+                        if not (i>0 and body[i-1] in BOTH_QUOTES) and not (i<l-1 and body[i+1] in BOTH_QUOTES):
+                            body = body.replace(segment, '<span tx auto>%s</span>' % translated_segment)
+                            n_substitutions += 1
+                            break
+                        i += ls
+                    if i >= 0:
                         continue
                     else:
                         if len(segments)==1 and not block.children.exists():
                             translated_element = html.fromstring(body)
-                            translated_element.text = '<span tx fuzzy>%s</span>' % translated_segment
+                            # translated_element.text = '<span tx fuzzy>%s</span>' % translated_segment
+                            replace_element_content(translated_element, translated_segment, tag='span', attrs={'tx':'', 'fuzzy':'',})
                             body = html.tostring(translated_element)
                             l3 = len(body)
                             n_substitutions += 1
@@ -613,7 +643,8 @@ class Webpage(models.Model):
         html_string = last_version.body
         # http://stackoverflow.com/questions/1084741/regexp-to-strip-html-comments
         html_string = re.sub("(<!--(.*?)-->)", "", html_string, flags=re.MULTILINE)
-        html_string = unicode_entities(html_string)
+        # html_string = unicode_entities(html_string)
+        html_string = normalize_string(html_string)
         doc = html.document_fromstring(html_string)
         tree = doc.getroottree()
         top_els = doc.getchildren()
