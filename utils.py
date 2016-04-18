@@ -23,6 +23,10 @@ import unirest
 # from wip.settings import BLOCK_TAGS, TO_DROP_TAGS
 from django.conf import settings
 
+def element_tostring(e):
+    # return html.tostring(e, encoding='utf-8')
+    return html.tostring(e)
+
 def fix_html_structure(string):
     doc = html.fromstring(string)
     return html.tostring(doc)
@@ -114,6 +118,7 @@ def strings_from_html(string, fragment=False, exclude_xpaths=[], exclude_tx=Fals
             el.getparent().remove(el)
     if exclude_tx:
         els = body.findall('.//span[@tx]')
+        # print 'exclude_tx: ', len(els)
         for el in els:
             el.getparent().remove(el) 
     for s in strings_from_block(body, tree=tree, exclude_xpaths=exclude_xpaths):
@@ -170,6 +175,23 @@ def replace_element_content(element, text, tag=None, attrs={}):
     else:
         element.text = text
 
+def replace_segment(html_text, segment, tx='auto'):
+    element = html.fromstring(html_text)
+    text_content = element.text_content() or ''
+    n = text_content.count(segment)
+    if not n:
+        return False
+    text = element.text or ''
+    if text and not text.replace(segment, '', 1).strip(settings.DEFAULT_STRIPPED):
+        element.text = ''
+        attrs={'tx':'', tx:''}
+        child = etree.Element('span', **attrs)
+        element.insert(0, child)
+        # return etree.tostring(element)
+        return element_tostring(element)
+    return False
+    # to be extended
+
 def md5sum(file):
     """Calculate the md5 checksum of a file-like object without reading its
     whole content in memory.
@@ -192,7 +214,8 @@ def string_checksum(string):
     return m.hexdigest()
 
 def block_checksum(block):
-    string = etree.tostring(block)
+    # string = etree.tostring(block)
+    string = element_tostring(block)
     """
     buf = BytesIO(string)
     return md5sum(buf)
@@ -201,6 +224,10 @@ def block_checksum(block):
     return m.hexdigest()
     """
     return string_checksum(string)
+
+def element_signature(element):
+    tags = [el.tag for el in element.iter()]
+    return string_checksum('.'.join(tags) + '_' + element.text_content())
 
 def guess_block_language(block):
     strings = strings_from_html(block.body, fragment=True)
@@ -249,8 +276,11 @@ def remove_bom(filepath):
     fp.close()
 
 def normalize_string(s):
-    s = unicode_entities(s)
-    s.translate(settings.TRANS_QUOTES)
+    # s = unicode_entities(s)
+    if s:
+        # s = s.replace(u"\u2018", "'").replace(u"\u2019", "'").replace(' - ', ' – ')
+        # s = s.replace("‘", "'").replace("’", "'").replace(' - ', ' – ')
+        s.translate(settings.TRANS_QUOTES)
     return s
 
 def parse_xliff(filepath):

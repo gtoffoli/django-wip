@@ -34,7 +34,8 @@ from vocabularies import Language, Subject, ApprovalStatus
 from wip.wip_sd.sd_algorithm import SDAlgorithm
 
 from settings import RESOURCES_ROOT, BLOCK_TAGS, BLOCKS_EXCLUDE_BY_XPATH, SEPARATORS, STRIPPED, EMPTY_WORDS, BOTH_QUOTES
-from utils import text_from_html, strings_from_html, elements_from_element, replace_element_content, block_checksum, normalize_string
+DEFAULT_USER = 1
+from utils import element_tostring, text_from_html, strings_from_html, elements_from_element, replace_element_content, replace_segment, element_signature, normalize_string
 import srx_segmenter
 
 
@@ -322,54 +323,27 @@ class Proxy(models.Model):
             italian_rules = srx_rules['Italian']
             segmenter = srx_segmenter.SrxSegmenter(italian_rules)
         for block in blocks_ready:
-            """
-            last_translations = block.get_last_translations(language=language)
-            translated_blocks = last_translations and dict(last_translations).get(language_code, []) or []
-            """
             translated_block = block.get_last_translation(language=target_language)
             translated = True
             n_substitutions = 0
-            """
-            if translated_blocks:
-                translated_block = translated_blocks[0]
-            """
             if translated_block:
                 body = translated_block.body
                 segments = translated_block.translated_block_get_segments(segmenter)
             else:
-                translated_block = None
                 body = block.body
                 segments = block.block_get_segments(segmenter)                
+            body = normalize_string(body)
             if not segments:
                 continue # ???
+            segments.sort(key=lambda x: len(x), reverse=True)
             for segment in segments:
                 if segment.isnumeric() or segment.replace(',', '.').isnumeric():
                     continue
                 ls = len(segment)
                 if String.objects.filter(site=site, text=segment, invariant=True):
-                    # body = unicode_entities(body)
-                    body = normalize_string(body)
-                    """
-                    if body.count(segment):
-                        body = body.replace(segment, '<span tx inv>%s</span>' % segment)
-                    """
-                    l = len(body)
-                    i = 0
-                    while i < l:
-                        i = body.find(segment, i)
-                        if i < 0:
-                            break
-                        if not (i>0 and body[i-1] in BOTH_QUOTES) and not (i<l-1 and body[i+1] in BOTH_QUOTES):
-                            body = body.replace(segment, '<span tx inv>%s</span>' % segment)
-                            n_substitutions += 1
-                            if not translated_block:
-                                translated_block = block.clone(target_language)
-                                translated_block.body = body
-                            translated_block.save()
-                            break
-                        i += ls
-                    if i >= 0:
-                        continue
+                    n_substitutions += 1
+                    continue
+                # segment = normalize_string(segment)
                 words = segment.split()
                 translated_segment = None
                 # matches = String.objects.filter(text__iexact=segment, txu__string__language_id__in=target_codes).distinct()
@@ -389,7 +363,8 @@ class Proxy(models.Model):
                     matches = String.objects.filter(text__istartswith=segment, txu__string__language_id=target_code).distinct()
                     matches_count = matches.count()
                     if matches_count > 1:
-                        print 'segment: ', segment, ', matches_count: ', matches_count
+                        try: print 'segment: ', segment, ', matches_count: ', matches_count
+                        except: pass
                         word_count_dict = defaultdict(int)
                         for match in matches:
                             if match.text.split()[0].lower() == segment.lower():
@@ -412,45 +387,29 @@ class Proxy(models.Model):
                 if translated_segment:
                     if segment[0].isupper() and translated_segment[0].islower():
                         translated_segment = translated_segment[0].upper() + translated_segment[1:]
-                    if not translated_block:
-                        translated_block = block.clone(target_language)
-                        body = translated_block.body
-                    print 'translation: ', translated_segment
-                    l1 = len(body)
-                    # body = unicode_entities(body)
-                    body = normalize_string(body)
-                    l2 = len(body)
-                    """
-                    if body.count(segment):
+                    try: print 'translation: ', translated_segment
+                    except: pass
+                    count = body.count(segment)
+                    if body.count(segment) == 1:
                         body = body.replace(segment, '<span tx auto>%s</span>' % translated_segment)
-                    """
-                    l = len(body)
-                    i = 0
-                    while i < l:
-                        i = body.find(segment, i)
-                        if i < 0:
-                            break
-                        if not (i>0 and body[i-1] in BOTH_QUOTES) and not (i<l-1 and body[i+1] in BOTH_QUOTES):
-                            body = body.replace(segment, '<span tx auto>%s</span>' % translated_segment)
-                            n_substitutions += 1
-                            break
-                        i += ls
-                    if i >= 0:
+                        n_substitutions += 1
                         continue
-                    else:
-                        if len(segments)==1 and not block.children.exists():
-                            translated_element = html.fromstring(body)
-                            # translated_element.text = '<span tx fuzzy>%s</span>' % translated_segment
-                            replace_element_content(translated_element, translated_segment, tag='span', attrs={'tx':'', 'fuzzy':'',})
-                            body = html.tostring(translated_element)
-                            l3 = len(body)
-                            n_substitutions += 1
-                            print l1, l2, l3
-                            continue
-                        else:
-                            print l1, l2
-                translated = False
+                    if len(segments)==1 and not block.children.exists():
+                        translated_element = html.fromstring(body)
+                        replace_element_content(translated_element, translated_segment, tag='span', attrs={'tx':'', 'fuzzy':'',})
+                        # body = html.tostring(translated_element)
+                        body = element_tostring(translated_element)
+                        n_substitutions += 1
+                        continue
+                    replaced = replace_segment(body, segment)
+                    if replaced:
+                        body = replaced
+                        n_substitutions += 1
+                        continue
+                    translated = False
             if n_substitutions:
+                if not translated_block:
+                    translated_block = block.clone(target_language)
                 if translated:
                     translated_block.state = TRANSLATED
                     n_translated += 1
@@ -492,7 +451,8 @@ class Proxy(models.Model):
                     translated_block = TranslatedBlock(block=block, language=language)
                     n_new +=1
                     print 'new' #, label
-                translated_block.body = html.tostring(translated_element)
+                # translated_block.body = html.tostring(translated_element)
+                translated_block.body = element_tostring(translated_element)
                 translated_block.save()
         return n_new, n_updated, n_no_updated
 
@@ -534,13 +494,15 @@ class Webpage(models.Model):
             language_blocks_translations.append([language, TranslatedBlock.objects.filter(block__page=self, language=language).values('block_id').distinct().count()])
         return language_blocks_translations
 
-    def get_translation(self, language_code):
+    def get_translation(self, language_code, use_cache=True, cache=False):
         content = None
         has_translation = False
         language = get_object_or_404(Language, code=language_code)
-        translated_versions = TranslatedVersion.objects.filter(webpage=self, language=language).order_by('-modified')
-        translated_version = translated_versions and translated_versions[0] or None
-        if translated_version:
+        if not cache:
+            translated_versions = TranslatedVersion.objects.filter(webpage=self, language=language).order_by('-modified')
+            translated_version = translated_versions and translated_versions[0] or None
+        # if translated_version:
+        if not cache and translated_version:
             return translated_version.body, True        
         versions = PageVersion.objects.filter(webpage=self).order_by('-time')
         last_version = versions and versions[0] or None
@@ -550,8 +512,17 @@ class Webpage(models.Model):
             content_document = html.document_fromstring(content)
             translated_document, has_translation = translated_element(content_document, site, self, language)
             if has_translation:
-                content = html.tostring(translated_document)
+                # content = html.tostring(translated_document)
+                content = element_tostring(translated_document)
         return content, has_translation
+
+    def cache_translation(self, language_code):
+        if not self.no_translate:
+            content, has_translation = self.get_translation(language_code, cache=True)
+            if has_translation:
+                translated_page = TranslatedVersion(webpage=self, language_id=language_code, user=DEFAULT_USER)
+                translated_page.body = content
+                translated_page.save()
 
     def get_navigation(self, translation_state='', translation_codes=[], order_by='id'):
         qs = Webpage.objects.filter(site=self.site)
@@ -656,13 +627,15 @@ class Webpage(models.Model):
                     save_failed = False
                     n_1 += 1
                     xpath = tree.getpath(el)
-                    checksum = block_checksum(el)
+                    # checksum = block_checksum(el)
+                    checksum = element_signature(el)
                     # blocks = Block.objects.filter(site=site, xpath=xpath, checksum=checksum).order_by('-time')
                     blocks = Block.objects.filter(site=site, checksum=checksum).order_by('-time')
                     if blocks:
                         block = blocks[0]
                     else:
                         string = etree.tostring(el)
+                        # string = element_tostring(el)
                         # block = Block(site=site, xpath=xpath, checksum=checksum, body=string)
                         block = Block(site=site, checksum=checksum, body=string)
                         try:
@@ -1107,6 +1080,9 @@ class Block(node_factory('BlockEdge')):
         segments = self.block_get_segments(segmenter)
         invariant = True
         for segment in segments:
+            if not type(segment) == unicode:
+                print self.id, segment
+                return False
             if segment.isnumeric() or segment.replace(',', '.').isnumeric():
                 continue
             matches = String.objects.filter(site=self.site, text=segment, invariant=True)
@@ -1264,8 +1240,9 @@ def get_segments(body, site, segmenter, fragment=True, exclude_tx=True, exclude_
     separators = SEPARATORS[language.code]
     strings = []
     html_string = re.sub("(<!--(.*?)-->)", "", body, flags=re.MULTILINE)
+    html_string = normalize_string(html_string)
     for string in list(strings_from_html(html_string, fragment=fragment, exclude_tx=exclude_tx, exclude_xpaths=exclude_xpaths)):
-        string = string.replace(u"\u2018", "'").replace(u"\u2019", "'").replace(' - ', ' – ')
+        # string = string.replace(u"\u2018", "'").replace(u"\u2019", "'").replace(' - ', ' – ')
         if string.count('window') and string.count('document'):
             continue
         if string.count('flickr'):
@@ -1291,11 +1268,6 @@ def get_segments(body, site, segmenter, fragment=True, exclude_tx=True, exclude_
         for char in separators:
             if char in string:
                 continue
-        """
-        for char in '@#':
-            if char in string:
-                continue
-        """
         filtered.append(string)
     return filtered
 
