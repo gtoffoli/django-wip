@@ -126,6 +126,8 @@ USE_L10N = True
 SITE_ID = 1
 SITE_NAME = 'FairVillage - WIP'
 
+LOGIN_REDIRECT_URL = '/'
+
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/1.9/howto/static-files/
 
@@ -236,6 +238,9 @@ TRANS_QUOTES = {
     ord(u'“'): u'"',
     ord(u'”'): u'"',
 }
+tab_in = "‘’“”"
+tab_out = "''\"\""
+TRANS_QUOTES = dict(zip(tab_in, tab_out))
 
 EMPTY_WORDS = {
 'en': [
@@ -271,6 +276,7 @@ STRIPPED =  {
 'it': ' .,;:?*/+-–()[]{}\"\“\”' + '\xc2\xa0',
 }
 
+DEFAULT_STRIPPED = STRIPPED['en']
 LANGUAGE_COLORS = { 'it': 'green', 'en': 'grey', 'es': 'red', 'fr': 'blue', }
 
 PAGES_EXCLUDE_BY_CONTENT = {

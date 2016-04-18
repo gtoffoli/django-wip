@@ -57,8 +57,20 @@ class PageVersionAdmin(admin.ModelAdmin):
 
 class StringAdmin(admin.ModelAdmin):
     list_filter = ['language']
-    list_display = ['id', 'language', 'text', 'site', 'invariant', 'reliability', 'txu',]
+    list_display = ['id', 'language', 'text', 'site', 'invariant', 'reliability', 'txu_link',]
     search_fields = ['text',]
+
+    def txu_link(self, obj):
+        txu = obj.txu
+        if txu:
+            url = '/admin/wip/txu/%d/' % txu.id
+            label = obj.txu.entry_id or obj.txu.id
+            link = '<a href="%s">%s</a>' % (url, label)
+        else:
+            link = ''
+        return link
+    txu_link.short_description = 'Txu'
+    txu_link.allow_tags = True
 
 class TxuAdmin(admin.ModelAdmin):
     list_filter = ['user',]
