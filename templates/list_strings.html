@@ -16,8 +16,7 @@ table { border-spacing: 10px 0; border-collapse: separate; }
 </style>
 {% endblock %}
 
-{% block head_title %}WIP -
-Strings
+{% block head_title %}Strings
 {% if source_languages %} in
 {% for l in source_languages %}{{ l.name }}{% endfor %}
 {% endif %}
@@ -27,8 +26,7 @@ Strings
 {% endif %}
 {% endblock %}
 
-{% block title-page %}WIP -
-Strings
+{% block title-page %}Strings
 {% if source_languages %} in
 {% for l in source_languages %}<span class="{{ l.code }}">{{ l.name }}</span>{% endfor %}
 {% endif %}

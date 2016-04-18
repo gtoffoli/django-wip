@@ -96,6 +96,8 @@ def home(request):
         site_dict['translated_versions'] = TranslatedVersion.objects.filter(webpage__site=site)
         site_dict['source_blocks'] = Block.objects.filter(site=site)
         site_dict['translated_blocks'] = TranslatedBlock.objects.filter(block__site=site)
+        proxies = site.get_proxies()
+        site_dict['proxies'] = proxies
         sites.append(site_dict)
     var_dict['sites'] = sites
     return render_to_response('homepage.html', var_dict, context_instance=RequestContext(request))

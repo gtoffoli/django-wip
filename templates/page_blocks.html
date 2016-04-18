@@ -1,20 +1,23 @@
 {% extends "base.html" %}
 {% load staticfiles i18n %}
 
-{% block head_title %}WIP - Blocks of site {{ site.name }}, page {{ webpage.path }}{% endblock %}
+{% block head_title %}{% trans "blocks of site"|capfirst %}: {{ site.name }}, {% trans "page" %} {{ webpage.path }}{% endblock %}
 
-{% block title-page %}WIP - Blocks of site <a href="/site/{{ site.slug }}/">{{ site.name }}</a>, page <a href="/page/{{ webpage.id }}/">{{ webpage.path }}</a>{% endblock %}
-
+{% comment %}
 {% block extra_head %}
 <style>
     pre { display: inline; padding: 0; }
     pre code { line-height: 0.5; }
 </style>
 {% endblock %}
+{% endcomment %}
+
+{% block title-page %}<small>{% trans "blocks of site"|capfirst %}: <a href="/site/{{ site.slug }}/">{{ site.name }}</a>,<br>{% trans "page" %} <a href="/page/{{ webpage.id }}/">{{ webpage.path }}</a></small>{% endblock %}
 
 {% block content-page %}
 	{% if block_count %}
-	<div>{{ block_count }} blocks found in this page.</div>
+	<p>{% trans "blocks found in this page"|capfirst %}: {{ block_count }}</p>
+{% comment %}
 	<div class="pagination">
     <span class="step-links">
     	{% for p in before %}<a href="?page={{ p }}">{% if forloop.first %}<i class="fa fa-fast-backward"></i> {% else %}{{ p }}{% endif %}</a>&nbsp;{% endfor %}
@@ -22,23 +25,53 @@
     	{% for p in after %}&nbsp;<a href="?page={{ p }}">{% if forloop.last %} <i class="fa fa-fast-forward"></i> {% else %} {{ p }} {% endif %}</a></a>{% endfor %}
     </span>
 	</div>
+{% endcomment %}
 
-   	<table>
-  		<thead>
-  			<th> # </th><th> Id </th><th>Chars</th><th> xPath </th><th> Pages </th><th> Date/Time </th>
-  		</thead>
-  		<tbody>
-	{% for page_block in page_blocks %}
-	<tr><td><pre><code>{{forloop.counter|rjust:"3"}}</code></pre></td>
-		<td style="text-align: right;"> {{ page_block.id }} </td>
-		<td style="text-align: right;">{{ page_block.body|length }}</td>
-		<td><a href="/block/{{ page_block.id }}/">{{ page_block.xpath }}</a></td>
-		<td style="text-align: center;"><a href="/block/{{page_block.id }}/pages/">{{ page_block.webpages.all.count }}</a></td>
-		<td>{{ page_block.time|date:"SHORT_DATETIME_FORMAT" }}</td></tr>
-	{% endfor %}
-    </tbody>
-   	</table>
+    {% if  page_blocks.paginator.num_pages > 1 %}
+      <div class="text-right">
+        <ul class="pagination mT0">
+          {% for p in before %}<li><a href="?page={{ p }}">{{ p }}</a></li>{% endfor %}
+          <li><span>{{ page_blocks.number }}</span></li>
+          {% for p in after %}<li><a href="?page={{ p }}">{{ p }}</a></li>{% endfor %}
+        </ul>
+      </div>
+    {% endif %}
+
+    <table class="table table-responsive table-bordered table-striped mB5">
+      <thead>
+      	<tr>
+      	  <th class="text-right">#</th>
+          <th class="text-right">Id</th>
+          <th class="text-right">{% trans "chars"|capfirst %}</th>
+          <th>xPath</th>
+          <th class="text-right">{% trans "pages"|capfirst %}</th>
+          <th>{% trans "date"|capfirst %}/{% trans "time"|capfirst %}</th>
+        </tr>
+      </thead>
+      <tbody>
+	    {% for page_block in page_blocks %}
+	      <tr>
+          <td class="text-right">{{forloop.counter|rjust:"3"}}</td>
+		      <td class="text-right">{{ page_block.id }}</td>
+		      <td class="text-right">{{ page_block.body|length }}</td>
+		      <td><a href="/block/{{ page_block.id }}/">{{ page_block.xpath }}</a></td>
+		      <td class="text-right"><a href="/block/{{page_block.id }}/pages/">{{ page_block.webpages.all.count }}</a></td>
+		      <td>{{ page_block.time|date:"SHORT_DATETIME_FORMAT" }}</td>
+          </tr>
+	    {% endfor %}
+      </tbody>
+    </table>
+   	
+   	  {% if  page_blocks.paginator.num_pages > 1 %}
+      <div class="text-right">
+        <ul class="pagination mB0">
+          {% for p in before %}<li><a href="?page={{ p }}">{{ p }}</a></li>{% endfor %}
+          <li><span>{{ page_blocks.number }}</span></li>
+          {% for p in after %}<li><a href="?page={{ p }}">{{ p }}</a></li>{% endfor %}
+        </ul>
+      </div>
+    {% endif %}
 	{% else %}
-		<p>No blocks are present.</p>
+		<p>{% trans "no blocks are present"|capfirst %}</p>
 	{% endif %}
 {% endblock %}

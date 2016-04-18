@@ -47,10 +47,11 @@
 
           <!-- Collect the nav links, forms, and other content for toggling -->
           <div class="collapse navbar-collapse" id="bs-navbar-collapse-1">
+          	{% if request.user.is_authenticated %}
             {% with menu=menus.main %}
             <ul class="nav navbar-nav">
             {% for item in menu %}
-              <li class="{% if item.selected %}active{% endif %}{% if item.children %} dropdown{% endif %}" id="top-menu-{{ item.slug }}">
+              <li class="{% comment %}{% if item.selected %}active{% endif %}{% endcomment %}{% if item.children %} dropdown{% endif %}" id="top-menu-{{ item.slug }}">
               {% if item.children %}
                 <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">
                 {% if item.icon %}<i class="icon-{{ item.icon }} icon-white"></i>&nbsp;{% endif %}{{ item.title }} <span class="caret"></span></a>
@@ -72,11 +73,12 @@
                 <input type="text" class="form-control" placeholder="Search" name="q" id="navigation_autocomplete">
               </div>
             </form>
-
+            {% endif %}
+            
             <ul class="nav navbar-nav navbar-right">
             {% if request.user.is_authenticated %}
               <li class="dropdown">
-                <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">{{ request.user.first_name }} {{ request.user.last_name }} <span class="caret"></span></a>
+                <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">{% if request.user.last_name %} {{ request.user.first_name }} {{ request.user.last_name }} {% else %} {{ request.user.username }} {% endif %}<span class="caret"></span></a>
                 <ul class="dropdown-menu">
                   <li><a href="/accounts/profile/"><i class="icon-user"></i> {% trans "My profile" %}</a></li>
                   {% if request.user.is_staff %}
@@ -96,13 +98,15 @@
       </nav>
     {% endblock %}
 
-    {% block body_base %} 
+    {% block body_base %}
       <div class="container">
+      	{% comment %}
         {% if messages %}
           <ul class="messages">
             {% for message in messages %}<li{% if message.tags %} class="{{ message.tags }}"{% endif %}>{{ message }}</li>{% endfor %}
           </ul>
         {% endif %}
+        {% endcomment %}
         <div id="content" style="margin-bottom:30px">
           {% block content %}
             <h1>{% block title-page %}{% endblock %}</h1>
@@ -134,6 +138,7 @@
             <script type="text/javascript" src="{% static 'autocomplete_light/autocomplete.js' %}"></script>
             <script type="text/javascript">
                $(document).ready(function() {
+                if ( $('#navigation_autocomplete').length > 0 ) {
                 $('#navigation_autocomplete').yourlabsAutocomplete({
                   url: '{% url 'navigation_autocomplete' %}',
                   choiceSelector: 'a',
@@ -142,6 +147,7 @@
                 }).input.bind('selectChoice', function(e, choice, autocomplete) {
                   document.location.href = choice.attr('href');
                 });
+                }
                });
             </script>
             {% block extra_script %}{% endblock %}

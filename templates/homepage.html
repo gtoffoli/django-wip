@@ -5,40 +5,132 @@
 <style>
     label { display: inline; font-weight: bold; margin-right: 1.0em; padding: 0.2em 0em;}
 </style>
+<!--link href='https://fonts.googleapis.com/css?family=Rubik:400,700,900' rel='stylesheet' type='text/css'>
+<link href='https://fonts.googleapis.com/css?family=Coda+Caption:800' rel='stylesheet' type='text/css'-->
+<link href='https://fonts.googleapis.com/css?family=Maven+Pro:400,700,900' rel='stylesheet' type='text/css'>
 {% endblock %}
 
-{% block head_title %}Website internalization Platform{% endblock %}
+{% block head_title %}Website Internationalization Platform{% endblock %}
 
 {% block body_id %}Homepage{% endblock %}
 
-{% block title-page %}WIP{% endblock %}
+    {% block topbar_base %}
+    {% if request.user.is_authenticated %}
+      <nav class="navbar navbar-default">
+        <div class="container">
+          <!-- Brand and toggle get grouped for better mobile display -->
+          <div class="navbar-header">
+            <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-navbar-collapse-1" aria-expanded="false">
+              <span class="sr-only">Toggle navigation</span>
+              <span class="icon-bar"></span>
+              <span class="icon-bar"></span>
+              <span class="icon-bar"></span>
+            </button>
+            {% block site_brand %}<a class="navbar-brand" href="/" title="{% trans 'go home' %}"><img src="{% static "wip/img/wip-logo.png" %}" alt="{{ site_name }} class="img-responsive"></a>{% endblock %}
+          </div>
 
-{% block content-page %}
-<h3>Sites</h3>
-<table style="width:100%; border-collapse: separate; border-spacing: 5px;">
-<thead>
-	<tr><th>Site</th><th>Pages</th><th>Page<br/>versions</th><th>Translated<br/>versions</th><th>Blocks</th><th>Translated<br/>blocks</th></tr>
-</thead>
-<tbody style="text-align: right;">
-    {% for site in sites %}
-    <tr>
-    	<td style="text-align: left; font-weight: bold;"><a href="/site/{{ site.slug }}/">{{ site.name }}</a></td>
-    	<td><a href="/site/{{ site.slug }}/pages/">{{ site.source_pages.count }}</a></td>
-    	<td>{{ site.page_versions.count }}</td>
-    	<td>{{ site.translated_versions.count }}</td>
-    	<td><a href="/site/{{ site.slug }}/blocks/">{{ site.source_blocks.count }}</a></td>
-    	<td>{{ site.translated_blocks.count }}</td>
-    </tr>
-	{% endfor %}
-</tbody>
-</table>
+          <!-- Collect the nav links, forms, and other content for toggling -->
+          <div class="collapse navbar-collapse" id="bs-navbar-collapse-1">
+            {% with menu=menus.main %}
+            <ul class="nav navbar-nav">
+            {% for item in menu %}
+              <li class="{% comment %}{% if item.selected %}active{% endif %}{% endcomment %}{% if item.children %} dropdown{% endif %}" id="top-menu-{{ item.slug }}">
+              {% if item.children %}
+                <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">
+                {% if item.icon %}<i class="icon-{{ item.icon }} icon-white"></i>&nbsp;{% endif %}{{ item.title }} <span class="caret"></span></a>
+                <ul class="dropdown-menu">
+                {% for child in item.children %}
+                  <li{% if child.selected %} class="active"{% endif %}><a href="{{ child.url }}">{{ child.title }}</a></li>
+                {% endfor %}
+                </ul>
+              {% else %}
+                <a href="{{ item.url }}">{% if item.icon %}<i class="icon-{{ item.icon }} icon-white"></i>&nbsp;{% endif %}{{ item.title }}</a>
+              {% endif %}
+              </li>
+            {% endfor %}
+            </ul>
+            {% endwith %}
 
-{% comment %}
-<h3>Strings</h3>
-<div>&nbsp;<label>Italian strings</label> <a href="/strings/it/translated/en-es-fr/">{{ source_strings.count }}</a></div>
-<div>&nbsp;<label>Not translated to English</label> <a href="/strings/it/untranslated/en/">{{ untraslated_strings.en.count }}</a></div>
-<div>&nbsp;<label>Not translated to French</label> <a href="/strings/it/untranslated/fr/">{{ untraslated_strings.fr.count }}</a></div>
-<div>&nbsp;<label>Not translated to Spanish</label> <a href="/strings/it/untranslated/es/">{{ untraslated_strings.es.count }}</a></div>
-{% endcomment %}
+            <form class="navbar-form navbar-left" role="search">
+              <div class="form-group">
+                <input type="text" class="form-control" placeholder="Search" name="q" id="navigation_autocomplete">
+              </div>
+            </form>
 
+            <ul class="nav navbar-nav navbar-right">
+            {% if request.user.is_authenticated %}
+              <li class="dropdown">
+                <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">{% if request.user.last_name %} {{ request.user.first_name }} {{ request.user.last_name }} {% else %} {{ request.user.username }} {% endif %}<span class="caret"></span></a>
+                <ul class="dropdown-menu">
+                  <li><a href="/accounts/profile/"><i class="icon-user"></i> {% trans "My profile" %}</a></li>
+                  {% if request.user.is_staff %}
+                    <li><a href="{% url "admin:index" %}"><i class="icon-cog"></i> {% trans "Admin" %}</a></li>
+                  {% endif %}
+                  <li role="separator" class="divider"></li>
+                  <li><a id="account_logout" href="{% url "account_logout" %}"><i class="icon-off"></i> {% trans "Log out" %}</a></li>
+                </ul>
+              </li>
+            {% else %}
+              <li><a href="{% url "account_signup" %}">{% trans "Sign Up" %}</a></li>
+              <li><a href="{% url "account_login" %}">{% trans "Log In" %}</a></li>
+            {% endif %}
+            </ul>
+          </div><!-- /.navbar-collapse -->
+        </div><!-- /.container -->
+      </nav>
+      {% endif %}
+    {% endblock %}
+
+{% block body_base %}
+{% if request.user.is_authenticated %}
+   <div class="container">
+     <div id="content" style="margin-bottom:30px">
+       <h1>Sites</h1>
+       <table class="table table-responsive table-bordered table-striped">
+         <thead>
+           <tr>
+             <th>{% trans "site"|capfirst %}</th>
+             <th class="text-right">{% trans "pages"|capfirst %}</th>
+             <th class="text-right">{% trans "page versions"|capfirst %}</th>
+             <th class="text-right">{% trans "translated versions"|capfirst %}</th>
+             <th class="text-right">{% trans "blocks"|capfirst %}</th>
+             <th class="text-right">{% trans "translated blocks"|capfirst %}</th>
+             <th>{% trans "proxies"|capfirst %}</th>
+           </tr>
+         </thead>
+         <tbody>
+         {% for site in sites %}
+           <tr>
+             <td><a href="/site/{{ site.slug }}/">{{ site.name }}</a></td>
+             <td class="text-right">{% if site.source_pages.count %}<span class="mR10">{{ site.source_pages.count }}</span><a href="/site/{{ site.slug }}/pages/" title="{% trans "list pages" %}"><i class="fa fa-th-list"></i></a>{% else %}0{% endif %}</td>
+             <td class="text-right">{{ site.page_versions.count }}</td>
+             <td class="text-right">{{ site.translated_versions.count }}</td>
+             <td class="text-right">{% if site.source_blocks.count %}<span class="mR10">{{ site.source_blocks.count }}</span><a href="/site/{{ site.slug }}/blocks/" title="{% trans "list blocks" %}"><i class="fa fa-th-list"></i></a>{% else %}0{% endif %}</td>
+             <td class="text-right">{{ site.translated_blocks.count }}</td>
+             <td>
+               {% if site.proxies %}
+                 {% for proxy in site.proxies %}
+                   <a href="{% url 'proxy' proxy.slug %}">{{ proxy.name }}</a>{% if not forloop.last %}<br>{% endif %}
+                 {% endfor %}
+               {% else %}
+                 {% trans "no proxies are available."|capfirst %}
+               {% endif %}
+             </td>
+           </tr>
+         {% endfor %}
+         </tbody>
+       </table>
+     </div>
+   </div>
+{% else %}
+<div id="myCarousel" class="carousel slide carousel-fade" data-ride="carousel" style="margin-top:-20px">
+<div class="active item">
+<div><img alt="" style="max-width:100%; height:auto" src="{% static "wip/img/wip_home.jpg" %}"></div>
+<div class="carousel-caption">
+<h1 style="font-family: 'Maven Pro', sans-serif; font-weight: 900; color: #fafafa; font-size: 90px; "><span style="/*background-color:#A33EA8;*/ background-color: rgba(163, 62, 168, 0.7); border-bottom-left-radius:15px; border-top-right-radius:15px; padding:3px 18px;">W I P</span></h1><h2 style="font-size:40px">Website Internationalization Platform</h2>
+<div style="padding-top:80px;"><a class="btn" style="background-color: rgba(121, 181, 28, 0.8)/*#79B51C*/; color: white; font-size:28px; border-radius:32px; padding:6px 28px; margin-right:20px" href="{% url "account_signup" %}">{% trans "Sign up" %}</a> <a class="btn" style="background-color: rgba(0, 106, 179, 0.8); color: white; margin-left:20px; font-size:28px; border-radius:32px; padding:6px 32px" class="btn" href="{% url "account_login" %}">{% trans "Log in" %}</a></div>
+</div>
+</div>
+</div>
+{% endif %}
 {% endblock %}

@@ -18,7 +18,7 @@
 
 {% block body_id %}site{% endblock %}
 
-{% block title-page %}WIP Site: {{ site.name }}{% endblock %}
+{% block title-page %}Site: {{ site.name }}{% endblock %}
 
 {% block content-page %}
   <table class="table table-responsive table-bordered table-striped">
@@ -51,28 +51,23 @@
   </table>
 
 	{% if user.is_superuser %}
-   	<form action="/site/{{ site.slug }}/" method="post" enctype="multipart/form-data">{% csrf_token %}
+   	<form style="margin:40px 0" action="/site/{{ site.slug }}/" method="post" enctype="multipart/form-data">{% csrf_token %}
 	{% if missing_languages %}
-	<div>{% for l in missing_languages %}<input type="submit" name="addproxy-{{ l.code }}" value="Add {{ l.name }} proxy" class="btn btn-sm" />{% endfor %}</div>
+	<div class="form-group">{% for l in missing_languages %}<span {% if not forloop.last %}class="mR30"{% endif %}><input type="submit" name="addproxy-{{ l.code }}" value="Add {{ l.name }} proxy" class="btn btn-sm"></span>{% endfor %}</div>
 	{% endif %}
-	<div>{{ manage_form.clear_pages }} Clear all saved pages
-	<input type="submit" name="site_crawl" value="{% if page_count %}Re-crawl{% else %}Crawl{% endif %}" title="scan pages" class="btn btn-sm"></div>
-	<div>{{ manage_form.clear_blocks }} Clear all saved blocks
-		<input type="submit" name="extract_blocks" value="Extract blocks" title="Extract" class="btn btn-sm" /></div>
+	<div class="form-group"><span class="mR30">{{ manage_form.clear_pages }} Clear all saved pages <input type="submit" name="site_crawl" value="{% if page_count %}Re-crawl{% else %}Crawl{% endif %}" title="scan pages" class="btn btn-sm"></span>
+	<span class="mR30">{{ manage_form.clear_blocks }} Clear all saved blocks <input type="submit" name="extract_blocks" value="Extract blocks" title="Extract" class="btn btn-sm"></span>
 	{% if not page_count and not block_count and not proxies %}
-  	<div>{{ manage_form.delete_confirmation }} Yes, I am fully aware
-		<input type="submit" name="delete_site" value="Delete site" title="Delete all site info" class="btn btn-sm" /></div>
+  	<span class="mR30">{{ manage_form.delete_confirmation }} Yes, I am fully aware <input type="submit" name="delete_site" value="Delete site" title="Delete all site info" class="btn btn-sm"></span>
 	{% endif %}
 	{% if page_count %}
-  	<div><input type="submit" name="extract_segments" value="Extract segments" title="Extract segments" class="btn btn-sm" /></div>
+  	<span><input type="submit" name="extract_segments" value="Extract segments" title="Extract segments" class="btn btn-sm"></span>
 	{% endif %}
-  	<div>{{ manage_form.clear_invariants }} Clear invariant
-  		 {{ manage_form.file }}
-		<input type="submit" name="import_invariants" value="Import invariants" title="Import invariants" class="btn btn-sm" />
-		<input type="submit" name="apply_invariants" value="Apply invariants" title="Mark invariant segments" class="btn btn-sm" /> (Mark invariant segments)</div>
-  	<div><input type="submit" name="export_untranslated" value="Export untranslated strings" title="Export untranslated strings" class="btn btn-sm" /></div>
+  </div>
+  <div class="form-group"><span class="mR30">{{ manage_form.clear_invariants }} Clear invariant</span><span class="show-inline mR30">{{ manage_form.file }} <input type="submit" name="import_invariants" value="Import invariants" title="Import invariants" class="btn btn-sm"></span><input type="submit" name="apply_invariants" value="Apply invariants" title="Mark invariant segments" class="btn btn-sm"> (Mark invariant segments)</div>
+  	<div class="form-group"><span class="mR30"><input type="submit" name="export_untranslated" value="Export untranslated strings" title="Export untranslated strings" class="btn btn-sm"></span>
 	{% if proxies %}
-  	<div><input type="submit" name="guess_blocks_language" value="Guess blocks' language" title="Guess blocks' language" class="btn btn-sm" /></div>
+  	<input type="submit" name="guess_blocks_language" value="Guess blocks' language" title="Guess blocks' language" class="btn btn-sm"></div>
 	{% endif %}
 	</form>
 	{% endif %}

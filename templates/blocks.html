@@ -15,7 +15,7 @@
 
 {% block body_id %}blocks{% endblock %}
 
-{% block title-page %}WIP - {% trans "blocks of site"|capfirst %}: <a href="/site/{{ site.slug }}/">{{ site.name }}</a>{% endblock %}
+{% block title-page %}{% trans "blocks of site"|capfirst %}: <a href="/site/{{ site.slug }}/">{{ site.name }}</a>{% endblock %}
 
 {% block content-page %}
   {% if block_count %}

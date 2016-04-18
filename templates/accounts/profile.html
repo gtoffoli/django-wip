@@ -1,10 +1,10 @@
-{% extends "wip_base.html" %}
+{% extends "base.html" %}
 
 {% load i18n staticfiles %}
 
-{% block head_title %}{% trans "Welcome page" %}{% endblock %}
+{% block head_title %}{% trans "My profile" %}{% endblock %}
 {% block content %}
-	<h1>{% trans "Welcome page" %}</h1>
+	<h1>{% trans "My profile" %}</h1>
 
 	<div><span style="font-weight: bold;">{{ user.get_full_name }}</span>, {% trans "here is your user profile" %}:</div>
 
@@ -23,6 +23,6 @@
 	</div>
 	{% endfor %}
 
-	<div style="margin-top: 10px;">{% trans "Go to the" %} <a href='/' title="RomaPaese">homepage</a></div>
 {% endblock %}
+
 

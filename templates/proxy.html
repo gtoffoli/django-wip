@@ -15,7 +15,7 @@
 
 {% block body_id %}proxy{% endblock %}
 
-{% block title-page %}WIP - Proxy: {{ proxy.name }}{% endblock %}
+{% block title-page %}Proxy: {{ proxy.name }}{% endblock %}
 
 {% block content-page %}
 {% comment %}
@@ -58,30 +58,26 @@
 
   {% if user.is_superuser %}
     <div class="mB20">
-    <form action="/proxy/{{ proxy.slug }}/" method="post" enctype="multipart/form-data">{% csrf_token %}
-      {% if page_count %}
-        <div class="form-group">{{ manage_form.delete_pages_confirmation }} Yes, I want to delete all translated pages
-          <input type="submit" name="delete_pages" value="Delete translated pages" title="delete translated pages" class="btn btn-sm">
-        </div>
-      {% endif %}
-      {% if block_count %}
-        <div class="form-group">{{ manage_form.delete_blocks_confirmation }} Yes, I want to delete all translated blocks
-          <input type="submit" name="delete_blocks" value="Delete translated blocks" title="delete translated blocks" class="btn btn-sm">
-        </div>
+    <form style="margin:40px 0" action="/proxy/{{ proxy.slug }}/" method="post" enctype="multipart/form-data">{% csrf_token %}
+      {% if page_count and block_count %}
+        <div class="form-group"><span class="mR30">{{ manage_form.delete_pages_confirmation }} Yes, I want to delete all translated pages <input type="submit" name="delete_pages" value="Delete translated pages" title="delete translated pages" class="btn btn-sm"></span>
+        {{ manage_form.delete_blocks_confirmation }} Yes, I want to delete all translated blocks <input type="submit" name="delete_blocks" value="Delete translated blocks" title="delete translated blocks" class="btn btn-sm"></div>
+      {% elif page_count %}
+        <div class="form-group">{{ manage_form.delete_pages_confirmation }} Yes, I want to delete all translated pages <input type="submit" name="delete_pages" value="Delete translated pages" title="delete translated pages" class="btn btn-sm"></div>
+      {% elif block_count %}
+        <div class="form-group">{{ manage_form.delete_blocks_confirmation }} Yes, I want to delete all translated blocks <input type="submit" name="delete_blocks" value="Delete translated blocks" title="delete translated blocks" class="btn btn-sm"></div>
       {% endif %}
       {% if not page_count and not block_count %}
         <div class="form-group">{{ manage_form.delete_proxy_confirmation }} Yes, I am fully aware
           <input type="submit" name="delete_proxy" value="Delete proxy" title="Delete all proxy info" class="btn btn-sm">
         </div>
       {% endif %}
-        <div class="form-group">{{ manage_form.file }}
-          <input type="submit" name="import_translations" value="Import XLIFF translations" title="Import XLIFF translations" class="btn btn-sm">
-        </div>
+      <div class="form-group"><span class="show-inline">{{ manage_form.file }}</span><input type="submit" name="import_translations" value="Import XLIFF translations" title="Import XLIFF translations" class="btn btn-sm"></div>
 
       {% if blocks_ready %}
         <h4>In blocks ready for translation ..</h4>
         <div class="form-group">
-          <input type="submit" name="apply_tm" value="Apply TM" title="Apply TM" class="btn btn-sm"> (Replace segments with exact matches)
+          <span class="mR30"><input type="submit" name="apply_tm" value="Apply TM" title="Apply TM" class="btn btn-sm"> (Replace segments with exact matches)</span>
           <input type="submit" name="propagate_up" value="Propagate up" title="Apply TM" class="btn btn-sm"> (Propagate up updates of translated blocks)
         </div>
       {% endif %}

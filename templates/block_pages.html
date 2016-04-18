@@ -1,20 +1,25 @@
 {% extends "base.html" %}
 {% load staticfiles i18n %}
 
-{% block head_title %}WIP - Pages of site {{ site.name }} including block {{ page_block.id }}{% endblock %}
+{% block head_title %}{% trans "pages of site"|capfirst %}: {{ site.name }} {% trans "including block" %} {{ page_block.id }}{% endblock %}
 
-{% block title-page %}WIP - Pages of site <a href="/site/{{ site.slug }}/">{{ site.name }}</a> including block <a href="/block/{{ page_block.id }}/">{{ page_block.id }}</a> {% endblock %}
-
+{% comment %}
 {% block extra_head %}
 <style>
     pre { display: inline; padding: 0; }
     pre code { line-height: 0.5; }
 </style>
 {% endblock %}
+{% endcomment %}
+
+{% block title-page %}<small>{% trans "pages of site"|capfirst %}: <a href="/site/{{ site.slug }}/">{{ site.name }}</a> {% trans "including block" %} <a href="/block/{{ page_block.id }}/">{{ page_block.id }}</a></small>{% endblock %}
+
+{% block body_id %}block_pages{% endblock %}
 
 {% block content-page %}
 	{% if page_count %}
-	<div>{{ page_count }} pages found including this block.</div>
+	<p>{{ page_count }} {% trans "pages found including this block" %}</p>
+{% comment %}	
 	<div class="pagination">
     <span class="step-links">
     	{% for p in before %}<a href="?page={{ p }}">{% if forloop.first %}<i class="fa fa-fast-backward"></i> {% else %}{{ p }}{% endif %}</a>&nbsp;{% endfor %}
@@ -22,31 +27,62 @@
     	{% for p in after %}&nbsp;<a href="?page={{ p }}">{% if forloop.last %} <i class="fa fa-fast-forward"></i> {% else %} {{ p }} {% endif %}</a></a>{% endfor %}
     </span>
 	</div>
+{% endcomment %}
 
-	<table>
-	<thead>
-		<th> # </th><th> Id </th><th>Source</th><th>Proxy</th><th>Page path</th><th>Blocks</th>
-		{% for proxy in proxies %}<th> {{ proxy.language.code }} </th>{% endfor %} 			
-		<th>Last checked</th>{% comment %}<th>xPath of main content region</th>{% endcomment %}
-	</thead>
-	<tbody>
+    {% if block_pages.paginator.num_pages > 1 %}
+      <div class="text-right">
+        <ul class="pagination mT0">
+          {% for p in before %}<li><a href="?page={{ p }}">{{ p }}</a></li>{% endfor %}
+          <li><span>{{ block_pages.number }}</span></li>
+          {% for p in after %}<li><a href="?page={{ p }}">{{ p }}</a></li>{% endfor %}
+        </ul>
+      </div>
+    {% endif %}
+    <table class="table table-responsive table-bordered table-striped mB5">
+      <thead>
+      	<tr>
+      	  <th class="text-right">#</th>
+          <th class="text-right">Id</th>
+          <th class="text-center">{% trans "source"|capfirst %}</th>
+          <th class="text-center">{% trans "proxy"|capfirst %}</th>
+          <th>{% trans "page path"|capfirst %}</th>
+          <th>{% trans "blocks"|capfirst %}</th>
+		      {% for proxy in proxies %}
+		        <th class="text-right">{{ proxy.language.code }}</th>
+		      {% endfor %}
+		      <th>{% trans "last checked"|capfirst %}</th>
+		      {% comment %}<th>xPath of main content region</th>{% endcomment %}
+		    </tr>
+      </thead>
+      <tbody>
 	    {% for block_page in block_pages %}
-	    <tr>
-	    <td><pre><code>{{forloop.counter|rjust:"3"}}</code> </pre></td>
-		<td style="text-align: right;"> {{ block_page.id }} </td>
-	    <td style="text-align: center;"><a href="{{ site.url }}{{ block_page.path }}" title="goto original page"><span class="fa fa-external-link" style="font-size: 1.0em;"></span></a></td>
-	    <td style="text-align: center;"><a href="/{{ site.path_prefix }}{{ block_page.path }}" title="view page through proxy"><span class="fa fa-link" style="font-size: 1.0em;"></span></a></td>
-		<td><a href="/page/{{ block_page.id }}/">{{ block_page.path }}</a></td>
-		<td style="text-align: center;"> <a href="/page/{{ block_page.id }}/blocks/">{{ block_page.blocks.all.count }}</a> </td>
-		{% for language, blocks_count in block_page.get_translated_blocks_count %}
-		<td>{% if blocks_count %} {{ blocks_count }} {% endif %}</td>
-		{% endfor %} 			
-		<td> {{ block_page.last_checked|date:"SHORT_DATETIME_FORMAT" }} </td></tr>
+	      <tr>
+	        <td class="text-right">{{forloop.counter|rjust:"3"}}</td>
+		      <td class="text-right">{{ block_page.id }}</td>
+	        <td class="text-center"><a href="{{ site.url }}{{ block_page.path }}" title="{% trans "goto original page" %}"><i class="fa fa-external-link"></i></a></td>
+	        <td class="text-center"><a href="/{{ site.path_prefix }}{{ block_page.path }}" title="{% trans "view page through proxy" %}"><i class="fa fa-link"></i></a></td>
+		      <td><a href="/page/{{ block_page.id }}/">{{ block_page.path }}</a></td>
+		      <td class="text-center"><a href="/page/{{ block_page.id }}/blocks/">{{ block_page.blocks.all.count }}</a></td>
+		      {% for language, blocks_count in block_page.get_translated_blocks_count %}
+		        <td class="text-right">{% if blocks_count %} {{ blocks_count }}{% else %}0{% endif %}</td>
+		      {% endfor %}
+		      <td>{{ block_page.last_checked|date:"SHORT_DATETIME_FORMAT" }}</td>
+		    </tr>
 	    </tr>
 	    {% endfor %}
-	</tbody>
-	</table>
+      </tbody>
+      </table>
+	
+	    {% if block_pages.paginator.num_pages > 1 %}
+      <div class="text-right">
+        <ul class="pagination mB0">
+          {% for p in before %}<li><a href="?page={{ p }}">{{ p }}</a></li>{% endfor %}
+          <li><span>{{ block_pages.number }}</span></li>
+          {% for p in after %}<li><a href="?page={{ p }}">{{ p }}</a></li>{% endfor %}
+        </ul>
+      </div>
+    {% endif %}
 	{% else %}
-		<p>No pages are present.</p>
+		<p>{% trans "no pages are present"|capfirst %}</p>
 	{% endif %}
 {% endblock %}
