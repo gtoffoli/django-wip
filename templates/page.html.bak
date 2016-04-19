@@ -164,5 +164,5 @@ th, td { text-align: left; vertical-align: top; }
 	{% else %}
 		<p>{% trans "no pages include this HTML fragment"|capfirst %}</p>
 	{% endif %}
- 	{% endif %}
+ 
 {% endblock %}

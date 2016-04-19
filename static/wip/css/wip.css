@@ -10,7 +10,7 @@ body {
 }
 #main {
   overflow:auto;
-  padding-bottom:70px; /* this needs to be bigger than footer height*/
+  padding-bottom:76px; /* this needs to be bigger than footer height*/
 }
 h1 {
   font-size: 32px;

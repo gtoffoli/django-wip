@@ -1,59 +1,80 @@
 {% extends "base.html" %}
 {% load staticfiles i18n %}
 
+{% block head_title %}Page block: {{ site.name }}{{ page_block.get_label }}{% endblock %}
+
 {% block extra_head %}
 <style>
-label { display: inline; font-weight: bold; margin-right: 1.0em; padding: 0.2em 0em; }
+/*label { display: inline; font-weight: bold; margin-right: 1.0em; padding: 0.2em 0em; }
 pre { display: inline; padding: 0; }
-pre code { line-height: 0.5; }
+pre code { line-height: 0.5; }*/
 .rounded-box { border-radius: 10px;  border: 2px solid;  padding: 10px; margin: 5px 0; }
 .it { border-color: green; }
 .en { border-color: red; }
-th, td { text-align: left; vertical-align: top; }
+/*th, td { text-align: left; vertical-align: top; }*/
 </style>
 {% endblock %}
 
-{% block head_title %}Page block: {{ site.name }}{{ page_block.get_label }}{% endblock %}
+{% block body_id %}block{% endblock %}
 
-{% block title-page %}<span style="color: black; font-size: smaller;">Page block:</span> <span style="font-size: small;">{{ page_block.get_label }}</span>{% endblock %}
+{% block title-page %}{% trans "page block"|capfirst %}{% endblock %}
 
 {% block content-page %}
-    <div><label>Site</label> <a href="/site/{{ site.slug }}/" style="font-size: larger;">{{ site.name }}</a></div>
-    <div><label>Block or site language</label> {{ language }}</div>
-    <div><label>Block id</label> {{ page_block.id }}</div>
-    <div><label>Checksum</label> {{ page_block.checksum }}</div>
-    <div><label>Time</label> {{ page_block.time|date:"SHORT_DATETIME_FORMAT" }}</div>
+<blockquote>{{ page_block.get_label }}</blockquote>
 
-   	<form action="/block/{{ page_block.id }}/" method="post">{% csrf_token %}
-    <div style="vertical-align: middle;">
-		<label>Block language</label> {{ edit_form.language }} &nbsp;
-		<label>Invariant</label> {{ edit_form.no_translate }} &nbsp;&nbsp;
-		{% if user.is_superuser %}
-		<input type="submit" name="save_block" value="Save properties" class="btn btn-sm" />
-		{% endif %}
-	</div>
-   	{% if user.is_superuser %}
-   	<div>{% for language in target_languages %}<a class="btn btn-sm" href="/block/{{ page_block.id }}/translate/{{ language.code }}/">{{ language }} translation</a> &nbsp; {% endfor %}</div>
-	{% endif %}
+ <table class="table table-responsive table-bordered table-striped mB5">
+    <thead>
+      <tr>
+    	<th>{% trans "site"|capfirst %}</th>
+    	<th>{% trans "block or site language"|capfirst %}</th>
+    	<th>{% trans "block id"|capfirst %}</th>
+    	<th>Checksum</th>
+    	<th>{% trans "Date"|capfirst %}/{% trans "time"|capfirst %}</th>
+    	<th>Translate</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+      	<td><span class="mR10">{{ site.name }}</span><a href="/site/{{ site.slug }}/"><i class="fa fa-th-large" aria-hidden="true"></i></a></td>
+      	<td>{{ language }}</td>
+      	<td>{{ page_block.id }}</td>
+      	<td>{{ page_block.checksum }}</td>
+      	<td>{{ page_block.time|date:"SHORT_DATETIME_FORMAT" }}</td>
+      	<td><ul class="list-inline">{% for language in target_languages %}<li><a class="btn btn-default btn-sm" href="/block/{{ page_block.id }}/translate/{{ language.code }}/">to {{ language }}</a>{% endfor %}</div>
+
+      </tr>
+    </tbody>
+  </table>
 
 {% if user.is_superuser %}
-    <div>
-		<input type="submit" name="apply_filter" class="btn btn-sm" value="Apply filter below"> &nbsp;&nbsp;
-		{% if previous %}<input type="submit" name="goto-{{ previous.id }}" class="btn btn-sm" value="Previous">{% endif %}
-		{% if next %}<input type="submit" name="goto-{{ next.id }}" class="btn btn-sm" value="Next">{% endif %}
-    </div>
-    <table><thead>
-    	<tr>{% for field in sequencer_form.visible_fields %}<th>{{ field.label_tag }}</th>{% endfor %}</tr>
-   	</thead><tbody><tr>
-		<td>{{ sequencer_form.webpage }}</td>
-		<td>{{ sequencer_form.block_age }}</td>
-		<td>{{ sequencer_form.translation_state }}</td>
-		<td>{{ sequencer_form.translation_languages }}</td>
-		<td>{{ sequencer_form.translation_age }}</td>
+   	<form class="mTB40" action="/block/{{ page_block.id }}/" method="post">{% csrf_token %}
+    <div class="form-group">
+		<span class="mR10"><label>Block language</label> {{ edit_form.language }}</span><span class="mR10"><label>Invariant</label> {{ edit_form.no_translate }}</span>
+		<input type="submit" name="save_block" value="Save properties" class="btn btn-default btn-sm">
+	</div>
+
+ 
+    <h4>{% trans "navigation"|capfirst %}</h4>
+    <div class="form group">
+    <table class="table table-responsive">
+    	<thead>
+    	<tr>{% for field in sequencer_form.visible_fields %}<th style="padding-bottom:0; border-bottom-width:0">{{ field.label_tag }}</th>{% endfor %}</tr>
+   	</thead>
+   	<tbody><tr>
+		<td style="border-top-width:0">{{ sequencer_form.webpage }}</td>
+		<td style="border-top-width:0">{{ sequencer_form.block_age }}</td>
+		<td style="border-top-width:0">{{ sequencer_form.translation_state }}</td>
+		<td style="border-top-width:0">{{ sequencer_form.translation_languages }}</td>
+		<td style="border-top-width:0">{{ sequencer_form.translation_age }}</td>
 		<td>{{ sequencer_form.list_pages }}</td>
-	</tr></tbody></table>    	
-{% endif %}
+	</tr></tbody></table> 
+			<span class="mR30"><input type="submit" name="apply_filter" class="btn btn-default btn-sm" value="Apply filter"></span>
+		{% if previous %}<span class="mR10"><input type="submit" name="goto-{{ previous.id }}" class="btn btn-default btn-sm" value="Previous"></span>{% endif %}
+		{% if next %}<input type="submit" name="goto-{{ next.id }}" class="btn btn-default btn-sm" value="Next">{% endif %}
+    </div>  
 	</form>
+	</form>
+{% endif %}
 
     <h4>HTML fragment</h4>
 	{% comment %}<pre>{{ page_block.body }}</pre>{% endcomment %}
@@ -68,27 +89,33 @@ th, td { text-align: left; vertical-align: top; }
 	{% endfor %}
 	{% endif %}
 	{% endwith %}
+	
  
  	{% if pages %}
  		{% if list_pages %}
-	    <h4>Pages including this block</h4>
-    	<table>
+	    <h4 style="margin-top:30px">{% trans "pages including this block"|capfirst %}</h4>
+     <table class="table table-responsive table-bordered table-striped">
    		<thead>
-   			<th> # </th><th> Id </th><th>Path</th><th>Blocks</th><th>Last checked</th>
+   			<tr>
+   				<th class="text-right">#</th>
+   				<th class="text-right">Id</th>
+          <th>{% trans "path"|capfirst %}</th>
+          <th class="text-right">{% trans "blocks"|capfirst %}</th>
+          <th>{% trans "last checked"|capfirst %}</th>
    		</thead>
    		<tbody>
-		{% for page in pages %}
-		<tr><td><pre><code>{{forloop.counter|rjust:"3"}}</code> </pre></td>
-			<td style="text-align: right;"> {{ page.id }} </td>
-			<td><a href="/page/{{ page.id }}/"> {{ page.path }} </a></td>
-			<td style="text-align: center;"> <a href="/page/{{ page.id }}/">{{ page.blocks.count }}</a> </td>
-			<td> {{ page.last_checked|date:"SHORT_DATETIME_FORMAT" }} </td></tr>
+		  {% for page in pages %}
+		  <tr><td class="text-right">{{forloop.counter|rjust:"3"}}</td>
+			<td class="text-right">{{ page.id }}</td>
+			<td><a href="/page/{{ page.id }}/">{{ page.path }}</a></td>
+			<td class="text-right"><a href="/page/{{ page.id }}/">{{ page.blocks.count }}</a></td>
+			<td>{{ page.last_checked|date:"SHORT_DATETIME_FORMAT" }}</td></tr>
 		{% endfor %}
 	    </tbody>
     	</table>
-		{% endif %}
+
 	{% else %}
-		<p><i>No pages include this HTML fragment.</i></p>
+		<p>{% trans "no pages include this HTML fragment"|capfirst %}</p>
 	{% endif %}
-    
+   {% endif %}
 {% endblock %}

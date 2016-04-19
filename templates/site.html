@@ -26,13 +26,13 @@
       <tr><th>URL</th><th>{% trans "path prefix"|capfirst %}</th><th>{% trans "allowed domains"|capfirst %}</th><th>{% trans "start urls"|capfirst %}</th>{% if site.deny %}<th>{% trans "deny"|capfirst %}</th>{% endif %}</tr>
     </thead>
     <tbody>
-      <tr><td>{{ site.url }}</td><td>{{ site.path_prefix }}</td><td>{{ site.allowed_domains }}</td><td>{{ site.start_urls }}</td>{% if site.deny %}<td>{{ site.deny }}</td>{% endif %}</tr>
+      <tr><td><a href="{{ site.url }}">{{ site.url }}</a></td><td>{{ site.path_prefix }}</td><td>{{ site.allowed_domains }}</td><td>{{ site.start_urls }}</td>{% if site.deny %}<td>{{ site.deny }}</td>{% endif %}</tr>
     </tbody>
   </table>
 
   <table class="table table-responsive table-bordered table-striped">
     <thead>
-      <tr><th>{% trans "pages"|capfirst %}</th><th>{% trans "page blocks"|capfirst %}</th><th>{% trans "proxies"|capfirst %}</th></tr>
+      <tr><th>{% trans "pages"|capfirst %}</th><th>{% trans "page blocks"|capfirst %}</th><th>{% trans "proxies"|capfirst %}</th>{% if user.is_superuser and missing_languages %}<th>{% trans "add proxies"|capfirst %}</th>{% endif %}</tr>
     </thead>
     <tbody>
       <tr>
@@ -40,35 +40,54 @@
         <td>{% if block_count %}<span class="mR10">{{ block_count }}</span><span class="mR10"><a href="/site/{{ site.slug }}/blocks/" title="{% trans "list blocks" %}"><i class="fa fa-th-list"></i></a></span><a href="/block/{{ first_block.id }}/" title="{% trans "browse all blocks" %}"><i class="fa fa-caret-square-o-right"></i></a>{% else %}0{% endif %}</td>
         <td>{% if proxies %}
               {% for proxy in proxies %}
-                <a href="{% url 'proxy' proxy.slug %}">{{ proxy.name }}</a>{% if not forloop.last %}<br>{% endif %}
+                <span class="mR10">{{ proxy.name }}</span><span class="mR10"><a href="{% url 'proxy' proxy.slug %}"><i class="fa fa-th-large" aria-hidden="true"></i></a></span><a href="{% if proxy.host != '?' %} http://{{ proxy.host }}{% else %}/{{proxy.base_path}}{% endif %}"><i class="fa fa-eye" aria-hidden="true"></i></a>{% if not forloop.last %}<br>{% endif %}
               {% endfor %}
             {% else %}
               {% trans "no proxies are available."|capfirst %}
             {% endif %}
         </td>
+        {% if user.is_superuser and missing_languages %}
+        <td>
+        	<form action="/site/{{ site.slug }}/" method="post">{% csrf_token %}
+        		<ul class="list-inline">
+        		{% for l in missing_languages %}
+        			<li><div class="form-group"><input type="submit" name="addproxy-{{ l.code }}" value="{{ l.name }}" class="btn btn-default btn-sm"></div></li>
+            {% endfor %}
+            </ul>
+        	</form>
+        </td>
+        {% endif %}
       </tr>
     </tbody>
   </table>
 
 	{% if user.is_superuser %}
    	<form style="margin:40px 0" action="/site/{{ site.slug }}/" method="post" enctype="multipart/form-data">{% csrf_token %}
+	{% comment %}
 	{% if missing_languages %}
-	<div class="form-group">{% for l in missing_languages %}<span {% if not forloop.last %}class="mR30"{% endif %}><input type="submit" name="addproxy-{{ l.code }}" value="Add {{ l.name }} proxy" class="btn btn-sm"></span>{% endfor %}</div>
+	<div class="form-group">{% for l in missing_languages %}<span {% if not forloop.last %}class="mR30"{% endif %}><input type="submit" name="addproxy-{{ l.code }}" value="Add {{ l.name }} proxy" class="btn btn-default btn-sm"></span>{% endfor %}</div>
 	{% endif %}
-	<div class="form-group"><span class="mR30">{{ manage_form.clear_pages }} Clear all saved pages <input type="submit" name="site_crawl" value="{% if page_count %}Re-crawl{% else %}Crawl{% endif %}" title="scan pages" class="btn btn-sm"></span>
-	<span class="mR30">{{ manage_form.clear_blocks }} Clear all saved blocks <input type="submit" name="extract_blocks" value="Extract blocks" title="Extract" class="btn btn-sm"></span>
+	{% endcomment %}
 	{% if not page_count and not block_count and not proxies %}
-  	<span class="mR30">{{ manage_form.delete_confirmation }} Yes, I am fully aware <input type="submit" name="delete_site" value="Delete site" title="Delete all site info" class="btn btn-sm"></span>
+  	<div class="form-group">{{ manage_form.delete_confirmation }} Yes, I am fully aware <input type="submit" name="delete_site" value="Delete site" title="Delete all site info" class="btn btn-default btn-sm"></div>
 	{% endif %}
+	<div class="form-group"><span class="mR30">{{ manage_form.clear_pages }} Clear all saved pages <input type="submit" name="site_crawl" value="{% if page_count %}Re-crawl{% else %}Crawl{% endif %}" title="scan pages" class="btn btn-default btn-sm"></span>
+	<input type="submit" name="archive_pages" value="Archive pages" class="btn btn-default btn-sm">
+	</div>
+	<div class="form-group">
 	{% if page_count %}
-  	<span><input type="submit" name="extract_segments" value="Extract segments" title="Extract segments" class="btn btn-sm"></span>
+  	<span class="mR30"><input type="submit" name="extract_segments" value="Extract segments" title="Extract segments" class="btn btn-default btn-sm"></span>
 	{% endif %}
+  <span class="mR10">{{ manage_form.clear_invariants }} Clear invariant</span><span class="show-inline">{{ manage_form.file }}</span><input type="submit" name="import_invariants" value="Import invariants" title="Import invariants" class="btn btn-default btn-sm">
   </div>
-  <div class="form-group"><span class="mR30">{{ manage_form.clear_invariants }} Clear invariant</span><span class="show-inline mR30">{{ manage_form.file }} <input type="submit" name="import_invariants" value="Import invariants" title="Import invariants" class="btn btn-sm"></span><input type="submit" name="apply_invariants" value="Apply invariants" title="Mark invariant segments" class="btn btn-sm"> (Mark invariant segments)</div>
-  	<div class="form-group"><span class="mR30"><input type="submit" name="export_untranslated" value="Export untranslated strings" title="Export untranslated strings" class="btn btn-sm"></span>
+  <div class="form-group"><span class="mR30">{{ manage_form.clear_blocks }} Clear all saved blocks <input type="submit" name="extract_blocks" value="Extract blocks" title="Extract" class="btn btn-default btn-sm"></span>
+  <input type="submit" name="apply_invariants" value="Apply invariants" title="Mark invariant segments" class="btn btn-default btn-sm"> (Mark invariant segments)</div>
+  	<div class="form-group"><span class="mR30"><input type="submit" name="export_untranslated" value="Export untranslated segments" title="Export untranslated segments" class="btn btn-default btn-sm"></span></div>
+{% comment %}
 	{% if proxies %}
-  	<input type="submit" name="guess_blocks_language" value="Guess blocks' language" title="Guess blocks' language" class="btn btn-sm"></div>
+  	<input type="submit" name="guess_blocks_language" value="Guess blocks' language" title="Guess blocks' language" class="btn btn-default btn-sm"></div>
 	{% endif %}
+{% endcomment %}
 	</form>
 	{% endif %}
 

@@ -69,12 +69,12 @@ function apply_translation (target_code, id_from, id_to) {
     	<th>{% trans "block or site language"|capfirst %}</th>
     	<th>{% trans "block id"|capfirst %}</th>
     	<th>Checksum</th>
-    	<th>{% trans "time"|capfirst %}</th>
+    	<th>{% trans "Date"|capfirst %}/{% trans "time"|capfirst %}</th>
       </tr>
     </thead>
     <tbody>
       <tr>
-      	<td><a href="/site/{{ site.slug }}/">{{ site.name }}</a></td>
+      	<td><span class="mR10">{{ site.name }}</span><a href="/site/{{ site.slug }}/"><i class="fa fa-th-large" aria-hidden="true"></i></a></td>
       	<td>{{ language }}</td>
       	<td>{{ page_block.id }}</td>
       	<td>{{ page_block.checksum }}</td>
