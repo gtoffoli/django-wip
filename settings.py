@@ -233,10 +233,10 @@ QUOTES = (
 BOTH_QUOTES = '\'"'
 # TRANS_QUOTES = string.maketrans("‘’“”", "''\"\"")
 TRANS_QUOTES = {
-    ord(u"‘"): u"'",
-    ord(u"’"): u"'",
-    ord(u'“'): u'"',
-    ord(u'”'): u'"',
+    ord(u"\u2018"): u"'",
+    ord(u"\u2019"): u"'",
+    ord(u"\u201C"): u'"',
+    ord(u"\u201D"): u'"',
 }
 tab_in = "‘’“”"
 tab_out = "''\"\""

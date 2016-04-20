@@ -274,13 +274,47 @@ def remove_bom(filepath):
     s = u.encode('utf-8')
     fp.write(s)
     fp.close()
+    
+import re, htmlentitydefs
+"""
+# Removes HTML or XML character references and entities from a text string.
+#
+# @param text The HTML (or XML) source text.
+# @return The plain text, as a Unicode string, if necessary.
+"""
+def unescape(text):
+    def fixup(m):
+        text = m.group(0)
+        if text[:2] == "&#":
+            # character reference
+            try:
+                if text[:3] == "&#x":
+                    return unichr(int(text[3:-1], 16))
+                else:
+                    return unichr(int(text[2:-1]))
+            except ValueError:
+                pass
+        else:
+            # named entity
+            try:
+                text = unichr(htmlentitydefs.name2codepoint[text[1:-1]])
+            except KeyError:
+                pass
+        return text # leave as is
+    return re.sub("&#?\w+;", fixup, text)
 
 def normalize_string(s):
     # s = unicode_entities(s)
     if s:
         # s = s.replace(u"\u2018", "'").replace(u"\u2019", "'").replace(' - ', ' – ')
         # s = s.replace("‘", "'").replace("’", "'").replace(' - ', ' – ')
+        s = unescape(s)
         s.translate(settings.TRANS_QUOTES)
+        s = s.replace(u"\u2018", "'").replace(u"\u2019", "'")
+        s = s.replace(u"\u201C", '\"').replace(u"\u201D", '\"')
+        s = s.replace(u"\u2026", "..").replace(u"\u2033", '\"')
+        s = s.replace("&#8217;", "'").replace("&#8217;", "'")
+        s = s.replace("&nbsp;", "'").replace("&#160;", "'")
     return s
 
 def parse_xliff(filepath):

@@ -340,24 +340,31 @@ class Proxy(models.Model):
                 if segment.isnumeric() or segment.replace(',', '.').isnumeric():
                     continue
                 ls = len(segment)
+                """
                 if String.objects.filter(site=site, text=segment, invariant=True):
                     n_substitutions += 1
                     continue
+                """
                 # segment = normalize_string(segment)
                 words = segment.split()
                 translated_segment = None
                 # matches = String.objects.filter(text__iexact=segment, txu__string__language_id__in=target_codes).distinct()
                 # matches = String.objects.filter(text=segment.upper(), txu__string__language_id=language_code).distinct().order_by('-reliability')
                 matches = String.objects.filter(text=segment, txu__string__language_id=target_code).distinct().order_by('-reliability')
-                print target_code, matches
+                # print target_code, matches
                 n_matches = matches.count()
                 if n_matches:
                     match = matches[0]
-                if n_matches == 1 or n_matches and match.reliability > 4:
-                    print n_matches, match.reliability
+                    matched = String.objects.filter(txu=match.txu, language_id=target_code)[0]
+                # if n_matches == 1 or n_matches and match.reliability > 4:
+                if n_matches == 1 or n_matches and matched.reliability > 4:
+                    # print n_matches, match.reliability
                     translations = String.objects.filter(language=target_language, txu=match.txu)
                     if translations.count() == 1:
                         translated_segment = translations[0].text
+                else:
+                    print '? ', segment
+                """
                 elif len(words) == 1:
                     # matches = String.objects.filter(text__istartswith=segment, txu__string__language_id__in=target_codes).distinct()
                     matches = String.objects.filter(text__istartswith=segment, txu__string__language_id=target_code).distinct()
@@ -384,16 +391,20 @@ class Proxy(models.Model):
                                 if top_count > second_count and top_count >= matches_count/2:
                                     translated_segment = top_word
                                     print 'fuzzy'
+                """
                 if translated_segment:
                     if segment[0].isupper() and translated_segment[0].islower():
                         translated_segment = translated_segment[0].upper() + translated_segment[1:]
+                    """
                     try: print 'translation: ', translated_segment
                     except: pass
+                    """
                     count = body.count(segment)
                     if body.count(segment) == 1:
                         body = body.replace(segment, '<span tx auto>%s</span>' % translated_segment)
                         n_substitutions += 1
                         continue
+                    """
                     if len(segments)==1 and not block.children.exists():
                         translated_element = html.fromstring(body)
                         replace_element_content(translated_element, translated_segment, tag='span', attrs={'tx':'', 'fuzzy':'',})
@@ -401,6 +412,7 @@ class Proxy(models.Model):
                         body = element_tostring(translated_element)
                         n_substitutions += 1
                         continue
+                    """
                     replaced = replace_segment(body, segment)
                     if replaced:
                         body = replaced
