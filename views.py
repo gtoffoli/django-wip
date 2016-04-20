@@ -531,10 +531,11 @@ def page(request, page_id):
     var_dict['edit_form'] = PageEditForm(initial={'no_translate': webpage.no_translate,})
     var_dict['sequencer_form'] = PageSequencerForm(initial={'page_age': page_age, 'translation_state': translation_state, 'translation_languages': translation_languages, 'translation_age': translation_age, 'list_blocks': list_blocks, })
     blocks, total, invariant, proxy_list = webpage.blocks_summary()
-    print total, invariant, proxy_list
+    # print total, invariant, proxy_list
     var_dict['blocks'] = blocks
     var_dict['list_blocks'] = list_blocks
     var_dict['total'] = total
+    var_dict['block_count'] = total
     var_dict['invariant'] = invariant
     var_dict['proxy_list'] = proxy_list
     return render_to_response('page.html', var_dict, context_instance=RequestContext(request))
@@ -564,6 +565,17 @@ def page_blocks(request, page_id):
     var_dict['after'] = steps_after(page, paginator.num_pages)
     var_dict['page_blocks'] = page_blocks
     return render_to_response('page_blocks.html', var_dict, context_instance=RequestContext(request))
+
+def page_extract_blocks(request, page_id):
+    webpage = get_object_or_404(Webpage, pk=page_id)
+    webpage.extract_blocks()
+    webpage.create_blocks_dag()
+    return page(request, page_id)
+
+def page_cache_translation(request, page_id, language_code):
+    webpage = get_object_or_404(Webpage, pk=page_id)
+    webpage.cache_translation(language_code)
+    return page(request, page_id)
 
 def page_proxy(request, page_id, language_code):
     page = get_object_or_404(Webpage, pk=page_id)

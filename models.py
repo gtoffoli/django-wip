@@ -532,7 +532,8 @@ class Webpage(models.Model):
         if not self.no_translate:
             content, has_translation = self.get_translation(language_code, cache=True)
             if has_translation:
-                translated_page = TranslatedVersion(webpage=self, language_id=language_code, user=DEFAULT_USER)
+                user = User.objects.get(pk=DEFAULT_USER)
+                translated_page = TranslatedVersion(webpage=self, language_id=language_code, user=user)
                 translated_page.body = content
                 translated_page.save()
 

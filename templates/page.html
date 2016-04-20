@@ -42,6 +42,7 @@ th, td { text-align: left; vertical-align: top; }
       	<th>{% trans "encoding"|capfirst %}</th>
       	<th>{% trans "page URL"|capfirst %}</th>
       	<th>{% trans "null proxy"|capfirst %}</th>
+      	<th>{% trans "blocks"|capfirst %}</th>
       </tr>
     </thead>
     <tbody>
@@ -51,6 +52,7 @@ th, td { text-align: left; vertical-align: top; }
     		<td>{{ webpage.encoding }}</td>
     		<td><a href="{{ site.url }}{{ webpage.path }}">{{ site.url }}{{ webpage.path }}</a></td>
     		<td><a href="/{{ site.path_prefix }}{{ webpage.path }}">/{{ site.path_prefix }}{{ webpage.path }}</a></td>
+    		<td>{% if block_count %}{{ block_count }}{% else %}<a href="/page/{{ webpage.id }}/extract_blocks/">{% trans "extract blocks"|capfirst %}</a>{% endif %}</td>
     	</tr>
     </tbody>
   </table>
@@ -97,7 +99,9 @@ th, td { text-align: left; vertical-align: top; }
   <tbody>
    {% for language, dict in proxy_list %}
    <tr>
-   <td><span class="mR10">{{ language.name }}</span><a href="/page/{{ webpage.id }}/proxy/{{ language.code }}/"><i class="fa fa-eye" aria-hidden="true"></i></a></td>
+   <td><span class="mR10">{{ language.name }}</span>
+   	   <a href="/{{ site.path_prefix }}/{{ language.code }}{{ webpage.path }}"><i class="fa fa-eye" aria-hidden="true"></i></a>
+   	   <a href="/page/{{ webpage.id }}/cache_translation/{{ language.code }}/"><i class="fa fa-check" aria-hidden="true"></i></a></td>
    <td class="text-right">{{ total }}</td>
    <td class="text-right">{{ invariant }}</td>
    <td class="text-right">{{ dict.already }}</td>
