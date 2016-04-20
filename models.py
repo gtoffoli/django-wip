@@ -291,19 +291,25 @@ class Proxy(models.Model):
                     qs = qs.filter(Q(txu__isnull=True) | Q(txu__fr=False))
                 elif target_code == 'it':
                     qs = qs.filter(Q(txu__isnull=True) | Q(txu__it=False))
-                print qs.count()
-                if qs.count() == 1:
+                n_source = qs.count()
+                print n_source
+                if not n_source:
+                    source_string = String(text=source, language=source_language, site=site, reliability=reliability)
+                    source_string.save()
+                elif n_source == 1:
                     source_string = qs[0]
-                    txu = source_string.txu
-                    if not txu:
-                        txu = Txu(provider=site.name, user_id=user_id)
-                        txu.save()
-                        source_string.txu = txu
-                        source_string.save()
-                    target_string = String(text=target, language=target_language, site=site, txu=txu, reliability=reliability)
-                    target_string.save()
-                    n += 1
-                    sys.stdout.write('+')
+                else:
+                    continue
+                txu = source_string.txu
+                if not txu:
+                    txu = Txu(provider=site.name, user_id=user_id)
+                    txu.save()
+                    source_string.txu = txu
+                    source_string.save()
+                target_string = String(text=target, language=target_language, site=site, txu=txu, reliability=reliability)
+                target_string.save()
+                n += 1
+                sys.stdout.write('+')
         return m, n
 
     def apply_translation_memory(self):
