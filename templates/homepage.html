@@ -84,6 +84,11 @@
 {% block body_base %}
 {% if request.user.is_authenticated %}
    <div class="container">
+   	 {% if messages %}
+          <ul class="messages">
+            {% for message in messages %}<li{% if message.tags %} class="{{ message.tags }}"{% endif %}>{{ message }}</li>{% endfor %}
+          </ul>
+     {% endif %}
      <div id="content" style="margin-bottom:30px">
        <h1>Sites</h1>
        <table class="table table-responsive table-bordered table-striped">
@@ -101,7 +106,7 @@
          <tbody>
          {% for site in sites %}
            <tr>
-             <td><a href="/site/{{ site.slug }}/">{{ site.name }}</a></td>
+             <td><span class="mR10">{{ site.name }}</span><span class="mR10"><a href="{% url 'site' site.slug %}"><i class="fa fa-th-large" aria-hidden="true"></i></a></span></td>
              <td class="text-right">{% if site.source_pages.count %}<span class="mR10">{{ site.source_pages.count }}</span><a href="/site/{{ site.slug }}/pages/" title="{% trans "list pages" %}"><i class="fa fa-th-list"></i></a>{% else %}0{% endif %}</td>
              <td class="text-right">{{ site.page_versions.count }}</td>
              <td class="text-right">{{ site.translated_versions.count }}</td>
@@ -110,7 +115,7 @@
              <td>
                {% if site.proxies %}
                  {% for proxy in site.proxies %}
-                   <a href="{% url 'proxy' proxy.slug %}">{{ proxy.name }}</a>{% if not forloop.last %}<br>{% endif %}
+                   <span class="mR10">{{ proxy.name }}</span><span class="mR10"><a href="{% url 'proxy' proxy.slug %}"><i class="fa fa-th-large" aria-hidden="true"></i></a></span><a href="{% if proxy.host != '?' %} http://{{ proxy.host }}{% else %}/{{proxy.base_path}}{% endif %}"><i class="fa fa-eye" aria-hidden="true"></i></a>{% if not forloop.last %}<br>{% endif %}
                  {% endfor %}
                {% else %}
                  {% trans "no proxies are available."|capfirst %}
