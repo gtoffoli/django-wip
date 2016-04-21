@@ -91,6 +91,7 @@ function apply_translation (target_code, id_from, id_to) {
     <div><label>Time</label> {{ page_block.time|date:"SHORT_DATETIME_FORMAT" }}</div>
 {% endcomment %}
 
+{% if user.is_superuser %}
 <form class="mTB40" action="/block/{{ page_block.id }}/translate/{{ target_code }}/" method="post">{% csrf_token %}
 	<input type="hidden" id="segment" name="segment" value="">
 	<input type="hidden" id="string" name="string" value="">
@@ -98,16 +99,14 @@ function apply_translation (target_code, id_from, id_to) {
     <div class="form-group">
 		<label>Block language</label> {{ edit_form.language }} &nbsp;
 		<label>Invariant</label> {{ edit_form.no_translate }} &nbsp;&nbsp;
-		{% if user.is_superuser %}
-		<input type="submit" name="save_block" value="Save properties" class="btn btn-sm">
-		{% endif %}
+	
+		<input type="submit" name="save_block" value="Save properties" class="btn btn-default btn-sm">
 	</div>
     <div class="form-group">
-		<a class="btn btn-sm" href="/block/{{ page_block.id }}/">View</a>
- 		{% if not extract_strings %}<input type="submit" name="extract" class="btn btn-sm" value="Extract strings">{% endif %}
+		<a class="btn btn-default btn-sm" href="/block/{{ page_block.id }}/">View</a>
+ 		{% if not extract_strings %}<input type="submit" name="extract" class="btn btn-default btn-sm" value="Extract strings">{% endif %}
 	</div>
 
-{% if user.is_superuser %}
     <div class="form-group">
 		<input type="submit" name="apply_filter" class="btn btn-sm" value="Apply filter below"> &nbsp;&nbsp;
 		{% if previous %}<input type="submit" name="goto-{{ previous.id }}" class="btn btn-sm" value="Previous">{% endif %}
@@ -123,8 +122,6 @@ function apply_translation (target_code, id_from, id_to) {
 		<td style="border-top-width:0">{{ sequencer_form.translation_age }}</td>
 		<td style="border-top-width:0">{{ sequencer_form.extract_strings }}</td>
 	</tr></tbody></table>    	
-	{% comment %}</form>{% endcomment %}
-{% endif %}
 
 	<table class="table">
 	<thead>
@@ -181,4 +178,5 @@ function apply_translation (target_code, id_from, id_to) {
 	</tbody>
 	</table>
 </form>
+{% endif %}
 {% endblock %}
