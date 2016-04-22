@@ -192,6 +192,18 @@ def replace_segment(html_text, segment, tx='auto'):
     return False
     # to be extended
 
+def non_invariant_words(words):
+    non_invariant = []
+    for word in words:
+        if word.isnumeric() or word.replace(',', '.').isnumeric():
+            continue
+        if word.count('@')==1:
+            continue
+        if word in ['Roma', 'roma',]:
+            continue
+        non_invariant.append(word)
+    return non_invariant      
+
 def md5sum(file):
     """Calculate the md5 checksum of a file-like object without reading its
     whole content in memory.

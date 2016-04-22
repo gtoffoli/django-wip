@@ -13,13 +13,14 @@ sys.stderr = codecs.getwriter('utf8')(sys.stderr)
 """
 reload(sys)  
 sys.setdefaultencoding('utf8')
-
 import os
-import re
 
+import logging
+logger = logging.getLogger('wip')
+
+import re
 from math import sqrt
 from lxml import html, etree
-
 import json
 
 from settings import USE_SCRAPY, USE_NLTK
@@ -38,7 +39,7 @@ from actstream import action, registry
 
 from models import Language, Site, Proxy, Webpage, PageVersion, TranslatedVersion
 from models import Block, BlockEdge, TranslatedBlock, BlockInPage, String, Txu, TxuSubject #, TranslatedVersion
-from models import TO_BE_TRANSLATED, TRANSLATED, INVARIANT, ALREADY
+from models import TO_BE_TRANSLATED, TRANSLATED, PARTIALLY, INVARIANT, ALREADY
 from models import MYMEMORY, TRANSLATION_SERVICE_DICT
 from forms import SiteManageForm, ProxyManageForm, PageEditForm, PageSequencerForm, BlockEditForm, BlockSequencerForm
 from forms import StringSequencerForm, StringTranslationForm, TranslationServiceForm
@@ -46,7 +47,7 @@ from session import get_language, set_language, get_site, set_site
 
 from settings import PAGE_SIZE, PAGE_STEPS
 from settings import DATA_ROOT, RESOURCES_ROOT, tagger_filename, BLOCK_TAGS, QUOTES, SEPARATORS, STRIPPED, EMPTY_WORDS, PAGES_EXCLUDE_BY_CONTENT
-from utils import strings_from_html, elements_from_element, block_checksum, ask_mymemory
+from utils import strings_from_html, elements_from_element, block_checksum, ask_mymemory, non_invariant_words
 import srx_segmenter
 
 registry.register(Site)
@@ -408,7 +409,10 @@ def proxy(request, proxy_slug):
     var_dict['blocks_proxy_list'] = blocks_proxy_list
     
     var_dict['translated_pages_count'] = page_count = TranslatedVersion.objects.filter(webpage__site=site, language=language).count()
-    var_dict['translated_blocks__count'] = block_count = TranslatedBlock.objects.filter(block__site=site, language=language).count()
+    # var_dict['translated_blocks_count'] = TranslatedBlock.objects.filter(block__site=site, language=language).count()
+    var_dict['translated_blocks_count'] = translated_blocks_count = TranslatedBlock.objects.filter(block__site=site, state=TRANSLATED, language_id=proxy.language_id).count()
+    var_dict['partially_blocks_count'] = partially_blocks_count = TranslatedBlock.objects.filter(block__site=site, state=PARTIALLY, language_id=proxy.language_id).count()
+    var_dict['left_blocks_count'] = blocks_total - blocks_invariant - translated_blocks_count - partially_blocks_count
     var_dict['blocks_ready'] = blocks_ready = proxy.blocks_ready()
     var_dict['ready_count'] = len(blocks_ready)
     var_dict['manage_form'] = ProxyManageForm()
@@ -855,8 +859,10 @@ def block_translate(request, block_id, target_code):
     for segment in segments:
         if not segment:
             continue
+        if not non_invariant_words(segment.split()):
+            continue
         if source_language in proxy_languages:
-            source_strings.append([])
+            # source_strings.append([])
             continue
         is_model_instance, segment_string = get_or_add_string(segment, source_language, add=extract or extract_strings)
         if is_model_instance:

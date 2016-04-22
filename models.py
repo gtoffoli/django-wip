@@ -11,6 +11,9 @@ import sys
 reload(sys)  
 sys.setdefaultencoding('utf8')
 
+import logging
+logger = logging.getLogger('wip')
+
 from collections import defaultdict
 import os
 import re
@@ -29,13 +32,13 @@ from django.contrib.contenttypes.fields import GenericForeignKey
 from django.utils.translation import ugettext_lazy as _
 from django_extensions.db.fields import CreationDateTimeField, ModificationDateTimeField, AutoSlugField
 from django_dag.models import node_factory, edge_factory
-
 from vocabularies import Language, Subject, ApprovalStatus
 from wip.wip_sd.sd_algorithm import SDAlgorithm
 
 from settings import RESOURCES_ROOT, BLOCK_TAGS, BLOCKS_EXCLUDE_BY_XPATH, SEPARATORS, STRIPPED, EMPTY_WORDS, BOTH_QUOTES
 DEFAULT_USER = 1
-from utils import element_tostring, text_from_html, strings_from_html, elements_from_element, replace_element_content, replace_segment, element_signature, normalize_string
+from utils import element_tostring, text_from_html, strings_from_html, elements_from_element, replace_element_content, element_signature
+from utils import normalize_string, replace_segment, non_invariant_words
 import srx_segmenter
 
 
@@ -315,6 +318,7 @@ class Proxy(models.Model):
     def apply_translation_memory(self):
         # string_matcher = StringMatcher()
         site = self.site
+        source_code = site.language_id
         target_language = self.language
         target_code = target_language.code
         empty_words = EMPTY_WORDS[target_code]
@@ -331,6 +335,7 @@ class Proxy(models.Model):
         for block in blocks_ready:
             translated_block = block.get_last_translation(language=target_language)
             translated = True
+            ok_segments = 0
             n_substitutions = 0
             if translated_block:
                 body = translated_block.body
@@ -340,36 +345,35 @@ class Proxy(models.Model):
                 segments = block.block_get_segments(segmenter)                
             body = normalize_string(body)
             if not segments:
+                logger.info('block: %d no segments' % block.id)
                 continue # ???
             segments.sort(key=lambda x: len(x), reverse=True)
             for segment in segments:
-                if segment.isnumeric() or segment.replace(',', '.').isnumeric():
-                    continue
-                ls = len(segment)
-                """
-                if String.objects.filter(site=site, text=segment, invariant=True):
-                    n_substitutions += 1
-                    continue
-                """
-                # segment = normalize_string(segment)
                 words = segment.split()
+                if not non_invariant_words(words):
+                    ok_segments +=1
+                    logger.info('block: %d invariant segment : %s' % (block.id, segment))
+                    continue
+                if String.objects.filter(invariant=True, language_id=source_code, site=site, text=segment):
+                    ok_segments +=1
+                    logger.info('block: %d invariant string, segment : %s' % (block.id, segment))
+                    continue
                 translated_segment = None
                 # matches = String.objects.filter(text__iexact=segment, txu__string__language_id__in=target_codes).distinct()
-                # matches = String.objects.filter(text=segment.upper(), txu__string__language_id=language_code).distinct().order_by('-reliability')
+                # matches = String.objects.filter(text=segment.upper(), txu__string__language_id=target_code).distinct().order_by('-reliability')
                 matches = String.objects.filter(text=segment, txu__string__language_id=target_code).distinct().order_by('-reliability')
-                # print target_code, matches
                 n_matches = matches.count()
                 if n_matches:
                     match = matches[0]
                     matched = String.objects.filter(txu=match.txu, language_id=target_code)[0]
-                # if n_matches == 1 or n_matches and match.reliability > 4:
                 if n_matches == 1 or n_matches and matched.reliability > 4:
-                    # print n_matches, match.reliability
                     translations = String.objects.filter(language=target_language, txu=match.txu)
                     if translations.count() == 1:
                         translated_segment = translations[0].text
                 else:
-                    print '? ', segment
+                    translated = False
+                    if not segment.startswith('Home'):
+                        logger.info('block: %d , n_matches: %d ,  segment: %s' % (block.id, n_matches, segment))
                 """
                 elif len(words) == 1:
                     # matches = String.objects.filter(text__istartswith=segment, txu__string__language_id__in=target_codes).distinct()
@@ -401,14 +405,27 @@ class Proxy(models.Model):
                 if translated_segment:
                     if segment[0].isupper() and translated_segment[0].islower():
                         translated_segment = translated_segment[0].upper() + translated_segment[1:]
-                    """
-                    try: print 'translation: ', translated_segment
-                    except: pass
-                    """
                     count = body.count(segment)
+                    """
                     if body.count(segment) == 1:
                         body = body.replace(segment, '<span tx auto>%s</span>' % translated_segment)
-                        n_substitutions += 1
+                        continue
+                    """
+                    replaced = False
+                    if count:
+                        l_body = len(body)
+                        for m in re.finditer(segment, body):
+                            start = m.start()
+                            if start>0 and body[start-1] in BOTH_QUOTES:
+                                continue
+                            end = m.end()
+                            if end<(l_body-1) and body[end] in BOTH_QUOTES:
+                                continue          
+                            body = body[:start] + '<span tx auto>%s</span>' % translated_segment + body[end:]
+                            replaced = True
+                            n_substitutions += 1
+                            break
+                    if replaced:
                         continue
                     """
                     if len(segments)==1 and not block.children.exists():
@@ -425,17 +442,27 @@ class Proxy(models.Model):
                         n_substitutions += 1
                         continue
                     translated = False
+                    logger.info('block: %d , segment: %s , not replaced with: %s' % (block.id, segment, translated_segment))
             if n_substitutions:
+                previous_state = translated_block and translated_block.state or 0
                 if not translated_block:
                     translated_block = block.clone(target_language)
                 if translated:
                     translated_block.state = TRANSLATED
                     n_translated += 1
+                    logger.info('block: %d , %s TRANSLATED' % (block.id, not previous_state and 'new' or ''))
                 else:
                     translated_block.state = PARTIALLY
                     n_partially += 1
+                    logger.info('block: %d , %s PARTIALLY' % (block.id, not previous_state and 'new' or ''))
                 translated_block.body = body
                 translated_block.save()
+            elif ok_segments and not translated_block:
+                translated_block = block.clone(target_language)
+                translated_block.state = PARTIALLY
+                n_partially += 1
+                translated_block.save()
+                logger.info('block: %d , new, PARTIALLY' % block.id)
         return n_ready, n_translated, n_partially
 
     def propagate_up_block_updates(self):
@@ -1096,13 +1123,15 @@ class Block(node_factory('BlockEdge')):
         return get_segments(self.body, self.site, segmenter)
 
     def apply_invariants(self, segmenter):
+        if self.no_translate:
+            return False
         segments = self.block_get_segments(segmenter)
         invariant = True
         for segment in segments:
             if not type(segment) == unicode:
                 print self.id, segment
                 return False
-            if segment.isnumeric() or segment.replace(',', '.').isnumeric():
+            if not non_invariant_words(segment.split()):
                 continue
             matches = String.objects.filter(site=self.site, text=segment, invariant=True)
             if not matches:

@@ -38,20 +38,33 @@
       <th>{% trans "proxy language"|capfirst %}</th>
       <th>{% trans "proxy domain"|capfirst %}</th>
       <th>{% trans "base path"|capfirst %}</th>
-      <th>{% trans "pages"|capfirst %}</th>
-      <th>{% trans "page blocks"|capfirst %}</th>
-      <th>{% trans "translated pages"|capfirst %}</th>
-      <th>{% trans "translated blocks"|capfirst %}</th>
     </thead>
     <tbody>
       <td><span class="mR10">{{ site.name }}</span><span class="mR10"><a href="{% url 'site' site.slug %}"><i class="fa fa-th-large" aria-hidden="true"></i></a></span><a href="{{ site.url }}"><i class="fa fa-eye" aria-hidden="true"></i></a></td>
       <td>{{ proxy.language.name }}</td>
       <td>{% if proxy.host != '?' %}<a href="http://{{ proxy.host }}">{{ proxy.host }}</a>{% else %}{% trans "not defined" %}{% endif %}</td>
       <td>{{ proxy.base_path }}</td>
+    </tbody>
+  </table>
+
+  <table class="table table-responsive table-bordered table-striped">
+    <thead>
+      <th>{% trans "pages"|capfirst %}</th>
+      <th>.. {% trans "translated" %}</th>
+      <th>{% trans "page blocks"|capfirst %}</th>
+      <th>.. {% trans "invariants" %}</th>
+      <th>.. {% trans "translated" %}</th>
+      <th>.. {% trans "partially" %}</th>
+      <th>.. {% trans "others" %}</th>
+    </thead>
+    <tbody>
       <td>{% if page_count %}<span class="mR10">{{ page_count }}</span><span class="mR10"><a href="/site/{{ site.slug }}/pages/" title="{% trans "list pages" %}"><i class="fa fa-th-list"></i></a></span><a href="/page/{{ first_page.id }}/" title="{% trans "browse all pages" %}"><i class="fa fa-caret-square-o-right"></i></a>{% else %}0{% endif %}</td>
-      <td>{% if block_count %}<span class="mR10">{{ block_count }}</span><span class="mR10"><a href="/site/{{ site.slug }}/blocks/" title="{% trans "list blocks" %}"><i class="fa fa-th-list"></i></a></span><a href="/block/{{ first_block.id }}/" title="{% trans "browse all blocks" %}"><i class="fa fa-caret-square-o-right"></i></a>{% else %}0{% endif %}</td>
       <td>{{ translated_pages_count }}</td>
-      <td>{{ translated_blocks__count }}</td>
+      <td>{% if block_count %}<span class="mR10">{{ block_count }}</span><span class="mR10"><a href="/site/{{ site.slug }}/blocks/" title="{% trans "list blocks" %}"><i class="fa fa-th-list"></i></a></span><a href="/block/{{ first_block.id }}/" title="{% trans "browse all blocks" %}"><i class="fa fa-caret-square-o-right"></i></a>{% else %}0{% endif %}</td>
+      <td>{{ blocks_invariant }}</td>
+      <td>{{ translated_blocks_count }}</td>
+      <td>{{ partially_blocks_count }}</td>
+      <td>{{ left_blocks_count }}</td>
     </tbody>
   </table>
 

@@ -175,6 +175,16 @@ LOGGING = {
             'class': 'logging.FileHandler',
             'filename': os.path.join(BASE_DIR, 'logs', 'debug.log'),
         },
+        'wip': {
+            'level': 'INFO',
+            'class': 'logging.FileHandler',
+            'filename': os.path.join(BASE_DIR, 'logs', 'wip.log'),
+        },
+        'django': {
+            'level': 'INFO',
+            'class': 'logging.FileHandler',
+            'filename': os.path.join(BASE_DIR, 'logs', 'django.log'),
+        },
     },
     'loggers': {
         'shell': {
@@ -188,13 +198,13 @@ LOGGING = {
             'propagate': True,
         },
         'django': {
-            'handlers': ['console'],
+            'handlers': ['console', 'django'],
             'level': 'INFO',
             'propagate': True,
         },
-        'wip.views': {
-            'handlers': ['file'],
-            'level': 'DEBUG',
+        'wip': {
+            'handlers': ['wip'],
+            'level': 'INFO',
             'propagate': True,
         },
     },
