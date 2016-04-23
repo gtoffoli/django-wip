@@ -1,8 +1,12 @@
 # -*- coding: utf-8 -*-
 
+import re
 import urlparse
 from httpproxy.views import HttpProxy
-from models import Proxy, Webpage, PageVersion, TranslatedVersion
+from models import Proxy, Webpage
+
+# REWRITE_REGEX = re.compile(r'((?:src|action|href)=["\'])/(?!\/)')
+REWRITE_REGEX = re.compile(r'((?:action)=["\'])/(?!\/)')
 
 class WipHttpProxy(HttpProxy):
     prefix = ''
@@ -40,6 +44,9 @@ class WipHttpProxy(HttpProxy):
         # content_type = response.headers['Content-Type']
         trailer = response.content[:100]
         if trailer.count('<') and trailer.lower().count('html'):
+            print url
+            print request.path
+            print request.GET
             if self.proxy_id and self.language_code:
                 self.translate(response)
             else:
@@ -49,6 +56,22 @@ class WipHttpProxy(HttpProxy):
                     response = self.rewrite_response(request, response)
             if self.rewrite_links:
                 response = self.replace_links(response)
+                response = self.rewrite_response(request, response)
+        return response
+
+    def rewrite_response(self, request, response):
+        """
+        Rewrites the response to fix references to resources loaded from HTML
+        files (images, etc.).
+
+        .. note::
+            The rewrite logic uses a fairly simple regular expression to look for
+            "src", "href" and "action" attributes with a value starting with "/"
+            â€“ your results may vary.
+        """
+        proxy_root = self.original_request_path.rsplit(request.path, 1)[0]
+        response.content = REWRITE_REGEX.sub(r'\1{}/'.format(proxy_root),
+                response.content)
         return response
 
     def replace_links(self, response):
@@ -56,6 +79,7 @@ class WipHttpProxy(HttpProxy):
         return response
 
     def translate(self, response):
+        request = self.request
         content = response.content
         if self.proxy:
             proxy = self.proxy
@@ -63,13 +87,17 @@ class WipHttpProxy(HttpProxy):
         else:
             proxy = Proxy.objects.get(pk=self.proxy_id)
             site = proxy.site
-        path = urlparse.urlparse(self.url).path
-        webpages = Webpage.objects.filter(site=site, path=path).order_by('-created')
-        if webpages:
-            webpage = webpages[0]
-            if not webpage.no_translate:
-                content, has_translation = webpage.get_translation(self.language_code)
-                if has_translation:
-                    response.content = content
+        has_translation = False
+        if request.GET or request.POST:
+            content, has_translation = proxy.translate_page_content(content)
+        else:
+            path = urlparse.urlparse(self.url).path
+            webpages = Webpage.objects.filter(site=site, path=path).order_by('-created')
+            if webpages:
+                webpage = webpages[0]
+                if not webpage.no_translate:
+                    content, has_translation = webpage.get_translation(self.language_code)
+        if has_translation:
+            response.content = content
         return response
 

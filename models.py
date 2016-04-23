@@ -465,6 +465,10 @@ class Proxy(models.Model):
                 logger.info('block: %d , new, PARTIALLY' % block.id)
         return n_ready, n_translated, n_partially
 
+    def translate_page_content(self, content):
+        has_translation = True
+        return content, has_translation
+
     def propagate_up_block_updates(self):
         site = self.site
         language = self.language
