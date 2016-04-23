@@ -366,14 +366,14 @@ class Proxy(models.Model):
                 if n_matches:
                     match = matches[0]
                     matched = String.objects.filter(txu=match.txu, language_id=target_code)[0]
-                if n_matches == 1 or n_matches and matched.reliability > 4:
+                if n_matches == 1 or (n_matches and matched.reliability > 4):
                     translations = String.objects.filter(language=target_language, txu=match.txu)
                     if translations.count() == 1:
                         translated_segment = translations[0].text
                 else:
                     translated = False
                     if not segment.startswith('Home'):
-                        logger.info('block: %d , n_matches: %d ,  segment: %s' % (block.id, n_matches, segment))
+                        logger.info('block: %d , n_matches: %d ,  segment: -%s-' % (block.id, n_matches, repr(segment)))
                 """
                 elif len(words) == 1:
                     # matches = String.objects.filter(text__istartswith=segment, txu__string__language_id__in=target_codes).distinct()
@@ -442,7 +442,7 @@ class Proxy(models.Model):
                         n_substitutions += 1
                         continue
                     translated = False
-                    logger.info('block: %d , segment: %s , not replaced with: %s' % (block.id, segment, translated_segment))
+                    logger.info('block: %d , segment: -%s- , not replaced with: -%s-' % (block.id, segment, translated_segment))
             if n_substitutions:
                 previous_state = translated_block and translated_block.state or 0
                 if not translated_block:

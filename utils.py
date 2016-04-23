@@ -5,6 +5,9 @@ import codecs
 sys.stdout = codecs.getwriter('utf8')(sys.stdout)
 sys.stderr = codecs.getwriter('utf8')(sys.stderr)
 
+import logging
+logger = logging.getLogger('wip')
+
 import StringIO
 try:
     from cStringIO import StringIO as BytesIO
@@ -322,11 +325,12 @@ def normalize_string(s):
         # s = s.replace("‘", "'").replace("’", "'").replace(' - ', ' – ')
         s = unescape(s)
         s.translate(settings.TRANS_QUOTES)
-        s = s.replace(u"\u2018", "'").replace(u"\u2019", "'")
-        s = s.replace(u"\u201C", '\"').replace(u"\u201D", '\"')
-        s = s.replace(u"\u2026", "..").replace(u"\u2033", '\"')
-        s = s.replace("&#8217;", "'").replace("&#8217;", "'")
-        s = s.replace("&nbsp;", "'").replace("&#160;", "'")
+        s = s.replace(u"\u2018", u"'").replace(u"\u2019", u"'")
+        s = s.replace(u"\u201C", u'\"').replace(u"\u201D", u'\"')
+        s = s.replace(u"\u2026", u"..").replace(u"\u2033", u'\"')
+        s = s.replace(u"\u00a0", u" ")
+        s = s.replace(u"&#8216;", u"'").replace(u"&#8217;", u"'")
+        s = s.replace(u"&nbsp;", u" ").replace(u"&#160;", u" ").replace(u'&#39;', u" ")
     return s
 
 def parse_xliff(filepath):

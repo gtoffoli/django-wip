@@ -11,6 +11,7 @@ from collections import defaultdict
 from settings import DATA_ROOT, RESOURCES_ROOT
 from models import Site, Block, String, Txu, TxuSubject
 from vocabularies import Language, Subject
+from utils import normalize_string
 
 def set_blocks_language(slug, dry=False):
     from wip.utils import guess_block_language
@@ -188,3 +189,13 @@ segmenter = srx_segmenter.SrxSegmenter(italian_rules)
 
 def segment(s):
     return segmenter.extract(s)
+
+def db_fix_italian_strings():
+    ss = String.objects.filter(language_id='it', site_id=1)
+    for s in ss:
+      t = s.text
+      t2 = normalize_string(t)
+      if not t2 == t:
+        print s.id, t, t2
+        s.text = t2
+        s.save()    
