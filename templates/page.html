@@ -145,7 +145,7 @@ th, td { text-align: left; vertical-align: top; }
    				<th class="text-right">#</th>
    				<th class="text-right">Id</th>
    				<th class="text-right">{% trans "chars"|capfirst %}</th>
-   				<th>xPath</th>
+   				<th>{% trans "label"|capfirst %}</th>
    				<th class="text-right">{% trans "Pages"|capfirst %}</th>
    				<th>{% trans "Date"|capfirst %}/{% trans "Time"|capfirst %}</th>
    			  {% for l in proxy_languages %}<th>{{ l.code }}</th>{% endfor %}
@@ -157,7 +157,7 @@ th, td { text-align: left; vertical-align: top; }
 		    	<td  class="text-right">{{forloop.counter|rjust:"3"}}</td>
 			    <td class="text-right">{{ page_block.id }}</td>
 			    <td class="text-right">{{ page_block.body|length }} </td>
-			    <td><a href="/block/{{ page_block.id }}/?webpage={{ webpage.id }}">{{ page_block.xpath }}</a></td>
+			    <td><a href="/block/{{ page_block.id }}/?webpage={{ webpage.id }}">{{ page_block.get_label }}</a></td>
 			    <td class="text-right"> <a href="/block/{{ page_block.id }}/?webpage={{ webpage.id }}">{{ page_block.webpages.count }}</a></td>
 			    <td>{{ page_block.time|date:"SHORT_DATETIME_FORMAT" }}</td>
   			  {% for state in page_block.get_translation_states %}<td >{{ state }}</td>{% endfor %}
