@@ -771,8 +771,17 @@ def block_translate(request, block_id, target_code):
     BlockSequencerForm.base_fields['extract_strings'] = forms.BooleanField(required=False, label='Extract strings', )
     save_block = apply_filter = goto = extract = '' 
     create = modify = ''
+    translated_blocks = TranslatedBlock.objects.filter(block=block, language=target_language).order_by('-modified')
+    translated_block = translated_blocks.count() and translated_blocks[0] or None
+    """
     segments = block.block_get_segments(None)
-    segments = [segment.strip(' .,;:*+-=').lower() for segment in segments]
+    """
+    if translated_block:
+        segments = translated_block.translated_block_get_segments(None)
+    else:
+        segments = block.block_get_segments(None)
+    # segments = [segment.strip(' .,;:*+-=').lower() for segment in segments]
+    segments = [segment.strip(' .,;:*+-=') for segment in segments]
     extract_strings = False
     post = request.POST
     if post:
@@ -800,13 +809,23 @@ def block_translate(request, block_id, target_code):
                 block.no_translate = no_translate
                 block.save()
         elif create:
-            translation = TranslatedBlock(block=block, language=Language.objects.get(code=create), state=TRANSLATED, editor=request.user)
-            translation.body = post.get('translation-%s' % create)
-            translation.save()
+            translated_block = TranslatedBlock(block=block, language=Language.objects.get(code=create), state=PARTIALLY, editor=request.user)
+            translated_block.body = post.get('translation-%s' % create)
+            # print 'create: ', create, translation.body
+            translated_block.save()
+            segments = translated_block.translated_block_get_segments(None)
+            if not segments:
+                translated_block.state=TRANSLATED
+                translated_block.save()
         elif modify:
-            translation = TranslatedBlock.objects.filter(block=block, language=Language.objects.get(code=modify)).order_by('-modified')[0]
-            translation.body = post.get('translation-%s' % modify)
-            translation.save()
+            translated_block = TranslatedBlock.objects.filter(block=block, language=Language.objects.get(code=modify)).order_by('-modified')[0]
+            translated_block.body = post.get('translation-%s' % modify)
+            # print 'modify: ', modify, translation.body
+            translated_block.save()
+            segments = translated_block.translated_block_get_segments(None)
+            if not segments:
+                translated_block.state=TRANSLATED
+                translated_block.save()
         elif (apply_filter or goto):
             form = BlockSequencerForm(post)
             if form.is_valid():
@@ -861,17 +880,19 @@ def block_translate(request, block_id, target_code):
             continue
         if not non_invariant_words(segment.split()):
             continue
-        if source_language in proxy_languages:
-            # source_strings.append([])
+        # if source_language in proxy_languages:
+        if source_language == target_language:
             continue
         is_model_instance, segment_string = get_or_add_string(segment, source_language, add=extract or extract_strings)
+        print 'segment_string: ',  segment_string
         if is_model_instance:
             """ NON CANCELLARE
             like_strings = find_like_strings(segment_string, max_strings=5)
             """
             like_strings = []
             source_strings.append(like_strings)
-            translations = segment_string.get_translations(proxy_languages)
+            translations = String.objects.filter(txu=segment_string.txu, language_id=target_code)
+            print 'translations: ', segment_string.txu, target_code, translations
             source_translations.append(translations)
         else:
             segment_string.id = 0
@@ -879,25 +900,22 @@ def block_translate(request, block_id, target_code):
             source_translations.append([])
         source_segments.append(segment_string)
     source_segments = zip(source_segments, source_strings, source_translations)
-    try:
-        translated_block = TranslatedBlock.objects.get(block=block, language=target_language)
-    except:
-        translated_block = None
+    print 'source_segments: ',  source_segments
+    """
     target_strings = []
     for segment_strings in source_strings:
         translated_strings = []
         for s in segment_strings:
-            try:
-                string = String.objects.get(language=source_language, text=s)
-                translations = Txu.objects.filter(source=string, target__language=target_language)
+            strings = String.objects.filter(language=source_language, text=s, txu__isnull=False).order_by('-reliability')
+            if strings.count():
+                string = strings[0]
+                translations = String.objects.filter(txu=string.txu, language=target_language)
                 for translation in translations:
-                    text = translation.target.text
+                    text = translation.text
                     if not text in translated_strings:
                         translated_strings.append(text)
-            except:
-                pass
         target_strings.append(translated_strings)
-
+    """
     var_dict = {}
     var_dict['page_block'] = block
     webpage = webpage_id and Webpage.objects.get(pk=webpage_id) or None
@@ -914,9 +932,8 @@ def block_translate(request, block_id, target_code):
     var_dict['edit_form'] = BlockEditForm(initial={'language': block.language, 'no_translate': block.no_translate,})
     var_dict['sequencer_form'] = BlockSequencerForm(initial={'webpage': webpage_id, 'block_age': block_age, 'translation_state': translation_state, 'translation_languages': translation_languages, 'translation_age': translation_age,})
     var_dict['source_segments'] = source_segments
-    # var_dict['target_list'] = target_list
     var_dict['translated_block'] = translated_block
-    var_dict['target_strings'] = target_strings
+    # var_dict['target_strings'] = target_strings
     return render_to_response('block_translate.html', var_dict, context_instance=RequestContext(request))
 
 def propagate_block_translation(request, block, translated_block):

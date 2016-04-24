@@ -954,6 +954,9 @@ class Block(node_factory('BlockEdge')):
         # return self.xpath
         return self.get_label()
 
+    def normalized_body(self):
+        return normalize_string(self.body)
+
     def pages_count(self):
         return self.webpages.all().count()
 
@@ -1231,6 +1234,9 @@ class TranslatedBlock(models.Model):
 
     def translated_block_get_segments(self, segmenter):
         return get_segments(self.body, self.block.site, segmenter)
+
+    def normalized_body(self):
+        return normalize_string(self.body)
 
 class BlockEdge(edge_factory('Block', concrete = False)):
     created = CreationDateTimeField(_('created'))

@@ -37,12 +37,12 @@ function apply_translation (target_code, id_from, id_to) {
 	segment = document.getElementById(id_from).textContent;
 	translation = document.getElementById(id_to).textContent;
 	textarea = document.getElementById(target_code);
-	text = textarea.textContent;
-	// tx_open = '<tx class="' + target_code + '">';
-	// tx_close = '</tx>';
+	// text = textarea.textContent;
+	text = textarea.value;
 	tx_open = '<span tx man>';
 	tx_close = '</span>';
-	pos = text.toLowerCase().indexOf(segment);
+	// pos = text.toLowerCase().indexOf(segment);
+	pos = text.indexOf(segment);
 	if (pos >= 0) {
 		firstchar = text.charAt(pos);
 		capfirst = (firstchar != firstchar.toLowerCase());
@@ -132,23 +132,19 @@ function apply_translation (target_code, id_from, id_to) {
 	</tr>
 	</thead>
 	<tbody>
-	<tr><td style="border-top-width:0;">Source</td><td style="border-top-width:0;"><div class="rounded-box {{ page_block.get_language.code }}">{{ page_block.body }}</div></td>
+	<tr><td style="border-top-width:0;">Source</td><td style="border-top-width:0;"><div class="rounded-box {{ page_block.get_language.code }}">{{ page_block.normalized_body }}</div></td>
 	<td style="vertical-align: top; border-top-width:0;">
 	{% if not page_block.no_translate %}
 		<table class="table"><tbody>
-		{% for segment, strings, language_translations in source_segments %}
-		<tr>{% comment %}<td style="vertical-align: top; border-top-color:transparent"><code>{{forloop.counter|rjust:"3"}}</code></td>{% endcomment %}
-			<td style="vertical-align: top; border-top-color:transparent;"><code>{{forloop.counter|rjust:"3"}}</code> {% if segment.id %}<span  id="str-{{ forloop.counter }}" style="font-weight: bold;">{{ segment.text }}</span> &nbsp;
+		{% for segment, strings, translations in source_segments %}
+		<tr><td style="vertical-align: top; border-top-color:transparent;"><code>{{forloop.counter|rjust:"3"}}</code> {% if segment.id %}<span  id="str-{{ forloop.counter }}" style="font-weight: bold;">{{ segment.text }}</span> &nbsp;
 			 	<button type="submit" onclick="translate_string('str-{{ forloop.counter }}'); return false;" class="fa fa-language" style="background-color: white; color: blue; border: none;" title="translate this string" />
 				{% else %}<span id="seg-{{ forloop.counter }}">{{ segment }}</span> &nbsp;
 				<button type="submit" onclick="make_string('seg-{{ forloop.counter }}'); return false;" class="fa fa-caret-square-o-up" style="background-color: transparent; color: #006BB1; border: none;" title="extract this string" />
 				{% endif %}</td></tr>
-		{% for language, translations in language_translations %}{% for t in translations %}
-		<tr>{% comment %}<td></td>{% endcomment %}<td><span id="tra-{{ forloop.counter }}" class="{{ language.code }}">{{ t.text }}</span>
-				<a onclick="apply_translation('{{ language.code }}', 'str-{{ forloop.parentloop.parentloop.counter }}', 'tra-{{ forloop.counter }}'); return true;" class="fa fa-check" style="background-color: white; color: blue; border: none;" title="apply this translation" /></td></tr>
-		{% endfor %}{% endfor %}
-		{% for score, string in strings %}
-		<tr>{% comment %}<td></td>{% endcomment %}<td style="font-style: italic; font-size: small;">{{ score|floatformat:2 }} {{ string.text }}</td></tr>
+		{% for t in translations %}
+		<tr><td><span id="tra-{{ forloop.parentloop.counter }}-{{ forloop.counter }}" class="{{ target_code }}">{{ t.text }}</span>
+				<a onclick="apply_translation('{{ target_code }}', 'str-{{ forloop.parentloop.counter }}', 'tra-{{ forloop.parentloop.counter }}-{{ forloop.counter }}'); return true;" class="fa fa-check" style="background-color: white; color: blue; border: none;" title="apply this translation" /></td></tr>
 		{% endfor %}
 		{% endfor %}
 		</tbody></table>
@@ -156,14 +152,13 @@ function apply_translation (target_code, id_from, id_to) {
 	</td>
 	</tr>
 	{% if not page_block.no_translate %}
-	{% comment %}{% for language, block, segment_strings in target_list %}{% endcomment %}
 	<tr><td style="vertical-align: top; border-top-color:transparent;">{{ target_language.name }}</td>
 	<td style="vertical-align: top; border-top-color:transparent;">
 	{% if translated_block %}
-	<textarea id="{{ target_code }}" name="translation-{{ target_code }}" class="rounded-box {{ target_code }}" style="width: 96%; height:100px; margin-top: 0.5em;">{{ translated_block.body }}</textarea>
+	<textarea id="{{ target_code }}" name="translation-{{ target_code }}" class="rounded-box {{ target_code }}" style="width: 96%; height:100px; margin-top: 0.5em;">{{ translated_block.normalized_body }}</textarea>
 	<input type="submit" value="Modify translation" name="modify-{{ target_code }}" />
 	{% else %}
-	<textarea id="{{ target_code }}" name="translation-{{ target_code }}" name="translation-{{ target_code }}"  style="width: 96%; height:100px;">{{ page_block.body }}</textarea>
+	<textarea id="{{ target_code }}" name="translation-{{ target_code }}" name="translation-{{ target_code }}"  style="width: 96%; height:100px;">{{ page_block.normalized_body }}</textarea>
 	<input type="submit" class="btn btn-sm" value="Create translation" name="create-{{ target_code }}" />
 	{% endif %}
 	</td>
