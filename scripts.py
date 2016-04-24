@@ -6,12 +6,14 @@ sys.stdout = codecs.getwriter('utf8')(sys.stdout)
 sys.stderr = codecs.getwriter('utf8')(sys.stderr)
 
 import os
+import urllib2
 from datetime import datetime
 from collections import defaultdict
+from django.shortcuts import get_object_or_404
 from settings import DATA_ROOT, RESOURCES_ROOT
-from models import Site, Block, String, Txu, TxuSubject
+from models import Site, Webpage, PageVersion, Block, String, Txu, TxuSubject
 from vocabularies import Language, Subject
-from utils import normalize_string
+from utils import string_checksum, normalize_string
 
 def set_blocks_language(slug, dry=False):
     from wip.utils import guess_block_language
@@ -199,3 +201,23 @@ def db_fix_italian_strings():
         print s.id, t, t2
         s.text = t2
         s.save()    
+
+def add_page(site_slug, path):
+    site = get_object_or_404(Site, slug=site_slug)
+    """
+    page_url = site.url + path
+    print page_url
+    request = urllib2.Request(page_url)
+    response = urllib2.urlopen(request)
+    body = response.read()
+    webpage = Webpage(site=site, path=path)
+    webpage.save()
+    page_version = PageVersion(webpage=webpage, response_code='200', size=len(body), checksum=string_checksum(body), body=body)
+    page_version.save()
+    """
+    webpage = Webpage.objects.get(site=site, path=path)
+    print webpage.extract_blocks()
+    webpage.create_blocks_dag()
+    return site.id, webpage.id, page_version.id
+
+    

@@ -1033,7 +1033,9 @@ class Block(node_factory('BlockEdge')):
             if translation_codes:
                 qs = qs.annotate(nt = RawSQL("SELECT COUNT(*) FROM wip_translatedblock WHERE block_id = wip_block.id and language_id IN ('%s')" % "','".join(translation_codes), ())).filter(nt=0)
             else:
-                qs = qs.filter(source_block__isnull=True).exclude(no_translate=True) # none
+                # qs = qs.filter(source_block__isnull=True).exclude(no_translate=True) # none
+                qs = qs.filter(source_block__isnull=True) # none
+            qs = qs.exclude(no_translate=True) # none
             if target_code:
                 qs = qs.exclude(language_id=target_code)
         if order_by == 'id':
