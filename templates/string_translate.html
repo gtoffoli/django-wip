@@ -91,7 +91,7 @@ function capFirst(id) {
 	{% for t in tt %}
     <tr class="{% cycle 'odd' 'even' %}">
     	<td class="{{ l.code }}"></td>
-    	<td style="text-align: left">{{ t.txu.entry_id }}</td>
+    	<td style="text-align: left">{{ t.txu }}</td>
     	<td style="text-align: center">{{ t.reliability }}</td>
     	<td class="{{ l.code }}">{{ t.text }}<a onclick="addText(this.parentNode, 'id_translation')"><span class="fa fa-copy" style="font-size: 1.0em; padding-left: 1.0em;" title="append this translation to your translation"></span></a></td>
    	</tr>
@@ -105,7 +105,7 @@ function capFirst(id) {
 	{% for score, s, lltt in similar_strings %}{% for l, tt in lltt %}{% for t in tt %}
     <tr class="{% cycle 'odd' 'even' %}">
     	<td>{% if forloop.counter == 1 %}{{ score|floatformat:1 }} &nbsp; <a href="/string/{{ s.id }}/" class="{{ source_language.code }}">{{ s.text }}</a>{% endif %}</td>
-    	<td style="text-align: left">{{ t.txu.entry_id }}</td>
+    	<td style="text-align: left">{{ t.txu }}</td>
     	<td style="text-align: center">{{ t.reliability }}</td>
     	<td>{% for token in t.tokens %}<a onclick="addText(this, 'id_translation')" style="cursor: pointer;" title="append this word to your translation">{{ token }} </a>{% endfor %}<a onclick="addText(this.parentNode, 'id_translation')"><span class="fa fa-copy" style="font-size: 1.0em; padding-left: 1.0em;" title="append this translation to your translation"></span></a></td>
    	</tr>
