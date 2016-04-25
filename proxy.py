@@ -77,9 +77,9 @@ class WipHttpProxy(HttpProxy):
     def replace_links(self, response):
         response.content = response.content.replace(self.base_url, self.prefix)
         if self.language_code == 'en':
-            response.content = response.content.replace('Cerca corsi', 'Search courses')
+            response.content = response.content.replace('Cerca corsi', 'Search courses').replace('Cerca...', 'Search...')
         if self.language_code == 'es':
-            response.content = response.content.replace('Cerca corsi', 'Buscar cursos')
+            response.content = response.content.replace('Cerca corsi', 'Buscar cursos').replace('Cerca...', 'Buscar...')
         return response
 
     def translate(self, response):
