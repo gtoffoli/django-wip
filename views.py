@@ -1278,17 +1278,23 @@ def proxy_string_translations(request, proxy_slug, state=''):
  
     post = request.POST
     if post:
+        print 'post = ', post
         selection = post.getlist('selection')
         print 'selection: ', selection
-        if post.get('delete_translations'):
-            pass
-        elif post.get('toggle_invariants'):
+        if post.get('delete-translations', ''):
+            print 'delete-translations'
+        elif post.get('toggle-invariants', ''):
+            print 'toggle-invariants'
             for string_id in selection:
                 string = String.objects.get(pk=int(string_id))
                 if string.invariant:
-                    string.update(invariant=False)
+                    string.invariant = False
+                    string.save()
+                    print 'True-> False'
                 elif not string.txu:
-                    string.update(invariant=True)
+                    string.invariant = True
+                    string.save()
+                    print 'False-> True'
     
     target_languages = Language.objects.order_by('code')
     qs = find_strings(source_languages=[source_language], target_languages=target_languages, site=site, translated=translated)
