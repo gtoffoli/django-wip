@@ -38,10 +38,13 @@
       </div>
     {% endif %}
 
+{% comment %}{% endcomment %}
+<form action="#" method="post" id="translation-form">{% csrf_token %}
 
     <table class="table table-responsive table-bordered table-striped mB5">
       <thead>
         <th class="text-right">#</th>
+        <th></th>
         <th style="width:40%">{{ source_language }}</th>
         <th style="width:54%">{{ target_language }}</th>
       </thead>
@@ -49,6 +52,7 @@
       {% for string in strings %}
         <tr>
           <td class="text-right">{{forloop.counter|add:offset}}</td>
+          <td><input type="checkbox" name="selection" value="{{ string.id }}" /></td>
           <td>
             {{ string.text }}
           </td>
@@ -57,27 +61,47 @@
             {% if string.txu_id %}
               {% for translation in string.get_translations %}
                 {% if translation.0 == target_language %}
-                   <form action="#" method="post">{% csrf_token %}<input type="hidden" name="source_id" value="{{ string.id }}"><input type="hidden" name="txu_id" value="{{ string.txu_id}}">
+                {% comment %}<form action="#" method="post">{% csrf_token %}{% endcomment %}
+                	<input type="hidden" name="source_id" value="{{ string.id }}" id="{{ string.id }}">
+                	<input type="hidden" name="txu_id" value="{{ string.txu_id}}" id="txu-{{ string.id }}">
                   <div class="input-group">
                     {% if translation.1 %}
                       {% for s in translation.1 %}
-                        <input type="hidden" name="translated_id" value="{{ s.id }}"><span class="input-group-btn"><button type="reset" class="btn" style="background:transparent; border:none" name="delete" value="D"><i class="fa fa-times" aria-hidden="true"></i></button></span><textarea class="form-control custom-control" name="translation" style="width:100%">{{ s.text }}</textarea><span class="input-group-btn"><input class="btn btn-default btn-sm" type="submit" name="salva" value="{% trans "save"|capfirst %}"></span>
+                        	<input type="hidden" name="translated_id" value="{{ s.id }}" id="translated-{{ string.id }}">
+                        	{% comment %}<span class="input-group-btn"><button type="reset" class="btn" style="background:transparent; border:none" name="delete" value="D"><i class="fa fa-times" aria-hidden="true"></i></button></span>{% endcomment %}
+                        	<textarea class="form-control custom-control" name="translation-{{ string.id }}" id="translation-{{ string.id }}" style="width:100%">{{ s.text }}</textarea>
+                        	<span class="input-group-btn">
+                        	{% comment %}<input class="btn btn-default btn-sm" type="submit" name="save" value="{% trans "save"|capfirst %}">{% endcomment %}
+                  			<input class="btn btn-default btn-sm" type="button" name="save-{{ string.id }}-{{ translated_id }}-{{ string.txu_id}}" value="{% trans "save"|capfirst %}" onclick="save_translation('{{ string.id }}', 'txu-{{ string.id }}', 'translated-{{ string.id }}', 'translation-{{ string.id }}')">
+                        	</span>
                       {% endfor %}
                     {% else %}
-                        <input type="hidden" name="translated_id" value="0"><textarea class="form-control custom-control" name="translation" style="width:100%"></textarea><span class="input-group-btn"><input class="btn btn-default btn-sm" type="submit" name="save" value="{% trans "save"|capfirst %}"></span>
+                        <input type="hidden" name="translated_id" value="0" id="translated-{{ string.id }}">
+                        <textarea class="form-control custom-control" name="translation-{{ string.id }}" id="translation-{{ string.id }}" style="width:100%"></textarea>
+                        <span class="input-group-btn">
+                        {% comment %}<input class="btn btn-default btn-sm" type="submit" name="save" value="{% trans "save"|capfirst %}">{% endcomment %}
+                  		<input class="btn btn-default btn-sm" type="button" name="save-{{ string.id }}-{{ translated_id }}-0" value="{% trans "save"|capfirst %}" onclick="save_translation('{{ string.id }}', 'txu-{{ string.id }}', 'translated-{{ string.id }}', 'translation-{{ string.id }}')">
+                        </span>
                     {% endif %}
                   </div>
-                </form>
+                {% comment %}</form>{% endcomment %}
 
                 {% endif %}
 
               {% endfor %}
             {% else %}
-              <form action="#" method="post">{% csrf_token %}<input type="hidden" name="source_id" value="{{ string.id }}"><input type="hidden" name="txu_id" value="0"><input type="hidden" name="translated_id" value="0">
+              {% comment %}<form action="#" method="post">{% csrf_token %}{% endcomment %}
+              	  <input type="hidden" name="source_id" value="{{ string.id }}" id="{{ string.id }}">
+              	  <input type="hidden" name="txu_id" value="0" id="txu-{{ string.id }}">
+              	  <input type="hidden" name="translated_id" value="0" id="translated-{{ string.id }}">
                 <div class="input-group">
-                  <span class="input-group-btn"></span><textarea class="form-control custom-control" name="translation" style="width:100%"></textarea><span class="input-group-btn"><input class="btn btn-default btn-sm" type="submit" name="save" value="{% trans "save"|capfirst %}"></span>
+                  <span class="input-group-btn"></span><textarea class="form-control custom-control" name="translation-{{ string.id }}" id="translation-{{ string.id }}" style="width:100%"></textarea>
+                  <span class="input-group-btn">
+                  {% comment %}<input class="btn btn-default btn-sm" type="submit" name="save" value="{% trans "save"|capfirst %}">{% endcomment %}
+                  <input class="btn btn-default btn-sm" type="button" name="save-{{ string.id }}-0-0" value="{% trans "save"|capfirst %}" onclick="save_translation('{{ string.id }}', 'txu-{{ string.id }}', 'translated-{{ string.id }}', 'translation-{{ string.id }}')">
+                  </span>
                 </div>
-              </form>
+              {% comment %}</form>{% endcomment %}
             {% endif %}
           {% endif %}
           </td>
@@ -85,6 +109,13 @@
       {% endfor %}
       </tbody>
     </table>
+
+<div>
+<input class="btn btn-default btn-sm" type="submit" name="toggle-invariant" value="{% trans "toggle invariants"|capfirst %}">
+<input class="btn btn-default btn-sm" type="submit" name="delete-translation" value="{% trans "delete translation"|capfirst %}">
+</div>
+</form>
+{% comment %}{% endcomment %}
 
     {% if strings.paginator.num_pages > 1 %} 
       <div class="text-right">
@@ -104,7 +135,47 @@
 
 {% block extra_script %}
 <script type="text/javascript">
-	$(document).ready(function() {
+
+function save_translation(source_id, txu, translated, translation) {
+	var form = document.getElementById('translation-form');
+	var csrftoken = form.elements["csrfmiddlewaretoken"].value
+	var txu_id = document.getElementById(txu).value;
+	var translated_id = document.getElementById(translated).value;
+	var textarea = document.getElementById(translation);
+	var textvalue = textarea.value;
+	if (textvalue != '') {
+		$.ajax({
+			type: 'post', 
+			url: '/add_translated_string/',
+			data: { 'csrfmiddlewaretoken': csrftoken,
+					'site_name': '{{ site.name}}',
+					's_l':  '{{ source_language }}',
+					't_l':  '{{ target_language }}',
+					'source_id': source_id,
+					'txu_id': txu_id,
+					'translated_id': translated_id,
+					'translation': textvalue,
+					},
+			success: function(json){
+				switch (json.data){ 
+					case 'add-txt-string':
+						$(txu_id).val(json.txu_id);
+						$(translated_id).val(json.translated_id);
+						break;
+					case "add-string":
+						$(translated_id).val(json.translated_id);
+				}
+			},
+			error: function() {
+				alert('Sorry! Something went wrong.');
+			}
+		});
+	}
+}
+
+
+$(document).ready(function() {
+	{% comment %}
 		$('button').click(function() {
 			console.log('delete');
 			var input = $(this).parent().closest("form").find("input");
@@ -169,7 +240,8 @@
 					}
 				});
 			}
-		 }); 
-  });
+		 });
+		{% endcomment %}
+});
 </script>
 {% endblock %}

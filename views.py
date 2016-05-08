@@ -192,15 +192,19 @@ def site(request, site_slug):
                     else:
                         print 'extract_blocks: error on page ', webpage.id
             elif extract_segments:
+                dry = False
                 language = site.language
                 language_code = language.code
                 webpages = Webpage.objects.filter(site=site)
-                extract_deny_list = site.extract_deny and site.extract_deny.split('\n') or []
+                # extract_deny_list = site.extract_deny and site.extract_deny.split('\n') or []
+                extract_deny_list = text_to_list(site.extract_deny)
+                if dry:
+                    print extract_deny_list
                 for webpage in webpages:
+                    path = webpage.path
                     if webpage.last_unfound and (webpage.last_unfound > webpage.last_checked):
                         continue
                     should_skip = False
-                    path = webpage.path
                     for deny_path in extract_deny_list:
                         if path.count(deny_path):
                             should_skip = True
@@ -213,7 +217,8 @@ def site(request, site_slug):
                     page_version = page_versions[0]
                     skip_page = False
                     for content in PAGES_EXCLUDE_BY_CONTENT.get(site.slug, []):
-                        if page_version.body.count(content):
+                        # if page_version.body.count(content):
+                        if len(path)>1 and page_version.body.count(content):
                             skip_page = True
                             break
                     if skip_page:
@@ -221,6 +226,10 @@ def site(request, site_slug):
                     try:
                         segments = page_version.page_version_get_segments()
                     except: # Unicode strings with encoding declaration are not supported. Please use bytes input or XML fragments without declaration.
+                        print '- error on ', path
+                        continue
+                    if dry:
+                        print path
                         continue
                     for s in segments:
                         s = s.replace('\xc2\xa0', ' ')
@@ -1266,6 +1275,20 @@ def proxy_string_translations(request, proxy_slug, state=''):
     else:
         translated = None
     # qs = find_strings(source_languages=[source_language], target_languages=[target_language], site=site, translated=translated)
+ 
+    post = request.POST
+    if post:
+        selection = post.getlist('selection')
+        print 'selection: ', selection
+        if post.get('delete_translations'):
+            pass
+        elif post.get('toggle_invariants'):
+            for string_id in selection:
+                string = String.objects.get(pk=int(string_id))
+                if string.invariant:
+                    string.update(invariant=False)
+                elif not string.txu:
+                    string.update(invariant=True)
     
     target_languages = Language.objects.order_by('code')
     qs = find_strings(source_languages=[source_language], target_languages=target_languages, site=site, translated=translated)
