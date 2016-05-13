@@ -136,6 +136,20 @@ STATIC_ROOT = os.path.join(BASE_DIR, 'static')
 
 BROKER_URL = 'amqp://guest:guest@localhost:5672//'
 
+# Cache backend is optional, but recommended to speed up user agent parsing
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.memcached.MemcachedCache',
+        'LOCATION': '127.0.0.1:11211',
+    },
+    'resources': {
+        'BACKEND': 'django.core.cache.backends.filebased.FileBasedCache',
+        'LOCATION': os.path.join(BASE_DIR, 'cache/resources'),
+        'TIMEOUT': 24*60*60,
+        'MAX_ENTRIES': 1000,
+    },
+}
+
 """
 logging levels:
 DEBUG: Low level system information for debugging purposes
