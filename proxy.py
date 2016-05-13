@@ -41,7 +41,7 @@ class WipHttpProxy(HttpProxy):
                 response = self.rewrite_response(request, response)
             return response
 
-        key = '%s-%s' % (proxy.slug, url)
+        key = '%s-%s' % (proxy.site.path_prefix, url)
         should_cache_resource = False
         resource_match = RESOURCES_REGEX.search(url)
         if resource_match is not None:
