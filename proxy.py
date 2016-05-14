@@ -9,6 +9,14 @@ from models import Proxy, Webpage
 # REWRITE_REGEX = re.compile(r'((?:src|action|href)=["\'])/(?!\/)')
 REWRITE_REGEX = re.compile(r'((?:action)=["\'])/(?!\/)')
 RESOURCES_REGEX = re.compile(r'(\.(css|js|png|jpg|gif|pdf|ppt|pptx|doc|docx|xls|xslx|odt))', re.IGNORECASE)
+BODY_REGEX = re.compile(r'(\<body.*?\>)', re.IGNORECASE)
+
+info = {
+  'en': """
+<div align="center">This is an experimental partial translation of the website <a href="%s">%s</a></div>""",
+  'es': """
+<div align="center">Esta es una traducción experimental y parcial del sitio web <a href="%s">%s</a></div>""",
+}
 
 class WipHttpProxy(HttpProxy):
     prefix = ''
@@ -78,24 +86,21 @@ class WipHttpProxy(HttpProxy):
         """
         Rewrites the response to fix references to resources loaded from HTML
         files (images, etc.).
-
-        .. note::
+        .. note:
             The rewrite logic uses a fairly simple regular expression to look for
             "src", "href" and "action" attributes with a value starting with "/"
-            â€“ your results may vary.
         """
         proxy_root = self.original_request_path.rsplit(request.path, 1)[0]
-        response.content = REWRITE_REGEX.sub(r'\1{}/'.format(proxy_root),
-                response.content)
+        content = response.content
+        content = REWRITE_REGEX.sub(r'\1{}/'.format(proxy_root), content)
+        site_url = self.base_url
+        content = BODY_REGEX.sub(r'\1' + info[self.language_code] % (site_url, site_url.split('//')[1]), content)
+        response.content = content
         return response
 
     def replace_links(self, response):
         content = response.content
         content = content.replace(self.base_url, self.prefix)
-        """
-        REGEX = re.compile(r'(?:src|href)=["\'](.*?)["\'](?<!(css|\.js|png|jpg|gif|pdf|ppt|ppt|doc|doc|xls|xls|odt))', re.IGNORECASE)
-        content = REGEX.sub(r'\1{}/'.format(self.prefix), content)
-        """
         if self.language_code == 'en':
             content = content.replace('Cerca corsi', 'Search courses').replace('Cerca...', 'Search...')
         if self.language_code == 'es':
