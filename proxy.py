@@ -13,10 +13,12 @@ BODY_REGEX = re.compile(r'(\<body.*?\>)', re.IGNORECASE)
 
 info = {
   'en': """
-<div align="center">This is an experimental partial translation of the website <a href="%s">%s</a></div>""",
+<div align="center">%sThis is an experimental partial translation of the website <a href="%s">%s</a></div>""",
   'es': """
-<div align="center">Esta es una traducción experimental y parcial del sitio web <a href="%s">%s</a></div>""",
+<div align="center">%sEsta es una traducción experimental y parcial del sitio web <a href="%s">%s</a></div>""",
 }
+backdoor = """
+"""
 
 class WipHttpProxy(HttpProxy):
     prefix = ''
@@ -39,6 +41,10 @@ class WipHttpProxy(HttpProxy):
                 self.site = site
                 self.base_url = site.url
                 break
+
+        if not self.proxy:
+            self.proxy = proxy = Proxy.objects.get(pk=self.proxy_id)
+            self.site = site = proxy.site
 
         self.original_request_path = request.path
         request = self.normalize_request(request)
@@ -67,9 +73,7 @@ class WipHttpProxy(HttpProxy):
         # content_type = response.headers['Content-Type']
         trailer = response.content[:100]
         if trailer.count('<') and trailer.lower().count('html'):
-            print url
-            print request.path
-            print request.GET
+            self.path = urlparse.urlparse(self.url).path
             if self.proxy_id and self.language_code:
                 self.translate(response)
             else:
@@ -80,6 +84,16 @@ class WipHttpProxy(HttpProxy):
             if self.rewrite_links:
                 response = self.replace_links(response)
                 response = self.rewrite_response(request, response)
+        return response
+
+    def replace_links(self, response):
+        content = response.content
+        content = content.replace(self.base_url, self.prefix)
+        if self.language_code == 'en':
+            content = content.replace('Cerca corsi', 'Search courses').replace('Cerca...', 'Search...')
+        if self.language_code == 'es':
+            content = content.replace('Cerca corsi', 'Buscar cursos').replace('Cerca...', 'Buscar...')
+        response.content = content
         return response
 
     def rewrite_response(self, request, response):
@@ -94,17 +108,12 @@ class WipHttpProxy(HttpProxy):
         content = response.content
         content = REWRITE_REGEX.sub(r'\1{}/'.format(proxy_root), content)
         site_url = self.base_url
-        content = BODY_REGEX.sub(r'\1' + info[self.language_code] % (site_url, site_url.split('//')[1]), content)
-        response.content = content
-        return response
-
-    def replace_links(self, response):
-        content = response.content
-        content = content.replace(self.base_url, self.prefix)
-        if self.language_code == 'en':
-            content = content.replace('Cerca corsi', 'Search courses').replace('Cerca...', 'Search...')
-        if self.language_code == 'es':
-            content = content.replace('Cerca corsi', 'Buscar cursos').replace('Cerca...', 'Buscar...')
+        extra = ''
+        if request.user.is_superuser:
+            webpages = Webpage.objects.filter(site=self.site, path=self.path).order_by('-created')
+            if webpages:
+                extra = '<a href="/page/%s/">@</a> ' % webpages[0].id
+        content = BODY_REGEX.sub(r'\1' + info[self.language_code] % (extra, site_url, site_url.split('//')[1]), content)
         response.content = content
         return response
 
