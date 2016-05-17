@@ -715,12 +715,9 @@ class Webpage(models.Model):
         for bip in blocks_in_page:
             block = bip.block
             xpath = bip.xpath
-            """
-            i += 1
-            for j in range(i):
-            """
             for j in range(i, -1, -1):
-                if xpath.startswith(xpaths[j]):
+                # if xpath.startswith(xpaths[j]):
+                if xpath.startswith(xpaths[j]) and not xpath==xpaths[j]:
                     parent = blocks[j]
                     m += 1
                     if not BlockEdge.objects.filter(parent=parent, child=block):
@@ -728,10 +725,6 @@ class Webpage(models.Model):
                         n += 1
                         print xpaths[j], xpath
                     break
-            """
-            blocks = [block]+blocks
-            xpaths = [xpath]+xpaths
-            """
             i += 1
             blocks.append(block)
             xpaths.append(xpath)
@@ -795,6 +788,7 @@ class PageVersion(models.Model):
             found = get_strings(string, language, site=site)
             if found and found[0].invariant:
                 continue
+            """
             matches = []
             if string.count('(') and string.count(')'):
                 matches = re_parentheses.findall(string)
@@ -804,6 +798,8 @@ class PageVersion(models.Model):
             strings.extend(segmenter.extract(string)[0])
             for match in matches:
                 strings.extend(segmenter.extract(match)[0])
+            """
+            strings.extend(segmenter.extract(string)[0])
         return strings
 
 class TranslatedVersion(models.Model):
@@ -1310,6 +1306,7 @@ def get_segments(body, site, segmenter, fragment=True, exclude_tx=True, exclude_
         found = get_strings(string, language, site=site)
         if found and found[0].invariant:
             continue
+        """
         matches = []
         if string.count('(') and string.count(')'):
             matches = re_parentheses.findall(string)
@@ -1319,6 +1316,8 @@ def get_segments(body, site, segmenter, fragment=True, exclude_tx=True, exclude_
         strings.extend(segmenter.extract(string)[0])
         for match in matches:
             strings.extend(segmenter.extract(match)[0])
+        """
+        strings.extend(segmenter.extract(string)[0])
     filtered = []
     for string in strings:
         string = string.strip(stripped_chars)

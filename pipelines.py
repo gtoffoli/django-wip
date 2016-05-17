@@ -5,15 +5,18 @@
 # Don't forget to add your pipeline to the ITEM_PIPELINES setting
 # See: http://doc.scrapy.org/en/latest/topics/item-pipeline.html
 
+"""
 try:
     from cStringIO import StringIO as BytesIO
 except ImportError:
     from io import BytesIO
+"""
 import time
 import urlparse
 import urllib2, json
 # from scrapy.exceptions import DropItem
-from scrapy.utils.misc import md5sum
+# from scrapy.utils.misc import md5sum
+from utils import string_checksum
 
 import logging
 logger = logging.getLogger('wip.views')
@@ -47,12 +50,15 @@ class WipCrawlPipeline(object):
         page.last_checked = timezone.now()
         page.last_checked_response_code = item['status']
         page.save()
+        """
         buf = BytesIO(item['body'])
         checksum = md5sum(buf)
+        """
+        checksum = string_checksum(item['body'])
         fetched_pages = PageVersion.objects.filter(webpage=page).order_by('-time')
         last = fetched_pages and fetched_pages[0] or None
-        # if not last or checksum!=last.checksum:
-        if not last:
+        # if not last:
+        if not last or checksum!=last.checksum:
             body = item['encoding'].count('text/') and item['body'] or ''
             fetched = PageVersion(webpage=page, response_code=item['status'], size=item['size'], checksum=checksum, body=body)
             fetched.save()

@@ -136,9 +136,8 @@ th, td { text-align: left; vertical-align: top; }
 	{% endif %}
  
 
- {% if blocks %}
+ {% if blocks and list_blocks %}
  <h4 style="margin-top:20px">Blocks contained in this page</h4>
-  		{% if list_blocks %}
     	<table class="table table-responsive table-bordered table-striped">
    		<thead>
    			<tr>
@@ -165,8 +164,5 @@ th, td { text-align: left; vertical-align: top; }
 		    {% endfor %}
 	    </tbody>
     	</table>
-	{% else %}
-		<p>{% trans "no pages include this HTML fragment"|capfirst %}</p>
-	{% endif %}
  	{% endif %}
 {% endblock %}

@@ -139,8 +139,7 @@ BROKER_URL = 'amqp://guest:guest@localhost:5672//'
 # Cache backend is optional, but recommended to speed up user agent parsing
 CACHES = {
     'default': {
-        'BACKEND': 'django.core.cache.backends.memcached.MemcachedCache',
-        'LOCATION': '127.0.0.1:11211',
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
     },
     'resources': {
         'BACKEND': 'django.core.cache.backends.filebased.FileBasedCache',
