@@ -414,7 +414,8 @@ class Proxy(models.Model):
                     replaced = False
                     if count:
                         l_body = len(body)
-                        for m in re.finditer(segment, body):
+                        # for m in re.finditer(segment, body):
+                        for m in re.finditer(re.escape(segment), body):
                             start = m.start()
                             if start>0 and body[start-1] in BOTH_QUOTES:
                                 continue
