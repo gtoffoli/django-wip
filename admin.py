@@ -181,7 +181,7 @@ class BlockEdgeAdmin(admin.ModelAdmin):
 class BlockInPageAdmin(admin.ModelAdmin):
     list_filter = ['block__site',]
     # list_display = ['id', 'page_link', 'block_link',]
-    list_display = ['id', 'page_link', 'block_link', 'xpath']
+    list_display = ['id', 'page_link', 'block_link', 'xpath', 'time']
     search_fields = ['xpath',]
 
     def block_link(self, obj):

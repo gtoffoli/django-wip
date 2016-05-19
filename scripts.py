@@ -204,18 +204,19 @@ def db_fix_italian_strings():
 
 def add_page(site_slug, path):
     site = get_object_or_404(Site, slug=site_slug)
-    """
     page_url = site.url + path
     print page_url
     request = urllib2.Request(page_url)
     response = urllib2.urlopen(request)
     body = response.read()
-    webpage = Webpage(site=site, path=path)
-    webpage.save()
+    try:
+        webpage = Webpage.objects.get(site=site, path=path)
+    except:
+        webpage = Webpage(site=site, path=path)
+        webpage.save()
     page_version = PageVersion(webpage=webpage, response_code='200', size=len(body), checksum=string_checksum(body), body=body)
     page_version.save()
-    """
-    webpage = Webpage.objects.get(site=site, path=path)
+    # webpage = Webpage.objects.get(site=site, path=path)
     print webpage.extract_blocks()
     webpage.create_blocks_dag()
     return site.id, webpage.id, page_version.id

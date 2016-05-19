@@ -16,6 +16,7 @@ logger = logging.getLogger('wip')
 
 from collections import defaultdict
 import os
+import urllib2
 import re
 # import datetime
 # from namedentities import unicode_entities
@@ -544,10 +545,26 @@ class Webpage(models.Model):
             language_blocks_translations.append([language, TranslatedBlock.objects.filter(block__page=self, language=language).values('block_id').distinct().count()])
         return language_blocks_translations
 
+    def fetch_live(self):
+        page_url = self.site.url + self.path
+        request = urllib2.Request(page_url)
+        response = urllib2.urlopen(request)
+        body = response.read()
+        return body
+
     def get_translation(self, language_code, use_cache=True, cache=False):
         content = None
         has_translation = False
+        site = self.site
         language = get_object_or_404(Language, code=language_code)
+        proxy = Proxy.objects.get(site=site, language=language)
+        if proxy.enable_live_translation:
+            content = self.fetch_live()
+            content_document = html.document_fromstring(content)
+            translated_document, has_translation = translated_element(content_document, site, self, language)
+            if has_translation:
+                content = element_tostring(translated_document)
+                return content, has_translation
         if not cache:
             translated_versions = TranslatedVersion.objects.filter(webpage=self, language=language).order_by('-modified')
             translated_version = translated_versions and translated_versions[0] or None
@@ -556,7 +573,6 @@ class Webpage(models.Model):
             return translated_version.body, True        
         versions = PageVersion.objects.filter(webpage=self).order_by('-time')
         last_version = versions and versions[0] or None
-        site = self.site
         if last_version:
             content = last_version.body
             content_document = html.document_fromstring(content)
