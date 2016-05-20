@@ -13,20 +13,29 @@
 
 {% block body_id %}list_strings{% endblock %}
 
-{% block title-page %}{% trans "strings"|capfirst %}{% if source_language %} in
+{% block title-page %}{% trans "Strings translation"|capfirst %}{% if source_language %} from
 <pre style="display:inline; font-size:22px; padding:4.5px 9.5px">{{ source_language }}</pre>
 {% endif %}
-{{ state }}
 {% if target_language %} to
 <pre style="display:inline; font-size:22px; padding:4.5px 9.5px">{{ target_language }}</pre>
-{% endif %}{% endblock %}
+{% endif %}
+{% if proxy %}
+<span style="font-size: medium;">Proxy: <a href="/proxy/{{ proxy.slug }}/">{{ proxy.name }}</a></span>
+{% endif %}
+{% if string_count %}
+<span style="font-size: medium;">- {% trans "strings found"|capfirst %}: {{ string_count }}</span>
+{% endif %}
+{% endblock %}
 
 {% block content-page %}
 
-<h4>Proxy: <a href="/proxy/{{ proxy.slug }}/">{{ proxy.name }}</a></h4>
-
   {% if string_count %}
-    <p>{% trans "strings found"|capfirst %}: {{ string_count }}</p>
+
+<form action="#" method="post" id="translation-form">{% csrf_token %}
+
+<div>{% for field in strings_translations_form.visible_fields|slice:"0:2" %}{{ field.label_tag }} {{ field }} &nbsp; {% endfor %}</div>
+<div>{% for field in strings_translations_form.visible_fields|slice:"2:4" %}{{ field.label_tag }} {{ field }} &nbsp; {% endfor %}</div>
+<div>{% for field in strings_translations_form.visible_fields|slice:"4:6" %}{{ field.label_tag }}<span style="font-size: medium;">&nbsp; </span>{{ field }} &nbsp; {% endfor %}</div>
 
     {% if strings.paginator.num_pages > 1 %}
       <div class="text-right">
@@ -37,9 +46,6 @@
         </ul>
       </div>
     {% endif %}
-
-{% comment %}{% endcomment %}
-<form action="#" method="post" id="translation-form">{% csrf_token %}
 
     <table class="table table-responsive table-bordered table-striped mB5">
       <thead>

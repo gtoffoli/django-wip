@@ -42,7 +42,7 @@ from models import Block, BlockEdge, TranslatedBlock, BlockInPage, String, Txu, 
 from models import TO_BE_TRANSLATED, TRANSLATED, PARTIALLY, INVARIANT, ALREADY
 from models import MYMEMORY, TRANSLATION_SERVICE_DICT
 from forms import SiteManageForm, ProxyManageForm, PageEditForm, PageSequencerForm, BlockEditForm, BlockSequencerForm
-from forms import StringSequencerForm, StringTranslationForm, TranslationServiceForm
+from forms import StringSequencerForm, StringsTranslationsForm, StringTranslationForm, TranslationServiceForm
 from session import get_language, set_language, get_site, set_site
 
 from settings import PAGE_SIZE, PAGE_STEPS
@@ -1253,16 +1253,20 @@ def find_like_strings(source_string, translation_languages=[], with_translations
     like_strings.sort(key=lambda x: x[0], reverse=True)
     return like_strings[:max_strings]
 
-def proxy_string_translations(request, proxy_slug, state=''):
+# def proxy_string_translations(request, proxy_slug, state=''):
+def proxy_string_translations(request, proxy_slug=None, state=None):
     """
     list translations from source language (code) to target language (code)
     """
     if not request.user.is_superuser:
         return empty_page(request);
-    var_dict = {}
-    var_dict['proxy'] = proxy = Proxy.objects.get(slug=proxy_slug)
-    var_dict['site'] = site = proxy.site
     PAGE_SIZE = 100
+    """
+    var_dict = {}
+    proxy = site = None
+    if proxy_slug:
+        var_dict['proxy'] = proxy = Proxy.objects.get(slug=proxy_slug)
+        var_dict['site'] = site = proxy.site
     var_dict['state'] = state
     translated = None
     var_dict['source_language'] = source_language = site.language
@@ -1275,16 +1279,34 @@ def proxy_string_translations(request, proxy_slug, state=''):
     else:
         translated = None
     # qs = find_strings(source_languages=[source_language], target_languages=[target_language], site=site, translated=translated)
- 
-    post = request.POST
-    if post:
-        print 'post = ', post
-        selection = post.getlist('selection')
-        print 'selection: ', selection
+    """
+    proxy = proxy_slug and Proxy.objects.get(slug=proxy_slug) or None
+
+    tm_edit_context = request.session.get('tm_edit_context', {})
+    translation_state = state or tm_edit_context.get('translation_state', 0)
+    project_site_id = proxy and proxy.site.id or tm_edit_context.get('project_site', None)
+    project_site = project_site_id and Site.objects.get(pk=project_site_id) or None
+    source_language_code = project_site and project_site.language_id or tm_edit_context.get('source_language', None)
+    source_language = source_language_code and Language.objects.get(code=source_language_code) or None
+    target_language_code = proxy and proxy.language_id or tm_edit_context.get('target_language', None)
+    target_language = target_language_code and Language.objects.get(code=target_language_code) or None
+    source_text_filter = tm_edit_context.get('source_text_filter', '')
+    target_text_filter = tm_edit_context.get('target_text_filter', '')
+    if proxy:
+        tm_edit_context['project_site'] = project_site_id
+        tm_edit_context['source_language'] = source_language_code
+        tm_edit_context['target_language'] = target_language_code
+        request.session['tm_edit_context'] = tm_edit_context
+    if request.method == 'POST':
+        post = request.POST
+        form = StringsTranslationsForm(post)
+        print 'form = ', form
         if post.get('delete-translations', ''):
-            print 'delete-translations'
+            selection = post.getlist('selection')
+            print 'delete-translations', selection
         elif post.get('toggle-invariants', ''):
-            print 'toggle-invariants'
+            selection = post.getlist('selection')
+            print 'toggle-invariants', selection
             for string_id in selection:
                 string = String.objects.get(pk=int(string_id))
                 if string.invariant:
@@ -1295,10 +1317,50 @@ def proxy_string_translations(request, proxy_slug, state=''):
                     string.invariant = True
                     string.save()
                     print 'False-> True'
-    
+        elif form.is_valid():
+            data = form.cleaned_data
+            tm_edit_context['translation_state'] = translation_state = int(data['translation_state'])
+            project_site = data['project_site']
+            tm_edit_context['project_site'] = project_site and project_site.id or None
+            source_language = data['source_language']
+            tm_edit_context['source_language'] = source_language and source_language.code or None
+            target_language = data['target_language']
+            tm_edit_context['target_language'] = target_language and target_language.code or None
+            tm_edit_context['source_text_filter'] = source_text_filter = data['source_text_filter']
+            tm_edit_context['target_text_filter'] = target_text_filter = data['target_text_filter']
+            request.session['tm_edit_context'] = tm_edit_context
+    else:
+        form = StringsTranslationsForm(initial={'project_site': project_site, 'translation_state': translation_state, 'source_language': source_language, 'target_language': target_language, 'source_text_filter': source_text_filter, 'target_text_filter': target_text_filter})
+
+    if translation_state == TRANSLATED:
+        translated = True
+    elif translation_state == TO_BE_TRANSLATED:
+        translated = False
+    else:
+        translated = None
+
+    var_dict = {}
+    var_dict['proxy'] = proxy
+    var_dict['site'] = project_site_id and Site.objects.get(pk=project_site_id) or None
+    var_dict['state'] = translation_state
+    var_dict['source_language'] = source_language
+    var_dict['target_language'] = target_language
+
+    """   
     target_languages = Language.objects.order_by('code')
     qs = find_strings(source_languages=[source_language], target_languages=target_languages, site=site, translated=translated)
-    var_dict['string_count'] = qs.count()
+    """
+    if project_site and translation_state == INVARIANT:
+        qs = String.objects.filter(site=project_site, invariant=True)
+    else:
+        qs = find_strings(source_languages=[source_language], target_languages=[target_language], site=project_site, translated=translated, order_by='')
+    if source_text_filter:
+        qs = qs.filter(text__icontains=source_text_filter)
+    if target_text_filter:
+        qs = qs.filter(txu__string__text__icontains=target_text_filter)
+    qs = qs.order_by('text')
+    string_count = qs.count()
+    var_dict['string_count'] = string_count
     paginator = Paginator(qs, PAGE_SIZE)
     page = request.GET.get('page', 1)
     try:
@@ -1317,6 +1379,7 @@ def proxy_string_translations(request, proxy_slug, state=''):
     var_dict['before'] = steps_before(page)
     var_dict['after'] = steps_after(page, paginator.num_pages)
     var_dict['strings'] = strings
+    var_dict['strings_translations_form'] = form
     return render_to_response('proxy_string_translations.html', var_dict, context_instance=RequestContext(request))
 
 def add_translated_string(request):
@@ -1430,7 +1493,8 @@ def list_strings(request, sources, state, targets=[]):
     var_dict['strings'] = strings
     return render_to_response('list_strings.html', var_dict, context_instance=RequestContext(request))
 
-def find_strings(source_languages=[], target_languages=[], translated=None, site=None):
+# def find_strings(source_languages=[], target_languages=[], translated=None, site=None):
+def find_strings(source_languages=[], target_languages=[], translated=None, site=None, order_by=None):
     if isinstance(source_languages, Language):
         source_languages = [source_languages]
     if isinstance(target_languages, Language):
@@ -1472,7 +1536,12 @@ def find_strings(source_languages=[], target_languages=[], translated=None, site
         else:
             qs = qs.filter(as_source__isnull=True)
         """
-    return qs.order_by('language', 'text')
+    # return qs.order_by('language', 'text')
+    if order_by is None:
+        qs = qs.order_by('language', 'text')
+    elif order_by:
+        qs = qs.order_by(order_by)
+    return qs
 
 def get_language(language_code):
     return Language.objects.get(code=language_code)

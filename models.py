@@ -84,8 +84,10 @@ TRANSLATION_STATE_DICT = dict(TRANSLATION_STATE_CHOICES)
 
 STRING_TRANSLATION_STATE_CHOICES = (
     (0, _('any'),),
+    (INVARIANT, _('invariant'),),
     (TO_BE_TRANSLATED, _('to be translated'),),
     (TRANSLATED,  _('translated'),),
+    (REVISED,  _('revised'),),
 )
 STRING_TRANSLATION_STATE_DICT = dict(STRING_TRANSLATION_STATE_CHOICES)
 
