@@ -1030,7 +1030,7 @@ class Block(node_factory('BlockEdge')):
         return previous, next
 
     # alternative version of get_previous_next
-    def get_navigation(self, webpage=None, translation_state='', translation_codes=[], order_by='id'):
+    def get_navigation(self, webpage=None, translation_state='', translation_codes=[], source_text_filter='', order_by='id'):
         target_code = len(translation_codes)==1 and translation_codes[0] or None
         qs = Block.objects.filter(site=self.site)
         if webpage:
@@ -1053,6 +1053,8 @@ class Block(node_factory('BlockEdge')):
             qs = qs.exclude(no_translate=True) # none
             if target_code:
                 qs = qs.exclude(language_id=target_code)
+        if source_text_filter:
+            qs = qs.filter(body__icontains=source_text_filter)
         if order_by == 'id':
             id = self.id
             qs_before = qs.filter(id__lt=id)

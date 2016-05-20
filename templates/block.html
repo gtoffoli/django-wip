@@ -5,13 +5,13 @@
 
 {% block extra_head %}
 <style>
-/*label { display: inline; font-weight: bold; margin-right: 1.0em; padding: 0.2em 0em; }
-pre { display: inline; padding: 0; }
-pre code { line-height: 0.5; }*/
+h4 { margin: 0; padding: 0; }
+form { margin: 0; padding: 0; }
+table { margin: 0; padding: 0; }
+label { font-size: small; }
 .rounded-box { border-radius: 10px;  border: 2px solid;  padding: 10px; margin: 5px 0; }
 .it { border-color: green; }
 .en { border-color: red; }
-/*th, td { text-align: left; vertical-align: top; }*/
 </style>
 {% endblock %}
 
@@ -47,14 +47,18 @@ pre code { line-height: 0.5; }*/
   </table>
 
 {% if user.is_superuser %}
-   	<form class="mTB40" action="/block/{{ page_block.id }}/" method="post">{% csrf_token %}
-    <div class="form-group">
+   	<form class="mTB40" action="/block/{{ page_block.id }}/" method="post" style="margin: 0; padding: 0;">{% csrf_token %}
+
+    <h4>{% trans "properties"|capfirst %}<span style="font-size: medium;">
 		<span class="mR10"><label>Block language</label> {{ edit_form.language }}</span><span class="mR10"><label>Invariant</label> {{ edit_form.no_translate }}</span>
 		<input type="submit" name="save_block" value="Save properties" class="btn btn-default btn-sm">
-	</div>
-
+	</span></h4>
  
-    <h4>{% trans "navigation"|capfirst %}</h4>
+    <h4>{% trans "navigation"|capfirst %}<span style="font-size: medium;">
+		{% if previous %}<span class="mR10"><input type="submit" name="goto-{{ previous.id }}" class="btn btn-default btn-sm" value="Previous"></span>{% endif %}
+		{% if next %}<input type="submit" name="goto-{{ next.id }}" class="btn btn-default btn-sm" value="Next">{% endif %}
+    </span></h4>
+
     <div class="form group">
     <table class="table table-responsive">
     	<thead>
@@ -62,22 +66,18 @@ pre code { line-height: 0.5; }*/
    	</thead>
    	<tbody><tr>
 		<td style="border-top-width:0">{{ sequencer_form.webpage }}</td>
-		<td style="border-top-width:0">{{ sequencer_form.block_age }}</td>
+		{% comment %}<td style="border-top-width:0">{{ sequencer_form.block_age }}</td>{% endcomment %}
 		<td style="border-top-width:0">{{ sequencer_form.translation_state }}</td>
 		<td style="border-top-width:0">{{ sequencer_form.translation_languages }}</td>
-		<td style="border-top-width:0">{{ sequencer_form.translation_age }}</td>
-		<td>{{ sequencer_form.list_pages }}</td>
-	</tr></tbody></table> 
-			<span class="mR30"><input type="submit" name="apply_filter" class="btn btn-default btn-sm" value="Apply filter"></span>
-		{% if previous %}<span class="mR10"><input type="submit" name="goto-{{ previous.id }}" class="btn btn-default btn-sm" value="Previous"></span>{% endif %}
-		{% if next %}<input type="submit" name="goto-{{ next.id }}" class="btn btn-default btn-sm" value="Next">{% endif %}
+		{% comment %}<td style="border-top-width:0">{{ sequencer_form.translation_age }}</td>{% endcomment %}
+		<td style="border-top-width:0">{{ sequencer_form.source_text_filter }}</td>
+		{% comment %}<td>{{ sequencer_form.list_pages }}</td>{% endcomment %}
+	</tr></tbody></table>
     </div>  
-	</form>
 	</form>
 {% endif %}
 
     <h4>HTML fragment</h4>
-	{% comment %}<pre>{{ page_block.body }}</pre>{% endcomment %}
 	<div class="rounded-box {{ page_block.get_language.code }}">{{ page_block.body|safe }}</div>
 
 	{% with language_translations=page_block.get_last_translations %}
@@ -90,9 +90,7 @@ pre code { line-height: 0.5; }*/
 	{% endif %}
 	{% endwith %}
 	
- 
- 	{% if pages %}
- 		{% if list_pages %}
+ 	{% if pages and list_pages %}
 	    <h4 style="margin-top:30px">{% trans "pages including this block"|capfirst %}</h4>
      <table class="table table-responsive table-bordered table-striped">
    		<thead>
@@ -113,9 +111,6 @@ pre code { line-height: 0.5; }*/
 		{% endfor %}
 	    </tbody>
     	</table>
-
-	{% else %}
-		<p>{% trans "no pages include this HTML fragment"|capfirst %}</p>
 	{% endif %}
-   {% endif %}
+
 {% endblock %}

@@ -5,19 +5,15 @@
 
 {% block extra_head %}
 <style>
-/*label { display: inline; font-weight: bold; margin-right: 1.0em; padding: 0.2em 0em; }
-pre { display: inline;  padding: 0; }
-pre code { display: inline; }
-*/
+h4 { margin: 0; padding: 0; }
+form { margin: 0; padding: 0; }
+table { margin: 0; padding: 0;}
+label { font-size: small; }
 .rounded-box {  border-radius: 10px;  border: 2px solid;  padding: 10px; }
 .it { border: 1px solid; border-color: green; margin: 1px; }
 .en { border: 1px solid; border-color: red; margin: 1px; }
 .es { border: 1px solid; border-color: yellow; margin: 1px; }
 .fr { border: 1px solid; border-color: blue; margin: 1px; }
-
-/*
-th, td { text-align: left; vertical-align: top; }
-*/
 </style>
 
 <script>
@@ -92,35 +88,32 @@ function apply_translation (target_code, id_from, id_to) {
 {% endcomment %}
 
 {% if user.is_superuser %}
-<form class="mTB40" action="/block/{{ page_block.id }}/translate/{{ target_code }}/" method="post">{% csrf_token %}
+<form class="mTB40" action="/block/{{ page_block.id }}/translate/{{ target_code }}/" method="post" style="margin: 0; padding: 0;">{% csrf_token %}
 	<input type="hidden" id="segment" name="segment" value="">
 	<input type="hidden" id="string" name="string" value="">
-    <!--div style="vertical-align: middle;"-->
-    <div class="form-group">
+
+    <h4>{% trans "properties"|capfirst %}<span style="font-size: medium;">
 		<label>Block language</label> {{ edit_form.language }} &nbsp;
 		<label>Invariant</label> {{ edit_form.no_translate }} &nbsp;&nbsp;
-	
 		<input type="submit" name="save_block" value="Save properties" class="btn btn-default btn-sm">
-	</div>
-    <div class="form-group">
-		<a class="btn btn-default btn-sm" href="/block/{{ page_block.id }}/">View</a>
- 		{% if not extract_strings %}<input type="submit" name="extract" class="btn btn-default btn-sm" value="Extract strings">{% endif %}
-	</div>
+		{% if not extract_strings %}<input type="submit" name="extract" class="btn btn-default btn-sm" value="Extract strings">{% endif %}
+	</span></h4>
 
-    <div class="form-group">
-		<input type="submit" name="apply_filter" class="btn btn-sm" value="Apply filter below"> &nbsp;&nbsp;
+    <h4 style="margin: 0; padding: 0;">{% trans "navigation"|capfirst %}<span style="font-size: medium;">
+   		<a class="btn btn-default btn-sm" href="/block/{{ page_block.id }}/">View</a>
 		{% if previous %}<input type="submit" name="goto-{{ previous.id }}" class="btn btn-sm" value="Previous">{% endif %}
 		{% if next %}<input type="submit" name="goto-{{ next.id }}" class="btn btn-sm" value="Next">{% endif %}
-    </div>
+    </span></h4>
+
     <table class="table"><thead>
     	<tr>{% for field in sequencer_form.visible_fields %}<th style="padding-bottom:0; border-bottom-width:0">{{ field.label_tag }}</th>{% endfor %}</tr>
    	</thead><tbody><tr>
 		<td style="border-top-width:0">{{ sequencer_form.webpage }}</td>
-		<td style="border-top-width:0">{{ sequencer_form.block_age }}</td>
+		{% comment %}<td style="border-top-width:0">{{ sequencer_form.block_age }}</td>{% endcomment %}
 		<td style="border-top-width:0">{{ sequencer_form.translation_state }}</td>
 		<td style="border-top-width:0">{{ sequencer_form.translation_languages }}</td>
-		<td style="border-top-width:0">{{ sequencer_form.translation_age }}</td>
-		<td style="border-top-width:0">{{ sequencer_form.extract_strings }}</td>
+		{% comment %}<td style="border-top-width:0">{{ sequencer_form.translation_age }}</td>{% endcomment %}
+		<td style="border-top-width:0">{{ sequencer_form.source_text_filter }}</td>
 	</tr></tbody></table>    	
 
 	<table class="table">
