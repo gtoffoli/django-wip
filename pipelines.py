@@ -54,7 +54,8 @@ class WipCrawlPipeline(object):
         buf = BytesIO(item['body'])
         checksum = md5sum(buf)
         """
-        checksum = string_checksum(item['body'])
+        # checksum = string_checksum(item['body'])
+        checksum = site.page_checksum(item['body'])
         fetched_pages = PageVersion.objects.filter(webpage=page).order_by('-time')
         last = fetched_pages and fetched_pages[0] or None
         # if not last:

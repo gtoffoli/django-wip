@@ -202,23 +202,33 @@ def db_fix_italian_strings():
         s.text = t2
         s.save()    
 
-def add_page(site_slug, path):
-    site = get_object_or_404(Site, slug=site_slug)
-    page_url = site.url + path
-    print page_url
-    request = urllib2.Request(page_url)
-    response = urllib2.urlopen(request)
-    body = response.read()
-    try:
-        webpage = Webpage.objects.get(site=site, path=path)
-    except:
-        webpage = Webpage(site=site, path=path)
-        webpage.save()
-    page_version = PageVersion(webpage=webpage, response_code='200', size=len(body), checksum=string_checksum(body), body=body)
-    page_version.save()
-    # webpage = Webpage.objects.get(site=site, path=path)
-    print webpage.extract_blocks()
-    webpage.create_blocks_dag()
-    return site.id, webpage.id, page_version.id
+"""
+example: fetch_page('scuolemigranti', '/osservatorio/', dry=True)
+"""
+def fetch_page(site_slug, path, extract_blocks=True, extract_segments=False, diff=False, dry=False):
+    sites = Site.objects.filter(slug=site_slug)
+    site = sites and sites[0] or None
+    if not site:
+        return 0, 0, 0, path
+    return site.fetch_page(path, extract_blocks=extract_blocks, extract_segments=extract_segments, diff=diff, dry=dry)
 
-    
+"""
+example: fix_pages_checksum('scuolemigranti', verbose=True)
+"""
+def fix_pages_checksum(site_slug, verbose=False):
+    sites = Site.objects.filter(slug=site_slug)
+    site = sites and sites[0] or None
+    if not site:
+        return 'no site found'
+    versions = PageVersion.objects.filter(webpage__site=site).order_by('-time')
+    n_updates = 0
+    for version in versions:
+        checksum = site.page_checksum(version.body)
+        if not checksum == version.checksum:
+            if verbose:
+                print version.checksum, '->', checksum, version.webpage.path
+            version.checksum = site.page_checksum(version.body)
+            version.save()
+            n_updates += 1
+    return '%d updates on %d' % (n_updates, versions.count())
+

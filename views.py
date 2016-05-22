@@ -47,7 +47,7 @@ from session import get_language, set_language, get_site, set_site
 
 from settings import PAGE_SIZE, PAGE_STEPS
 from settings import DATA_ROOT, RESOURCES_ROOT, tagger_filename, BLOCK_TAGS, QUOTES, SEPARATORS, STRIPPED, EMPTY_WORDS, PAGES_EXCLUDE_BY_CONTENT
-from utils import strings_from_html, elements_from_element, block_checksum, ask_mymemory, non_invariant_words
+from utils import strings_from_html, elements_from_element, block_checksum, ask_mymemory, non_invariant_words, text_to_list
 import srx_segmenter
 
 registry.register(Site)
@@ -122,10 +122,12 @@ def proxies(request):
 def can_strip(word):
     return word.count('#') or word.count('@') or word.count('http') or word.replace(',', '.').isnumeric()
 
+"""
 def text_to_list(text):
     list = text.splitlines()
     list = [item.strip() for item in list]
     return [item for item in list if len(item)]
+"""
     
 def site(request, site_slug):
     user = request.user
@@ -142,6 +144,7 @@ def site(request, site_slug):
     if post:
         site_crawl = post.get('site_crawl', '')
         extract_blocks = post.get('extract_blocks', '')
+        refetch_pages = post.get('refetch_pages', '')
         extract_segments = post.get('extract_segments', '')
         import_invariants = post.get('import_invariants', '')
         apply_invariants = post.get('apply_invariants', '')
@@ -191,6 +194,9 @@ def site(request, site_slug):
                     # except:
                     else:
                         print 'extract_blocks: error on page ', webpage.id
+            elif refetch_pages:
+                n_pages, n_updates, n_unfound = site.refetch_pages()
+                messages.add_message(request, messages.INFO, 'Requested %d pages: %d updated, %d unfound' % (n_pages, n_updates, n_unfound))
             elif extract_segments:
                 dry = False
                 language = site.language

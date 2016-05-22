@@ -16,8 +16,10 @@ logger = logging.getLogger('wip')
 
 from collections import defaultdict
 import os
+import time
 import urllib2
 import re
+import difflib
 # import datetime
 # from namedentities import unicode_entities
 # from Levenshtein.StringMatcher import StringMatcher
@@ -26,6 +28,7 @@ from django.db import models
 from django.db.models import Q
 from django.db.models.expressions import RawSQL
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
 from django.contrib.auth.models import User
 from django.contrib.contenttypes.models import ContentType
@@ -39,9 +42,8 @@ from wip.wip_sd.sd_algorithm import SDAlgorithm
 from settings import RESOURCES_ROOT, BLOCK_TAGS, BLOCKS_EXCLUDE_BY_XPATH, SEPARATORS, STRIPPED, EMPTY_WORDS, BOTH_QUOTES
 DEFAULT_USER = 1
 from utils import element_tostring, text_from_html, strings_from_html, elements_from_element, replace_element_content, element_signature
-from utils import normalize_string, replace_segment, non_invariant_words
+from utils import normalize_string, replace_segment, non_invariant_words, string_checksum, text_to_list
 import srx_segmenter
-
 
 MYMEMORY = 1
 MATECAT = 2
@@ -53,6 +55,7 @@ TRANSLATION_SERVICE_CHOICES = (
 )
 TRANSLATION_SERVICE_DICT = dict(TRANSLATION_SERVICE_CHOICES)
 
+"""
 def text_to_list(text):
     lines = text.split('\n')
     output = []
@@ -61,6 +64,7 @@ def text_to_list(text):
         if line:
             output.append(line)
     return output
+"""
 
 def code_to_language(code):
     return Language.objects.get(pk=code)
@@ -102,6 +106,7 @@ class Site(models.Model):
     deny = models.TextField(verbose_name='Deny spyder', blank=True, null=True, help_text="Paths the spider should not follow")
     extract_deny = models.TextField(verbose_name='Deny extractor', blank=True, null=True, help_text="Paths of pages the string extractor should skip" )
     translate_deny = models.TextField(verbose_name='Deny translation', blank=True, null=True, help_text="Paths of pages not to be submitted to offline translation" )
+    checksum_deny = models.TextField(verbose_name='Exclude from checksum', blank=True, null=True, help_text="Patterns identifying lines in body not affecting page checksum" )
 
     def can_manage(self, user):
         return user.is_superuser
@@ -210,6 +215,113 @@ class Site(models.Model):
             t_dict['left'] = left
             proxy_list.append([language, t_dict])
         return blocks, total, invariant, proxy_list
+
+    def page_checksum(self, body):
+        if not self.slug == 'scuolemigranti':
+            return string_checksum(body)
+        # patterns = ['<div class="textwidget"><div id="flickr_recent_',]
+        deny_list = text_to_list(self.checksum_deny)
+        l_in = body.splitlines()
+        l_out = []
+        for l in l_in:
+            should_skip = False
+            for deny_pattern in deny_list:
+                if l.count(deny_pattern):
+                    should_skip = True
+                    break
+            if should_skip:
+                continue
+            l_out.append(l)
+        return string_checksum('\n'.join(l_out))
+
+    def fetch_page(self, path, webpage=None, extract_blocks=True, extract_segments=False, diff=False, dry=False, verbose=False):
+        site_id = self.id
+        page_url = self.url + path
+        if verbose:
+            print page_url
+        updated = False
+        request = urllib2.Request(page_url)
+        time_1 = time.time()
+        try:
+            response = urllib2.urlopen(request)
+        except urllib2.HTTPError, e:
+            if verbose:
+                print page_url, ': error code = ', e.code, e.msg
+            if webpage:
+                webpage.last_unfound = timezone.now()
+            return -1
+        time_2 = time.time()
+        delay = int(round(time_2 - time_1))
+        if verbose:
+            print 'delay: ', delay
+        response_code = response.getcode()
+        if webpage:
+            webpage.last_checked = timezone.now()
+            webpage.last_checked_response_code = response_code
+        """
+        if not response_code == 200:
+            return site_id, response_code, 0, path
+        """
+        body = response.read()
+        size = len(body)
+        checksum = self.page_checksum(body)
+        if not webpage:
+            webpages = Webpage.objects.filter(site=self, path=path)
+            webpage = webpages and webpages[0] or None
+            if not dry and not webpage:
+                webpage = Webpage(site=self, path=path, last_checked_response_code=response_code)
+                webpage.save()
+            if not webpage:
+                return site_id, response_code, 0, path
+        webpage_id = webpage.id
+        page_versions = PageVersion.objects.filter(webpage=webpage).order_by('-time')
+        page_version = page_versions and page_versions[0] or None
+        if page_version:
+            if verbose:
+                print 'size: ', page_version.size, '->', size
+                print 'checksum: ', page_version.checksum, '->', checksum
+            if diff:
+                l_1 = page_version.body.splitlines()
+                l_2 = body.splitlines()
+                l_diff = difflib.Differ().compare(l_1, l_2)
+                print '\n'.join(l_diff)
+        # if not dry and (not page_version or size != page_version.size or checksum != page_version.checksum):
+        if not dry and (not page_version or checksum != page_version.checksum):
+            page_version = PageVersion(webpage=webpage, delay=delay, response_code=response_code, size=size, checksum=checksum, body=body)
+            page_version.save()
+            updated = True
+            if extract_blocks:
+                if verbose:
+                    print 'extract_blocks: ', webpage.extract_blocks()
+                webpage.create_blocks_dag()
+        page_version_id = page_version and page_version.id or 0
+        if verbose:
+            print site_id, webpage_id, page_version_id
+        return updated
+
+    def refetch_pages(self, skip_deny_path=True, extract_blocks=True, extract_segments=False, dry=False, verbose=False):
+        """ fetch known pages; for each, if content has changed, save the version and re-extract blocks """
+        webpages = Webpage.objects.filter(site=self)
+        n_updates = n_unfound = 0
+        extract_deny_list = text_to_list(self.extract_deny)
+        for webpage in webpages:
+            path = webpage.path
+            if skip_deny_path:
+                should_skip = False
+                for deny_path in extract_deny_list:
+                    if path.count(deny_path):
+                        should_skip = True
+                        break
+                if should_skip:
+                    continue
+            updated = self.fetch_page(path, webpage=webpage, extract_blocks=extract_blocks, extract_segments=extract_segments, dry=dry, verbose=verbose)
+            if updated == -1:
+                n_unfound += 1
+            elif updated:
+                n_updates += 1
+            sys.stdout.write('.')
+            time.sleep(1)
+        return webpages.count(), n_updates, n_unfound
 
 class Proxy(models.Model):
     name = models.CharField(max_length=100)
@@ -723,7 +835,7 @@ class Webpage(models.Model):
         print self.path, n_1, n_2, n_3
         return n_1, n_2, n_3
 
-    def create_blocks_dag(self):
+    def create_blocks_dag(self, verbose=False):
         # BlockEdge.objects.all().delete()
         blocks_in_page = list(BlockInPage.objects.filter(webpage=self).order_by('xpath'))
         blocks = [None]
@@ -747,7 +859,8 @@ class Webpage(models.Model):
             i += 1
             blocks.append(block)
             xpaths.append(xpath)
-        print m, n
+        if verbose:
+            print m, n
 
 def get_strings(text, language, site=None):
     if site:

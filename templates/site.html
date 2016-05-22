@@ -71,8 +71,11 @@
 	{% if not page_count and not block_count and not proxies %}
   	<div class="form-group">{{ manage_form.delete_confirmation }} Yes, I am fully aware <input type="submit" name="delete_site" value="Delete site" title="Delete all site info" class="btn btn-default btn-sm"></div>
 	{% endif %}
-	<div class="form-group"><span class="mR30">{{ manage_form.clear_pages }} Clear all saved pages <input type="submit" name="site_crawl" value="{% if page_count %}Re-crawl{% else %}Crawl{% endif %}" title="scan pages" class="btn btn-default btn-sm"></span>
-	<input type="submit" name="archive_pages" value="Archive pages" class="btn btn-default btn-sm">
+	<div class="form-group">
+		<span class="mR30">{{ manage_form.clear_pages }} Clear all saved pages
+		<input type="submit" name="site_crawl" value="{% if page_count %}Re-crawl{% else %}Crawl{% endif %}" title="scan pages" class="btn btn-default btn-sm"></span>
+		{% if page_count %}<span class="mR30"><input type="submit" name="refetch_pages" value="Re-fetch pages" title="re-fetch" class="btn btn-default btn-sm"></span>{% endif %}
+		<input type="submit" name="archive_pages" value="Archive pages" class="btn btn-default btn-sm">
 	</div>
 	<div class="form-group">
 	{% if page_count %}
