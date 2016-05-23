@@ -46,7 +46,7 @@ from forms import StringSequencerForm, StringsTranslationsForm, StringTranslatio
 from session import get_language, set_language, get_site, set_site
 
 from settings import PAGE_SIZE, PAGE_STEPS
-from settings import DATA_ROOT, RESOURCES_ROOT, tagger_filename, BLOCK_TAGS, QUOTES, SEPARATORS, STRIPPED, EMPTY_WORDS, PAGES_EXCLUDE_BY_CONTENT
+from settings import DATA_ROOT, RESOURCES_ROOT, tagger_filename, BLOCK_TAGS, QUOTES, SEPARATORS, STRIPPED, DEFAULT_STRIPPED, EMPTY_WORDS, PAGES_EXCLUDE_BY_CONTENT
 from utils import strings_from_html, elements_from_element, block_checksum, ask_mymemory, non_invariant_words, text_to_list
 import srx_segmenter
 
@@ -202,7 +202,6 @@ def site(request, site_slug):
                 language = site.language
                 language_code = language.code
                 webpages = Webpage.objects.filter(site=site)
-                # extract_deny_list = site.extract_deny and site.extract_deny.split('\n') or []
                 extract_deny_list = text_to_list(site.extract_deny)
                 if dry:
                     print extract_deny_list
@@ -240,7 +239,8 @@ def site(request, site_slug):
                     for s in segments:
                         s = s.replace('\xc2\xa0', ' ')
                         if not s: continue
-                        s = s.strip(SEPARATORS[language_code])
+                        # s = s.strip(SEPARATORS[language_code])
+                        s = s.strip()
                         if not s: continue
                         for left, right in QUOTES:
                             if s[0]==left and s.count(right)<=1:
@@ -800,7 +800,8 @@ def block_translate(request, block_id, target_code):
     else:
         segments = block.block_get_segments(None)
     # segments = [segment.strip(' .,;:*+-=').lower() for segment in segments]
-    segments = [segment.strip(' .,;:*+-=') for segment in segments]
+    # segments = [segment.strip(' .,;:*+-=') for segment in segments]
+    segments = [segment.strip() for segment in segments]
     extract_strings = False
     post = request.POST
     if post:
@@ -1194,7 +1195,8 @@ def raw_tokens(text, language_code):
     tokens = re.split(" |\'", text)
     raw_tokens = []
     for token in tokens:
-        token = token.strip(STRIPPED[language_code])
+        # token = token.strip(STRIPPED[language_code])
+        token = token.strip(DEFAULT_STRIPPED)
         if not token:
             continue
         raw_tokens.append(token)

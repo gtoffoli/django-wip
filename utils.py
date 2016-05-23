@@ -185,7 +185,8 @@ def replace_segment(html_text, segment, tx='auto'):
     if not n:
         return False
     text = element.text or ''
-    if text and not text.replace(segment, '', 1).strip(settings.DEFAULT_STRIPPED):
+    # if text and not text.replace(segment, '', 1).strip(settings.DEFAULT_STRIPPED):
+    if text and not text.replace(segment, '', 1).strip():
         element.text = ''
         attrs={'tx':'', tx:''}
         child = etree.Element('span', **attrs)

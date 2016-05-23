@@ -55,17 +55,6 @@ TRANSLATION_SERVICE_CHOICES = (
 )
 TRANSLATION_SERVICE_DICT = dict(TRANSLATION_SERVICE_CHOICES)
 
-"""
-def text_to_list(text):
-    lines = text.split('\n')
-    output = []
-    for line in lines:
-        line = line.replace('\r','').strip()
-        if line:
-            output.append(line)
-    return output
-"""
-
 def code_to_language(code):
     return Language.objects.get(pk=code)
 
@@ -901,7 +890,7 @@ class PageVersion(models.Model):
         site = self.webpage.site
         exclude_xpaths = BLOCKS_EXCLUDE_BY_XPATH.get(site.slug, [])
         language = site.language
-        stripped_chars = STRIPPED[language.code]
+        # stripped_chars = STRIPPED[language.code]
         separators = SEPARATORS[language.code]
         strings = []
         html_string = re.sub("(<!--(.*?)-->)", "", self.body, flags=re.MULTILINE)
@@ -911,7 +900,8 @@ class PageVersion(models.Model):
                 continue
             if string.count('flickr'):
                 continue
-            string = string.strip(stripped_chars)
+            # string = string.strip(stripped_chars)
+            string = string.strip()
             if not string:
                 continue
             for char in separators:
@@ -1454,13 +1444,16 @@ def get_segments(body, site, segmenter, fragment=True, exclude_tx=True, exclude_
         strings.extend(segmenter.extract(string)[0])
     filtered = []
     for string in strings:
-        string = string.strip(stripped_chars)
+        # string = string.strip(stripped_chars)
+        string = string.strip()
         # if not string:
         if len(string) < 2:
             continue
+        """
         for char in separators:
             if char in string:
                 continue
+        """
         filtered.append(string)
     return filtered
 
