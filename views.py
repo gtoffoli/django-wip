@@ -1309,6 +1309,7 @@ def proxy_string_translations(request, proxy_slug=None, state=None):
     target_language = target_language_code and Language.objects.get(code=target_language_code) or None
     source_text_filter = tm_edit_context.get('source_text_filter', '')
     target_text_filter = tm_edit_context.get('target_text_filter', '')
+    show_other_targets = tm_edit_context.get('show_other_targets', False)
     if proxy:
         tm_edit_context['project_site'] = project_site_id
         tm_edit_context['source_language'] = source_language_code
@@ -1318,12 +1319,44 @@ def proxy_string_translations(request, proxy_slug=None, state=None):
         post = request.POST
         form = StringsTranslationsForm(post)
         print 'form = ', form
-        if post.get('delete-translations', ''):
+        if post.get('delete-segment', ''):
             selection = post.getlist('selection')
-            print 'delete-translations', selection
-        elif post.get('toggle-invariants', ''):
+            print 'delete-segment', selection
+            for string_id in selection:
+                string = String.objects.get(pk=int(string_id))
+                txu = string.txu
+                if txu:
+                    for string in String.objects.filter(txu=txu):
+                        string.delete()
+                    txu.delete()
+                else:
+                    string.delete()
+        elif post.get('delete-translation', ''):
             selection = post.getlist('selection')
-            print 'toggle-invariants', selection
+            print 'delete-translation', selection
+            for string_id in selection:
+                string = String.objects.get(pk=int(string_id))
+                txu = string.txu
+                if txu:
+                    translations = String.objects.filter(txu=txu, language=target_language)
+                    for string in translations:
+                        string.delete()
+        elif post.get('make-invariant', ''):
+            selection = post.getlist('selection')
+            print 'make-invariant', selection
+            for string_id in selection:
+                string = String.objects.get(pk=int(string_id))
+                txu = string.txu
+                string.txu = None
+                string.invariant = True
+                string.save()
+                if txu:
+                    for string in String.objects.filter(txu=txu):
+                        string.delete()
+                    txu.delete()
+        elif post.get('toggle-invariant', ''):
+            selection = post.getlist('selection')
+            print 'toggle-invariant', selection
             for string_id in selection:
                 string = String.objects.get(pk=int(string_id))
                 if string.invariant:
@@ -1345,9 +1378,10 @@ def proxy_string_translations(request, proxy_slug=None, state=None):
             tm_edit_context['target_language'] = target_language and target_language.code or None
             tm_edit_context['source_text_filter'] = source_text_filter = data['source_text_filter']
             tm_edit_context['target_text_filter'] = target_text_filter = data['target_text_filter']
+            tm_edit_context['show_other_targets'] = show_other_targets = data['show_other_targets']
             request.session['tm_edit_context'] = tm_edit_context
     else:
-        form = StringsTranslationsForm(initial={'project_site': project_site, 'translation_state': translation_state, 'source_language': source_language, 'target_language': target_language, 'source_text_filter': source_text_filter, 'target_text_filter': target_text_filter})
+        form = StringsTranslationsForm(initial={'project_site': project_site, 'translation_state': translation_state, 'source_language': source_language, 'target_language': target_language, 'source_text_filter': source_text_filter, 'target_text_filter': target_text_filter, 'show_other_targets': show_other_targets, })
 
     if translation_state == TRANSLATED:
         translated = True
@@ -1362,11 +1396,8 @@ def proxy_string_translations(request, proxy_slug=None, state=None):
     var_dict['state'] = translation_state
     var_dict['source_language'] = source_language
     var_dict['target_language'] = target_language
+    var_dict['show_other_targets'] = show_other_targets
 
-    """   
-    target_languages = Language.objects.order_by('code')
-    qs = find_strings(source_languages=[source_language], target_languages=target_languages, site=site, translated=translated)
-    """
     if project_site and translation_state == INVARIANT:
         qs = String.objects.filter(site=project_site, invariant=True)
     else:
