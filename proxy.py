@@ -9,7 +9,7 @@ from models import Proxy, Webpage
 
 # REWRITE_REGEX = re.compile(r'((?:src|action|href)=["\'])/(?!\/)')
 REWRITE_REGEX = re.compile(r'((?:action)=["\'])/(?!\/)')
-RESOURCES_REGEX = re.compile(r'(\.(css|js|png|jpg|gif|pdf|ppt|pptx|doc|docx|xls|xslx|odt/woff))', re.IGNORECASE)
+RESOURCES_REGEX = re.compile(r'(\.(css|js|png|jpg|gif|pdf|ppt|pptx|doc|docx|xls|xslx|odt|woff))', re.IGNORECASE)
 BODY_REGEX = re.compile(r'(\<body.*?\>)', re.IGNORECASE)
 
 info = {
@@ -59,10 +59,13 @@ class WipHttpProxy(HttpProxy):
         key = '%s-%s' % (proxy.site.path_prefix, url)
         should_cache_resource = False
         resource_match = RESOURCES_REGEX.search(url)
+        
         if resource_match is not None:
             resources_cache = caches['resources']
             cached_response = resources_cache.get(key, None)
             if cached_response:
+                cache_seconds = 7 * 24 * 3600
+                patch_response_headers(cached_response, cache_timeout=cache_seconds)
                 return cached_response
             else:
                 should_cache_resource = True
@@ -70,7 +73,6 @@ class WipHttpProxy(HttpProxy):
         if resource_match is not None:
             cache_seconds = 7 * 24 * 3600
             patch_response_headers(response, cache_timeout=cache_seconds)
-            print 'Expires: ', response.get('Expires', '')
         if should_cache_resource:
             resources_cache.set(key, response)
             return response
