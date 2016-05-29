@@ -2,13 +2,14 @@
 
 import re
 import urlparse
+from django.utils.cache import patch_response_headers
 from django.core.cache import caches
 from httpproxy.views import HttpProxy
 from models import Proxy, Webpage
 
 # REWRITE_REGEX = re.compile(r'((?:src|action|href)=["\'])/(?!\/)')
 REWRITE_REGEX = re.compile(r'((?:action)=["\'])/(?!\/)')
-RESOURCES_REGEX = re.compile(r'(\.(css|js|png|jpg|gif|pdf|ppt|pptx|doc|docx|xls|xslx|odt))', re.IGNORECASE)
+RESOURCES_REGEX = re.compile(r'(\.(css|js|png|jpg|gif|pdf|ppt|pptx|doc|docx|xls|xslx|odt/woff))', re.IGNORECASE)
 BODY_REGEX = re.compile(r'(\<body.*?\>)', re.IGNORECASE)
 
 info = {
@@ -66,6 +67,10 @@ class WipHttpProxy(HttpProxy):
             else:
                 should_cache_resource = True
         response = super(HttpProxy, self).dispatch(request, *args, **kwargs)
+        if resource_match is not None:
+            cache_seconds = 7 * 24 * 3600
+            patch_response_headers(response, cache_timeout=cache_seconds)
+            print 'Expires: ', response.get('Expires', '')
         if should_cache_resource:
             resources_cache.set(key, response)
             return response
