@@ -14,11 +14,11 @@ sys.setdefaultencoding('utf8')
 import logging
 logger = logging.getLogger('wip')
 
-from collections import defaultdict
+# from collections import defaultdict
 import os
 import time
 import urllib2
-import re
+import re, regex
 import difflib
 # import datetime
 # from namedentities import unicode_entities
@@ -42,7 +42,7 @@ from wip.wip_sd.sd_algorithm import SDAlgorithm
 from settings import RESOURCES_ROOT, BLOCK_TAGS, BLOCKS_EXCLUDE_BY_XPATH, SEPARATORS, STRIPPED, EMPTY_WORDS, BOTH_QUOTES
 DEFAULT_USER = 1
 from utils import element_tostring, text_from_html, strings_from_html, elements_from_element, replace_element_content, element_signature
-from utils import normalize_string, replace_segment, non_invariant_words, string_checksum, text_to_list
+from utils import normalize_string, replace_segment, string_checksum, text_to_list # , non_invariant_words
 import srx_segmenter
 
 MYMEMORY = 1
@@ -96,7 +96,10 @@ class Site(models.Model):
     extract_deny = models.TextField(verbose_name='Deny extractor', blank=True, null=True, help_text="Paths of pages the string extractor should skip" )
     translate_deny = models.TextField(verbose_name='Deny translation', blank=True, null=True, help_text="Paths of pages not to be submitted to offline translation" )
     checksum_deny = models.TextField(verbose_name='Exclude from checksum', blank=True, null=True, help_text="Patterns identifying lines in body not affecting page checksum" )
-
+    srx_rules = models.TextField(verbose_name='Custom SRX rules', blank=True, null=True, help_text="Custom SRX rules extending the standard set" )
+    srx_initials = models.TextField(verbose_name='Custom initials', blank=True, null=True, help_text="Initials to be made explicit as SRX rules" )
+    invariant_words = models.TextField(verbose_name='Custom invariant words', blank=True, null=True, help_text="Custom invariant words" )
+    
     def can_manage(self, user):
         return user.is_superuser
 
@@ -125,6 +128,35 @@ class Site(models.Model):
     class Meta:
         verbose_name = _('original website')
         verbose_name_plural = _('original websites')
+
+    def make_segmenter(self, verbose=False):
+            srx_filepath = os.path.join(RESOURCES_ROOT, self.language.code, 'segment.srx')
+            srx_rules = srx_segmenter.parse(srx_filepath)
+            current_rules = srx_rules['Italian']
+            if self.srx_initials:
+                custom_rules_list = text_to_list(self.srx_initials)
+                if len(custom_rules_list) == 1:
+                    beforebreak_text = '%s' % re.escape(custom_rules_list[0])
+                else:
+                    beforebreak_text = '(?%s)' % '|'.join([re.escape(item) for item in custom_rules_list])
+                afterbreak_text = '\s'
+                print beforebreak_text, afterbreak_text
+                non_breaks = current_rules['non_breaks']
+                non_breaks.append((beforebreak_text, afterbreak_text))
+                current_rules['non_breaks'] = non_breaks
+                if verbose:
+                    for item in non_breaks:
+                        print item
+            if self.srx_rules:
+                non_breaks = current_rules['non_breaks']
+                custom_rules_list = text_to_list(self.srx_rules)
+                for item in custom_rules_list:
+                    beforebreak_text, afterbreak_text = item.split(' ')
+                    non_breaks.append((beforebreak_text, afterbreak_text))
+                    if verbose:
+                        print beforebreak_text, afterbreak_text
+                current_rules['non_breaks'] = non_breaks    
+            return srx_segmenter.SrxSegmenter(current_rules)
 
     def pages_summary(self):
         site_code = self.language_id
@@ -422,6 +454,7 @@ class Proxy(models.Model):
     def apply_translation_memory(self):
         # string_matcher = StringMatcher()
         site = self.site
+        invariant_words = text_to_list(site.invariant_words)
         source_code = site.language_id
         target_language = self.language
         target_code = target_language.code
@@ -432,10 +465,13 @@ class Proxy(models.Model):
         n_partially = 0
         n_translated = 0
         if blocks_ready:
+            """
             srx_filepath = os.path.join(RESOURCES_ROOT, 'segment.srx')
             srx_rules = srx_segmenter.parse(srx_filepath)
             italian_rules = srx_rules['Italian']
             segmenter = srx_segmenter.SrxSegmenter(italian_rules)
+            """
+            segmenter = site.make_segmenter()
         for block in blocks_ready:
             translated_block = block.get_last_translation(language=target_language)
             translated = True
@@ -454,7 +490,7 @@ class Proxy(models.Model):
             segments.sort(key=lambda x: len(x), reverse=True)
             for segment in segments:
                 words = segment.split()
-                if not non_invariant_words(words):
+                if not non_invariant_words(words, invariant_words=invariant_words):
                     ok_segments +=1
                     logger.info('block: %d invariant segment : %s' % (block.id, segment))
                     continue
@@ -879,21 +915,27 @@ class PageVersion(models.Model):
         except:
             return None
 
-    def page_version_get_segments(self, segmenter=None):
+    def page_version_get_segments(self, segmenter=None, exclude_TM_invariants=True):
         if not segmenter:
+            """
             srx_filepath = os.path.join(RESOURCES_ROOT, 'segment.srx')
             srx_rules = srx_segmenter.parse(srx_filepath)
             italian_rules = srx_rules['Italian']
             segmenter = srx_segmenter.SrxSegmenter(italian_rules)
+            """
+            segmenter = self.webpage.site.make_segmenter()
         re_parentheses = re.compile(r'\(([^)]+)\)')
 
         site = self.webpage.site
         exclude_xpaths = BLOCKS_EXCLUDE_BY_XPATH.get(site.slug, [])
         language = site.language
+        # print 'self.body: ', type(self.body)
+        html_string = re.sub("(<!--(.*?)-->)", "", self.body, flags=re.MULTILINE)
+        # print 'html_string: ', type(html_string)
+        """
         # stripped_chars = STRIPPED[language.code]
         separators = SEPARATORS[language.code]
         strings = []
-        html_string = re.sub("(<!--(.*?)-->)", "", self.body, flags=re.MULTILINE)
         for string in list(strings_from_html(html_string, fragment=False, exclude_xpaths=exclude_xpaths)):
             string = string.replace(u"\u2018", "'").replace(u"\u2019", "'").replace(' - ', ' – ')
             if string.count('window') and string.count('document'):
@@ -910,19 +952,15 @@ class PageVersion(models.Model):
             found = get_strings(string, language, site=site)
             if found and found[0].invariant:
                 continue
-            """
-            matches = []
-            if string.count('(') and string.count(')'):
-                matches = re_parentheses.findall(string)
-                if matches:
-                    for match in matches:
-                        string = string.replace('(%s)' % match, '')
-            strings.extend(segmenter.extract(string)[0])
-            for match in matches:
-                strings.extend(segmenter.extract(match)[0])
-            """
             strings.extend(segmenter.extract(string)[0])
         return strings
+        """
+        segments = []
+        for string in list(strings_from_html(html_string, fragment=False, exclude_xpaths=exclude_xpaths)):
+            # string = string.replace(u"\u2018", "'").replace(u"\u2019", "'").replace(' - ', ' – ')
+            # print 'string: ', type(string)
+            segments.extend(segments_from_string(string, site, segmenter, exclude_TM_invariants=exclude_TM_invariants))
+        return segments
 
 class TranslatedVersion(models.Model):
     webpage = models.ForeignKey(Webpage)
@@ -1245,22 +1283,26 @@ class Block(node_factory('BlockEdge')):
 
     def block_get_segments(self, segmenter):
         if not segmenter:
+            """
             srx_filepath = os.path.join(RESOURCES_ROOT, 'segment.srx')
             srx_rules = srx_segmenter.parse(srx_filepath)
             italian_rules = srx_rules['Italian']
             segmenter = srx_segmenter.SrxSegmenter(italian_rules)
+            """
+            segmenter = self.site.make_segmenter()
         return get_segments(self.body, self.site, segmenter)
 
     def apply_invariants(self, segmenter):
         if self.no_translate:
             return False
         segments = self.block_get_segments(segmenter)
+        invariant_words = text_to_list(self.site.invariant_words)
         invariant = True
         for segment in segments:
             if not type(segment) == unicode:
                 print self.id, segment
                 return False
-            if not non_invariant_words(segment.split()):
+            if not non_invariant_words(segment.split(), invariant_words=invariant_words):
                 continue
             matches = String.objects.filter(site=self.site, text=segment, invariant=True)
             if not matches:
@@ -1408,10 +1450,13 @@ def translated_element(element, site, webpage, language, xpath='/html'):
 
 def get_segments(body, site, segmenter, fragment=True, exclude_tx=True, exclude_xpaths=False):
     if not segmenter:
+        """
         srx_filepath = os.path.join(RESOURCES_ROOT, 'segment.srx')
         srx_rules = srx_segmenter.parse(srx_filepath)
         italian_rules = srx_rules['Italian']
         segmenter = srx_segmenter.SrxSegmenter(italian_rules)
+        """
+        segmenter = site.make_segmenter()
     re_parentheses = re.compile(r'\(([^)]+)\)')
 
     # exclude_xpaths = BLOCKS_EXCLUDE_BY_XPATH.get(site.slug, [])
@@ -1421,8 +1466,8 @@ def get_segments(body, site, segmenter, fragment=True, exclude_tx=True, exclude_
     strings = []
     html_string = re.sub("(<!--(.*?)-->)", "", body, flags=re.MULTILINE)
     html_string = normalize_string(html_string)
+    """
     for string in list(strings_from_html(html_string, fragment=fragment, exclude_tx=exclude_tx, exclude_xpaths=exclude_xpaths)):
-        # string = string.replace(u"\u2018", "'").replace(u"\u2019", "'").replace(' - ', ' – ')
         if string.count('window') and string.count('document'):
             continue
         if string.count('flickr'):
@@ -1430,17 +1475,6 @@ def get_segments(body, site, segmenter, fragment=True, exclude_tx=True, exclude_
         found = get_strings(string, language, site=site)
         if found and found[0].invariant:
             continue
-        """
-        matches = []
-        if string.count('(') and string.count(')'):
-            matches = re_parentheses.findall(string)
-            if matches:
-                for match in matches:
-                    string = string.replace('(%s)' % match, '')
-        strings.extend(segmenter.extract(string)[0])
-        for match in matches:
-            strings.extend(segmenter.extract(match)[0])
-        """
         strings.extend(segmenter.extract(string)[0])
     filtered = []
     for string in strings:
@@ -1449,12 +1483,97 @@ def get_segments(body, site, segmenter, fragment=True, exclude_tx=True, exclude_
         # if not string:
         if len(string) < 2:
             continue
-        """
-        for char in separators:
-            if char in string:
-                continue
-        """
         filtered.append(string)
     return filtered
+    """
+    segments = []
+    for string in list(strings_from_html(html_string, fragment=fragment, exclude_tx=exclude_tx, exclude_xpaths=exclude_xpaths)):
+        segments.extend(segments_from_string(string, site, segmenter))
+    return segments
 
-    
+# def can_strip(word, site_invariants=[]):
+def is_invariant_word(word, site_invariants=[]):
+    """ word belongs to invariant classes: web addresses, email addresses, numbers """
+    # return word.count('#') or word.count('@') or word.count('http') or word.replace(',', '.').isnumeric()
+    return word.count('#') or word.count('@') or word.count('http') or word.replace(',', '.').isnumeric() or word in site_invariants
+
+def non_invariant_words(words, site_invariants=[]):
+    non_invariant = []
+    for word in words:
+        if not is_invariant_word(word, site_invariants=site_invariants):
+            non_invariant.append(word)
+    return non_invariant      
+
+re_eu_date = re.compile(r'(0?[1-9]|[1-2][0-9]|3[0-1])(-|/|\.)(0?[1-9]|1[0-2])(-|/|\.)([0-9]{4})') # es: 10/7/1953, 21-12-2015
+re_decimal_thousands_separators = re.compile(r'[0-9](\.|\,)[0-9]')
+re_spaces = re.compile(r'\b[\b]+')
+def segments_from_string(string, site, segmenter, exclude_TM_invariants=True):
+    if string.count('window') and string.count('document'):
+        return []
+    if string.count('flickr'):
+        return []
+    site_invariants = text_to_list(site.invariant_words)
+    segments = segmenter.extract(string)[0]
+    # return segments
+    filtered = []
+    for s in segments:
+        """ REPLACE NON-BREAK SPACES """
+        s = s.replace('\xc2\xa0', ' ')
+        s = re_spaces.sub(' ', s)
+        s = s.strip()
+        """ REMOVE PSEUDO-BULLETS """
+        if s.startswith(u'- ') or s.startswith(u'– '): s = s[2:]
+        if s.endswith(u' -') or s.endswith(u' –'): s = s[:-3]
+        s = s.strip()
+        if len(s) < 3:
+            continue
+        # KEEP SEGMENTS CONTAINING: DATES, NUMBERS INCLUDING SEPARATORS, CURRENCY SYMBOLS
+        if re_eu_date.findall(s) or re_decimal_thousands_separators.findall(s) or regex.findall(ur'\p{Sc}', s):
+            filtered.append(s)
+            continue
+        """ REMOVE RESIDUOUS SEGMENTS NON INCLUDING ANY LETTER """
+        if not re.search('[a-zA-Z]', s):
+            continue
+        """ THIS IS SPECIFIC TO BREADCRUMBS IN SCUOLEMIGRANTI """
+        if s.startswith('Home'):
+            continue
+        if not s: continue
+        """ STRIP PUNCTUATION MARKS, BRACKETS, ARITHMETIC OPERATORS ... 
+        s = s.strip(SEPARATORS[language_code])
+        if not s: continue
+        """
+        """ REMOVE STARTING OR ENDING QUOTES THAT HAVE MATCHING QUOTES
+        for left, right in QUOTES:
+            if s[0]==left and s.count(right)<=1:
+                s = s[1:]
+                if not s: break
+                s = s.replace(right, '').strip()
+                if not s: break
+            if s[-1]==right and s.count(left)<=1:
+                s = s[:-1]
+                if not s: break
+                s = s.replace(right, '').strip()
+                if not s: break
+        if not s: continue
+        """
+        """ REMOVE SEGMENTS INCLUDING ONLY WORDS BELONGING TO INVARIANT CLASSES """
+        words = re.split(" |\'", s)
+        if len(words) > 1:
+            stripped = False
+            while words and is_invariant_word(words[0], site_invariants=site_invariants):
+                words = words[1:]
+                stripped = True
+            while words and is_invariant_word(words[-1], site_invariants=site_invariants):
+                words = words[:-1]
+                stripped = True
+            if not words: continue
+        if len(words) == 1: # 1 word at the start or as the result of stripping other words
+            word = words[0]
+            if is_invariant_word(word, site_invariants=site_invariants) or word.isupper() or word.lower() in EMPTY_WORDS[site.language.code]:
+                continue
+        """ REMOVE SEGMENT MATCHING SITE-ASSOCIATED INVARIANT STRINGS IN THE TM """
+        if exclude_TM_invariants:
+            if String.objects.filter(site=site, language=site.language, text=s, invariant=True).count():
+                continue
+        filtered.append(s)
+    return filtered

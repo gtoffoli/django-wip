@@ -66,6 +66,8 @@ def strings_from_block(block, tree=None, exclude_xpaths=[]):
         text = block.text
         if text: text = text.strip()
         if text:
+            text = unicode(text)
+            # print 'strings_from_block - 1: ', type(text)
             text_list.append(text)
         for child in children:
             if exclude_xpaths:
@@ -75,34 +77,46 @@ def strings_from_block(block, tree=None, exclude_xpaths=[]):
                     continue
             if child.tag in settings.BLOCK_TAGS:
                 if text_list:
-                    yield ' '.join(text_list)
+                    # yield ' '.join(text_list)
+                    # print 'strings_from_block - 2: ', type(u' '.join(text_list))
+                    yield u' '.join(text_list)
                 text_list = []
                 for el in strings_from_block(child, tree=tree, exclude_xpaths=exclude_xpaths):
                     if el: el = el.strip()
                     if el:
+                        # print 'strings_from_block - 3: ', type(el)
                         yield el
                 if child.tail:
                     text = child.tail.strip()
                     if text:
+                        text = unicode(text)
+                        # print 'strings_from_block - 4: ', type(text)
                         text_list.append(text)
             else:
                 text = child.text_content()
                 if text: text = text.strip()
                 if text:
+                    text = unicode(text)
+                    # print 'strings_from_block - 5: ', type(text)
                     text_list.append(text)
         if text_list:
-            yield ' '.join(text_list)
+            # print 'strings_from_block - 6: ', type(u' '.join(text_list))
+            yield u' '.join(text_list)
     else:
         content = block.text_content()
         if content: content = content.strip()
         if content:
+            content = unicode(content)
+            # print 'strings_from_block - 7: ', type(content)
             yield content
     tail = block.tail
     if tail: tail = tail.strip()
     if tail:
+        tail = unicode(tail)
         yield tail
 
 def strings_from_html(string, fragment=False, exclude_xpaths=[], exclude_tx=False):
+    # print 'strings_from_html - 1: ', type(string)
     doc = html.fromstring(string)
     comments = doc.xpath('//comment()')
     for c in comments:
@@ -115,6 +129,7 @@ def strings_from_html(string, fragment=False, exclude_xpaths=[], exclude_tx=Fals
     else:
         tree = doc.getroottree()
         body = doc.find('body')
+        # print 'strings_from_html - 2: ', type(body)
     for tag in settings.TO_DROP_TAGS:
         els = body.findall(tag)
         for el in els:
@@ -126,6 +141,7 @@ def strings_from_html(string, fragment=False, exclude_xpaths=[], exclude_tx=Fals
             el.getparent().remove(el) 
     for s in strings_from_block(body, tree=tree, exclude_xpaths=exclude_xpaths):
         if s:
+            # print 'strings_from_html - 3: ', type(s)
             yield s
 
 def elements_from_element(element):
@@ -196,6 +212,7 @@ def replace_segment(html_text, segment, tx='auto'):
     return False
     # to be extended
 
+"""
 def non_invariant_words(words):
     non_invariant = []
     for word in words:
@@ -206,7 +223,8 @@ def non_invariant_words(words):
         if word in ['Roma', 'roma',]:
             continue
         non_invariant.append(word)
-    return non_invariant      
+    return non_invariant
+"""
 
 def md5sum(file):
     """Calculate the md5 checksum of a file-like object without reading its

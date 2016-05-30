@@ -77,15 +77,20 @@
 		{% if page_count %}<span class="mR30"><input type="submit" name="refetch_pages" value="Re-fetch pages" title="re-fetch" class="btn btn-default btn-sm"></span>{% endif %}
 		<input type="submit" name="archive_pages" value="Archive pages" class="btn btn-default btn-sm">
 	</div>
-	<div class="form-group">
 	{% if page_count %}
-  	<span class="mR30"><input type="submit" name="extract_segments" value="Extract segments" title="Extract segments" class="btn btn-default btn-sm"></span>
+	<div class="form-group">
+	  	<span class="mR30"><input type="submit" name="download_segments" value="Download all segments" title="Download all segments" class="btn btn-default btn-sm"></span>
+	  	<span class="mR30"><input type="submit" name="extract_segments" value="Extract new segments" title="Extract new segments" class="btn btn-default btn-sm"></span>
+  		<span class="mR30"><input type="submit" name="export_untranslated" value="Export untranslated segments" title="Export untranslated segments" class="btn btn-default btn-sm"></span>
+	</div>
 	{% endif %}
-  <span class="mR10">{{ manage_form.clear_invariants }} Clear invariants</span><span class="show-inline">{{ manage_form.file }}</span><input type="submit" name="import_invariants" value="Import invariants" title="Import invariants" class="btn btn-default btn-sm">
-  </div>
-  <div class="form-group"><span class="mR30">{{ manage_form.clear_blocks }} Clear all saved blocks <input type="submit" name="extract_blocks" value="Extract blocks" title="Extract" class="btn btn-default btn-sm"></span>
-  <input type="submit" name="apply_invariants" value="Apply invariants" title="Mark invariant segments" class="btn btn-default btn-sm"> (Mark invariant segments)</div>
-  	<div class="form-group"><span class="mR30"><input type="submit" name="export_untranslated" value="Export untranslated segments" title="Export untranslated segments" class="btn btn-default btn-sm"></span></div>
+	<div class="form-group">
+    	<span class="mR10">{{ manage_form.clear_invariants }} Clear invariants</span><span class="show-inline">{{ manage_form.file }}</span>
+    	<span class="mR30"><input type="submit" name="import_invariants" value="Import invariants" title="Import invariants" class="btn btn-default btn-sm"></span>
+  		<input type="submit" name="apply_invariants" value="Apply invariants" title="Mark invariant segments" class="btn btn-default btn-sm"> (Mark invariant segments)
+    </div>
+    <div class="form-group"><span class="mR30">{{ manage_form.clear_blocks }} Clear all saved blocks <input type="submit" name="extract_blocks" value="Extract blocks" title="Extract" class="btn btn-default btn-sm"></span>
+	</div>
 {% comment %}
 	{% if proxies %}
   	<input type="submit" name="guess_blocks_language" value="Guess blocks' language" title="Guess blocks' language" class="btn btn-default btn-sm"></div>

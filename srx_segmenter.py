@@ -47,7 +47,7 @@ class SrxSegmenter:
         return self._get_break_points(self.breaks)
 
     # def extract(self): # -> Tuple[List[str], List[str]]:
-    def extract(self, source_text): # -> Tuple[List[str], List[str]]:
+    def extract(self, source_text, verbose=False): # -> Tuple[List[str], List[str]]:
         """Return segments and whitespaces.
         """
         self.source_text = source_text
@@ -56,6 +56,10 @@ class SrxSegmenter:
 
         break_point = sorted(candidate_break_points - non_break_points)
         source_text = self.source_text
+        if verbose:
+            print 'non_break_points: ', non_break_points
+            print 'break_points: ', candidate_break_points
+            print 'break_point: ', break_point
 
         segments = []  # type: List[str]
         whitespaces = []  # type: List[str]

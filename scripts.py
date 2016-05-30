@@ -232,3 +232,9 @@ def fix_pages_checksum(site_slug, verbose=False):
             n_updates += 1
     return '%d updates on %d' % (n_updates, versions.count())
 
+def test_segmenter(site, s, verbose=False):
+    segmenter = site.make_segmenter()
+    segments = segmenter.extract(s, verbose=verbose)
+    return segments
+
+    

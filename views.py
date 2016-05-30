@@ -14,6 +14,7 @@ sys.stderr = codecs.getwriter('utf8')(sys.stderr)
 reload(sys)  
 sys.setdefaultencoding('utf8')
 import os
+import datetime
 
 import logging
 logger = logging.getLogger('wip')
@@ -39,6 +40,7 @@ from actstream import action, registry
 
 from models import Language, Site, Proxy, Webpage, PageVersion, TranslatedVersion
 from models import Block, BlockEdge, TranslatedBlock, BlockInPage, String, Txu, TxuSubject #, TranslatedVersion
+from models import segments_from_string, non_invariant_words
 from models import TO_BE_TRANSLATED, TRANSLATED, PARTIALLY, INVARIANT, ALREADY
 from models import MYMEMORY, TRANSLATION_SERVICE_DICT
 from forms import SiteManageForm, ProxyManageForm, PageEditForm, PageSequencerForm, BlockEditForm, BlockSequencerForm
@@ -47,7 +49,7 @@ from session import get_language, set_language, get_site, set_site
 
 from settings import PAGE_SIZE, PAGE_STEPS
 from settings import DATA_ROOT, RESOURCES_ROOT, tagger_filename, BLOCK_TAGS, QUOTES, SEPARATORS, STRIPPED, DEFAULT_STRIPPED, EMPTY_WORDS, PAGES_EXCLUDE_BY_CONTENT
-from utils import strings_from_html, elements_from_element, block_checksum, ask_mymemory, non_invariant_words, text_to_list
+from utils import strings_from_html, elements_from_element, block_checksum, ask_mymemory, text_to_list # , non_invariant_words
 import srx_segmenter
 
 registry.register(Site)
@@ -119,9 +121,6 @@ def proxies(request):
     var_dict['proxies'] = proxies
     return render_to_response('proxies.html', var_dict, context_instance=RequestContext(request))
 
-def can_strip(word):
-    return word.count('#') or word.count('@') or word.count('http') or word.replace(',', '.').isnumeric()
-
 """
 def text_to_list(text):
     list = text.splitlines()
@@ -146,6 +145,7 @@ def site(request, site_slug):
         extract_blocks = post.get('extract_blocks', '')
         refetch_pages = post.get('refetch_pages', '')
         extract_segments = post.get('extract_segments', '')
+        download_segments = post.get('download_segments', '')
         import_invariants = post.get('import_invariants', '')
         apply_invariants = post.get('apply_invariants', '')
         delete_site = post.get('delete_site', '')
@@ -197,7 +197,8 @@ def site(request, site_slug):
             elif refetch_pages:
                 n_pages, n_updates, n_unfound = site.refetch_pages()
                 messages.add_message(request, messages.INFO, 'Requested %d pages: %d updated, %d unfound' % (n_pages, n_updates, n_unfound))
-            elif extract_segments:
+            elif extract_segments or download_segments:
+                segmenter = site.make_segmenter()
                 dry = False
                 language = site.language
                 language_code = language.code
@@ -205,6 +206,8 @@ def site(request, site_slug):
                 extract_deny_list = text_to_list(site.extract_deny)
                 if dry:
                     print extract_deny_list
+                if download_segments:
+                    download_list = []
                 for webpage in webpages:
                     path = webpage.path
                     if webpage.last_unfound and (webpage.last_unfound > webpage.last_checked):
@@ -228,15 +231,19 @@ def site(request, site_slug):
                             break
                     if skip_page:
                         continue
+                    """
                     try:
                         segments = page_version.page_version_get_segments()
                     except: # Unicode strings with encoding declaration are not supported. Please use bytes input or XML fragments without declaration.
                         print '- error on ', path
                         continue
+                    """
+                    segments = page_version.page_version_get_segments(segmenter=segmenter)
                     if dry:
                         print path
                         continue
                     for s in segments:
+                        """ THESE FILTERS HAVE BEEN POOLED IN THE models.segments_from_string FUNCTION
                         s = s.replace('\xc2\xa0', ' ')
                         if not s: continue
                         # s = s.strip(SEPARATORS[language_code])
@@ -272,8 +279,21 @@ def site(request, site_slug):
                                 continue
                         if s.startswith('Home'):
                             continue
-                        is_model_instance, string = get_or_add_string(s, language, add=True, txu=None, site=site, reliability=0)
+                        """
+                        if download_segments:
+                            if not s in download_list:
+                                download_list.append(s)
+                        else:
+                            is_model_instance, string = get_or_add_string(s, language, add=True, txu=None, site=site, reliability=0)
                         sys.stdout.write('.')
+                if download_segments:
+                    # messages.add_message(request, messages.INFO, 'Downloaded %d segments.' % len(download_list))
+                    data = u'\r\n'.join(download_list)
+                    response = HttpResponse(data, content_type='application/octet-stream')
+                    time_stamp = datetime.datetime.now().strftime('%y%m%d-%H-%M-%S')
+                    filename = u'%s-segments.%s.txt' % (site.slug, time_stamp)
+                    response['Content-Disposition'] = 'attachment; filename="%s"' % filename
+                    return response
             elif delete_site:
                 delete_confirmation = data['delete_confirmation']
                 if delete_confirmation:
@@ -312,10 +332,13 @@ def site(request, site_slug):
             elif apply_invariants:
                 blocks = Block.objects.filter(site=site, language__isnull=True, no_translate=False)
                 if blocks:
+                    """
                     srx_filepath = os.path.join(RESOURCES_ROOT, 'segment.srx')
                     srx_rules = srx_segmenter.parse(srx_filepath)
                     italian_rules = srx_rules['Italian']
                     segmenter = srx_segmenter.SrxSegmenter(italian_rules)
+                    """
+                    segmenter = site.make_segmenter()
                 n_invariants = 0
                 for block in blocks:
                     if block.apply_invariants(segmenter):
@@ -900,10 +923,11 @@ def block_translate(request, block_id, target_code):
     source_segments = []
     source_strings = []
     source_translations = []
+    invariant_words = text_to_list(proxy.site.invariant_words)
     for segment in segments:
         if not segment:
             continue
-        if not non_invariant_words(segment.split()):
+        if not non_invariant_words(segment.split(), invariant_words=invariant_words):
             continue
         # if source_language in proxy_languages:
         if source_language == target_language:
@@ -1734,6 +1758,7 @@ if USE_NLTK:
         var_dict['page'] = page = fetched.webpage
         var_dict['site'] = site = page.site
         page = fetched.webpage
+        site = page.site
         if page.encoding.count('html'):
             if request.GET.get('region', False):
                 region = page.get_region()
@@ -1757,15 +1782,20 @@ if USE_NLTK:
                         noun_chunks = chunker.main_chunker(tagged_tokens, chunk_tag='NP')
                         chunks.extend(noun_chunks)
                     if not (tag or chunk):
+                        """
                         matches = []
                         if string.count('(') and string.count(')'):
                             matches = re_parentheses.findall(string)
                             if matches:
                                 for match in matches:
                                     string = string.replace('(%s)' % match, '')
-                        strings.extend(segmenter.extract(string)[0])
+                        """
+                        # strings.extend(segmenter.extract(string)[0])
+                        strings.extend(segments_from_string(string, site, segmenter))
+                        """
                         for match in matches:
                             strings.extend(segmenter.extract(match)[0])
+                        """
                         if ext:
                             terms = extract_terms(string, language=language, tagger=tagger, chunker=chunker)
                             terms = ['- %s -' % term for term in terms]
