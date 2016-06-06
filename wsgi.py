@@ -24,8 +24,10 @@ from django.core.wsgi import get_wsgi_application
 # change the env variable where django looks for the settings module
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "wip.settings")
 """
+"""
 import django.conf
 django.conf.ENVIRONMENT_VARIABLE = "DJANGO_WIP_SETTINGS_MODULE"
 os.environ.setdefault("DJANGO_WIP_SETTINGS_MODULE", "wip.settings")
+"""
 
 application = get_wsgi_application()
