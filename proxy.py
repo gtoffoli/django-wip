@@ -15,8 +15,10 @@ from diazo.utils import quote_param
 from logging import getLogger
 from lxml import etree
 from lxml.etree import tostring
-from repoze.xmliter.serializer import XMLSerializer
 
+from repoze.xmliter.serializer import XMLSerializer
+from repoze.xmliter.utils import getHTMLSerializer
+from diazo.compiler import compile_theme
 from django_diazo.settings import DOCTYPE
 # from django_diazo.utils import get_active_theme, check_themes_enabled, should_transform
 
@@ -124,59 +126,49 @@ class WipHttpProxy(HttpProxy):
         Transform the response with Diazo if transformable
         """
         theme = self.site.get_active_theme(request)
-        # print 'transform_response: ', theme
         if not theme:
             return response
         content = response
         rules_file = os.path.join(theme.theme_path(), 'rules.xml')
-        rules_file = rules_file.replace('c:', '').replace('C:', '')
-        if theme.id != self.theme_id or not os.path.exists(rules_file) or theme.debug:
-            """
-            if not theme.builtin:
-                if theme.rules:
-                    fp = open(rules_file, 'w')
-                    try:
-                        fp.write(theme.rules.serialize())
-                    finally:
-                        fp.close()
-            """
+        compiled_file = os.path.join(theme.theme_path(), 'compiled.xsl')
+        # if theme.id != self.theme_id or not os.path.exists(rules_file) or theme.debug:
+        if not os.path.exists(compiled_file) or theme.debug:
+            print 'self.theme_id: ', self.theme_id
+            print 'theme.id: ', theme.id
+            print 'os.path.exists(rules_file): ', os.path.exists(rules_file)
+            print 'theme.debug: ', theme.debug
             self.theme_id = theme.id
-            print 'prefix: ', theme.theme_url()
-            self.diazo = DiazoMiddleware(
-                app=self.app,
-                global_conf=None,
-                rules=rules_file,
-                prefix=theme.theme_url(),
-                doctype=DOCTYPE,
-            )
-            print 'prefix: ', theme.theme_url()
-            compiled_theme = self.diazo.compile_theme()
-            print 'compiled_theme: ', compiled_theme
-            self.transform = etree.XSLT(compiled_theme, access_control=self.diazo.access_control)
-            self.params = {}
-            for key, value in self.diazo.environ_param_map.items():
-                if key in request.environ:
-                    if value in self.diazo.unquoted_params:
-                        self.params[value] = request.environ[key]
-                    else:
-                        self.params[value] = quote_param(request.environ[key])
-
-        # try:
+            read_network = False
+            access_control = etree.XSLTAccessControl(read_file=True, write_file=False, create_dir=False, read_network=read_network, write_network=False)
+            compiler_parser = etree.XMLParser()
+            theme_parser = etree.HTMLParser()
+            rules_parser = etree.XMLParser(recover=False)
+            compiled_theme = compile_theme(
+                rules_file,
+                theme=None,
+                includemode='document',
+                access_control=access_control,
+                read_network=read_network,
+                parser=theme_parser,
+                rules_parser=rules_parser,
+                xsl_params={})
+            out_file = open(compiled_file, 'w')
+            out_file.write(etree.tostring(compiled_theme))
+            out_file.close()
+        else:
+            in_file = open(compiled_file, 'r')
+            compiled_theme = etree.fromstring(in_file.read())
+            in_file.close
+        # self.transform = etree.XSLT(compiled_theme, access_control=access_control)
+        self.transform = etree.XSLT(compiled_theme)
         if isinstance(response, etree._Element):
             response = HttpResponse()
         else:
             parser = etree.HTMLParser(remove_blank_text=True, remove_comments=True)
             print 'parser: ', parser
             content = etree.fromstring(response.content, parser)
-        # result = self.transform(content.decode('utf-8'), **self.params)
         result = self.transform(content, **self.params)
-        print 'result==content ? ', result==content
         response.content = XMLSerializer(result, doctype=DOCTYPE).serialize()
-        print 'response.content: ', response.content
-        """
-        except Exception, e:
-            getLogger('django_diazo').error(e)
-        """
         if isinstance(response, etree._Element):
             response = HttpResponse('<?xml version="1.0" encoding="UTF-8"?>\n' + tostring(content))
         return response
