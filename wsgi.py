@@ -29,5 +29,6 @@ import django.conf
 django.conf.ENVIRONMENT_VARIABLE = "DJANGO_WIP_SETTINGS_MODULE"
 os.environ.setdefault("DJANGO_WIP_SETTINGS_MODULE", "wip.settings")
 """
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "wip.settings")
 
 application = get_wsgi_application()
