@@ -36,6 +36,8 @@ from django.contrib.contenttypes.fields import GenericForeignKey
 from django.utils.translation import ugettext_lazy as _
 from django_extensions.db.fields import CreationDateTimeField, ModificationDateTimeField, AutoSlugField
 from django_dag.models import node_factory, edge_factory
+from django_diazo.models import Theme
+from django_diazo.middleware import DjangoDiazoMiddleware
 from vocabularies import Language, Subject, ApprovalStatus
 from wip.wip_sd.sd_algorithm import SDAlgorithm
 
@@ -99,6 +101,7 @@ class Site(models.Model):
     srx_rules = models.TextField(verbose_name='Custom SRX rules', blank=True, null=True, help_text="Custom SRX rules extending the standard set" )
     srx_initials = models.TextField(verbose_name='Custom initials', blank=True, null=True, help_text="Initials to be made explicit as SRX rules" )
     invariant_words = models.TextField(verbose_name='Custom invariant words', blank=True, null=True, help_text="Custom invariant words" )
+    themes = models.ManyToManyField(Theme, through='SiteTheme', related_name='site', blank=True, verbose_name='diazo themes')
     
     def can_manage(self, user):
         return user.is_superuser
@@ -343,6 +346,29 @@ class Site(models.Model):
             sys.stdout.write('.')
             time.sleep(1)
         return webpages.count(), n_updates, n_unfound
+
+    def get_active_theme(self, request):
+        """ see get_active_theme(request) in module django_diazo.utils"""
+        if request.GET.get('theme', None):
+            try:
+                theme = request.GET.get('theme')
+                return Theme.objects.get(pk=theme)
+            except Theme.DoesNotExist:
+                pass
+            except ValueError:
+                pass
+        for theme in Theme.objects.filter(site_using_theme__site=self, enabled=True).order_by('sort'):
+            if theme.available(request):
+                return theme
+        return None
+
+class SiteTheme(models.Model):
+    site = models.ForeignKey(Site, related_name='theme_used_for_site')
+    theme = models.ForeignKey(Theme, related_name='site_using_theme')
+
+    class Meta:
+        verbose_name = _('theme used for site')
+        verbose_name_plural = _('themes used for site')
 
 class Proxy(models.Model):
     name = models.CharField(max_length=100)
@@ -700,7 +726,8 @@ class Webpage(models.Model):
         if proxy.enable_live_translation:
             content = self.fetch_live()
             content_document = html.document_fromstring(content)
-            translated_document, has_translation = translated_element(content_document, site, self, language)
+            # translated_document, has_translation = translated_element(content_document, site, self, language)
+            translated_document, has_translation = translated_element(content_document, site, webpage=self, language=language)
             if has_translation:
                 content = element_tostring(translated_document)
                 return content, has_translation
@@ -715,7 +742,8 @@ class Webpage(models.Model):
         if last_version:
             content = last_version.body
             content_document = html.document_fromstring(content)
-            translated_document, has_translation = translated_element(content_document, site, self, language)
+            # translated_document, has_translation = translated_element(content_document, site, self, language)
+            translated_document, has_translation = translated_element(content_document, site, webpage=self, language=language)
             if has_translation:
                 # content = html.tostring(translated_document)
                 content = element_tostring(translated_document)
@@ -1410,7 +1438,8 @@ class BlockEdge(edge_factory('Block', concrete = False)):
         verbose_name_plural = _('block edges')
 
 # inspired by the algorithm of utils.elements_from_element
-def translated_element(element, site, webpage, language, xpath='/html'):
+# def translated_element(element, site, webpage, language, xpath='/html'):
+def translated_element(element, site, webpage=None, language=None, xpath='/html'):
     has_translation = False
     blocks_in_page = BlockInPage.objects.filter(xpath=xpath, webpage=webpage).order_by('-time')
     # print xpath
@@ -1441,7 +1470,8 @@ def translated_element(element, site, webpage, language, xpath='/html'):
             branch = tag
             if child_tags_dict_1[tag] > 1:
                 branch += '[%d]' % n
-            translated_child, child_has_translation = translated_element(child, site, webpage, language, xpath='%s/%s' % (xpath, branch))
+#           translated_child, child_has_translation = translated_element(child, site, webpage, language, xpath='%s/%s' % (xpath, branch))
+            translated_child, child_has_translation = translated_element(child, site, webpage=webpage, language=language, xpath='%s/%s' % (xpath, branch))
             if child_has_translation:
                 element.replace(child, translated_child)
                 has_translation = True

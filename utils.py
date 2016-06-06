@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+import os
 import sys
 import codecs
 sys.stdout = codecs.getwriter('utf8')(sys.stdout)
@@ -380,3 +381,21 @@ def text_to_list(text):
     list = text.splitlines()
     list = [item.strip() for item in list]
     return [item for item in list if len(item)]
+
+def pretty_html(in_path, out_name=''):
+    if out_name:
+        in_file = open(in_path)
+    else:
+        in_file = open(in_path, 'r+')
+    parser = etree.HTMLParser(remove_blank_text=True)
+    tree = etree.parse(in_file, parser)
+    # html_text = etree.tostring(tree, pretty_print=True)
+    html_text = html.tostring(tree, pretty_print=True)
+    if out_name:
+        in_file.close()
+        out_path = os.path.join(os.path.dirname(in_path), out_name)
+        out_file = open(out_path, 'w')
+    else:
+        out_file = in_file
+    out_file.write(html_text)
+    out_file.close

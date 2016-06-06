@@ -89,7 +89,7 @@ try:
         prefix = '/%s' % str(site.path_prefix)
         base_url = str(site.url)
         regex = r'^' + site.path_prefix + r'/(?P<url>.*)$'
-        url_entry = url(regex, WipHttpProxy.as_view(base_url=base_url, prefix=prefix, rewrite_links=True))
+        url_entry = url(regex, WipHttpProxy.as_view(base_url=base_url, prefix=prefix, rewrite_links=True, site_id=site.id))
         urlpatterns.append(url_entry)
 except:
     pass

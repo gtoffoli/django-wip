@@ -23,8 +23,6 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'wip.settings')
 PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
 BASE_DIR = os.path.dirname(PROJECT_DIR)
 
-
-
 # Application definition
 INSTALLED_APPS = [
     'haystack',
@@ -47,6 +45,8 @@ INSTALLED_APPS = [
     'httpproxy',
     'actstream',
     'django_dag',
+    'adminsortable2',
+    'django_diazo',
     # 'roles',
     # 'kombu.transport.django',
     'wip',
@@ -61,6 +61,7 @@ MIDDLEWARE_CLASSES = [
     'django.contrib.auth.middleware.SessionAuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    # 'django_diazo.middleware.DjangoDiazoMiddleware',
     'wip.middleware.ProxyMiddleware',
 ]
 
@@ -76,6 +77,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'django_diazo.context_processors.diazo_enabled',
                 'wip.context_processors.context_processor',
             ],
         'loaders': [
@@ -133,6 +135,7 @@ LOGIN_REDIRECT_URL = '/'
 
 STATIC_URL = '/static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'static')
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 BROKER_URL = 'amqp://guest:guest@localhost:5672//'
 
