@@ -63,6 +63,7 @@ MIDDLEWARE_CLASSES = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     # 'django_diazo.middleware.DjangoDiazoMiddleware',
     'wip.middleware.ProxyMiddleware',
+    'django.middleware.http.ConditionalGetMiddleware',
 ]
 
 ROOT_URLCONF = 'wip.urls'
