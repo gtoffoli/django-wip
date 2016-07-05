@@ -773,6 +773,7 @@ def block(request, block_id):
             translation_state = TO_BE_TRANSLATED
             translation_codes = [proxy.language.code for proxy in block.site.get_proxies()]
             translation_age = ''
+            source_text_filter = ''
             list_pages = False
         webpage_id = request.GET.get('webpage', webpage_id)
         translation_languages = translation_codes and Language.objects.filter(code__in=translation_codes) or []
