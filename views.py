@@ -924,11 +924,11 @@ def block_translate(request, block_id, target_code):
     source_segments = []
     source_strings = []
     source_translations = []
-    invariant_words = text_to_list(proxy.site.invariant_words)
+    site_invariants = text_to_list(proxy.site.invariant_words)
     for segment in segments:
         if not segment:
             continue
-        if not non_invariant_words(segment.split(), invariant_words=invariant_words):
+        if not non_invariant_words(segment.split(), site_invariants=site_invariants):
             continue
         # if source_language in proxy_languages:
         if source_language == target_language:
