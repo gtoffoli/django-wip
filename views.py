@@ -886,11 +886,14 @@ def block_translate(request, block_id, target_code):
                 extract_strings = False # data['extract_strings']
         elif extract:
             for segment in segments:
-                is_model_instance, segment_string = get_or_add_string(segment, source_language, add=True)
+                # is_model_instance, segment_string = get_or_add_string(segment, source_language, add=True)
+                is_model_instance, segment_string = get_or_add_string(segment, source_language, site=block.site, add=True)
         elif segment:
-            is_model_instance, segment_string = get_or_add_string(segment, source_language, add=True)
+            # is_model_instance, segment_string = get_or_add_string(segment, source_language, add=True)
+            is_model_instance, segment_string = get_or_add_string(segment, source_language, site=block.site, add=True)
         elif string:
-            is_model_instance, segment_string = get_or_add_string(string, source_language, add=True)
+            # is_model_instance, segment_string = get_or_add_string(string, source_language, add=True)
+            is_model_instance, segment_string = get_or_add_string(string, source_language, site=block.site, add=True)
             return HttpResponseRedirect('/string_translate/%d/%s/' % (segment_string.id, proxy_codes[0]))
     if (not post) or save_block or create or modify or extract or segment or string:
         sequencer_context = request.session.get('sequencer_context', {})
