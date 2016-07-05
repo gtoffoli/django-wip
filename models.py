@@ -1052,7 +1052,7 @@ class TxuSubject(models.Model):
         verbose_name_plural = _('txu subjects')
 
 class String(models.Model):
-    txu = models.ForeignKey(Txu, null=True, related_name='string')
+    txu = models.ForeignKey(Txu, blank=True, null=True, related_name='string')
     language = models.ForeignKey(Language)
     text = models.TextField()
     reliability = models.IntegerField(default=1)
