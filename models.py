@@ -480,7 +480,7 @@ class Proxy(models.Model):
     def apply_translation_memory(self):
         # string_matcher = StringMatcher()
         site = self.site
-        invariant_words = text_to_list(site.invariant_words)
+        site_invariants = text_to_list(site.invariant_words)
         source_code = site.language_id
         target_language = self.language
         target_code = target_language.code
@@ -516,7 +516,7 @@ class Proxy(models.Model):
             segments.sort(key=lambda x: len(x), reverse=True)
             for segment in segments:
                 words = segment.split()
-                if not non_invariant_words(words, invariant_words=invariant_words):
+                if not non_invariant_words(words, site_invariants=site_invariants):
                     ok_segments +=1
                     logger.info('block: %d invariant segment : %s' % (block.id, segment))
                     continue
@@ -905,9 +905,12 @@ class Webpage(models.Model):
                     parent = blocks[j]
                     m += 1
                     if not BlockEdge.objects.filter(parent=parent, child=block):
-                        parent.add_child(block)
-                        n += 1
-                        print xpaths[j], xpath
+                        try:
+                            parent.add_child(block)
+                            n += 1
+                            print xpaths[j], xpath
+                        except:
+                            print 'create_blocks_dag error:', xpaths[j], xpath
                     break
             i += 1
             blocks.append(block)
@@ -1324,13 +1327,13 @@ class Block(node_factory('BlockEdge')):
         if self.no_translate:
             return False
         segments = self.block_get_segments(segmenter)
-        invariant_words = text_to_list(self.site.invariant_words)
+        site_invariants = text_to_list(self.site.invariant_words)
         invariant = True
         for segment in segments:
             if not type(segment) == unicode:
                 print self.id, segment
                 return False
-            if not non_invariant_words(segment.split(), invariant_words=invariant_words):
+            if not non_invariant_words(segment.split(), site_invariants=site_invariants):
                 continue
             matches = String.objects.filter(site=self.site, text=segment, invariant=True)
             if not matches:
