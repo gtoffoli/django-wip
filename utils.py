@@ -118,7 +118,10 @@ def strings_from_block(block, tree=None, exclude_xpaths=[]):
 
 def strings_from_html(string, fragment=False, exclude_xpaths=[], exclude_tx=False):
     # print 'strings_from_html - 1: ', type(string)
-    doc = html.fromstring(string)
+    try:
+        doc = html.fromstring(string)
+    except:
+        return
     comments = doc.xpath('//comment()')
     for c in comments:
         p = c.getparent()
