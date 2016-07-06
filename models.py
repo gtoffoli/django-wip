@@ -1520,8 +1520,9 @@ def get_segments(body, site, segmenter, fragment=True, exclude_tx=True, exclude_
     return filtered
     """
     segments = []
-    for string in list(strings_from_html(html_string, fragment=fragment, exclude_tx=exclude_tx, exclude_xpaths=exclude_xpaths)):
-        segments.extend(segments_from_string(string, site, segmenter))
+    if html_string:
+        for string in list(strings_from_html(html_string, fragment=fragment, exclude_tx=exclude_tx, exclude_xpaths=exclude_xpaths)):
+            segments.extend(segments_from_string(string, site, segmenter))
     return segments
 
 # def can_strip(word, site_invariants=[]):
