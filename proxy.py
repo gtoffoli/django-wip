@@ -104,10 +104,16 @@ class WipHttpProxy(HttpProxy):
             resources_cache.set(key, response)
             return response
 
+        parsed_url = urlparse.urlparse(url)
+        self.path = parsed_url.path
+        if self.proxy and self.path == 'robots.txt':
+            response.content = self.proxy.robots_txt
+            return response
+
         # content_type = response.headers['Content-Type']
         trailer = response.content[:100]
         if trailer.count('<') and trailer.lower().count('html'):
-            self.path = urlparse.urlparse(self.url).path
+            # self.path = urlparse.urlparse(self.url).path
             response = self.transform_response(request, response)
             if self.proxy_id and self.language_code:
                 self.translate_response(request, response)

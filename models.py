@@ -378,6 +378,7 @@ class Proxy(models.Model):
     host = models.CharField(max_length=100)
     base_path = models.CharField(max_length=100)
     enable_live_translation = models.BooleanField(default=False)
+    robots_txt = models.TextField(verbose_name='robots.txt', blank=True, null=True, help_text="The virtual content of the robots.txt page." )
     translate_deny = models.TextField(verbose_name='Deny translation', blank=True, null=True, help_text="Paths of pages not to processed online by the proxy" )
 
     class Meta:
