@@ -27,6 +27,9 @@ REWRITE_REGEX = re.compile(r'((?:action)=["\'])/(?!\/)')
 RESOURCES_REGEX = re.compile(r'(\.(css|js|png|jpg|gif|pdf|ppt|pptx|doc|docx|xls|xslx|odt|woff))', re.IGNORECASE)
 BODY_REGEX = re.compile(r'(\<body.*?\>)', re.IGNORECASE)
 
+# hreflang_template = '<link rel="alternate" hreflang="%s" href="%s" />'
+hreflang_template = '<%s>; rel="alternate"; hreflang="%s"'
+
 info = {
   'en': """
 <div align="center">%sThis is an experimental partial translation of the website <a href="%s">%s</a></div>""",
@@ -125,6 +128,31 @@ class WipHttpProxy(HttpProxy):
             if self.rewrite_links:
                 response = self.replace_links(response)
                 response = self.rewrite_response(request, response)
+
+        if self.proxy:
+            headers = []
+            original_url = '%s/%s' % (self.site.url, self.path)
+            """
+            print 'site: ', self.site
+            print 'proxy: ', self.proxy
+            print 'base_url: ', self.base_url
+            print 'host: ', self.host
+            print 'path: ', self.path
+            print 'original_url: ', original_url
+            """
+            headers.append(hreflang_template % (original_url, self.site.language_id))
+            protocol = 'http://'
+            for proxy in Proxy.objects.filter(site=self.site):
+                if proxy.host and self.host.count(proxy.host):
+                    proxy_url = '%s%s/%s' % (protocol, proxy.host, self.path)
+                else:
+                    proxy_url = '%slocalhost:8000/%s/%s' % (protocol, proxy.base_path, self.path)
+                headers.append(hreflang_template % (proxy_url, proxy.language_id))
+                # print 'proxy_url: ', proxy_url
+            link = ', '.join(headers)
+            print 'link: ', link
+            response['Link'] = link
+
         return response
 
     def transform_response(self, request, response):
@@ -203,6 +231,10 @@ class WipHttpProxy(HttpProxy):
         return response
 
     def replace_links(self, response):
+        """
+        Rewrites unconditionally the links in the HTML
+        replacing the base url of the original site (if any) with the proxy prefix
+        """
         content = response.content
         content = content.replace(self.base_url, self.prefix)
         if self.language_code == 'en':
