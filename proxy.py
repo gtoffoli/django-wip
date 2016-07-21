@@ -61,6 +61,7 @@ class WipHttpProxy(HttpProxy):
         self.url = url
         self.host = request.META.get('HTTP_HOST', '')
 
+        self.online = False
         for proxy in Proxy.objects.all():
             if proxy.host and self.host.count(proxy.host):
                 self.proxy = proxy
@@ -69,6 +70,7 @@ class WipHttpProxy(HttpProxy):
                 site = proxy.site
                 self.site = site
                 self.base_url = site.url
+                self.online = True
                 break
         if not self.proxy:
             if self.proxy_id:
@@ -143,7 +145,7 @@ class WipHttpProxy(HttpProxy):
             headers.append(hreflang_template % (original_url, self.site.language_id))
             protocol = 'http://'
             for proxy in Proxy.objects.filter(site=self.site):
-                if proxy.host and self.host.count(proxy.host):
+                if self.online and proxy.host:
                     proxy_url = '%s%s/%s' % (protocol, proxy.host, self.path)
                 else:
                     proxy_url = '%slocalhost:8000/%s/%s' % (protocol, proxy.base_path, self.path)
