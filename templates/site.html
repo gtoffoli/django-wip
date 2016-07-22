@@ -23,10 +23,17 @@
 {% block content-page %}
   <table class="table table-responsive table-bordered table-striped">
     <thead>
-      <tr><th>URL</th><th>{% trans "path prefix"|capfirst %}</th><th>{% trans "allowed domains"|capfirst %}</th><th>{% trans "start urls"|capfirst %}</th>{% if site.deny %}<th>{% trans "deny"|capfirst %}</th>{% endif %}</tr>
+      <tr><th>URL</th><th>{% trans "null proxy prefix"|capfirst %}</th><th>{% trans "allowed domains"|capfirst %}</th><th>{% trans "start urls"|capfirst %}</th>{% if site.deny %}<th>{% trans "deny"|capfirst %}</th>{% endif %}</tr>
     </thead>
     <tbody>
-      <tr><td><a href="{{ site.url }}">{{ site.url }}</a></td><td>{{ site.path_prefix }}</td><td>{{ site.allowed_domains }}</td><td>{{ site.start_urls }}</td>{% if site.deny %}<td>{{ site.deny }}</td>{% endif %}</tr>
+      <tr>
+      	<td><a href="{{ site.url }}">{{ site.url }}</a></td>
+      	<td><a href="/{{ site.path_prefix }}/" title="{% trans "visit the null proxy at the WIP local address" %}">
+			&nbsp;&nbsp; <i class="fa fa-eye" aria-hidden="true"></i> /{{ site.path_prefix }}/</a></td>
+      	<td>{{ site.allowed_domains }}</td>
+      	<td>{{ site.start_urls }}</td>
+      	{% if site.deny %}<td>{{ site.deny }}</td>{% endif %}
+   	  </tr>
     </tbody>
   </table>
 
@@ -40,7 +47,13 @@
         <td>{% if block_count %}<span class="mR10">{{ block_count }}</span><span class="mR10"><a href="/site/{{ site.slug }}/blocks/" title="{% trans "list blocks" %}"><i class="fa fa-th-list"></i></a></span><a href="/block/{{ first_block.id }}/" title="{% trans "browse all blocks" %}"><i class="fa fa-caret-square-o-right"></i></a>{% else %}0{% endif %}</td>
         <td>{% if proxies %}
               {% for proxy in proxies %}
-                <span class="mR10">{{ proxy.name }}</span><span class="mR10"><a href="{% url 'proxy' proxy.slug %}"><i class="fa fa-th-large" aria-hidden="true"></i></a></span><a href="{% if proxy.host != '?' %} http://{{ proxy.host }}{% else %}/{{proxy.base_path}}{% endif %}"><i class="fa fa-eye" aria-hidden="true"></i></a>{% if not forloop.last %}<br>{% endif %}
+                <span class="mR10">{{ proxy.name }}</span>
+                &nbsp; <a href="{% url 'proxy' proxy.slug %}" title="{% trans "go to the proxy management dashboard" %}"><i class="fa fa-th-large" aria-hidden="true"></i></a>
+                &nbsp; <a href="/{{ proxy.base_path }}/" title="{% trans "visit the proxy site at the WIP local address" %}"><i class="fa fa-eye" aria-hidden="true"></i></a>
+                &nbsp; <a href="{% if proxy.host != '?' %} http://{{ proxy.host }}{% else %}/{{proxy.base_path}}{% endif %}"  title="{% trans "visit the proxy site at its online address" %}"><i class="fa fa-link" aria-hidden="true"></i></a>
+                &nbsp; <a href="/proxy/{{ proxy.slug }}/translations/" title="{% trans "add/edit the segment translations" %}"><i class="fa fa-columns" aria-hidden="true"></i></a>
+                {% if proxy.enable_live_translation %}&nbsp&nbsp; {% trans "live translation is enabled" %}{% endif %}
+                {% if not forloop.last %}<br>{% endif %}
               {% endfor %}
             {% else %}
               {% trans "no proxies are available."|capfirst %}

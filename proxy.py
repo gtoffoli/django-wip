@@ -223,11 +223,17 @@ class WipHttpProxy(HttpProxy):
             content, transformed = proxy.translate_page_content(content)
         else:
             path = urlparse.urlparse(self.url).path
+            print 'translate_response: ', path
+            print 'enable_live_translation: ', proxy.enable_live_translation
             webpages = Webpage.objects.filter(site=site, path=path).order_by('-created')
             if webpages:
                 webpage = webpages[0]
+                print 'no_translate', webpage.no_translate
                 if not webpage.no_translate:
                     content, transformed = webpage.get_translation(self.language_code)
+            if not transformed and proxy.enable_live_translation:
+                print 'no translation found: ', path
+                content, transformed = proxy.translate_page_content(content)
         if transformed:
             response.content = content
         return response

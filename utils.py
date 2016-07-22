@@ -264,7 +264,12 @@ def block_checksum(block):
     return string_checksum(string)
 
 def element_signature(element):
-    tags = [el.tag for el in element.iter()]
+    # tags = [el.tag for el in element.iter()]
+    tags = []
+    for el in element.iter():
+        tag = el.tag
+        if type(tag) is str:
+            tags.append(tag)
     return string_checksum('.'.join(tags) + '_' + element.text_content())
 
 def guess_block_language(block):

@@ -634,7 +634,14 @@ class Proxy(models.Model):
         return n_ready, n_translated, n_partially
 
     def translate_page_content(self, content):
-        has_translation = True
+        # has_translation = True
+        html_string = re.sub("(<!--(.*?)-->)", "", content, flags=re.MULTILINE)
+        html_string = normalize_string(html_string)
+        content_document = html.document_fromstring(html_string)
+        translated_document, has_translation = translated_element(content_document, self.site, webpage=None, language=self.language, translate_live=self.enable_live_translation)
+        if has_translation:
+            content = element_tostring(translated_document)
+        print 'translate_page_content: ', has_translation
         return content, has_translation
 
     def propagate_up_block_updates(self):
@@ -723,6 +730,7 @@ class Webpage(models.Model):
         has_translation = False
         site = self.site
         language = get_object_or_404(Language, code=language_code)
+        """
         proxy = Proxy.objects.get(site=site, language=language)
         if proxy.enable_live_translation:
             content = self.fetch_live()
@@ -732,6 +740,7 @@ class Webpage(models.Model):
             if has_translation:
                 content = element_tostring(translated_document)
                 return content, has_translation
+        """
         if not cache:
             translated_versions = TranslatedVersion.objects.filter(webpage=self, language=language).order_by('-modified')
             translated_version = translated_versions and translated_versions[0] or None
@@ -1443,21 +1452,28 @@ class BlockEdge(edge_factory('Block', concrete = False)):
 
 # inspired by the algorithm of utils.elements_from_element
 # def translated_element(element, site, webpage, language, xpath='/html'):
-def translated_element(element, site, webpage=None, language=None, xpath='/html'):
+def translated_element(element, site, webpage=None, language=None, xpath='/html', translate_live=False):
+    print 'translated_element', xpath
     has_translation = False
-    blocks_in_page = BlockInPage.objects.filter(xpath=xpath, webpage=webpage).order_by('-time')
-    # print xpath
+    block = None
+    blocks_in_page = webpage and BlockInPage.objects.filter(xpath=xpath, webpage=webpage).order_by('-time') or []
     if blocks_in_page:
         block = blocks_in_page[0].block
-        # print 'page, block: ', webpage.id, block.id
+    elif not webpage and translate_live:
+        checksum = element_signature(element)
+        blocks = Block.objects.filter(site=site, checksum=checksum).order_by('-time')
+        block = blocks and blocks[0] or None
+        if block: print 'checksum: ', checksum, 'block: ', block
+    if block:
         if block.no_translate:
             return element, True
         translated_blocks = TranslatedBlock.objects.filter(block=block, language=language, state__gt=0).order_by('-modified')
         # print 'translated_blocks : ', translated_blocks
         if translated_blocks:
             element = html.fromstring(translated_blocks[0].body)
-            # retuen the complete translation of the block
+            # return the complete translation of the block
             return element, True
+
     child_tags_dict_1 = {}
     child_tags_dict_2 = {}
     # build a dict with the number of occurrences of each type of block tag
@@ -1475,7 +1491,7 @@ def translated_element(element, site, webpage=None, language=None, xpath='/html'
             if child_tags_dict_1[tag] > 1:
                 branch += '[%d]' % n
 #           translated_child, child_has_translation = translated_element(child, site, webpage, language, xpath='%s/%s' % (xpath, branch))
-            translated_child, child_has_translation = translated_element(child, site, webpage=webpage, language=language, xpath='%s/%s' % (xpath, branch))
+            translated_child, child_has_translation = translated_element(child, site, webpage=webpage, language=language, xpath='%s/%s' % (xpath, branch), translate_live=translate_live)
             if child_has_translation:
                 element.replace(child, translated_child)
                 has_translation = True

@@ -18,32 +18,26 @@
 {% block title-page %}Proxy: {{ proxy.name }}{% endblock %}
 
 {% block content-page %}
-{% comment %}
-    <div><label>Site</label> <a href="{% url 'site' site.slug %}">{{ site.name }}</a></div>
-    <div><label>Proxy language</label> {{ proxy.language.name }}</div>
-    <div><label>Base path</label> {{ proxy.base_path }}</div>
-
-    <div><label>Pages</label> {% if page_count %} <a href="/site/{{ site.slug }}/pages/" title="list pages">{{ page_count }}</a> {% else %}0{% endif %}
-    	{% if page_count %}&nbsp; <a href="/page/{{ first_page.id }}/" title="browse all pages"><span class="fa fa-caret-square-o-right"></span></a>{% endif %}</div>
-    <div><label>Page blocks</label> {% if block_count %} <a href="/site/{{ site.slug }}/blocks/" title="list blocks">{{ block_count }}</a> {% else %}0{% endif %}
-		{% if block_count %}&nbsp; <a href="/block/{{ first_block.id }}/" title="browse all blocks"><span class="fa fa-caret-square-o-right"></span></a>{% endif %}</div>
-
-    <div><label>Translated pages</label> {{ translated_pages_count }}</div>
-    <div><label>Translated blocks</label> {{ translated_blocks__count }}</div>
-{% endcomment %}
 
   <table class="table table-responsive table-bordered table-striped">
     <thead>
       <th>{% trans "site"|capfirst %}</th>
+      <th>{% trans "original site"|capfirst %}</th>
       <th>{% trans "proxy language"|capfirst %}</th>
       <th>{% trans "proxy domain"|capfirst %}</th>
       <th>{% trans "base path"|capfirst %}</th>
+      <th>{% trans "live translation"|capfirst %}</th>
     </thead>
     <tbody>
-      <td><span class="mR10">{{ site.name }}</span><span class="mR10"><a href="{% url 'site' site.slug %}"><i class="fa fa-th-large" aria-hidden="true"></i></a></span><a href="{{ site.url }}"><i class="fa fa-eye" aria-hidden="true"></i></a></td>
+      <td><span class="mR10">
+      	<a href="{% url 'site' site.slug %}" title="{% trans "go to the site management dashboard" %}"><i class="fa fa-th-large" aria-hidden="true"></i></a>
+		{{ site.name }}</span>
+      </td>
+   	  <td><a href="{{ site.url }}" title="{% trans "visit the original site" %}"><i class="fa fa-link" aria-hidden="true"></i> {{ site.url }}</a></td>
       <td>{{ proxy.language.name }}</td>
-      <td>{% if proxy.host != '?' %}<a href="http://{{ proxy.host }}">{{ proxy.host }}</a>{% else %}{% trans "not defined" %}{% endif %}</td>
-      <td>{{ proxy.base_path }}</td>
+      <td>{% if proxy.host != '?' %}<a href="http://{{ proxy.host }}" title="{% trans "visit the proxy site at its online address" %}"><i class="fa fa-link" aria-hidden="true"></i> {{ proxy.host }}</a>{% else %}{% trans "not defined" %}{% endif %}</td>
+      <td><a href="/{{ proxy.base_path }}/" title="{% trans "visit the proxy site at the WIP local address" %}"><i class="fa fa-eye" aria-hidden="true"></i> {{ proxy.base_path }}</a></td>
+      <td>{% if not proxy.enable_live_translation %}{% trans "not" %}{% endif %} {% trans "enabled" %}</td>
     </tbody>
   </table>
 
@@ -77,7 +71,7 @@
           <input type="submit" name="delete_proxy" value="Delete proxy" title="Delete all proxy info" class="btn btn-default btn-sm">
         </div>
       {% endif %}
-      <div class="form-group"><a href="/proxy/{{ proxy.slug }}/translations/" title="add_edit_translations" class="mR30 btn btn-default btn-sm">{% trans "add/edit translations"|capfirst %}</a><span class="mR30"><span class="show-inline">{{ manage_form.file }}</span><input type="submit" name="import_translations" value="Import XLIFF translations" title="Import XLIFF translations" class="btn btn-default btn-sm"></span><input type="submit" name="export_translations" value="Export XLIFF translations" title="Export XLIFF translations" class="btn btn-default btn-sm"></div>
+      <div class="form-group"><a href="/proxy/{{ proxy.slug }}/translations/" title="add_edit_translations" class="mR30 btn btn-default btn-sm"><i class="fa fa-columns" aria-hidden="true"></i> {% trans "add/edit translations"|capfirst %}</a><span class="mR30"><span class="show-inline">{{ manage_form.file }}</span><input type="submit" name="import_translations" value="Import XLIFF translations" title="Import XLIFF translations" class="btn btn-default btn-sm"></span><input type="submit" name="export_translations" value="Export XLIFF translations" title="Export XLIFF translations" class="btn btn-default btn-sm"></div>
       {% if page_count %}
         <div class="form-group"><span class="mR30"><input type="submit" name="cache_pages" value="Cache translated pages" title="cache translated pages" class="btn btn-default btn-sm"></span>{{ manage_form.delete_pages_confirmation }} Yes, I want to delete all translated pages <input type="submit" name="delete_pages" value="Delete translated pages" title="delete translated pages" class="btn btn-default btn-sm"></div>
       {% endif %}

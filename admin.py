@@ -21,10 +21,13 @@ class SiteThemeAdmin(admin.ModelAdmin):
     list_display = ['site', 'theme',]
 
 class ProxyAdmin(admin.ModelAdmin):
-    list_display = ['name', 'language', 'slug', 'site_name', 'host', 'base_path',]
+    list_display = ['name', 'language', 'slug', 'site_name', 'host', 'base_path', 'live',]
 
     def site_name(self, obj):
         return obj.site.name
+
+    def live(self, obj):
+        return obj.enable_live_translation
 
 class WebpageAdmin(admin.ModelAdmin):
     list_filter = ('site', 'blocks')
