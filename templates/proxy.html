@@ -15,7 +15,9 @@
 
 {% block body_id %}proxy{% endblock %}
 
-{% block title-page %}Proxy: {{ proxy.name }}{% endblock %}
+{% block title-page %}Proxy: {{ proxy.name }}
+	{% if can_manage %}&nbsp;<a href="{% url "admin:wip_proxy_change" proxy.id %}">&nbsp;<img src="{% static "admin/img/icon-changelink.svg" %}">&nbsp;</a>{% endif %}
+{% endblock %}
 
 {% block content-page %}
 

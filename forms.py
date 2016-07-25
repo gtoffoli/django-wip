@@ -66,3 +66,7 @@ class StringsTranslationsForm(forms.Form):
 
 class TranslationServiceForm(forms.Form):
     translation_services = forms.MultipleChoiceField(required=True, choices=TRANSLATION_SERVICE_CHOICES, label="Translation service", widget=forms.SelectMultiple(attrs={ 'style': 'width: auto;', 'size': 3,}))
+
+class FilterPagesForm(forms.Form):
+    path_filter = forms.CharField(required=False, label="Pattern in page path", widget=forms.TextInput(attrs={'style': 'width: 500px;', 'onchange': 'javascript: this.form.submit()',}))
+    from_start = forms.BooleanField(required=False, label='Only paths starting with pattern')

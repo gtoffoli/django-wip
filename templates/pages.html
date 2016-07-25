@@ -17,16 +17,15 @@
 {% block title-page %}{% trans "pages of site"|capfirst %}: <a href="/site/{{ site.slug }}/">{{ site.name }}</a>{% endblock %}
 
 {% block content-page %}
-  {% if page_count %}
     <p>{% trans "pages found"|capfirst %}: {{ page_count }}</p>
-    
-{% comment %}
-    <ul class="pagination">
-    	{% for p in before %}<li><a href="?page={{ p }}">{% if forloop.first %}<i class="fa fa-fast-backward"></i> {% else %}{{ p }}{% endif %}</a></li>{% endfor %}
-        <li><i class="fa fa-circle"></i> page {{ site_pages.number }} of {{ site_pages.paginator.num_pages }} <i class="fa fa-circle"></i></li>
-    	{% for p in after %}<li><a href="?page={{ p }}">{% if forloop.last %} <i class="fa fa-fast-forward"></i> {% else %} {{ p }} {% endif %}</a></li>{% endfor %}
-    </ul>
-{% endcomment %}
+
+	<form action="#" method="post" id="path-filter-form">{% csrf_token %}
+		<label>Pattern in page path</label> {{ filter_pages_form.path_filter }} &nbsp;
+		<label>Match from start</label> {{ filter_pages_form.from_start }} &nbsp;&nbsp;
+	</form> 
+   
+  {% if page_count %}
+
     {% if site_pages.paginator.num_pages > 1 %}
       <div class="text-right">
         <ul class="pagination mT0">
@@ -35,6 +34,8 @@
           {% for p in after %}<li><a href="?page={{ p }}">{{ p }}</a></li>{% endfor %}
         </ul>
       </div>
+    {% else %}
+      <div style="margin: 20px;"></div>
     {% endif %}
 
     <table class="table table-responsive table-bordered table-striped mB5">
@@ -84,7 +85,7 @@
         </ul>
       </div>
     {% endif %}
-  {% else %}
-    <p>{% trans "no pages are present"|capfirst %}</p>
+
   {% endif %}
+
 {% endblock %}

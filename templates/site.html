@@ -18,7 +18,9 @@
 
 {% block body_id %}site{% endblock %}
 
-{% block title-page %}Site: {{ site.name }}{% endblock %}
+{% block title-page %}Site: {{ site.name }}
+	{% if can_manage %}&nbsp;<a href="{% url "admin:wip_site_change" site.id %}">&nbsp;<img src="{% static "admin/img/icon-changelink.svg" %}">&nbsp;</a>{% endif %}
+{% endblock %}
 
 {% block content-page %}
   <table class="table table-responsive table-bordered table-striped">

@@ -102,7 +102,10 @@ class Site(models.Model):
     srx_initials = models.TextField(verbose_name='Custom initials', blank=True, null=True, help_text="Initials to be made explicit as SRX rules" )
     invariant_words = models.TextField(verbose_name='Custom invariant words', blank=True, null=True, help_text="Custom invariant words" )
     themes = models.ManyToManyField(Theme, through='SiteTheme', related_name='site', blank=True, verbose_name='diazo themes')
-    
+
+    def get_absolute_url(self):
+        return '/site/%s/' % self.slug
+
     def can_manage(self, user):
         return user.is_superuser
 
@@ -384,6 +387,9 @@ class Proxy(models.Model):
     class Meta:
         verbose_name = _('proxy site')
         verbose_name_plural = _('proxy sites')
+
+    def get_absolute_url(self):
+        return '/proxy/%s/' % self.slug
 
     def can_manage(self, user):
         return user.is_superuser

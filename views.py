@@ -44,7 +44,7 @@ from models import segments_from_string, non_invariant_words
 from models import TO_BE_TRANSLATED, TRANSLATED, PARTIALLY, INVARIANT, ALREADY
 from models import MYMEMORY, TRANSLATION_SERVICE_DICT
 from forms import SiteManageForm, ProxyManageForm, PageEditForm, PageSequencerForm, BlockEditForm, BlockSequencerForm
-from forms import StringSequencerForm, StringsTranslationsForm, StringTranslationForm, TranslationServiceForm
+from forms import StringSequencerForm, StringsTranslationsForm, StringTranslationForm, TranslationServiceForm, FilterPagesForm
 from session import get_language, set_language, get_site, set_site
 
 from settings import PAGE_SIZE, PAGE_STEPS
@@ -461,12 +461,28 @@ def site_pages(request, site_slug):
     var_dict = {}
     site = get_object_or_404(Site, slug=site_slug)
     var_dict['site'] = site
+
+    filter_pages_context = request.session.get('filter_pages_context', {})
+    path_filter = filter_pages_context.get('path_filter', '')
+    from_start = filter_pages_context.get('from_start', False)
+    if request.method == 'POST':
+        form = FilterPagesForm(request.POST)
+        if form.is_valid():
+            data = form.cleaned_data
+            filter_pages_context['path_filter'] = path_filter = data['path_filter']
+            filter_pages_context['from_start'] = at_start = data['from_start']
+            request.session['filter_pages_context'] = filter_pages_context
+    else:
+        form = FilterPagesForm(initial={ 'path_filter': path_filter, 'from_start': from_start, })
+    var_dict['filter_pages_form'] = form
+
     var_dict['proxies'] =  proxies = Proxy.objects.filter(site=site)
-    """
-    var_dict['pages'] = pages = Webpage.objects.filter(site=site)
-    var_dict['page_count'] = pages.count()
-    """
     qs = Webpage.objects.filter(site=site)
+    if path_filter:
+        if from_start:
+            qs = qs.filter(path__istartswith=path_filter)
+        else:
+            qs = qs.filter(path__icontains=path_filter)
     var_dict['page_count'] = page_count = qs.count()
     paginator = Paginator(qs, PAGE_SIZE)
     page = request.GET.get('page', 1)
@@ -1298,7 +1314,6 @@ def find_like_strings(source_string, translation_languages=[], with_translations
     like_strings.sort(key=lambda x: x[0], reverse=True)
     return like_strings[:max_strings]
 
-# def proxy_string_translations(request, proxy_slug, state=''):
 def proxy_string_translations(request, proxy_slug=None, state=None):
     """
     list translations from source language (code) to target language (code)
@@ -1306,25 +1321,6 @@ def proxy_string_translations(request, proxy_slug=None, state=None):
     if not request.user.is_superuser:
         return empty_page(request);
     PAGE_SIZE = 100
-    """
-    var_dict = {}
-    proxy = site = None
-    if proxy_slug:
-        var_dict['proxy'] = proxy = Proxy.objects.get(slug=proxy_slug)
-        var_dict['site'] = site = proxy.site
-    var_dict['state'] = state
-    translated = None
-    var_dict['source_language'] = source_language = site.language
-    var_dict['target_language'] = target_language = proxy.language
-    print target_language
-    if state == 'translated':
-        translated = True
-    elif state == 'untranslated':
-        translated = False
-    else:
-        translated = None
-    # qs = find_strings(source_languages=[source_language], target_languages=[target_language], site=site, translated=translated)
-    """
     proxy = proxy_slug and Proxy.objects.get(slug=proxy_slug) or None
 
     tm_edit_context = request.session.get('tm_edit_context', {})
@@ -1346,7 +1342,6 @@ def proxy_string_translations(request, proxy_slug=None, state=None):
     if request.method == 'POST':
         post = request.POST
         form = StringsTranslationsForm(post)
-        print 'form = ', form
         if post.get('delete-segment', ''):
             selection = post.getlist('selection')
             print 'delete-segment', selection
