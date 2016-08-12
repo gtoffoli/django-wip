@@ -261,7 +261,8 @@ class Site(models.Model):
             l_out.append(l)
         return string_checksum('\n'.join(l_out))
 
-    def fetch_page(self, path, webpage=None, extract_blocks=True, extract_segments=False, diff=False, dry=False, verbose=False):
+    # def fetch_page(self, path, webpage=None, extract_blocks=True, extract_segments=False, diff=False, dry=False, verbose=False):
+    def fetch_page(self, path, webpage=None, extract_blocks=True, extract_block=None, extract_segments=False, diff=False, dry=False, verbose=False):
         site_id = self.id
         page_url = self.url + path
         if verbose:
@@ -313,16 +314,23 @@ class Site(models.Model):
                 l_diff = difflib.Differ().compare(l_1, l_2)
                 print '\n'.join(l_diff)
         # if not dry and (not page_version or size != page_version.size or checksum != page_version.checksum):
-        if not dry and (not page_version or checksum != page_version.checksum):
+        if extract_block or (not dry and (not page_version or checksum != page_version.checksum)):
             page_version = PageVersion(webpage=webpage, delay=delay, response_code=response_code, size=size, checksum=checksum, body=body)
             page_version.save()
             updated = True
-            if extract_blocks:
+            if extract_block:
+                webpage.extract_blocks(xpath=extract_block, verbose=verbose)
+            elif extract_blocks:
+                """
                 if verbose:
                     print 'extract_blocks: ', webpage.extract_blocks()
+                """
+                n_1, n_2, n_3 = webpage.extract_blocks(verbose=verbose)
+                if verbose:
+                    print 'extract_blocks: ', n_1, n_2, n_3
                 webpage.create_blocks_dag()
-        page_version_id = page_version and page_version.id or 0
         if verbose:
+            page_version_id = page_version and page_version.id or 0
             print site_id, webpage_id, page_version_id
         return updated
 
@@ -855,9 +863,13 @@ class Webpage(models.Model):
             proxy_list.append([language, t_dict])
         return blocks, total, invariant, proxy_list
 
-    def extract_blocks(self):
+    # def extract_blocks(self):
+    def extract_blocks(self, xpath=None, verbose=False):
+        """ if xpath is specified, extract only one block """
         site = self.site
         versions = PageVersion.objects.filter(webpage=self).order_by('-time')
+        if verbose:
+            print 'versions: ', versions
         if not versions:
             return None
         last_version = versions[0]
@@ -869,24 +881,34 @@ class Webpage(models.Model):
         doc = html.document_fromstring(html_string)
         tree = doc.getroottree()
         top_els = doc.getchildren()
+        if verbose:
+            print 'top_els: ', top_els
         el_block_dict = {}
         n_1 = n_2 = n_3 = 0
+        done = False
         for top_el in top_els:
+            if done:
+                break
             for el in elements_from_element(top_el):
                 if el.tag in BLOCK_TAGS:
                     save_failed = False
                     n_1 += 1
-                    xpath = tree.getpath(el)
+                    el_xpath = tree.getpath(el)
+                    if verbose:
+                        print xpath, el_xpath
+                    # if xpath and not el_xpath==xpath:
+                    if xpath and not el_xpath.replace('[1]','')==xpath:
+                        continue
                     # checksum = block_checksum(el)
                     checksum = element_signature(el)
-                    # blocks = Block.objects.filter(site=site, xpath=xpath, checksum=checksum).order_by('-time')
+                    # blocks = Block.objects.filter(site=site, xpath=el_xpath, checksum=checksum).order_by('-time')
                     blocks = Block.objects.filter(site=site, checksum=checksum).order_by('-time')
                     if blocks:
                         block = blocks[0]
                     else:
                         string = etree.tostring(el)
                         # string = element_tostring(el)
-                        # block = Block(site=site, xpath=xpath, checksum=checksum, body=string)
+                        # block = Block(site=site, xpath=el_xpath, checksum=checksum, body=string)
                         block = Block(site=site, checksum=checksum, body=string)
                         try:
                             block.save()
@@ -895,12 +917,16 @@ class Webpage(models.Model):
                             print '--- save error in page ---', self.id
                             save_failed = True
                     # blocks_in_page = BlockInPage.objects.filter(block=block, webpage=self)
-                    blocks_in_page = BlockInPage.objects.filter(block=block, xpath=xpath, webpage=self)
+                    blocks_in_page = BlockInPage.objects.filter(block=block, xpath=el_xpath, webpage=self)
                     if not blocks_in_page and not save_failed:
                         n_3 += 1
                         # blocks_in_page = BlockInPage(block=block, webpage=self)
-                        blocks_in_page = BlockInPage(block=block, xpath=xpath, webpage=self)
+                        blocks_in_page = BlockInPage(block=block, xpath=el_xpath, webpage=self)
                         blocks_in_page.save()
+                    # if xpath and el_xpath==xpath:
+                    if xpath and el_xpath.replace('[1]','')==xpath:
+                        done = True
+                        break
         print self.path, n_1, n_2, n_3
         return n_1, n_2, n_3
 
@@ -1459,7 +1485,7 @@ class BlockEdge(edge_factory('Block', concrete = False)):
 # inspired by the algorithm of utils.elements_from_element
 # def translated_element(element, site, webpage, language, xpath='/html'):
 def translated_element(element, site, webpage=None, language=None, xpath='/html', translate_live=False):
-    print 'translated_element', xpath
+    # print 'translated_element', xpath
     has_translation = False
     block = None
     blocks_in_page = webpage and BlockInPage.objects.filter(xpath=xpath, webpage=webpage).order_by('-time') or []

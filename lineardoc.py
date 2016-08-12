@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 # converted from the LinearDoc javascript library of the Wikimedia Content translation project
+# https://github.com/wikimedia/mediawiki-services-cxserver/tree/master/lineardoc
 
 """
  * A chunk of uniformly-annotated inline text

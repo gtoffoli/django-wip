@@ -1,0 +1,33 @@
+﻿{
+  "manifest_version": 2,
+
+  "name": "WIP",
+  "description": "WIP extension - allows to select a block and send related information to a WIP server",
+  "version": "0.1",
+  "minimum_chrome_version": "10.0",
+  // "devtools_page": "devtools.html",
+
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["jquery-3.1.0.min.js", "content_script.js"]
+    }],
+
+  "background": {
+    "scripts": ["background.js"],
+    "persistent": true
+  },
+ 
+  "permissions": [
+        "tabs",
+        "contextMenus",
+        "http://*/*",
+        "https://*/*"
+  ],
+
+  "icons": {
+    "16": "icon-bitty.png",
+	"48": "icon-small.png",
+	"128": "icon-large.png"
+  }
+}

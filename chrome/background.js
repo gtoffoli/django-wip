@@ -1,0 +1,53 @@
+﻿// Chrome - Get selected text and send to server
+// http://vikku.info/programming/chrome-extension/get-selected-text-send-to-web-server-in-chrome-extension-communicate-between-content-script-and-background-page.htm
+var request_data = null;
+ 
+chrome.extension.onRequest.addListener(function(request, sender, sendResponse)
+{
+    switch(request.message)
+    {
+        case 'sendBlock':
+            window.request_data = request.data
+        break;
+         
+        default:
+            sendResponse({data: 'Invalid arguments'});
+        break;
+    }
+	console.log(request.message);
+});
+ 
+// Sending and receiving data in JSON format using POST method
+// http://stackoverflow.com/questions/24468459/sending-a-json-to-server-and-retrieving-a-json-in-return-without-jquery
+function sendblock(info,tab)
+{
+	url = request_data['url'];
+	xpath = request_data['xpath'];
+	site_url = request_data['site_url'];
+	console.log('url: ', url);
+	console.log('xpath: ', xpath);
+	console.log('site_url: ', site_url);
+    var data = JSON.stringify({ url: url, xpath: xpath });
+    var endpoint = site_url + '/api/send_block/';
+    console.log('json data: ', data);
+    console.log('endpoint: ', endpoint);
+    var request = new XMLHttpRequest();
+    request.open("POST", endpoint);
+    request.setRequestHeader("Content-type", "application/json");
+    request.onreadystatechange = function () { 
+        if (request.readyState == 4 && request.status == 200) {
+            var json = JSON.parse(request.responseText);
+            console.log('response: ', json);
+        }
+        // else console.log('failed');
+    }
+    request.send(data);
+}
+ 
+var contexts = ["selection"];
+for (var i = 0; i < contexts.length; i++)
+{
+    var context = contexts[i];
+    // https://developer.chrome.com/extensions/contextMenus#method-create
+    chrome.contextMenus.create({"title": "Send block for translation", "contexts":[context], "onclick": sendblock}); 
+}

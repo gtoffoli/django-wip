@@ -18,12 +18,13 @@ Including another URLconf
 """
 
 from settings import USE_SCRAPY, USE_NLTK
-from django.conf.urls import patterns, include, url
+from django.conf.urls import include, url
 from django.views.generic import TemplateView
 from django.contrib import admin
 from models import Site, Proxy
 import views
 import search_indexes
+from api import send_block
 # import scripts
 from proxy import WipHttpProxy
 
@@ -32,6 +33,7 @@ urlpatterns = [
     url(r'^admin/', admin.site.urls),
     url(r'^tinymce/', include('tinymce.urls')),
     url(r"^$", views.home, name="home"),
+    url(r'^api/send_block/$', send_block),
     url(r"^language/(?P<language_code>[\w-]*)/set/$", views.language, name="language"),
     url(r"^sites/$", views.sites, name="sites"),
     url(r"^site/(?P<site_slug>[\w-]+)/$", views.site, name="site"),

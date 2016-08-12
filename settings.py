@@ -49,6 +49,7 @@ INSTALLED_APPS = [
     'django_diazo',
     # 'roles',
     # 'kombu.transport.django',
+    'rest_framework',
     'wip',
 ]
 
@@ -357,6 +358,14 @@ if SEARCH_BACKEND == 'whoosh':
             'PATH': os.path.join(BASE_DIR, 'whoosh_index'),
         },
     }
+
+REST_FRAMEWORK = {
+    # Use Django's standard `django.contrib.auth` permissions,
+    # or allow read-only access for unauthenticated users.
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.DjangoModelPermissionsOrAnonReadOnly'
+    ],
+}
 
 PAGE_SIZE = 100
 PAGE_STEPS = [1, 2, 3, 4, 5, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000]

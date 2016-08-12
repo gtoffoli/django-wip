@@ -269,7 +269,8 @@ class WipHttpProxy(HttpProxy):
             webpages = Webpage.objects.filter(site=self.site, path=self.path).order_by('-created')
             if webpages:
                 extra = '<a href="/page/%s/">@</a> ' % webpages[0].id
-        if self.proxy:
+        # if self.proxy:
+        if self.proxy and self.online:
             content = BODY_REGEX.sub(r'\1' + info[self.language_code] % (extra, site_url, site_url.split('//')[1]), content)
         response.content = content
         return response
