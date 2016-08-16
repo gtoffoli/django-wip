@@ -61,6 +61,20 @@ function getXPath(element)
     return xpath;
 }
 
+// Cancel range selection
+//http://stackoverflow.com/questions/3169786/clear-text-selection-with-javascript
+function cancelSelection() {
+	var sel = window.getSelection ? window.getSelection() : document.selection;
+	if (sel) {
+	    if (sel.removeAllRanges) {
+	        sel.removeAllRanges();
+	    } else if (sel.empty) {
+	        sel.empty();
+	    }
+	}
+}
+
+// On down click of left mouse button cancel range selection
 // http://stackoverflow.com/questions/3169786/clear-text-selection-with-javascript
 document.addEventListener('mousedown', function(event)
 {
@@ -69,6 +83,7 @@ document.addEventListener('mousedown', function(event)
     console.log(isLeftMB);
 
     if (isLeftMB) {
+    	/* 
     	var sel = window.getSelection ? window.getSelection() : document.selection;
     	if (sel) {
     	    if (sel.removeAllRanges) {
@@ -77,19 +92,18 @@ document.addEventListener('mousedown', function(event)
     	        sel.empty();
     	    }
     	}
+    	*/
+    	cancelSelection();
     }
 })
 
-document.addEventListener('mouseup', function(event)
-{
+// Extend the range selection to the containing "block"
+function extendSelectionToBlock() {
     var selection = window.getSelection();
     var selected_text = selection.toString();
     var isStart = true;
-    var isLeftMB = event.button==0;
-    console.log(event);
-    console.log(isLeftMB);
 
-    if (isLeftMB && selected_text.length) {
+    if (selected_text.length) {
     	console.log(selected_text);
     	var element = getSelectionBoundaryElement(selection, isStart);
     	console.log(element);
@@ -105,7 +119,31 @@ document.addEventListener('mouseup', function(event)
     		xpath: xpath,
     		site_url: window.location.protocol + "//" + window.location.host
     	}
-        chrome.extension.sendRequest({'message':'sendBlock','data': data},function(response){})
+        chrome.extension.sendRequest({'message':'sendBlock','data': data},function(response){});
+    }
+}
+
+/*
+// this handler process the mouseup event of left mouse button at the end of text selection
+document.addEventListener('mouseup', function(event)
+{
+    var selection = window.getSelection();
+    var selected_text = selection.toString();
+    var isLeftMB = event.button==0;
+
+    if (isLeftMB && selected_text.length) {
+    	console.log(selected_text);
+    	extendSelectionToBlock();
     }
 })
-			
+*/
+
+// https://developer.chrome.com/extensions/messaging
+chrome.runtime.onMessage.addListener(
+	function(request, sender, sendResponse) {
+		console.log(sender.tab ? "from a content script:" + sender.tab.url : "from the extension");
+		if (request.selection == "extendToBlock")
+			// sendResponse({farewell: "goodbye"});
+			extendSelectionToBlock();
+	}
+);

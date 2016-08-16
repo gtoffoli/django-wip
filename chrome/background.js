@@ -16,7 +16,16 @@ chrome.extension.onRequest.addListener(function(request, sender, sendResponse)
     }
 	console.log(request.message);
 });
- 
+
+// Request to extend the current selection to the "block" element containing it
+function selectblock(info,tab)
+{
+    // chrome.extension.sendRequest({'message':'extendSelectionToBlock','data': ''},function(response){});
+	chrome.tabs.sendMessage(tab.id, {selection: "extendToBlock"}, function(response) {
+		// console.log(response.farewell);
+	});
+}
+
 // Sending and receiving data in JSON format using POST method
 // http://stackoverflow.com/questions/24468459/sending-a-json-to-server-and-retrieving-a-json-in-return-without-jquery
 function sendblock(info,tab)
@@ -43,11 +52,13 @@ function sendblock(info,tab)
     }
     request.send(data);
 }
- 
+
+// Chrome's context menus
+// https://developer.chrome.com/extensions/contextMenus#method-create
 var contexts = ["selection"];
 for (var i = 0; i < contexts.length; i++)
 {
     var context = contexts[i];
-    // https://developer.chrome.com/extensions/contextMenus#method-create
+    chrome.contextMenus.create({"title": "Extend selection to containing block", "contexts":[context], "onclick": selectblock}); 
     chrome.contextMenus.create({"title": "Send block for translation", "contexts":[context], "onclick": sendblock}); 
 }
