@@ -97,6 +97,75 @@ document.addEventListener('mousedown', function(event)
     }
 })
 
+
+// Get source code fragment with range from a selection?
+// http://stackoverflow.com/questions/24846993/get-source-code-fragment-with-range-from-a-selection
+// http://jsfiddle.net/breWL/3/
+
+function getHtml(node) {
+    if (node.nodeName === "#text") {
+        return node.textContent;
+    } 
+    var children =  node.childNodes;
+    var html = "";
+    for (var i = 0; i < children.length; i++) {
+        html += getHtml(children[i]);
+    }
+    var innerStart = node.outerHTML.lastIndexOf(node.innerHTML);
+    var innerEnd = innerStart + node.innerHTML.length;
+    html = node.outerHTML.substr(0, innerStart) + html + node.outerHTML.substr(innerEnd);
+    return html;
+}
+
+function getPosition(node, child, childOffset) {
+    if (!node.contains(child)) {
+        return -1;
+    }
+    var children = node.childNodes;
+    var pos = 0;
+    for (var i = 0; i< children.length; i++) {
+        if (children[i] === child) {
+            pos += childOffset;
+            break;
+        } else if (children[i].contains(child)) {
+            pos += getPosition(children[i], child, childOffset);
+            break;
+        } else if (children[i].nodeName === "#text") {
+            pos += children[i].textContent.length;
+        } else {
+            // pos += children[i].getHtml().length;
+            pos += getHtml(children[i]).length;
+        }
+    }
+    if (node.nodeName !== "#text") {
+        pos += node.outerHTML.lastIndexOf(node.innerHTML);
+    }
+    return pos;
+}
+
+// Return an object describing the current selected fragment
+function getSelectedFragment() {
+    var selection = window.getSelection();
+    var selected_text = selection.toString();
+	var data = {
+		url : window.location.href,
+		site_url: window.location.protocol + "//" + window.location.host
+    }
+
+	if (selection.rangeCount === 0)
+        return data;
+	var range = selection.getRangeAt(0);
+    var object = range.commonAncestorContainer.nodeName === "#text"? range.commonAncestorContainer.parentElement: range.commonAncestorContainer;
+    var source =  getHtml(object);
+    var start = getPosition(object, range.startContainer, range.startOffset);
+    var end = getPosition(object, range.endContainer, range.endOffset);
+    data.source = source;
+    data.start = start;
+    data.end = end;
+    console.log(data);
+    return data;
+}
+
 // Extend the range selection to the containing "block"
 function extendSelectionToBlock() {
     var selection = window.getSelection();
@@ -138,6 +207,9 @@ document.addEventListener('mouseup', function(event)
 })
 */
 
+// The Range interface represents a fragment of a document that can contain nodes and parts of text nodes.
+// https://developer.mozilla.org/en-US/docs/Web/API/Range
+// Message Passing (extension.sendRequest is Deprecated since Chrome 33. Please use runtime.sendMessage)
 // https://developer.chrome.com/extensions/messaging
 chrome.runtime.onMessage.addListener(
 	function(request, sender, sendResponse) {
@@ -145,5 +217,8 @@ chrome.runtime.onMessage.addListener(
 		if (request.selection == "extendToBlock")
 			// sendResponse({farewell: "goodbye"});
 			extendSelectionToBlock();
+		else if (request.selection == "getFragment") {
+			sendResponse({ data: getSelectedFragment() });
+		}
 	}
 );

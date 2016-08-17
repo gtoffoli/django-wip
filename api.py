@@ -55,3 +55,52 @@ def send_block(request):
     else:
         data = { 'status': 'ko' }
     return HttpResponse(json.dumps(data), content_type='application/json')
+
+
+@csrf_exempt
+def send_fragment(request):
+    """
+    url: tells us from where the request was sent
+    """
+    if not request.method == 'POST':
+        return HttpResponseBadRequest()
+    request_host = request.META.get('HTTP_HOST', '')
+    print 'request_host: ', request_host
+    json_data = json.loads(request.body)
+    print 'JSON data: ', json_data
+    url = json_data.get('url', '') 
+    source = json_data.get('source', '')
+    start = json_data.get('start', 0)
+    end = json_data.get('end', 0)
+
+    # identify site and proxy
+    proxy = site = None
+    data = {}
+    parsed_url = urlparse.urlparse(url)
+    print 'parsed_url: ', parsed_url
+    path = parsed_url.path
+    splitted_path = path.split('/')
+    print 'splitted_path: ', splitted_path
+    if len(splitted_path) >= 3:
+        path = '/' + '/'.join(splitted_path[3:])
+        site_prefix = splitted_path[1]
+        print 'site_prefix: ', site_prefix
+        sites = Site.objects.filter(path_prefix=site_prefix)
+        if sites.count()==1:
+            site = sites[0]
+            data['site'] = site.name
+            language_code = splitted_path[2]
+            print 'language_code: ', language_code
+            proxies = Proxy.objects.filter(site=site, language_id=language_code)
+            if proxies.count()==1:
+                proxy = proxies[0]
+                data['language'] = language_code
+    if site and proxy:
+        # add the fragment as a subsegment in the TM for the site at hand
+        # added = site.add_fragment(path, source, start, end)
+        fragment = source[start:end]
+        print('HTML fragment: ', fragment)
+        data['status'] = 'ok'
+    else:
+        data = { 'status': 'ko' }
+    return HttpResponse(json.dumps(data), content_type='application/json')
