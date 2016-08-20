@@ -373,6 +373,17 @@ class Site(models.Model):
                 return theme
         return None
 
+    def add_fragment(self, text, path='', reliability=5):
+        added = False
+        strings = String.objects.filter(text=text, language=self.language, site=self)
+        if strings:
+            string = strings[0]
+        else:
+            string = String(text=text, language=self.language, txu=None, site=self, path=path, reliability=reliability, is_fragment=True)
+            string.save()
+            added = True
+        return string, added
+
 class SiteTheme(models.Model):
     site = models.ForeignKey(Site, related_name='theme_used_for_site')
     theme = models.ForeignKey(Theme, related_name='site_using_theme')
@@ -693,6 +704,22 @@ class Proxy(models.Model):
                 translated_block.body = element_tostring(translated_element)
                 translated_block.save()
         return n_new, n_updated, n_no_updated
+
+    def replace_fragments(self, text, path):
+        """ build a multi-pattern regular expression for single pass substitution of fragment translations 
+            see: https://www.safaribooksonline.com/library/view/python-cookbook-2nd/0596007973/ch01s19.html """
+        site = self.site
+        language = self.language
+        qs = String.objects.filter(site=site, language=site.language, is_fragment=True, txu__string__language=self.language)
+        # see: http://stackoverflow.com/questions/15465858/django-reverse-to-contains-icontains
+        qs = qs.extra(where=['''%s LIKE wip_string.path'''], params=(path,),)
+        if qs.count():
+            adict = dict([[s.text, String.objects.filter(txu=s.txu, language=language)[0].text] for s in qs])
+            rx = re.compile('|'.join(map(re.escape, adict)))
+            def one_xlat(match):
+                return adict[match.group(0)]
+            text = rx.sub(one_xlat, text)
+        return text
 
 class Webpage(models.Model):
     site = models.ForeignKey(Site)
@@ -1099,7 +1126,9 @@ class String(models.Model):
     text = models.TextField()
     reliability = models.IntegerField(default=1)
     invariant = models.BooleanField(default=False)
+    is_fragment = models.BooleanField(default=False)
     site = models.ForeignKey(Site, null=True)
+    path = models.CharField(max_length=200, default='/', blank=True)
 
     class Meta:
         verbose_name = _('string')

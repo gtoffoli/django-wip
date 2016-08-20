@@ -234,8 +234,10 @@ class WipHttpProxy(HttpProxy):
             if not transformed and proxy.enable_live_translation:
                 print 'no translation found: ', path
                 content, transformed = proxy.translate_page_content(content)
-        if transformed:
-            response.content = content
+        # replace text or HTML fragment on the fly (new)
+        content = proxy.replace_fragments(content, path)
+        # if transformed:
+        response.content = content
         return response
 
     def replace_links(self, response):
@@ -245,10 +247,12 @@ class WipHttpProxy(HttpProxy):
         """
         content = response.content
         content = content.replace(self.base_url, self.prefix)
+        """
         if self.language_code == 'en':
             content = content.replace('Cerca corsi', 'Search courses').replace('Cerca...', 'Search...')
         if self.language_code == 'es':
             content = content.replace('Cerca corsi', 'Buscar cursos').replace('Cerca...', 'Buscar...')
+        """
         response.content = content
         return response
 

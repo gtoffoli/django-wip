@@ -9,25 +9,8 @@ from models import Site, Webpage, Proxy
 def dummy(url, xpath):
     pass
 
-@csrf_exempt
-def send_block(request):
-    """
-    url: tells us from where the request was sent
-    xpath: identifies the selected block
-    """
-    if not request.method == 'POST':
-        return HttpResponseBadRequest()
-    request_host = request.META.get('HTTP_HOST', '')
-    print 'request_host: ', request_host
-    json_data = json.loads(request.body)
-    url = json_data.get('url', '') 
-    xpath = json_data.get('xpath', '')
-    print 'url: ', url
-    print 'xpath: ', xpath
-
-    # identify site and proxy
-    proxy = site = None
-    data = {}
+# try to find a WIP proxy from a page url
+def url_to_proxy(url):
     parsed_url = urlparse.urlparse(url)
     print 'parsed_url: ', parsed_url
     path = parsed_url.path
@@ -40,22 +23,12 @@ def send_block(request):
         sites = Site.objects.filter(path_prefix=site_prefix)
         if sites.count()==1:
             site = sites[0]
-            data['site'] = site.name
             language_code = splitted_path[2]
             print 'language_code: ', language_code
             proxies = Proxy.objects.filter(site=site, language_id=language_code)
             if proxies.count()==1:
-                proxy = proxies[0]
-                data['language'] = language_code
-    if site and proxy:
-        # fetch the page
-        updated = site.fetch_page(path, extract_blocks=False, extract_block=xpath, verbose=True)
-        data['updated_page'] = updated
-        data['status'] = 'ok'
-    else:
-        data = { 'status': 'ko' }
-    return HttpResponse(json.dumps(data), content_type='application/json')
-
+                return proxies[0], path
+    return None, ''
 
 @csrf_exempt
 def send_fragment(request):
@@ -73,33 +46,48 @@ def send_fragment(request):
     start = json_data.get('start', 0)
     end = json_data.get('end', 0)
 
-    # identify site and proxy
-    proxy = site = None
     data = {}
-    parsed_url = urlparse.urlparse(url)
-    print 'parsed_url: ', parsed_url
-    path = parsed_url.path
-    splitted_path = path.split('/')
-    print 'splitted_path: ', splitted_path
-    if len(splitted_path) >= 3:
-        path = '/' + '/'.join(splitted_path[3:])
-        site_prefix = splitted_path[1]
-        print 'site_prefix: ', site_prefix
-        sites = Site.objects.filter(path_prefix=site_prefix)
-        if sites.count()==1:
-            site = sites[0]
-            data['site'] = site.name
-            language_code = splitted_path[2]
-            print 'language_code: ', language_code
-            proxies = Proxy.objects.filter(site=site, language_id=language_code)
-            if proxies.count()==1:
-                proxy = proxies[0]
-                data['language'] = language_code
-    if site and proxy:
+    # identify site and proxy
+    proxy, path = url_to_proxy(url)
+    if proxy:
+        site = proxy.site
+        data['site'] = site.name
+        data['language'] = proxy.language_id
         # add the fragment as a subsegment in the TM for the site at hand
-        # added = site.add_fragment(path, source, start, end)
         fragment = source[start:end]
+        string, added = site.add_fragment(fragment, path=path)
         print('HTML fragment: ', fragment)
+        data['status'] = 'ok'
+        data['added'] = added
+    else:
+        data = { 'status': 'ko' }
+    return HttpResponse(json.dumps(data), content_type='application/json')
+
+@csrf_exempt
+def send_block(request):
+    """
+    url: tells us from where the request was sent
+    xpath: identifies the selected block
+    """
+    if not request.method == 'POST':
+        return HttpResponseBadRequest()
+    request_host = request.META.get('HTTP_HOST', '')
+    print 'request_host: ', request_host
+    json_data = json.loads(request.body)
+    url = json_data.get('url', '') 
+    xpath = json_data.get('xpath', '')
+    print 'url: ', url
+    print 'xpath: ', xpath
+
+    data = {}
+    # identify site and proxy
+    proxy, path = url_to_proxy(url)
+    if proxy:
+        data['site'] = proxy.site.name
+        data['language'] = proxy.language_id
+        # fetch the page
+        updated = proxy.site.fetch_page(path, extract_blocks=False, extract_block=xpath, verbose=True)
+        data['updated_page'] = updated
         data['status'] = 'ok'
     else:
         data = { 'status': 'ko' }

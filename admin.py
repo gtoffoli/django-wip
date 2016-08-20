@@ -62,8 +62,9 @@ class PageVersionAdmin(admin.ModelAdmin):
         return obj.webpage.site.name
 
 class StringAdmin(admin.ModelAdmin):
+    fields = ['language', 'text', 'site', 'path', 'is_fragment', 'invariant', 'reliability',]
     list_filter = ['language']
-    list_display = ['id', 'language', 'text', 'site', 'invariant', 'reliability', 'txu_link',]
+    list_display = ['id', 'language', 'text', 'site', 'path', 'is_fragment', 'invariant', 'reliability', 'txu_link',]
     search_fields = ['text',]
 
     def txu_link(self, obj):
