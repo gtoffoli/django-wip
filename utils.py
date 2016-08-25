@@ -72,7 +72,9 @@ def strings_from_block(block, tree=None, exclude_xpaths=[]):
             text_list.append(text)
         for child in children:
             if exclude_xpaths:
-                xpath = tree.getpath(child)
+                # NO [1] element index in xpath address !!!
+                # xpath = tree.getpath(child)
+                xpath = tree.getpath(child).replace('[1]','')
                 # print xpath
                 if xpath in exclude_xpaths:
                     continue

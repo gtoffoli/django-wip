@@ -602,8 +602,9 @@ def page_blocks(request, page_id):
     var_dict = {}
     var_dict['webpage'] = webpage = get_object_or_404(Webpage, pk=page_id)
     var_dict['site'] = site = webpage.site
-    qs = webpage.blocks.all()
-    var_dict['block_count'] = block_count = qs.count()
+    # qs = webpage.blocks.all()
+    qs = BlockInPage.objects.filter(webpage=webpage).order_by('xpath', 'time')
+    var_dict['block_count'] = qs.count()
     paginator = Paginator(qs, PAGE_SIZE)
     page = request.GET.get('page', 1)
     try:

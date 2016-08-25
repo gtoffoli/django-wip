@@ -4,7 +4,7 @@ import json
 import urlparse
 from django.http import HttpResponse, HttpResponseBadRequest
 from django.views.decorators.csrf import csrf_exempt
-from models import Site, Webpage, Proxy
+from models import Proxy, Site, Webpage, BlockInPage
 
 def dummy(url, xpath):
     pass
@@ -91,4 +91,39 @@ def send_block(request):
         data['status'] = 'ok'
     else:
         data = { 'status': 'ko' }
+    return HttpResponse(json.dumps(data), content_type='application/json')
+
+@csrf_exempt
+def find_block(request):
+    """
+    url: tells us from where the request was sent
+    xpath: identifies the selected block
+    """
+    if not request.method == 'POST':
+        return HttpResponseBadRequest()
+    request_host = request.META.get('HTTP_HOST', '')
+    print 'request_host: ', request_host
+    json_data = json.loads(request.body)
+    url = json_data.get('url', '') 
+    xpath = json_data.get('xpath', '')
+    print 'url: ', url
+    print 'xpath: ', xpath
+
+    data = { 'status': 'ko' }
+    # identify site and proxy
+    proxy, path = url_to_proxy(url)
+    if proxy:
+        site = proxy.site
+        data['site'] = site.name
+        data['language'] = proxy.language_id
+        # find the page
+        webpages = Webpage.objects.filter(site=site, path=path)
+        if webpages.count():
+            webpage = webpages[0]
+            data['webpage'] = webpage.id
+            blocks_in_page = BlockInPage.objects.filter(webpage=webpage, xpath=xpath).order_by('-time') 
+            if blocks_in_page.count():
+                block = blocks_in_page[0].block
+                data['block'] = block.id
+                data['status'] = 'ok'
     return HttpResponse(json.dumps(data), content_type='application/json')

@@ -920,11 +920,12 @@ class Webpage(models.Model):
                 if el.tag in BLOCK_TAGS:
                     save_failed = False
                     n_1 += 1
-                    el_xpath = tree.getpath(el)
+                    # NO [1] element index in xpath address !!!
+                    # el_xpath = tree.getpath(el)
+                    el_xpath = tree.getpath(el).replace('[1]','')
                     if verbose:
                         print xpath, el_xpath
-                    # if xpath and not el_xpath==xpath:
-                    if xpath and not el_xpath.replace('[1]','')==xpath:
+                    if xpath and not el_xpath==xpath:
                         continue
                     # checksum = block_checksum(el)
                     checksum = element_signature(el)
@@ -950,8 +951,7 @@ class Webpage(models.Model):
                         # blocks_in_page = BlockInPage(block=block, webpage=self)
                         blocks_in_page = BlockInPage(block=block, xpath=el_xpath, webpage=self)
                         blocks_in_page.save()
-                    # if xpath and el_xpath==xpath:
-                    if xpath and el_xpath.replace('[1]','')==xpath:
+                    if xpath and el_xpath==xpath:
                         done = True
                         break
         print self.path, n_1, n_2, n_3
@@ -1455,7 +1455,9 @@ class Block(node_factory('BlockEdge')):
             if tag in BLOCK_TAGS:
                 child_tags_dict_2[tag] = n = child_tags_dict_2.setdefault(tag, 0)+1
                 branch = tag
-                if child_tags_dict_1[tag] > 1:
+                # NO [1] element index in xpath address !!!
+                # if child_tags_dict_1[tag] > 1:
+                if n>1 and child_tags_dict_1[tag] > 1:
                     branch += '[%d]' % n
                 child_xpath = '%s/%s' % (xpath, branch)
                 print child_xpath
@@ -1549,7 +1551,9 @@ def translated_element(element, site, webpage=None, language=None, xpath='/html'
         if tag in BLOCK_TAGS:
             child_tags_dict_2[tag] = n = child_tags_dict_2.setdefault(tag, 0)+1
             branch = tag
-            if child_tags_dict_1[tag] > 1:
+            # NO [1] element index in xpath address !!!
+            # if child_tags_dict_1[tag] > 1:
+            if n>1 and child_tags_dict_1[tag] > 1:
                 branch += '[%d]' % n
 #           translated_child, child_has_translation = translated_element(child, site, webpage, language, xpath='%s/%s' % (xpath, branch))
             translated_child, child_has_translation = translated_element(child, site, webpage=webpage, language=language, xpath='%s/%s' % (xpath, branch), translate_live=translate_live)

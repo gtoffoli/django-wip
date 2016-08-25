@@ -24,7 +24,7 @@ from django.contrib import admin
 from models import Site, Proxy
 import views
 import search_indexes
-from api import send_block, send_fragment
+from api import find_block, send_block, send_fragment
 # import scripts
 from proxy import WipHttpProxy
 
@@ -33,6 +33,7 @@ urlpatterns = [
     url(r'^admin/', admin.site.urls),
     url(r'^tinymce/', include('tinymce.urls')),
     url(r"^$", views.home, name="home"),
+    url(r'^api/find_block/$', find_block),
     url(r'^api/send_block/$', send_block),
     url(r'^api/send_fragment/$', send_fragment),
     url(r"^language/(?P<language_code>[\w-]*)/set/$", views.language, name="language"),

@@ -188,8 +188,36 @@ function extendSelectionToBlock() {
     		xpath: xpath,
     		site_url: window.location.protocol + "//" + window.location.host
     	}
+        console.log(data);
         chrome.extension.sendRequest({'message':'sendBlock','data': data},function(response){});
     }
+}
+
+// Find selected block in the WIP server
+function findBlock() {
+	console.log('in findBlock')
+	var data = {
+		url : window.location.href,
+		site_url: window.location.protocol + "//" + window.location.host
+	}
+    var selection = window.getSelection();
+	if (selection.rangeCount === 0)
+        return data;
+    var isStart = true;
+	var element = getSelectionBoundaryElement(selection, isStart);
+	console.log(element);
+	var xpath = getXPath(element);
+	console.log(xpath);
+	data.xpath = xpath;
+    console.log(data);
+	return data;
+}
+// View selected block offline in the WIP server
+function viewBlock(block_url) {
+	console.log('in viewBlock')
+	window.open(block_url,'block');
+	var data = { function: 'viewBlock', status: 'ok'}
+	return data;
 }
 
 /*
@@ -214,9 +242,18 @@ document.addEventListener('mouseup', function(event)
 chrome.runtime.onMessage.addListener(
 	function(request, sender, sendResponse) {
 		console.log(sender.tab ? "from a content script:" + sender.tab.url : "from the extension");
-		if (request.selection == "extendToBlock")
+		if (request.selection == "extendToBlock") {
 			// sendResponse({farewell: "goodbye"});
 			extendSelectionToBlock();
+		}
+		else if (request.selection == "findBlock") {
+			console.log("findBlock")
+			sendResponse({ data: findBlock() });
+		}
+		else if (request.selection == "viewBlock") {
+			console.log("viewBlock")
+			sendResponse({ data: viewBlock(request.block_url) });
+		}
 		else if (request.selection == "getFragment") {
 			sendResponse({ data: getSelectedFragment() });
 		}
