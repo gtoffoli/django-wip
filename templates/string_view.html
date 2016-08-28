@@ -18,65 +18,80 @@ th, td { text-align: left; vertical-align: top; }
 
 {% block head_title %}String: {{ string.text }}{% endblock %}
 
-{% block title-page %}<span style="color: black; font-size: smaller;">String: </span> <span class="{{ source_language.code }}" style="font-size: smaller;">{{ string.text|truncatechars:80 }}</span>{% endblock %}
+{% block title-page %}
+<span style="color: black; font-size: smaller;">String: </span>
+<span class="{{ source_language.code }}" style="font-size: smaller;">{{ string.text|truncatechars:64 }}</span>
+<a href="/string_edit/{{ string.id }}/" title="{% trans "show edit view" %}"><i class="fa fa-edit font07em c-white"></i></a>
+{% endblock %}
 
 {% block content-page %}
 <form action="/string/{{ string.id }}/" method="post">
 	{% csrf_token %}
-    <div><label>String id</label> {{ string.id }}</div>
-    <div><label>String language</label> <span class="{{ source_language.code }}">{{ source_language.name }}</span>
-    <div><label>String text</label> <span  class="{{ source_language.code }}">{{ string.text }}</span></div>
-    {% if string.invariant %}
-    <div><label>Invariant</label> True</div>
-	{% endif %}
-    {% if string.site %}
-    <div><label>Site</label> {{ string.site.name }}</div>
-	{% endif %}
+
+    <div>
+    <label>id</label>{{ string.id }} &nbsp;
+    <label>type</label>{{ string_type }} &nbsp;
+    <label>language</label><span class="{{ source_language.code }}">{{ source_language.name }}</span> &nbsp;
+    {% if string.site %}<label>site</label>{{ string.site.name }} &nbsp;{% endif %}
+    <label>score</label>{{ string.reliability }} &nbsp;
+    {% if string.invariant %}<label>invariant</label>True &nbsp;{% endif %}
+	</div>
+    <div><label>text</label>{{ string.text }}</div>
    	<div>{% for l in other_languages %}
    	<a class="btn btn-sm" href="/string_translate/{{ string.id }}/{{ l.code }}/">Translate to <span class="{{ l.code }}">{{ l }}</span></a>&nbsp;&nbsp;
    	{% endfor %}</div>
 
-{% if user.is_superuser %}
-        <div style="margin-top: 1.0em;">
-		<input type="submit" name="apply_filter" class="btn btn-sm" value="Apply filter below"> &nbsp;&nbsp;
+{% if translations %}
+	<h4 style="margin-top: 1.0em; margin-bottom: 0;"><strong>Translations in internal memory</strong></h4>
+    <table style="width: 100%">
+    <tbody>
+	<tr><th>txu</th><th>language</th><th>site</th><th style="text-align: center">score</th><th style="text-align: center">target</th><th style="text-align: left">text</th></tr>
+	{% for l, tt in translations %}
+	{% for t in tt %}
+    <tr class="{% cycle 'odd' 'even' %}">
+    	<td>{{ t.txu }}</a></td>
+    	<td class="{{ l.code }}">{{ l }}</td>
+    	<td>{% if t.site %}{{ t.site }}{% endif %}</td>
+    	<td style="text-align: center">{{ t.reliability }}</td>
+    	<td style="text-align: center"><a href="/string/{{ t.id }}/">{{ t.id }}</a></td>
+    	<td>{{ t.text }}</td>
+   	</tr>
+	{% endfor %}
+	{% endfor %}
+	</tbody>
+	</table>
+{% endif %}
+
+{% if similar_strings %}
+	<h4 style="margin-top: 1.0em; margin-bottom: 0;"><strong>Similar strings</strong></h4>
+    <table style="width: 100%; margin-top: 0;">
+    <tbody>
+	{% for score, s in similar_strings %}
+    <tr class="{% cycle 'odd' 'even' %}">
+    	<td colspan=4>{{ score|floatformat:1 }} &nbsp; <a href="/string/{{ s.id }}/" title="view info" class="{{ source_language.code }}">{{ s.text }}</a></td>
+   	</tr>
+	{% endfor %}
+	</tbody>
+	</table>
+{% endif %}
+
+	<h4 style="margin-top: 1.0em; margin-bottom: 0;"><strong>Navigation filters</strong></h4>
+     <div>
+		{% comment %}<input type="submit" name="apply_filter" class="btn btn-sm" value="Apply filter below"> &nbsp;&nbsp;{% endcomment %}
+		{{ n }} strings found{% if n %}:{% endif %}
 		{% if previous %}<input type="submit" name="goto-{{ previous.id }}" class="btn btn-sm" value="Previous">{% endif %}
 		{% if next %}<input type="submit" name="goto-{{ next.id }}" class="btn btn-sm" value="Next">{% endif %}
     </div>
     <table><thead>
     	<tr>{% for field in sequencer_form.visible_fields %}<th>{{ field.label_tag }}</th>{% endfor %}</tr>
    	</thead><tbody><tr>
+		<td>{{ sequencer_form.string_types }}</td>
+		<td>{{ sequencer_form.project_site }}</td>
 		<td>{{ sequencer_form.translation_state }}</td>
 		<td>{{ sequencer_form.translation_languages }}</td>
+		<td>{{ sequencer_form.order_by }}</td>
+		<td style="text-align: center;">{{ sequencer_form.show_similar }}</td>
 	</tr></tbody></table>    	
-{% endif %}
 
-    <table style="width: 100%">
-    <tbody>
-   {% with translations=string.get_translations %}{% if translations %}
-    <tr><td colspan=4 style="padding-top: 0.5em; padding-bottom: 0.5em; font-size: large; font-weight: bold;">Available translations</td></tr>
-	<tr><th>language</th><th>source</th><th>reliab.</th><th style="text-align: left">translation</th></tr>
-	{% for l, tt in string.get_translations %}
-	{% for t in tt %}
-    <tr class="{% cycle 'odd' 'even' %}">
-    	<td class="{{ l.code }}">{{ l.name }}</td>
-    	<td style="text-align: center">{{ t.txu.provider }}</td>
-    	<td style="text-align: center">{{ t.reliability }}</td>
-    	<td><a href="/string/{{ t.id }}/" class="{{ l.code }}">{{ t.text }}</a></td>
-   	</tr>
-	{% endfor %}
-	{% endfor %}
-    {% endif %}
-   	{% endwith %}
-
-    {% if similar_strings %}
-    <tr><td colspan=4 style="padding-top: 0.5em; padding-bottom: 0.5em; font-size: large; font-weight: bold;">Similar strings</td></tr>
-	{% for score, s in similar_strings %}
-    <tr class="{% cycle 'odd' 'even' %}">
-    	<td colspan=4>{{ score|floatformat:1 }} &nbsp; <a href="/string/{{ s.id }}/" title="view info" class="{{ source_language.code }}">{{ s.text }}</a></td>
-   	</tr>
-	{% endfor %}
-    {% endif %}
-	</tbody>
-	</table>
 </form>
 {% endblock %}

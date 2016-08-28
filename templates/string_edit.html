@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% load staticfiles i18n %}
+
+{% block extra_head %}
+<style>
+label { display: inline; font-weight: bold; margin-right: 1.0em; padding: 0.2em 0em; }
+pre { display: inline;  padding: 0; }
+pre code { display: inline; }
+tr.odd { background: LightGray; }
+tr.even { background: white; }
+.it { color: LimeGreen; }
+.en { color: #FF0088; }
+.es { color: OrangeRed; }
+.fr { color: blue; }   
+th, td { text-align: left; vertical-align: top; }
+</style>
+{% endblock %}
+
+{% block head_title %}Edit string: {{ string.text|truncatechars:64 }}{% endblock %}
+
+{% block title-page %}<span style="color: black; font-size: smaller;">Edit string: </span> <span class="{{ string.language.code }}" style="font-size: smaller;">{{ string.text|truncatechars:64 }}</span>{% endblock %}
+
+{% block content-page %}
+{% if proxy and not string %}
+<form action="/string_add_by_proxy/{{ proxy.slug }}/" method="post">
+{% else %}
+<form action="/string_edit/{% if string %}{{ string.id }}/{% endif %}" method="post">
+{% endif %}
+	{% csrf_token %}
+
+{% if string %}
+<div><label>Id</label> {{ string.id }}</div>
+{% endif %}
+{% comment %}{{ string_edit_form.as_p }}
+{% endcomment %}
+{{ string_edit_form.id}}
+<div><label>{{ string_edit_form.string_type.label_tag }}</label> {{ string_edit_form.string_type }}</div>
+<div><label>{{ string_edit_form.language.label_tag }}</label> {{ string_edit_form.language }}</div>
+<div><label>{{ string_edit_form.site.label_tag }}</label> {{ string_edit_form.site }}</div>
+<div><label>{{ string_edit_form.path.label_tag }}</label> {{ string_edit_form.path }}</div>
+<div><label>{{ string_edit_form.reliability.label_tag }}</label> {{ string_edit_form.reliability }}</div>
+<div><label>{{ string_edit_form.text.label_tag }}</label> {{ string_edit_form.text }}</div>
+<div>
+	<input type="submit" name="save" class="btn btn-sm" value="Save"> &nbsp;&nbsp;
+	<input type="submit" name="continue" class="btn btn-sm" value="Save and continue"> &nbsp;&nbsp;
+	<input type="submit" name="cancel" class="btn btn-sm" value="Cancel"> &nbsp;&nbsp;
+</div>
+
+</form>
+
+{% if translations %}
+	<h4 style="margin-top: 1.0em; margin-bottom: 0;"><strong>Translations in internal memory</strong></h4>
+    <table style="width: 100%">
+    <tbody>
+	<tr><th>txu</th><th>language</th><th>site</th><th style="text-align: center">score</th><th style="text-align: center">target</th><th style="text-align: left">text</th></tr>
+	{% for l, tt in translations %}
+	{% for t in tt %}
+    <tr class="{% cycle 'odd' 'even' %}">
+    	<td>{{ t.txu }}</a></td>
+    	<td class="{{ l.code }}">{{ l }}</td>
+    	<td>{% if t.site %}{{ t.site }}{% endif %}</td>
+    	<td style="text-align: center">{{ t.reliability }}</td>
+    	<td style="text-align: center"><a href="/string/{{ t.id }}/">{{ t.id }}</a></td>
+    	<td>{{ t.text }}</td>
+   	</tr>
+	{% endfor %}
+	{% endfor %}
+	</tbody>
+	</table>
+{% endif %}
+
+{% endblock %}

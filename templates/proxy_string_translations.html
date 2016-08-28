@@ -29,7 +29,6 @@
 
 {% block content-page %}
 
-  {% if string_count %}
 
 <form action="#" method="post" id="translation-form">{% csrf_token %}
 
@@ -48,6 +47,8 @@
       </div>
     {% endif %}
 
+  {% if string_count %}
+
     <table class="table table-responsive table-bordered table-striped mB5">
       <thead>
         <th class="text-right">#</th>
@@ -58,7 +59,7 @@
       <tbody>
       {% for string in strings %}
         <tr>
-          <td class="text-right">{{forloop.counter|add:offset}}</td>
+          <td class="text-right"><a href="/string/{{ string.id }}/">{{forloop.counter|add:offset}}</a></td>
           <td><input type="checkbox" name="selection" value="{{ string.id }}" /></td>
           <td>
             {{ string.text }}
@@ -121,11 +122,17 @@
     </table>
 
 <div>
+<a class="btn btn-default btn-sm" href="/string_add_by_proxy/{{ proxy.slug }}/">{% trans "add source string"|capfirst %}</a>
 <input class="btn btn-default btn-sm" type="submit" name="delete-segment" value="{% trans "delete source with TUs"|capfirst %}">
 <input class="btn btn-default btn-sm" type="submit" name="delete-translation" value="{% trans "delete translation"|capfirst %}">
 <input class="btn btn-default btn-sm" type="submit" name="make-invariant" value="{% trans "make invariant"|capfirst %}">
 <input class="btn btn-default btn-sm" type="submit" name="toggle-invariant" value="{% trans "toggle invariant"|capfirst %}">
 </div>
+
+  {% else %}
+    <p>{% trans "no strings were found"|capfirst %}</p>
+  {% endif %}
+
 </form>
 
     {% if strings.paginator.num_pages > 1 %} 
@@ -137,10 +144,6 @@
         </ul>
       </div>
     {% endif %}
-
-  {% else %}
-    <p>{% trans "no strings were found"|capfirst %}</p>
-  {% endif %}
 
 {% endblock %}
 

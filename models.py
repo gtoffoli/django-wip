@@ -86,6 +86,30 @@ STRING_TRANSLATION_STATE_CHOICES = (
 )
 STRING_TRANSLATION_STATE_DICT = dict(STRING_TRANSLATION_STATE_CHOICES)
 
+UNKNOWN = 0
+TERM = 1
+SEGMENT = 2
+FRAGMENT = 3
+STRING_TYPE_CHOICES = (
+    (UNKNOWN, _('unknown'),),
+    (TERM, _('term'),),
+    (SEGMENT, _('segment'),),
+    (FRAGMENT,  _('fragment'),),
+)
+STRING_TYPE_DICT = dict(STRING_TYPE_CHOICES)
+
+TEXT_ASC = 1
+ID_ASC = 2
+DATETIME_DESC = -3
+DATETIME_ASC = 3
+STRING_SORT_CHOICES = (
+    (TEXT_ASC, _('text'),),
+    (ID_ASC, _('id'),),
+    (DATETIME_DESC, _('datetime inverse'),),
+    (DATETIME_ASC,  _('datetime'),),
+)
+STRING_SORT_DICT = dict(STRING_SORT_CHOICES)
+
 class Site(models.Model):
     name = models.CharField(max_length=100)
     slug = AutoSlugField(unique=True, populate_from='name', editable=True)
@@ -379,7 +403,8 @@ class Site(models.Model):
         if strings:
             string = strings[0]
         else:
-            string = String(text=text, language=self.language, txu=None, site=self, path=path, reliability=reliability, is_fragment=True)
+            # string = String(text=text, language=self.language, txu=None, site=self, path=path, reliability=reliability, is_fragment=True)
+            string = String(text=text, string_type=FRAGMENT, site=self, language=self.language, txu=None, path=path, reliability=reliability)
             string.save()
             added = True
         return string, added
@@ -710,7 +735,8 @@ class Proxy(models.Model):
             see: https://www.safaribooksonline.com/library/view/python-cookbook-2nd/0596007973/ch01s19.html """
         site = self.site
         language = self.language
-        qs = String.objects.filter(site=site, language=site.language, is_fragment=True, txu__string__language=self.language)
+        # qs = String.objects.filter(site=site, language=site.language, is_fragment=True, txu__string__language=self.language)
+        qs = String.objects.filter(string_type=FRAGMENT, site=site, language=site.language, txu__string__language=self.language)
         # see: http://stackoverflow.com/questions/15465858/django-reverse-to-contains-icontains
         qs = qs.extra(where=['''%s LIKE wip_string.path'''], params=(path,),)
         if qs.count():
@@ -1121,14 +1147,18 @@ class TxuSubject(models.Model):
         verbose_name_plural = _('txu subjects')
 
 class String(models.Model):
-    txu = models.ForeignKey(Txu, blank=True, null=True, related_name='string')
-    language = models.ForeignKey(Language)
-    text = models.TextField()
-    reliability = models.IntegerField(default=1)
+    string_type = models.IntegerField(choices=STRING_TYPE_CHOICES, default=UNKNOWN, null=True, verbose_name='string type')
     invariant = models.BooleanField(default=False)
-    is_fragment = models.BooleanField(default=False)
+    language = models.ForeignKey(Language)
     site = models.ForeignKey(Site, null=True)
     path = models.CharField(max_length=200, default='/', blank=True)
+    txu = models.ForeignKey(Txu, blank=True, null=True, related_name='string')
+    reliability = models.IntegerField(default=1)
+    text = models.TextField()
+    created = CreationDateTimeField(null=True)
+    modified = ModificationDateTimeField(null=True)
+    user = models.ForeignKey(User, null=True)
+    is_fragment = models.BooleanField(default=False)
 
     class Meta:
         verbose_name = _('string')
@@ -1157,13 +1187,25 @@ class String(models.Model):
             translations.append([language, strings])
         return has_translations and translations or []
 
-    def get_navigation(self, translation_state='', translation_codes=[], order_by='text'):
+    def get_navigation(self, string_types=[], site=None, translation_state='', translation_codes=[], order_by=TEXT_ASC):
+        print 'order_by: ', order_by
         text = self.text
         id = self.id
+        modified = self.modified
         qs = String.objects.filter(language_id=self.language_id)
-        if translation_state == TRANSLATED:
+        print 1, qs.count()
+        if string_types:
+            qs = qs.filter(string_type__in=string_types)
+            print 2, qs.count()
+        if site:
+            qs = qs.filter(site=site)
+        if translation_state == INVARIANT:
+            qs = qs.filter(invariant=True)
+        elif translation_state == TRANSLATED:
+            qs = qs.exclude(invariant=True)
             qs = qs.filter(txu__string__language_id__in=translation_codes)
         elif translation_state == TO_BE_TRANSLATED:
+            qs = qs.exclude(invariant=True)
             """
             qs = qs.exclude(txu__string__language_id__in=translation_codes)
             """
@@ -1175,15 +1217,40 @@ class String(models.Model):
                 qs = qs.filter(txu__fr=False)
             if 'it' in translation_codes:
                 qs = qs.filter(txu__it=False)
-        if order_by == 'text':
-            qs_before = qs.filter(text__lt=text).order_by('-'+order_by)
-            qs_after = qs.filter(text__gt=text).order_by(order_by)
-        elif order_by == 'id':
-            qs_before = qs.filter(id__lt=id).order_by('-id')
-            qs_after = qs.filter(id__gt=id).order_by('id')
-        previous = qs_before.count() and qs_before[0] or None
-        next = qs_after.count() and qs_after[0] or None
-        return previous, next
+            print 3, qs.count()
+            print 4, translation_codes
+        first = last = previous = next = None
+        n = qs.count()
+        print n, order_by, TEXT_ASC, order_by == TEXT_ASC, 1 == 1
+        if n:
+            if order_by == TEXT_ASC:
+                qs = qs.order_by('text')
+                qs_before = qs.filter(text__lt=text).order_by('-text')
+                qs_after = qs.filter(text__gt=text).order_by('text')
+                print order_by, qs_before.count()
+            elif order_by == ID_ASC:
+                qs = qs.order_by('id')
+                qs_before = qs.filter(id__lt=id).order_by('-id')
+                qs_after = qs.filter(id__gt=id).order_by('id')
+                print order_by, qs_before.count()
+            elif order_by == DATETIME_ASC:
+                qs = qs.order_by('modified')
+                qs_before = qs.filter(modified__lt=modified).order_by('-modified')
+                qs_after = qs.filter(modified__gt=modified).order_by('modified')
+                print order_by, qs_before.count()
+            elif order_by == DATETIME_DESC:
+                qs = qs.order_by('-modified')
+                qs_before = qs.filter(modified__gt=modified).order_by('modified')
+                qs_after = qs.filter(modified__lt=modified).order_by('-modified')
+                print order_by, qs_before.count()
+            previous = qs_before.count() and qs_before[0] or None
+            next = qs_after.count() and qs_after[0] or None
+            first = qs[0]
+            first = not first.id==id or None
+            last = qs.reverse()[0]
+            last = not last.id==id or None
+        # return previous, next
+        return n, first, last, previous, next
 
 # class Block(models.Model):
 class Block(node_factory('BlockEdge')):
