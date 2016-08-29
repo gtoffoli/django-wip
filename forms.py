@@ -64,7 +64,7 @@ class StringEditForm(forms.ModelForm):
     path = forms.CharField(required=False, label="Path", widget=forms.TextInput(attrs={'style': 'width: 500px;'}))
     language = forms.ModelChoiceField(required=True, label="Language", queryset=Language.objects.all(), widget=forms.Select(attrs={'style':'height: 24px;',}))
     invariant = forms.BooleanField(required=False, label='Invariant')
-    reliability = forms.IntegerField(required=False, widget=forms.TextInput(attrs={'size': 8, 'style': 'width: 50px;',}))
+    reliability = forms.IntegerField(required=False, label="Score", widget=forms.TextInput(attrs={'size': 8, 'style': 'width: 50px;',}))
     text = forms.CharField(required=True, widget=forms.Textarea(attrs={'style': 'width: 100%; height: 60px;'}))
 
 class StringTranslationForm(forms.Form):
@@ -77,9 +77,9 @@ class StringTranslationForm(forms.Form):
 class StringsTranslationsForm(forms.Form):
     project_site = forms.ModelChoiceField(required=False, label="Project site", queryset=Site.objects.all(), widget=forms.Select(attrs={'style':'height: 24px;', 'onchange': 'javascript: this.form.submit()',}))
     translation_state = forms.ChoiceField(required=False, label="Translation state", choices=STRING_TRANSLATION_STATE_CHOICES, widget=forms.Select(attrs={ 'style': 'width: auto; height: 2em;', 'onchange': 'javascript: this.form.submit()',}))
-    source_language = forms.ModelChoiceField(required=False, label="Source language", queryset=Language.objects.all(), widget=forms.Select(attrs={'style':'height: 24px;', 'onchange': 'javascript: this.form.submit()',}))
+    source_language = forms.ModelChoiceField(required=True, label="Source language", queryset=Language.objects.all(), widget=forms.Select(attrs={'style':'height: 24px;', 'onchange': 'javascript: this.form.submit()',}))
     source_text_filter = forms.CharField(required=False, label="Text in source string", widget=forms.TextInput(attrs={'style': 'width: 500px;', 'onchange': 'javascript: this.form.submit()',}))
-    target_language = forms.ModelChoiceField(required=False, label="Target language", queryset=Language.objects.all(), widget=forms.Select(attrs={'style':'height: 24px;', 'onchange': 'javascript: this.form.submit()',}))
+    target_language = forms.ModelChoiceField(required=True, label="Target language", queryset=Language.objects.all(), widget=forms.Select(attrs={'style':'height: 24px;', 'onchange': 'javascript: this.form.submit()',}))
     target_text_filter = forms.CharField(required=False, label="Text in target string", widget=forms.TextInput(attrs={'style': 'width: 500px;', 'onchange': 'javascript: this.form.submit()',}))
     show_other_targets = forms.BooleanField(required=False, label='Show other targets', widget=forms.CheckboxInput(attrs={'onchange': 'javascript: this.form.submit()',}))
 

@@ -33,8 +33,8 @@ th, td { text-align: left; vertical-align: top; }
     <label>type</label>{{ string_type }} &nbsp;
     <label>language</label><span class="{{ source_language.code }}">{{ source_language.name }}</span> &nbsp;
     {% if string.site %}<label>site</label>{{ string.site.name }} &nbsp;{% endif %}
-    <label>score</label>{{ string.reliability }} &nbsp;
     {% if string.invariant %}<label>invariant</label>True &nbsp;{% endif %}
+    <label>score</label>{{ string.reliability }} &nbsp;
 	</div>
     <div><label>text</label>{{ string.text }}</div>
    	<div>{% for l in other_languages %}

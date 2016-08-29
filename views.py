@@ -1404,6 +1404,158 @@ def find_like_strings(source_string, translation_languages=[], with_translations
     like_strings.sort(key=lambda x: x[0], reverse=True)
     return like_strings[:max_strings]
 
+def strings_translations(request, proxy_slug=None, state=None):
+    """
+    list translations from source language (code) to target language (code)
+    """
+    if not request.user.is_superuser:
+        return empty_page(request);
+    PAGE_SIZE = 100
+    tm_edit_context = request.session.get('tm_edit_context', {})
+    translation_state = state or tm_edit_context.get('translation_state', 0)
+    proxy = proxy_slug and Proxy.objects.get(slug=proxy_slug) or None
+    if proxy:
+        project_site = proxy.site
+        project_site_id = project_site.id
+        source_language = project_site.language
+        source_language_code = source_language.code
+        target_language = proxy.language
+        target_language_code = target_language.code
+    else:
+        project_site_id = tm_edit_context.get('project_site', None)
+        project_site = project_site_id and Site.objects.get(pk=project_site_id) or None
+        source_language_code = project_site and project_site.language_id or tm_edit_context.get('source_language', None)
+        source_language = source_language_code and Language.objects.get(code=source_language_code) or None
+        target_language_code = tm_edit_context.get('target_language', None)
+        target_language = target_language_code and Language.objects.get(code=target_language_code) or None
+        if project_site and target_language:
+            proxies = Proxy.objects.filter(site=project_site, language=target_language)
+            if proxies:
+                proxy = proxies[0]
+    source_text_filter = tm_edit_context.get('source_text_filter', '')
+    target_text_filter = tm_edit_context.get('target_text_filter', '')
+    show_other_targets = tm_edit_context.get('show_other_targets', False)
+    tm_edit_context['project_site'] = project_site_id
+    tm_edit_context['source_language'] = source_language_code
+    tm_edit_context['target_language'] = target_language_code
+    request.session['tm_edit_context'] = tm_edit_context
+    if request.method == 'POST':
+        post = request.POST
+        form = StringsTranslationsForm(post)
+        if post.get('delete-segment', ''):
+            selection = post.getlist('selection')
+            print 'delete-segment', selection
+            for string_id in selection:
+                string = String.objects.get(pk=int(string_id))
+                txu = string.txu
+                if txu:
+                    for string in String.objects.filter(txu=txu):
+                        string.delete()
+                    txu.delete()
+                else:
+                    string.delete()
+        elif post.get('delete-translation', ''):
+            selection = post.getlist('selection')
+            print 'delete-translation', selection
+            for string_id in selection:
+                string = String.objects.get(pk=int(string_id))
+                txu = string.txu
+                if txu:
+                    translations = String.objects.filter(txu=txu, language=target_language)
+                    for string in translations:
+                        string.delete()
+        elif post.get('make-invariant', ''):
+            selection = post.getlist('selection')
+            print 'make-invariant', selection
+            for string_id in selection:
+                string = String.objects.get(pk=int(string_id))
+                txu = string.txu
+                string.txu = None
+                string.invariant = True
+                string.save()
+                if txu:
+                    for string in String.objects.filter(txu=txu):
+                        string.delete()
+                    txu.delete()
+        elif post.get('toggle-invariant', ''):
+            selection = post.getlist('selection')
+            print 'toggle-invariant', selection
+            for string_id in selection:
+                string = String.objects.get(pk=int(string_id))
+                if string.invariant:
+                    string.invariant = False
+                    string.save()
+                    print 'True-> False'
+                elif not string.txu:
+                    string.invariant = True
+                    string.save()
+                    print 'False-> True'
+        elif form.is_valid():
+            data = form.cleaned_data
+            tm_edit_context['translation_state'] = translation_state = int(data['translation_state'])
+            project_site = data['project_site']
+            tm_edit_context['project_site'] = project_site and project_site.id or None
+            source_language = data['source_language']
+            tm_edit_context['source_language'] = source_language and source_language.code or None
+            target_language = data['target_language']
+            tm_edit_context['target_language'] = target_language and target_language.code or None
+            tm_edit_context['source_text_filter'] = source_text_filter = data['source_text_filter']
+            tm_edit_context['target_text_filter'] = target_text_filter = data['target_text_filter']
+            tm_edit_context['show_other_targets'] = show_other_targets = data['show_other_targets']
+            request.session['tm_edit_context'] = tm_edit_context
+            if project_site and target_language:
+                proxies = Proxy.objects.filter(site=project_site, language=target_language)
+                proxy = proxies and proxies[0] or None
+    else:
+        form = StringsTranslationsForm(initial={'project_site': project_site, 'translation_state': translation_state, 'source_language': source_language, 'target_language': target_language, 'source_text_filter': source_text_filter, 'target_text_filter': target_text_filter, 'show_other_targets': show_other_targets, })
+
+    if translation_state == TRANSLATED:
+        translated = True
+    elif translation_state == TO_BE_TRANSLATED:
+        translated = False
+    else:
+        translated = None
+
+    var_dict = {}
+    var_dict['proxy'] = proxy
+    var_dict['site'] = project_site_id and Site.objects.get(pk=project_site_id) or None
+    var_dict['state'] = translation_state
+    var_dict['source_language'] = source_language
+    var_dict['target_language'] = target_language
+    var_dict['show_other_targets'] = show_other_targets
+
+    if project_site and translation_state == INVARIANT:
+        qs = String.objects.filter(site=project_site, invariant=True)
+    else:
+        qs = find_strings(source_languages=[source_language], target_languages=[target_language], site=project_site, translated=translated, order_by='')
+    if source_text_filter:
+        qs = qs.filter(text__icontains=source_text_filter)
+    if target_text_filter:
+        qs = qs.filter(txu__string__text__icontains=target_text_filter)
+    qs = qs.order_by('text')
+    string_count = qs.count()
+    var_dict['string_count'] = string_count
+    paginator = Paginator(qs, PAGE_SIZE)
+    page = request.GET.get('page', 1)
+    try:
+        strings = paginator.page(page)
+    except PageNotAnInteger:
+        # If page is not an integer, deliver first page.
+        page = 1
+        strings = paginator.page(1)
+    except EmptyPage:
+        # If page is out of range (e.g. 9999), deliver last page of results.
+        page = paginator.num_pages
+        strings = paginator.page(paginator.num_pages)
+    var_dict['page_size'] = PAGE_SIZE
+    var_dict['page'] = page = int(page)
+    var_dict['offset'] = (page-1) * PAGE_SIZE
+    var_dict['before'] = steps_before(page)
+    var_dict['after'] = steps_after(page, paginator.num_pages)
+    var_dict['strings'] = strings
+    var_dict['strings_translations_form'] = form
+    return render_to_response('strings_translations.html', var_dict, context_instance=RequestContext(request))
+
 def proxy_string_translations(request, proxy_slug=None, state=None):
     """
     list translations from source language (code) to target language (code)

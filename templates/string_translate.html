@@ -45,6 +45,7 @@ function capFirst(id) {
     <label>language</label><span class="{{ source_language.code }}">{{ source_language.name }}</span> &nbsp;
     {% if string.site %}<label>site</label>{{ string.site.name }} &nbsp;{% endif %}
     {% if string.invariant %}<label>invariant</label>True &nbsp;{% endif %}
+    <label>score</label>{{ string.reliability }} &nbsp;
 	</div>
     <div><label>text</label>{{ string.text }}</div>
 

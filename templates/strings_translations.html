@@ -140,15 +140,20 @@
               {% endif %}
 
             {% else %}
+			  <tr>
               	  <input type="hidden" name="source_id" value="{{ string.id }}" id="{{ string.id }}">
               	  <input type="hidden" name="txu_id" value="0" id="txu-{{ string.id }}">
               	  <input type="hidden" name="translated_id" value="0" id="translated-{{ string.id }}">
-                <div class="input-group">
+				<td style="vertical-align:top;" class="{{ target_language.code }}">{{ target_language.code }}</td>
+				<td>
                   <span class="input-group-btn"></span><textarea class="form-control custom-control" name="translation-{{ string.id }}" id="translation-{{ string.id }}" style="width:100%"></textarea>
+				</td>
+				<td class="text-center" style="vertical-align:top;">
                   <span class="input-group-btn">
                   <input class="btn btn-default btn-sm" type="button" name="save-{{ string.id }}-0-0" value="{% trans "save"|capfirst %}" onclick="save_translation('{{ string.id }}', 'txu-{{ string.id }}', 'translated-{{ string.id }}', 'translation-{{ string.id }}')">
                   </span>
-                </div>
+				</td>
+			  </tr>
             {% endif %}
           {% endif %}
 			</tbody></table>
