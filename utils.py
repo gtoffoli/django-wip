@@ -390,6 +390,8 @@ def parse_xliff(filepath):
             print i, target
 
 def text_to_list(text):
+    if not text:
+        return []
     list = text.splitlines()
     list = [item.strip() for item in list]
     return [item for item in list if len(item)]
