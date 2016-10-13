@@ -20,6 +20,7 @@ import time
 import urllib2
 import re, regex
 import difflib
+from collections import defaultdict
 # import datetime
 # from namedentities import unicode_entities
 # from Levenshtein.StringMatcher import StringMatcher
@@ -38,8 +39,9 @@ from django_extensions.db.fields import CreationDateTimeField, ModificationDateT
 from django_dag.models import node_factory, edge_factory
 from django_diazo.models import Theme
 from django_diazo.middleware import DjangoDiazoMiddleware
-from vocabularies import Language, Subject, ApprovalStatus
+from wip.wip_nltk.tokenizers import NltkTokenizer
 from wip.wip_sd.sd_algorithm import SDAlgorithm
+from vocabularies import Language, Subject, ApprovalStatus
 
 from settings import RESOURCES_ROOT, BLOCK_TAGS, BLOCKS_EXCLUDE_BY_XPATH, SEPARATORS, STRIPPED, EMPTY_WORDS, BOTH_QUOTES
 DEFAULT_USER = 1
@@ -61,14 +63,14 @@ def code_to_language(code):
     return Language.objects.get(pk=code)
 
 TO_BE_TRANSLATED = -1
-NONE = 0
+ANY = NONE = 0
 PARTIALLY = 1
 TRANSLATED = 2
 REVISED = 3
 INVARIANT = 4
 ALREADY = 5
 TRANSLATION_STATE_CHOICES = (
-    (0, _('any'),),
+    (ANY, _('any'),),
     (TO_BE_TRANSLATED, _('to be translated'),),
     (TRANSLATED,  _('translated'),),
     (REVISED,  _('revised'),),
@@ -78,7 +80,7 @@ TRANSLATION_STATE_CHOICES = (
 TRANSLATION_STATE_DICT = dict(TRANSLATION_STATE_CHOICES)
 
 STRING_TRANSLATION_STATE_CHOICES = (
-    (0, _('any'),),
+    (ANY, _('any'),),
     (INVARIANT, _('invariant'),),
     (TO_BE_TRANSLATED, _('to be translated'),),
     (TRANSLATED,  _('translated'),),
@@ -408,6 +410,25 @@ class Site(models.Model):
             string.save()
             added = True
         return string, added
+
+    def get_segments(self, translation_state=ANY):
+        return String.objects.filter(site=self, language=self.language, string_type=SEGMENT)
+    
+    def get_segment_count(self):
+        return len(self.get_segments(translation_state=ANY))
+
+    def get_token_frequency(self, lowercasing=True):
+        tokenizer = NltkTokenizer(lowercasing=lowercasing)
+        tokens_dict = defaultdict(int)
+        segments = self.get_segments()
+        for segment in segments:
+            tokens = tokenizer.tokenize(segment.text)
+            for token in tokens:
+                tokens_dict[token] += 1
+        return tokens_dict
+
+    def get_word_count(self, lowercasing=True):
+        return len(self.get_token_frequency())
 
 class SiteTheme(models.Model):
     site = models.ForeignKey(Site, related_name='theme_used_for_site')

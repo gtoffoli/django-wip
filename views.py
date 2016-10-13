@@ -123,13 +123,6 @@ def proxies(request):
     var_dict['proxies'] = proxies
     return render_to_response('proxies.html', var_dict, context_instance=RequestContext(request))
 
-"""
-def text_to_list(text):
-    list = text.splitlines()
-    list = [item.strip() for item in list]
-    return [item for item in list if len(item)]
-"""
-    
 def site(request, site_slug):
     user = request.user
     site = get_object_or_404(Site, slug=site_slug)
@@ -141,6 +134,8 @@ def site(request, site_slug):
     var_dict['can_view'] = site.can_view(user)
     var_dict['proxies'] =  proxies = site.get_proxies()
     var_dict['proxy_languages'] = proxy_languages = [proxy.language for proxy in proxies]
+    words_distribution = site.get_token_frequency(lowercasing=True)
+    var_dict['word_count'] = len(words_distribution)
     post = request.POST
     if post:
         site_crawl = post.get('site_crawl', '')
@@ -148,6 +143,7 @@ def site(request, site_slug):
         refetch_pages = post.get('refetch_pages', '')
         extract_segments = post.get('extract_segments', '')
         download_segments = post.get('download_segments', '')
+        download_words_distribution = post.get('download_words_distribution', '')
         import_invariants = post.get('import_invariants', '')
         apply_invariants = post.get('apply_invariants', '')
         delete_site = post.get('delete_site', '')
@@ -296,6 +292,14 @@ def site(request, site_slug):
                     filename = u'%s-segments.%s.txt' % (site.slug, time_stamp)
                     response['Content-Disposition'] = 'attachment; filename="%s"' % filename
                     return response
+            elif download_words_distribution:
+                sorted_words_distribution = sorted(words_distribution.items(), key=lambda item: item[1], reverse=True)
+                data = u'\r\n'.join(['%s %d' % (item[0], item[1]) for item in sorted_words_distribution])
+                response = HttpResponse(data, content_type='application/octet-stream')
+                time_stamp = datetime.datetime.now().strftime('%y%m%d-%H-%M-%S')
+                filename = u'%s-words.%s.txt' % (site.slug, time_stamp)
+                response['Content-Disposition'] = 'attachment; filename="%s"' % filename
+                return response
             elif delete_site:
                 delete_confirmation = data['delete_confirmation']
                 if delete_confirmation:

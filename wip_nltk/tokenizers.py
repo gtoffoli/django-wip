@@ -49,7 +49,7 @@ class NltkTokenizer(object):
             this_dir, this_filename = os.path.split(__file__)
             regexp_path = os.path.join(this_dir, 'data', '%s_regexps.txt' % self.language)
             """
-            regexp_path = os.path.join(RESOURCES_ROOT, '%s_regexps.txt' % self.language)
+            regexp_path = os.path.join(RESOURCES_ROOT, 'it', '%s_regexps.txt' % self.language)
             f = codecs.open(regexp_path, 'r', 'unicode_escape')
             regexp_list = []
             for line in f.readlines():

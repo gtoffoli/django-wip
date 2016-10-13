@@ -136,6 +136,8 @@ def strings_from_html(string, fragment=False, exclude_xpaths=[], exclude_tx=Fals
         tree = doc.getroottree()
         body = doc.find('body')
         # print 'strings_from_html - 2: ', type(body)
+    if not body:
+        return
     for tag in settings.TO_DROP_TAGS:
         els = body.findall(tag)
         for el in els:

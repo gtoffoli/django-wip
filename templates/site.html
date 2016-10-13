@@ -41,11 +41,13 @@
 
   <table class="table table-responsive table-bordered table-striped">
     <thead>
-      <tr><th>{% trans "pages"|capfirst %}</th><th>{% trans "page blocks"|capfirst %}</th><th>{% trans "proxies"|capfirst %}</th>{% if user.is_superuser and missing_languages %}<th>{% trans "add proxies"|capfirst %}</th>{% endif %}</tr>
+      <tr><th>{% trans "pages"|capfirst %}</th><th>{% trans "segments"|capfirst %}</th><th>{% trans "words"|capfirst %}</th><th>{% trans "page blocks"|capfirst %}</th><th>{% trans "proxies"|capfirst %}</th>{% if user.is_superuser and missing_languages %}<th>{% trans "add proxies"|capfirst %}</th>{% endif %}</tr>
     </thead>
     <tbody>
       <tr>
         <td>{% if page_count %}<span class="mR10">{{ page_count }}</span><span class="mR10"><a href="/site/{{ site.slug }}/pages/" title="{% trans "list pages" %}"><i class="fa fa-th-list"></i></a></span><a href="/page/{{ first_page.id }}/" title="{% trans "browse all pages" %}"><i class="fa fa-caret-square-o-right"></i></a>{% else %}0{% endif %}</td>
+		<td>{{ site.get_segment_count }}</td>
+		<td>{{ word_count }}</td>
         <td>{% if block_count %}<span class="mR10">{{ block_count }}</span><span class="mR10"><a href="/site/{{ site.slug }}/blocks/" title="{% trans "list blocks" %}"><i class="fa fa-th-list"></i></a></span><a href="/block/{{ first_block.id }}/" title="{% trans "browse all blocks" %}"><i class="fa fa-caret-square-o-right"></i></a>{% else %}0{% endif %}</td>
         <td>{% if proxies %}
               {% for proxy in proxies %}
@@ -97,6 +99,7 @@
 	  	<span class="mR30"><input type="submit" name="download_segments" value="Download all segments" title="Download all segments" class="btn btn-default btn-sm"></span>
 	  	<span class="mR30"><input type="submit" name="extract_segments" value="Extract new segments" title="Extract new segments" class="btn btn-default btn-sm"></span>
   		<span class="mR30"><input type="submit" name="export_untranslated" value="Export untranslated segments" title="Export untranslated segments" class="btn btn-default btn-sm"></span>
+  		<span class="mR30"><input type="submit" name="download_words_distribution" value="Download words distribution" title="Download words distributions" class="btn btn-default btn-sm"></span>
 	</div>
 	{% endif %}
 	<div class="form-group">
