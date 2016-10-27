@@ -89,6 +89,7 @@
   	<div class="form-group">{{ manage_form.delete_confirmation }} Yes, I am fully aware <input type="submit" name="delete_site" value="Delete site" title="Delete all site info" class="btn btn-default btn-sm"></div>
 	{% endif %}
 	<div class="form-group">
+		<span class="mR30"><input type="submit" name="discover" value="Discover" class="btn btn-default btn-sm"></span>
 		<span class="mR30">{{ manage_form.clear_pages }} Clear all saved pages
 		<input type="submit" name="site_crawl" value="{% if page_count %}Re-crawl{% else %}Crawl{% endif %}" title="scan pages" class="btn btn-default btn-sm"></span>
 		{% if page_count %}<span class="mR30"><input type="submit" name="refetch_pages" value="Re-fetch pages" title="re-fetch" class="btn btn-default btn-sm"></span>{% endif %}

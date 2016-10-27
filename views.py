@@ -45,6 +45,7 @@ from models import STRING_TYPE_DICT, UNKNOWN, SEGMENT #, TERM, FRAGMENT
 from models import TEXT_ASC # , ID_ASC, DATETIME_DESC, DATETIME_ASC
 from models import TO_BE_TRANSLATED, TRANSLATED, PARTIALLY, INVARIANT, ALREADY
 from models import MYMEMORY, TRANSLATION_SERVICE_DICT
+from forms import DiscoverForm
 from forms import SiteManageForm, ProxyManageForm, PageEditForm, PageSequencerForm, BlockEditForm, BlockSequencerForm
 from forms import StringSequencerForm, StringEditForm, StringsTranslationsForm, StringTranslationForm, TranslationServiceForm, FilterPagesForm
 from session import get_language, set_language, get_site, set_site
@@ -138,6 +139,7 @@ def site(request, site_slug):
     var_dict['word_count'] = len(words_distribution)
     post = request.POST
     if post:
+        discover = post.get('discover', '')
         site_crawl = post.get('site_crawl', '')
         extract_blocks = post.get('extract_blocks', '')
         refetch_pages = post.get('refetch_pages', '')
@@ -148,16 +150,23 @@ def site(request, site_slug):
         apply_invariants = post.get('apply_invariants', '')
         delete_site = post.get('delete_site', '')
         guess_blocks_language = post.get('guess_blocks_language', '')
-        # form = SiteManageForm(post)
         form = SiteManageForm(post, request.FILES)
         if form.is_valid():
             data = form.cleaned_data
-            if site_crawl:
+            if discover:
+                initial = {'site': site, 'name': site.name, 'allow': '', 'deny': site.deny, 'max_pages': 100,}
+                allowed_domains = site.get_allowed_domains() or [site.url.split('//')[-1]]
+                initial['allowed_domains'] = '\n'.join(allowed_domains)
+                start_urls = site.get_start_urls() or [site.url]
+                initial['start_urls'] =  '\n'.join(start_urls)
+                var_dict['discover_form'] = DiscoverForm(initial=initial)
+                return render_to_response('discover_settings.html', var_dict, context_instance=RequestContext(request))
+            elif site_crawl:
                 clear_pages = data['clear_pages']
                 if clear_pages:
                     Webpage.objects.filter(site=site).delete()
-                t = crawl_site.delay(site.id)
-                print 'site_crawl : ', site.name, 'task id: ', t
+                task_id = crawl_site.delay(site.id)
+                print 'site_crawl : ', site.name, 'task id: ', task_id
             elif extract_blocks:
                 clear_blocks = data['clear_blocks']
                 if clear_blocks:
@@ -389,6 +398,10 @@ def site(request, site_slug):
     var_dict['manage_form'] = SiteManageForm()
     return render_to_response('site.html', var_dict, context_instance=RequestContext(request))
  
+def crawler_progress(request, site_id, task_id, i_feed=0):
+    data = {}
+    return JsonResponse({'data': data, 'site': site_id, 'task': task_id,})
+
 def proxy(request, proxy_slug):
     user = request.user
     proxy = get_object_or_404(Proxy, slug=proxy_slug)
@@ -461,7 +474,6 @@ def proxy(request, proxy_slug):
     var_dict['ready_count'] = len(blocks_ready)
     var_dict['manage_form'] = ProxyManageForm()
     return render_to_response('proxy.html', var_dict, context_instance=RequestContext(request))
-
 
 def site_pages(request, site_slug):
     var_dict = {}
@@ -1868,12 +1880,41 @@ if USE_SCRAPY:
     from scrapy.spiders import Rule #, CrawlSpider
     from scrapy.linkextractors import LinkExtractor
     from scrapy.crawler import CrawlerProcess
-    from spiders import WipSiteCrawlerScript, WipCrawlSpider
+    from spiders import WipSiteCrawlerScript, WipDiscoverScript, WipCrawlSpider
+    
+    from celery.utils.log import get_task_logger
+    from celery_apps import app
+
+    @app.task()
+    def discover_task(name, allowed_domains, start_urls, allow, deny):
+        crawler_script = WipDiscoverScript()
+        return crawler_script.crawl(name, allowed_domains, start_urls, allow, deny)
+
+    def discover(request):
+        data_dict = {}
+        post = request.POST
+        form = DiscoverForm(post)
+        if form.is_valid():
+            data = form.cleaned_data
+            name = data['name'] or 'discover'
+            site = data['site']
+            allowed_domains = site.get_allowed_domains()
+            start_urls = site.get_start_urls()
+            allow = data['allow']
+            deny = data['deny']
+            task_id = discover_task.delay(name, allowed_domains, start_urls, allow, deny)
+            data_dict['site'] = site.pk
+            data_dict['task'] = task_id
+            return render_to_response('crawler_progress.html', data_dict, context_instance=RequestContext(request))
+        else:
+            var_dict = {}
+            var_dict['discover_form'] = form
+            return render_to_response('discover_settings.html', var_dict, context_instance=RequestContext(request))
 
     def site_crawl(site_pk):
-        crawler = WipSiteCrawlerScript()
+        crawler_script = WipSiteCrawlerScript()
         site = Site.objects.get(pk=site_pk)
-        crawler.crawl(
+        crawler_script.crawl(
           site.id,
           site.slug,
           site.name,
@@ -1902,29 +1943,19 @@ if USE_SCRAPY:
             """
             crawl_site.apply_async(args=(site.id,))
             """
-            t = crawl_site.delay(site.id)
-            print 'task id: ', t
-        # return home(request)
+            task_id = crawl_site.delay(site.id)
+            print 'task id: ', task_id
         return HttpResponseRedirect('/site/%s/' % site_slug)
-    
-    from celery.utils.log import get_task_logger
-    from celery_apps import app
+        data_dict = {}
+        data_dict['site'] = site.it
+        data_dict['task'] = task_id       
+        return render_to_response('crawler_progress.html', data_dict, context_instance=RequestContext(request))
     
     @app.task()
     def crawl_site(site_pk):
         logger = get_task_logger(__name__)
         logger.info('Crawling site {0}'.format(site_pk))
         return site_crawl(site_pk)
-    
-    """
-    @app.task(ignore_result=True)
-    def my_task(request):
-        print('executing my_task')
-        logger = get_task_logger(__name__)
-        logger.debug('executing my_task')
-        var_dict = {}
-        return render_to_response('homepage.html', var_dict, context_instance=RequestContext(request))
-    """
 
 if USE_NLTK:
 

@@ -11,12 +11,15 @@ try:
 except ImportError:
     from io import BytesIO
 """
+import sys
 import time
 import urlparse
 import urllib2, json
+
 # from scrapy.exceptions import DropItem
-# from scrapy.utils.misc import md5sum
-from utils import string_checksum
+from scrapy.xlib.pydispatch import dispatcher
+from scrapy import signals
+from scrapy.contrib.exporter import JsonLinesItemExporter
 
 import logging
 logger = logging.getLogger('wip.views')
@@ -27,6 +30,27 @@ django.setup()
 from django.utils import timezone
 from models import Site, Webpage, PageVersion
 from settings import PAGES_EXCLUDE_BY_CONTENT
+
+class WipDiscoverPipeline(object):
+
+    @classmethod
+    def from_(cls, crawler):
+        return cls()
+
+    def __init__(self):
+        dispatcher.connect(self.spider_opened, signals.spider_opened)
+        dispatcher.connect(self.spider_closed, signals.spider_closed)
+
+    def spider_opened(self, spider):
+        self.exporter = JsonLinesItemExporter(sys.stdout)
+        self.exporter.start_exporting()
+
+    def spider_closed(self, spider):
+        self.exporter.finish_exporting()
+
+    def process_item(self, item, spider):
+        self.exporter.export_item(item)
+        return item
 
 class WipCrawlPipeline(object):
 
@@ -50,11 +74,6 @@ class WipCrawlPipeline(object):
         page.last_checked = timezone.now()
         page.last_checked_response_code = item['status']
         page.save()
-        """
-        buf = BytesIO(item['body'])
-        checksum = md5sum(buf)
-        """
-        # checksum = string_checksum(item['body'])
         checksum = site.page_checksum(item['body'])
         fetched_pages = PageVersion.objects.filter(webpage=page).order_by('-time')
         last = fetched_pages and fetched_pages[0] or None

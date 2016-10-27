@@ -1,13 +1,15 @@
 # -*- coding: utf-8 -*-
 
-from collections import defaultdict
 import scrapy
 from scrapy.spiders import CrawlSpider, Rule
 from scrapy.linkextractors import LinkExtractor
-# from scrapy.utils.project import get_project_settings
 from scrapy.utils.log import configure_logging
 
-# from pipelines import WipCrawlPipeline
+# from http://stackoverflow.com/questions/11528739/running-scrapy-spiders-in-a-celery-task
+# from multiprocessing import Process
+# see https://github.com/celery/celery/issues/1709
+from billiard.process import Process
+from scrapy.crawler import CrawlerProcess
 
 class WipCrawlItem(scrapy.Item):
     site_id = scrapy.Field()
@@ -40,16 +42,13 @@ class WipCrawlSpider(CrawlSpider):
         item['title'] = title
         return item
 
-# from http://stackoverflow.com/questions/11528739/running-scrapy-spiders-in-a-celery-task
-# from multiprocessing import Process
-# see https://github.com/celery/celery/issues/1709
-from billiard.process import Process
-from scrapy.crawler import CrawlerProcess
-
 class WipSiteCrawlerScript():
+    """  creates and wraps a Scrapy CrawlerProcess:
+    the crawl method creates a billiard Process whose target is an auxiliary method that
+    defines a specialization of WipCrawlSpider class, instantiates it
+    and pass it to the CrawlerProcess for execution """
 
     def __init__(self):
-        # settings = get_project_settings()
         self.crawler = CrawlerProcess()
 
     def _crawl(self, site_id, site_slug, site_name, allowed_domains, start_urls, deny):
@@ -69,6 +68,55 @@ class WipSiteCrawlerScript():
 
     def crawl(self, site_id, site_slug, site_name, allowed_domains, start_urls, deny):
         p = Process(target=self._crawl, args=[site_id, site_slug, site_name, allowed_domains, start_urls, deny])
+        p.start()
+        p.join()
+
+class WipDiscoverItem(scrapy.Item):
+    url = scrapy.Field()
+    status = scrapy.Field()
+    encoding = scrapy.Field()
+    size = scrapy.Field()
+    title = scrapy.Field()
+
+class WipDiscoverSpider(CrawlSpider):
+    custom_settings = {'ITEM_PIPELINES': {'wip.pipelines.WipDiscoverPipeline': 300}}
+
+    def parse_item(self, response):
+        item = WipDiscoverItem()
+        item['url'] = response.url
+        item['status'] = response.status
+        try:
+            item['encoding'] = response.headers['Content-Type']
+        except:
+            item['encoding'] = ''
+        item['size'] = len(response.body)
+        try:
+            title = response.xpath('/html/head/title/text()').extract()
+        except:
+            title = ''
+        item['title'] = title
+        return item
+
+# WipDiscoverSpider.parse_item = WipCrawlSpider.parse_item
+
+class WipDiscoverScript(object):
+
+    def __init__(self):
+        self.crawler = CrawlerProcess()
+
+    def _crawl(self, name, allowed_domains, start_urls, allow, deny):
+        rules = [Rule(LinkExtractor(allow=allow, deny=deny), callback='parse_item', follow=True),]
+        spider_class = type(str(name),
+                            (WipDiscoverSpider,),
+                            {'name':name, 'allowed_domains':allowed_domains, 'start_urls':start_urls, 'rules': rules,})
+        spider = spider_class()
+        self.crawler.crawl(spider)
+        print '--- start crawling ---'
+        self.crawler.start()
+        print '--- end crawling ---'
+
+    def crawl(self, name, allowed_domains, start_urls, allow, deny):
+        p = Process(target=self._crawl, args=[name, allowed_domains, start_urls, allow, deny])
         p.start()
         p.join()
 

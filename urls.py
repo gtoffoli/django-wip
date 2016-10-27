@@ -37,6 +37,7 @@ urlpatterns = [
     url(r'^api/send_block/$', send_block),
     url(r'^api/send_fragment/$', send_fragment),
     url(r"^language/(?P<language_code>[\w-]*)/set/$", views.language, name="language"),
+    url(r"^discover/$", views.discover, name="discover"),
     url(r"^sites/$", views.sites, name="sites"),
     url(r"^site/(?P<site_slug>[\w-]+)/$", views.site, name="site"),
     url(r"^site/(?P<site_slug>[\w-]+)/pages/$", views.site_pages, name="site_pages"),
@@ -79,6 +80,7 @@ urlpatterns += (
 if USE_SCRAPY:
     urlpatterns += (
         url(r"^site/(?P<site_slug>[\w-]+)/crawl/$", views.site_crawl_by_slug, name="site_crawl"),
+        url(r"^crawler_progress/(?P<site_id>[\d]+)/(?P<task_id>[\d]+)/$", views.crawler_progress, name="crawler_progress"),
     )   
 if USE_NLTK:
     urlpatterns += (

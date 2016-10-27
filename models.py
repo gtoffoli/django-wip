@@ -424,7 +424,8 @@ class Site(models.Model):
         for segment in segments:
             tokens = tokenizer.tokenize(segment.text)
             for token in tokens:
-                tokens_dict[token] += 1
+                if not is_invariant_word(token):
+                    tokens_dict[token] += 1
         return tokens_dict
 
     def get_word_count(self, lowercasing=True):

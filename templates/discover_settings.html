@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% load staticfiles i18n %}
+
+{% block head_title %}{% trans "discover"|capfirst %}{% endblock %}
+
+{% block title-page %}{% trans "discover"|capfirst %}{% endblock %}
+
+{% block content-page %}
+
+{% trans "Crawler settings"|capfirst %}
+
+<form action="/discover/" method="post">
+	{% csrf_token %}
+	{{ discover_form.as_p }}
+	<input type="submit" name="discover" class="btn btn-sm" value="Discover">
+</form>
+
+{% endblock %}

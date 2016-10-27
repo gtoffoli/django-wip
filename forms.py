@@ -89,3 +89,12 @@ class TranslationServiceForm(forms.Form):
 class FilterPagesForm(forms.Form):
     path_filter = forms.CharField(required=False, label="Pattern in page path", widget=forms.TextInput(attrs={'style': 'width: 500px;', 'onchange': 'javascript: this.form.submit()',}))
     from_start = forms.BooleanField(required=False, label='Only paths starting with pattern')
+
+class DiscoverForm(forms.Form):
+    site = forms.ModelChoiceField(required=False, label="Site", queryset=Site.objects.all(), widget=forms.Select(attrs={'style':'height: 24px;',}))
+    name = forms.CharField(required=False, label="Name", widget=forms.TextInput(attrs={'style': 'width: 500px;'}))
+    allowed_domains = forms.CharField(required=False, label="Allowed domains", widget=forms.Textarea(attrs={'style': 'width: 100%; height: 60px;'}))
+    start_urls = forms.CharField(required=False, label="Start urls", widget=forms.Textarea(attrs={'style': 'width: 100%; height: 60px;'}))
+    allow = forms.CharField(required=False, label="Allow", widget=forms.Textarea(attrs={'style': 'width: 100%; height: 60px;'}))
+    deny = forms.CharField(required=False, label="Deny", widget=forms.Textarea(attrs={'style': 'width: 100%; height: 60px;'}))
+    max_pages = forms.IntegerField(required=False, label="Max pages", widget=forms.TextInput(attrs={'size': 8, 'style': 'width: 50px;',}))
