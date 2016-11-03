@@ -1983,6 +1983,8 @@ def discover_task(scan_id):
     return crawler_script.crawl(scan_id)
 
 def discover(request, site=None, scan_id=None):
+    user = request.user    # assert user.is_authenticated()
+    assert user.is_authenticated()
     data_dict = {}
     post = request.POST
     if site or scan_id or not post:
@@ -2010,7 +2012,7 @@ def discover(request, site=None, scan_id=None):
             deny = data['deny']
             max_pages = data['max_pages']
             run_worker_process()
-            scan = Scan(name=name, allowed_domains=allowed_domains, start_urls=start_urls, allow=allow, deny=deny, max_pages=max_pages, task_id=0, user=request.user)
+            scan = Scan(name=name, allowed_domains=allowed_domains, start_urls=start_urls, allow=allow, deny=deny, max_pages=max_pages, task_id=0, user=user)
             scan.save()
             async_result = discover_task.delay(scan.pk)
             scan.task_id = async_result.task_id
