@@ -415,7 +415,7 @@ def pretty_html(in_path, out_name=''):
     out_file.close
 
 # see: http://stackoverflow.com/questions/8506914/detect-whether-celery-is-available-running
-def get_celery_worker_status():
+def get_celery_worker_stats():
     ERROR_KEY = "ERROR"
     try:
         from celery.task.control import inspect

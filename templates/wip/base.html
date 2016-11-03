@@ -59,6 +59,7 @@
 												</a>
 												<ul class="dropdown-menu">
 													<li><a href="/accounts/profile/"><i class="icon-user"></i> {% trans "My profile" %}</a></li>
+                 								    <li><a href="/user_scans/"><i class="icon-other"></i> {% trans "My scans" %}</a></li>
 													{% if request.user.is_staff %}
 														<li><a href="{% url "admin:index" %}"><i class="icon-cog"></i> {% trans "Admin" %}</a></li>
 													{% endif %}

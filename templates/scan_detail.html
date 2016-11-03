@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% load staticfiles i18n %}
+
+{% block head_title %}{% trans "scan"|capfirst %} {{ scan.get_label }}{% endblock %}
+
+{% block extra_head %}
+<style>
+table { border-spacing: 10px 0; border-collapse: separate; }
+th, td { text-align: left; vertical-align: top; }
+</style>
+{% endblock %}
+
+{% block title-page %}{% trans "scan"|capfirst %} <a href="/discover/{{ scan.pk }}/">{{ scan.get_label }}</a>{% endblock %}
+
+{% block content-page %}
+
+<div><label>id</label> {{ scan.pk }}, <label># pages</label> {{ scan.get_links.count }}</div>
+<div><label>task</label> {{ scan.task_id }}, <label>created</label> {{ scan.created }}, <label>terminated</label> {{ scan.modified }}</div>
+
+<h4>Page list</h4>
+
+<table>
+<thead><th>#</th><th>url</th><th>status</th><th>size</th><th>title</th></thead>
+<tbody>
+{% for line in lines %}
+	<tr>
+		<td>{{ forloop.counter }}</td>
+		<td>{{ line.url }}</td>
+		<td>{{ line.status }}</td>
+		<td>{{ line.size }}</td>
+		<td>{{ line.title }}</td>
+	</tr>
+{% endfor %}
+</tbody>
+</table>
+
+{% endblock %}

@@ -92,9 +92,9 @@ class FilterPagesForm(forms.Form):
 
 class DiscoverForm(forms.Form):
     site = forms.ModelChoiceField(required=False, label="Site", queryset=Site.objects.all(), widget=forms.Select(attrs={'style':'height: 24px;',}))
-    name = forms.CharField(required=False, label="Name", widget=forms.TextInput(attrs={'style': 'width: 500px;'}))
-    allowed_domains = forms.CharField(required=False, label="Allowed domains", widget=forms.Textarea(attrs={'style': 'width: 100%; height: 60px;'}))
-    start_urls = forms.CharField(required=False, label="Start urls", widget=forms.Textarea(attrs={'style': 'width: 100%; height: 60px;'}))
-    allow = forms.CharField(required=False, label="Allow", widget=forms.Textarea(attrs={'style': 'width: 100%; height: 60px;'}))
-    deny = forms.CharField(required=False, label="Deny", widget=forms.Textarea(attrs={'style': 'width: 100%; height: 60px;'}))
+    name = forms.CharField(required=False, label="Name", widget=forms.TextInput(attrs={'style': 'width: 200px;'}))
     max_pages = forms.IntegerField(required=False, label="Max pages", widget=forms.TextInput(attrs={'size': 8, 'style': 'width: 50px;',}))
+    allowed_domains = forms.CharField(required=False, label="Allowed domains", widget=forms.Textarea(attrs={'style': 'width: 100%; height: 24px;'}))
+    start_urls = forms.CharField(required=False, label="Start urls", widget=forms.Textarea(attrs={'style': 'width: 100%; height: 24px;'}))
+    allow = forms.CharField(required=False, label="Allow", widget=forms.Textarea(attrs={'style': 'width: 100%; height: 40px;'}))
+    deny = forms.CharField(required=False, label="Deny", widget=forms.Textarea(attrs={'style': 'width: 100%; height: 40px;'}))

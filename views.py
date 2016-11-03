@@ -14,6 +14,7 @@ sys.stderr = codecs.getwriter('utf8')(sys.stderr)
 reload(sys)  
 sys.setdefaultencoding('utf8')
 import os
+import time
 import datetime
 
 import logging
@@ -24,7 +25,8 @@ from math import sqrt
 from lxml import html, etree
 import json
 
-from settings import USE_SCRAPY, USE_NLTK
+from settings import BASE_DIR, USE_SCRAPY, USE_NLTK
+
 from haystack.query import SearchQuerySet
 # from search_indexes import StringIndex
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
@@ -36,10 +38,12 @@ from django.db import connection
 from django.db.models.expressions import RawSQL, Q
 from django import forms
 from django.contrib import messages
+from django.contrib.auth.models import User
 from actstream import action, registry
 
 from models import Language, Site, Proxy, Webpage, PageVersion, TranslatedVersion
 from models import Block, BlockEdge, TranslatedBlock, BlockInPage, String, Txu, TxuSubject #, TranslatedVersion
+from models import Scan, Link
 from models import segments_from_string, non_invariant_words
 from models import STRING_TYPE_DICT, UNKNOWN, SEGMENT #, TERM, FRAGMENT
 from models import TEXT_ASC # , ID_ASC, DATETIME_DESC, DATETIME_ASC
@@ -139,7 +143,7 @@ def site(request, site_slug):
     var_dict['word_count'] = len(words_distribution)
     post = request.POST
     if post:
-        discover = post.get('discover', '')
+        discovery = post.get('discover', '')
         site_crawl = post.get('site_crawl', '')
         extract_blocks = post.get('extract_blocks', '')
         refetch_pages = post.get('refetch_pages', '')
@@ -153,14 +157,9 @@ def site(request, site_slug):
         form = SiteManageForm(post, request.FILES)
         if form.is_valid():
             data = form.cleaned_data
-            if discover:
-                initial = {'site': site, 'name': site.name, 'allow': '', 'deny': site.deny, 'max_pages': 100,}
-                allowed_domains = site.get_allowed_domains() or [site.url.split('//')[-1]]
-                initial['allowed_domains'] = '\n'.join(allowed_domains)
-                start_urls = site.get_start_urls() or [site.url]
-                initial['start_urls'] =  '\n'.join(start_urls)
-                var_dict['discover_form'] = DiscoverForm(initial=initial)
-                return render_to_response('discover_settings.html', var_dict, context_instance=RequestContext(request))
+            if discovery:
+                # return discovery_settings(request, site=site)
+                return discover(request, site=site)
             elif site_crawl:
                 clear_pages = data['clear_pages']
                 if clear_pages:
@@ -397,10 +396,6 @@ def site(request, site_slug):
     var_dict['blocks_proxy_list'] = blocks_proxy_list
     var_dict['manage_form'] = SiteManageForm()
     return render_to_response('site.html', var_dict, context_instance=RequestContext(request))
- 
-def crawler_progress(request, site_id, task_id, i_feed=0):
-    data = {}
-    return JsonResponse({'data': data, 'site': site_id, 'task': task_id,})
 
 def proxy(request, proxy_slug):
     user = request.user
@@ -1875,87 +1870,199 @@ def find_strings(source_languages=[], target_languages=[], translated=None, site
 def get_language(language_code):
     return Language.objects.get(code=language_code)
 
-if USE_SCRAPY:
+def user_scans(request, username=None):
+    data_dict = {}
+    user = username and User.objects.get(username=username) or request.user
+    scans = Scan.objects.filter(user=user).order_by('-created')
+    data_dict['user'] = user  
+    data_dict['scans'] = scans  
+    return render_to_response('user_scans.html', data_dict, context_instance=RequestContext(request))
 
-    from scrapy.spiders import Rule #, CrawlSpider
-    from scrapy.linkextractors import LinkExtractor
-    from scrapy.crawler import CrawlerProcess
-    from spiders import WipSiteCrawlerScript, WipDiscoverScript, WipCrawlSpider
+def scan_detail(request, scan_id):
+    data_dict = {}
+    scan = Scan.objects.get(pk=scan_id)
+    links = Link.objects.filter(scan=scan).order_by('created')
+    lines = []
+    for link in links:
+        line = {"url": link.url, "status": link.status, "title": link.title, "encoding": link.encoding, "size": link.size, "encoding": link.encoding}
+        lines.append(line)
+    data_dict['scan'] = scan
+    data_dict['lines'] = lines
+    return render_to_response('scan_detail.html', data_dict, context_instance=RequestContext(request))
+
+def scan_delete(request, scan_id):
+    scan = Scan.objects.get(pk=scan_id)
+    user = scan.user
+    links = Link.objects.filter(scan=scan)
+    for link in links:
+        link.delete()
+    scan.delete()
+    return HttpResponseRedirect('/user_scans/%s/' % user.username)    
     
-    from celery.utils.log import get_task_logger
-    from celery_apps import app
+def crawler_progress(request, scan_id, i_line):
+    i_line = int(i_line)
+    scan = Scan.objects.get(pk=scan_id)
+    links = Link.objects.filter(scan=scan).order_by('created')[i_line:]
+    lines = []
+    for link in links:
+        if i_line >= scan.max_pages:
+            scan.terminated = True
+            scan.save()
+            break
+        i_line += 1
+        line = {"url": link.url, "status": link.status, "title": link.title, "encoding": link.encoding, "size": link.size}
+        lines.append(line)
+    if scan.terminated:
+        lines.append({"size": 0})
+    return JsonResponse({'lines': lines,})
 
-    @app.task()
-    def discover_task(name, allowed_domains, start_urls, allow, deny):
-        crawler_script = WipDiscoverScript()
-        return crawler_script.crawl(name, allowed_domains, start_urls, allow, deny)
+def scan_download(request, scan_id):
+    scan = Scan.objects.get(pk=scan_id)
+    lines = []
+    links = Link.objects.filter(scan=scan).order_by('created')
+    for link in links:
+        line = '%s %d "%s" %d %s' % (link.url, link.status, link.title, link.size, link.encoding)
+        lines.append(line)
+    data = u'\r\n'.join(lines)
+    response = HttpResponse(data, content_type='application/octet-stream')
+    filename = u'%s.txt' % scan.get_label()
+    response['Content-Disposition'] = 'attachment; filename="%s"' % filename
+    return response
 
-    def discover(request):
-        data_dict = {}
-        post = request.POST
+from scrapy.spiders import Rule #, CrawlSpider
+from scrapy.linkextractors import LinkExtractor
+from scrapy.crawler import CrawlerProcess
+from spiders import WipSiteCrawlerScript, WipDiscoverScript, WipCrawlSpider
+
+from celery.utils.log import get_task_logger
+from celery_apps import app
+from celery.task.control import revoke
+from celery.bin import worker
+from billiard.process import Process
+from utils import get_celery_worker_stats
+
+def run_worker():
+    w = worker.worker(app=app)
+    options = {}
+    w.run(**options)
+
+def run_worker_process():
+    i = 0
+    pid = None
+    stats = get_celery_worker_stats()
+    for key, value in stats.items():
+        if key.startswith('celery@'):
+            pid = value.get('pid', None)
+    if pid:
+        print '--- worker is running ---'
+    else:
+        print '--- running worker ---'
+        p = Process(target=run_worker, args=[])
+        p.start()
+        while not pid and i < 10:
+            i += 1
+            time.sleep(3)
+            stats = get_celery_worker_stats()
+            for key, value in stats.items():
+                if key.startswith('celery@'):
+                    pid = value.get('pid', None)
+    return pid
+
+def stop_crawler(request, scan_id):
+    scan = Scan.objects.get(pk=scan_id)
+    task_id = scan.task_id
+    print '--- stopping task %s ---' % task_id
+    revoke(task_id, terminate=True)
+    scan.terminated = True
+    scan.save()
+    return JsonResponse({'status': 'ok',})
+
+@app.task()
+def discover_task(scan_id):
+    crawler_script = WipDiscoverScript()
+    return crawler_script.crawl(scan_id)
+
+def discover(request, site=None, scan_id=None):
+    data_dict = {}
+    post = request.POST
+    if site or scan_id or not post:
+        if site:
+            initial = {'site': site, 'name': site.name, 'deny': site.deny, 'max_pages': 100,}
+            allowed_domains = site.get_allowed_domains() or [site.url.split('//')[-1]]
+            initial['allowed_domains'] = '\n'.join(allowed_domains)
+            start_urls = site.get_start_urls() or [site.url]
+            initial['start_urls'] =  '\n'.join(start_urls)
+        elif scan_id:
+            scan = Scan.objects.get(pk=scan_id)
+            initial = {'site': scan.site, 'name': scan.name, 'allowed_domains': scan.allowed_domains, 'start_urls': scan.start_urls, 'deny': scan.deny, 'max_pages': scan.max_pages,}
+        else:
+            initial = {'max_pages': 100,}
+        form = DiscoverForm(initial=initial)
+    else:
         form = DiscoverForm(post)
         if form.is_valid():
             data = form.cleaned_data
             name = data['name'] or 'discover'
             site = data['site']
-            allowed_domains = site.get_allowed_domains()
-            start_urls = site.get_start_urls()
+            allowed_domains = data['allowed_domains']
+            start_urls = data['start_urls']
             allow = data['allow']
             deny = data['deny']
-            task_id = discover_task.delay(name, allowed_domains, start_urls, allow, deny)
-            data_dict['site'] = site.pk
-            data_dict['task'] = task_id
-            return render_to_response('crawler_progress.html', data_dict, context_instance=RequestContext(request))
-        else:
-            var_dict = {}
-            var_dict['discover_form'] = form
-            return render_to_response('discover_settings.html', var_dict, context_instance=RequestContext(request))
+            max_pages = data['max_pages']
+            run_worker_process()
+            scan = Scan(name=name, allowed_domains=allowed_domains, start_urls=start_urls, allow=allow, deny=deny, max_pages=max_pages, task_id=0, user=request.user)
+            scan.save()
+            async_result = discover_task.delay(scan.pk)
+            scan.task_id = async_result.task_id
+            scan.save()
+            data_dict['task_id'] = scan.task_id
+            data_dict['scan_id'] = scan.pk
+            data_dict['scan_label'] = scan.get_label()
+            data_dict['i_line'] = 0
+    data_dict['discover_form'] = form
+    return render_to_response('discover.html', data_dict, context_instance=RequestContext(request))
 
-    def site_crawl(site_pk):
-        crawler_script = WipSiteCrawlerScript()
-        site = Site.objects.get(pk=site_pk)
-        crawler_script.crawl(
-          site.id,
-          site.slug,
-          site.name,
-          site.get_allowed_domains(),
-          site.get_start_urls(),
-          site.get_deny()
-          )
-    
-    def site_crawl_by_slug(request, site_slug):
-        site = get_object_or_404(Site, slug=site_slug)
-        notask = request.GET.get('notask', False)
-        if notask:
-            site_name = site.name
-            allowed_domains = site.get_allowed_domains()
-            start_urls = site.get_start_urls()
-            deny = site.get_deny()
-            rules = [Rule(LinkExtractor(deny=deny), callback='parse_item', follow=True),]
-            spider_class = type(str(site_slug), (WipCrawlSpider,), {'site_id': site.id, 'name':site_name, 'allowed_domains':allowed_domains, 'start_urls':start_urls, 'rules': rules})
-            spider = spider_class()
-            process = CrawlerProcess()
-            process.crawl(spider)
-            process.start() # the script will block here until the crawling is finished
-            process.stop()
-        else:
-            print 'site_crawl_by_slug : ', site_slug
-            """
-            crawl_site.apply_async(args=(site.id,))
-            """
-            task_id = crawl_site.delay(site.id)
-            print 'task id: ', task_id
-        return HttpResponseRedirect('/site/%s/' % site_slug)
-        data_dict = {}
-        data_dict['site'] = site.it
-        data_dict['task'] = task_id       
-        return render_to_response('crawler_progress.html', data_dict, context_instance=RequestContext(request))
-    
-    @app.task()
-    def crawl_site(site_pk):
-        logger = get_task_logger(__name__)
-        logger.info('Crawling site {0}'.format(site_pk))
-        return site_crawl(site_pk)
+def site_crawl(site_pk):
+    crawler_script = WipSiteCrawlerScript()
+    site = Site.objects.get(pk=site_pk)
+    crawler_script.crawl(
+      site.id,
+      site.slug,
+      site.name,
+      site.get_allowed_domains(),
+      site.get_start_urls(),
+      site.get_deny()
+      )
+
+def site_crawl_by_slug(request, site_slug):
+    site = get_object_or_404(Site, slug=site_slug)
+    notask = request.GET.get('notask', False)
+    if notask:
+        site_name = site.name
+        allowed_domains = site.get_allowed_domains()
+        start_urls = site.get_start_urls()
+        deny = site.get_deny()
+        rules = [Rule(LinkExtractor(deny=deny), callback='parse_item', follow=True),]
+        spider_class = type(str(site_slug), (WipCrawlSpider,), {'site_id': site.id, 'name':site_name, 'allowed_domains':allowed_domains, 'start_urls':start_urls, 'rules': rules})
+        spider = spider_class()
+        process = CrawlerProcess()
+        process.crawl(spider)
+        process.start() # the script will block here until the crawling is finished
+        process.stop()
+    else:
+        print 'site_crawl_by_slug : ', site_slug
+        """
+        crawl_site.apply_async(args=(site.id,))
+        """
+        task_id = crawl_site.delay(site.id)
+        print 'task id: ', task_id
+    return HttpResponseRedirect('/site/%s/' % site_slug)
+
+@app.task()
+def crawl_site(site_pk):
+    logger = get_task_logger(__name__)
+    logger.info('Crawling site {0}'.format(site_pk))
+    return site_crawl(site_pk)
 
 if USE_NLTK:
 

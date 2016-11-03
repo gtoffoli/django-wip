@@ -1782,3 +1782,60 @@ def segments_from_string(string, site, segmenter, exclude_TM_invariants=True):
                 continue
         filtered.append(s)
     return filtered
+
+class Scan(models.Model):
+    name = models.CharField(max_length=20)
+    site = models.ForeignKey(Site, null=True)
+    language = models.ForeignKey(Language, null=True)
+    start_urls = models.TextField()
+    allowed_domains = models.TextField()
+    allow = models.TextField()
+    deny = models.TextField()
+    max_pages = models.IntegerField()
+    user = models.ForeignKey(User, null=True)
+    created = CreationDateTimeField()
+    modified = ModificationDateTimeField()
+    # task_id = models.IntegerField()
+    task_id = models.CharField(max_length=100)
+    terminated = models.BooleanField(default=False)
+
+    class Meta:
+        verbose_name = _('discovery scan')
+        verbose_name_plural = _('discovery scans')
+
+    def get_label(self):
+        return '%s-%s' % (self.name, self.created.strftime("%y%m%d-%H%M"))
+
+    def get_links(self):
+        return Link.objects.filter(scan=self)
+
+class Link(models.Model):
+    scan = models.ForeignKey(Scan)
+    url = models.TextField()
+    status = models.IntegerField()
+    encoding = models.TextField()
+    size = models.IntegerField()
+    title = models.TextField()
+    created = CreationDateTimeField()
+
+    class Meta:
+        verbose_name = _('followed link')
+        verbose_name_plural = _('followed links')
+
+class SegmentCount(models.Model):
+    scan = models.ForeignKey(Scan)
+    segment = models.CharField(max_length=1000)
+    count = models.IntegerField()
+
+    class Meta:
+        verbose_name = _('segment count')
+        verbose_name_plural = _('segment counts')
+
+class WordCount(models.Model):
+    scan = models.ForeignKey(Scan)
+    word = models.CharField(max_length=100)
+    count = models.IntegerField()
+
+    class Meta:
+        verbose_name = _('word count')
+        verbose_name_plural = _('word counts')

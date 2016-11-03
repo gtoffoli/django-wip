@@ -23,6 +23,14 @@ def sites_children(request):
                 ))
     return children        
 
+def discovery_children(request):
+    children = []
+    children.append (MenuItem(
+         'My scans',
+         url='/my_scans/'
+        ))
+    return children        
+
 def languages_children(request):
     children = []
     languages = Language.objects.all().order_by('code')
@@ -97,6 +105,13 @@ Menu.add_item("main", MenuItem(ugettext_lazy("Home"),
                                weight=10,
                                separator=True))
 """
+Menu.add_item("main", MenuItem(ugettext_lazy("Discovery"),
+                               url='/',
+                               icon='',
+                               weight=20,
+                               children=discovery_children,
+                               check=lambda request: request.user.is_authenticated(),
+                               separator=True))
 Menu.add_item("main", MenuItem(ugettext_lazy("Sites"),
                                url='/',
                                icon='',
@@ -104,12 +119,14 @@ Menu.add_item("main", MenuItem(ugettext_lazy("Sites"),
                                children=sites_children,
                                check=lambda request: request.user.is_authenticated(),
                                separator=True))
+"""
 Menu.add_item("main", MenuItem(ugettext_lazy("Languages"),
                                url='/',
                                icon='',
                                weight=30,
                                children=languages_children,
                                separator=True))     
+"""
 Menu.add_item("main", MenuItem(ugettext_lazy("Proxies"),
                                url='/',
                                icon='',

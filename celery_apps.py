@@ -13,6 +13,9 @@ from django.conf import settings  # noqa
 # set the default Django settings module for the 'celery' program.
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'wip.settings')
 
+import django
+django.setup()
+
 app = Celery('wip')
 
 # Using a string here means the worker will not have to

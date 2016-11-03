@@ -38,6 +38,7 @@ urlpatterns = [
     url(r'^api/send_fragment/$', send_fragment),
     url(r"^language/(?P<language_code>[\w-]*)/set/$", views.language, name="language"),
     url(r"^discover/$", views.discover, name="discover"),
+    url(r"^discover/(?P<scan_id>[\d]+)/$", views.discover, name="discover"),
     url(r"^sites/$", views.sites, name="sites"),
     url(r"^site/(?P<site_slug>[\w-]+)/$", views.site, name="site"),
     url(r"^site/(?P<site_slug>[\w-]+)/pages/$", views.site_pages, name="site_pages"),
@@ -80,7 +81,17 @@ urlpatterns += (
 if USE_SCRAPY:
     urlpatterns += (
         url(r"^site/(?P<site_slug>[\w-]+)/crawl/$", views.site_crawl_by_slug, name="site_crawl"),
-        url(r"^crawler_progress/(?P<site_id>[\d]+)/(?P<task_id>[\d]+)/$", views.crawler_progress, name="crawler_progress"),
+        url(r"^my_scans/$", views.user_scans, name="my_scans"),
+        url(r"^user_scans/(?P<username>[\w-]+)/$", views.user_scans, name="user_scans"),
+        url(r"^scan/(?P<scan_id>[\d]+)/delete/$", views.scan_delete, name="scan_delete"),
+        url(r"^scan/(?P<scan_id>[\d]+)/$", views.scan_detail, name="scan_detail"),
+        # url(r"^scan/(?P<scan_id>[\d]+)/$", views.scan_detail, name="scan_detail"),
+        url(r"^crawler_progress/(?P<scan_id>[\d]+)/(?P<i_line>[\d]+)/$", views.crawler_progress, name="crawler_progress"),
+        url(r"^stop_crawler/(?P<scan_id>[\d]+)/$", views.stop_crawler, name="stop_crawler"),
+        # url(r"^view_file/(?P<task_id>[\d]+)/(?P<site_slug>[\w-]+)/(?P<file_name>[\w\.-]+)/(?P<i_line>[\d]+)/$", views.view_file, name="view_file"),
+        url(r"^scan_download/(?P<scan_id>[\d]+)/$", views.scan_download, name="scan_download"),
+        # url(r"^view_discovery/(?P<scan_id>[\d]+)/$", views.view_discovery, name="view_discovery"),
+        # url(r"^discovery_settings/$", views.discovery_settings, name="discoveyr_settings"),
     )   
 if USE_NLTK:
     urlpatterns += (

@@ -1,9 +1,14 @@
 # -*- coding: utf-8 -*-
 
+# import os
 import scrapy
+from scrapy import signals
 from scrapy.spiders import CrawlSpider, Rule
 from scrapy.linkextractors import LinkExtractor
 from scrapy.utils.log import configure_logging
+from scrapy.exceptions import CloseSpider
+
+from models import Scan
 
 # from http://stackoverflow.com/questions/11528739/running-scrapy-spiders-in-a-celery-task
 # from multiprocessing import Process
@@ -81,7 +86,27 @@ class WipDiscoverItem(scrapy.Item):
 class WipDiscoverSpider(CrawlSpider):
     custom_settings = {'ITEM_PIPELINES': {'wip.pipelines.WipDiscoverPipeline': 300}}
 
+    # see https://github.com/scrapy/scrapy/issues/1762
+    @classmethod
+    def from_crawler(cls, crawler, *args, **kwargs):
+        spider = super(WipDiscoverSpider, cls).from_crawler(crawler, *args, **kwargs)
+        crawler.signals.connect(spider.spider_opened, signals.spider_opened)
+        crawler.signals.connect(spider.spider_closed, signals.spider_closed)
+        return spider
+
+    def spider_opened(self):
+        # self.exporter = JsonLinesItemExporter(sys.stdout)
+        print '--- spider_opened for scan %d, %s ---' % (self.scan_id, self.name)
+
+    def spider_closed(self):
+        print '--- spider_closed ---'
+        scan = Scan.objects.get(pk=self.scan_id)
+        scan.terminated = True
+        scan.save()
+
     def parse_item(self, response):
+        if self.page_count >= self.max_pages:
+            raise CloseSpider(reason='max page count exceeded')
         item = WipDiscoverItem()
         item['url'] = response.url
         item['status'] = response.status
@@ -92,31 +117,37 @@ class WipDiscoverSpider(CrawlSpider):
         item['size'] = len(response.body)
         try:
             title = response.xpath('/html/head/title/text()').extract()
+            title = title[0]
         except:
             title = ''
         item['title'] = title
         return item
 
-# WipDiscoverSpider.parse_item = WipCrawlSpider.parse_item
+def text_to_list(text):
+    if not text: return []
+    l = text.splitlines()
+    l = [item.strip() for item in l]
+    return [item for item in l if len(item)]
 
 class WipDiscoverScript(object):
 
     def __init__(self):
         self.crawler = CrawlerProcess()
 
-    def _crawl(self, name, allowed_domains, start_urls, allow, deny):
-        rules = [Rule(LinkExtractor(allow=allow, deny=deny), callback='parse_item', follow=True),]
-        spider_class = type(str(name),
+    def _crawl(self, scan_id):
+        scan = Scan.objects.get(pk=scan_id)
+        rules = [Rule(LinkExtractor(allow=text_to_list(scan.allow), deny=text_to_list(scan.deny)), callback='parse_item', follow=True),]
+        spider_class = type(str(scan.name),
                             (WipDiscoverSpider,),
-                            {'name':name, 'allowed_domains':allowed_domains, 'start_urls':start_urls, 'rules': rules,})
+                            {'name':scan.get_label(), 'scan_id':scan_id, 'max_pages':scan.max_pages, 'page_count':0, 'allowed_domains':text_to_list(scan.allowed_domains), 'start_urls':text_to_list(scan.start_urls), 'rules': rules,})
         spider = spider_class()
+        print '--- start scan %s ---' % scan.get_label()
         self.crawler.crawl(spider)
-        print '--- start crawling ---'
         self.crawler.start()
-        print '--- end crawling ---'
+        print '--- end scan ---'
 
-    def crawl(self, name, allowed_domains, start_urls, allow, deny):
-        p = Process(target=self._crawl, args=[name, allowed_domains, start_urls, allow, deny])
+    def crawl(self, scan_id):
+        p = Process(target=self._crawl, args=[scan_id])
         p.start()
         p.join()
 

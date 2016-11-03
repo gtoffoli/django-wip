@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% load staticfiles i18n %}
+
+{% block head_title %}{% trans "discover site"|capfirst %}{% endblock %}
+
+{% block extra_head %}
+<script>
+var i_line = {{ i_line }};
+window.getData=function()
+{
+    $.ajax({
+        /* The whisperingforest.org URL is not longer valid, I found a new one that is similar... */
+        url:'/crawler_progress/{{ scan_id }}/'+ i_line.toString() + '/',
+        async: true,
+        dataType: 'json',
+        success:function(data){
+        	lines = data.lines;
+        	n_lines = lines.length;
+        	for (j=0; j<n_lines; j++) {
+        		line = lines[j];
+        		if (line.size > 0)
+            		$('.linkList').append('<li>' + (i_line+1).toString() + ' ' + line.url + ' ' + line.status  + ' "' + line.title  + '" ' + line.size  +'</li>');
+            	i_line++;
+        	}
+        	if (n_lines==0 || line.size>0)
+        		// getData();
+        		setTimeout(getData, 1000);
+        	if (i_line>0 && line.size==0) {
+        		$('.stopButton').hide();
+        		// $('.getResultsButton').show();
+        		$('.downloadButton').show();
+        		$('.crawlerSettings').show();
+       		}
+       	}
+    });
+}
+
+window.stopCrawler=function()
+{
+    $.ajax({
+        url:'/stop_crawler/{{ scan_id }}/',
+        async: true,
+        dataType: 'json',
+        success:function(data){
+        	if (data.status == 'ok') {
+        		$('.stopMessage').show();
+        		$('.crawlerSettings').show();
+        	}
+        }
+    });
+}
+</script>
+{% endblock %}
+
+{% block title-page %}{% trans "discover site"|capfirst %}{% endblock %}
+
+{% block content-page %}
+
+<div class="stopButton"><input type="button" class="btn btn-sm" onclick="stopCrawler();" value="Stop crawler"></div>
+
+<ul class="linkList"></ul>
+<div class="stopMessage">--- The crawling task has been stopped ---</div>
+
+<div class="getResultsButton"><input type="button" class="btn btn-sm" onclick="getData();" value="Get crawling results"></div>
+<div class="downloadButton"><input type="button" class="btn btn-sm" value="Download results" onclick="document.location='/scan_download/{{ scan_id }}/'"></div>
+
+<div class="crawlerSettings">
+<h4>{% trans "Crawler settings"|capfirst %}</h4>
+
+<form action="/discover/" method="post">
+	{% csrf_token %}
+	<table>{{ discover_form.as_table }}
+	</table>
+	<input type="submit" name="discover" class="btn btn-sm" value="Discover">
+</form>
+</div>
+
+{% endblock %}
+
+{% block extra_script %}
+<script type="text/javascript">
+$('.stopMessage').hide();
+$('.getResultsButton').hide();
+$('.downloadButton').hide();
+{% if scan_id %}
+	$('.crawlerSettings').hide();
+	$(document).ready(getData());
+{% else %}
+	$('.stopButton').hide();
+	$('.crawlerSettings').show();
+{% endif %}
+</script>
+{% endblock %}

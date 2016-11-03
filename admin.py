@@ -13,6 +13,7 @@ from tinymce.widgets import TinyMCE
 from models import Site, SiteTheme, Proxy, Webpage, PageVersion, TranslatedVersion
 from models import String, Txu, TxuSubject
 from models import Block, BlockEdge, BlockInPage, TranslatedBlock
+from models import Scan, Link
 
 class SiteAdmin(admin.ModelAdmin):
     list_display = ['name', 'language', 'slug', 'path_prefix', 'url', 'allowed_domains', 'start_urls', 'deny',]
@@ -240,6 +241,24 @@ class TranslatedBlockAdmin(admin.ModelAdmin):
     block_link.short_description = 'Block'
     block_link.allow_tags = True
 
+class ScanAdmin(admin.ModelAdmin):
+    list_display = ['id', 'name', 'task_id', 'user', 'created', 'terminated',]
+
+class LinkAdmin(admin.ModelAdmin):
+    list_display = ['id', 'scan_link', 'url', 'status', 'size', 'title',]
+    list_filter = ['scan__name',]
+    search_fields = ['scan__name',]
+
+    def scan_link(self, obj):
+        scan = obj.scan
+        url = '/admin/wip/scan/%d/' % scan.pk
+        label = '%d - %s' % (scan.pk, scan.get_label())
+        link = '<a href="%s">%s</a>' % (url, label)
+        return link
+    scan_link.short_description = 'Scan'
+    scan_link.allow_tags = True
+
+
 admin.site.register(Site, SiteAdmin)
 admin.site.register(SiteTheme, SiteThemeAdmin)
 admin.site.register(Proxy, ProxyAdmin)
@@ -254,3 +273,5 @@ admin.site.register(BlockEdge, BlockEdgeAdmin)
 admin.site.register(BlockInPage, BlockInPageAdmin)
 admin.site.register(TranslatedBlock, TranslatedBlockAdmin)
 
+admin.site.register(Scan, ScanAdmin)
+admin.site.register(Link, LinkAdmin)

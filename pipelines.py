@@ -5,51 +5,61 @@
 # Don't forget to add your pipeline to the ITEM_PIPELINES setting
 # See: http://doc.scrapy.org/en/latest/topics/item-pipeline.html
 
-"""
-try:
-    from cStringIO import StringIO as BytesIO
-except ImportError:
-    from io import BytesIO
-"""
-import sys
+
 import time
 import urlparse
 import urllib2, json
 
-# from scrapy.exceptions import DropItem
-from scrapy.xlib.pydispatch import dispatcher
-from scrapy import signals
-from scrapy.contrib.exporter import JsonLinesItemExporter
-
-import logging
-logger = logging.getLogger('wip.views')
+# from scrapy.xlib.pydispatch import dispatcher
+# from scrapy import signals
+# from scrapy.exporters import JsonLinesItemExporter
 
 import django
 django.setup()
 
 from django.utils import timezone
 from models import Site, Webpage, PageVersion
+from models import Scan, Link
 from settings import PAGES_EXCLUDE_BY_CONTENT
 
 class WipDiscoverPipeline(object):
 
     @classmethod
-    def from_(cls, crawler):
+    def from_crawler(cls, crawler):
         return cls()
 
+    """
     def __init__(self):
         dispatcher.connect(self.spider_opened, signals.spider_opened)
         dispatcher.connect(self.spider_closed, signals.spider_closed)
+    """
 
     def spider_opened(self, spider):
-        self.exporter = JsonLinesItemExporter(sys.stdout)
+        # self.exporter = JsonLinesItemExporter(sys.stdout)
+        """
+        self.output_file = open(spider.file_path, "w", 0)
+        self.exporter = JsonLinesItemExporter(self.output_file)
         self.exporter.start_exporting()
+        """
+        print '--- spider_opened for scan %d, %s ---' % (spider.scan_id, spider.name)
 
     def spider_closed(self, spider):
+        """
         self.exporter.finish_exporting()
+        self.output_file.close()
+        """
+        print '--- spider_closed ---'
+        scan = Scan.objects.get(pk=spider.scan_id)
+        scan.terminated = True
+        scan.save()
 
     def process_item(self, item, spider):
+        """
         self.exporter.export_item(item)
+        """
+        link = Link(scan_id=spider.scan_id, url=item['url'], status=item['status'], encoding=item['encoding'], size=item['size'], title=item['title'])
+        link.save()
+        spider.page_count += 1
         return item
 
 class WipCrawlPipeline(object):
