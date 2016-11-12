@@ -98,3 +98,5 @@ class DiscoverForm(forms.Form):
     start_urls = forms.CharField(required=False, label="Start urls", widget=forms.Textarea(attrs={'style': 'width: 100%; height: 24px;'}))
     allow = forms.CharField(required=False, label="Allow", widget=forms.Textarea(attrs={'style': 'width: 100%; height: 40px;'}))
     deny = forms.CharField(required=False, label="Deny", widget=forms.Textarea(attrs={'style': 'width: 100%; height: 40px;'}))
+    count_words = forms.BooleanField(required=False, label='Extract word count')
+    count_segments = forms.BooleanField(required=False, label='Extract segment count')

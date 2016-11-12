@@ -14,23 +14,35 @@ th, td { text-align: left; vertical-align: top; }
 
 {% block content-page %}
 
-<div><label>id</label> {{ scan.pk }}, <label># pages</label> {{ scan.get_links.count }}</div>
-<div><label>task</label> {{ scan.task_id }}, <label>created</label> {{ scan.created }}, <label>terminated</label> {{ scan.modified }}</div>
+<div><label>name</label> {{ scan.name }}, <label>max_pages</label> {{ scan.max_pages }}</div>
+<div><label>id</label> {{ scan.pk }}, <label>task</label> {{ scan.task_id }}</div>
+<div><label>created</label> {{ scan.created }}, <label>terminated</label> {{ scan.modified }}</div>
 
-<h4>Page list</h4>
+<h3>Summary data</h3>
 
 <table>
-<thead><th>#</th><th>url</th><th>status</th><th>size</th><th>title</th></thead>
+<thead><th></th><th style="text-align: right;"">count</th><th colspan=2 style="text-align: center; padding: 0 0em;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; view &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</th><th colspan=2 style="text-align: center; padding: 0 0em;">download</th></thead>
 <tbody>
-{% for line in lines %}
-	<tr>
-		<td>{{ forloop.counter }}</td>
-		<td>{{ line.url }}</td>
-		<td>{{ line.status }}</td>
-		<td>{{ line.size }}</td>
-		<td>{{ line.title }}</td>
+	<tr><th>pages</th><td style="text-align: right;">{{ scan.page_count }}</td>
+		<td colspan=2 style="text-align: center;"><a href="/scan/{{ scan.pk }}/pages/"><i class="fa fa-th-list" aria-hidden="true"></i></a></td>
+		<td colspan=2 style="text-align: center;"><a href="/scan/{{ scan.pk }}/pages/?output=csv"><i class="fa fa-download" aria-hidden="true"></i></a></td>
 	</tr>
-{% endfor %}
+{% if scan.count_words %}
+	<tr><th>segments</th><td style="text-align: right;">{{ scan.segment_count }}</td>
+		<td style="text-align: right;"><a href="/scan/{{ scan.pk }}/segments/?sort=frequency"><i class="fa fa-th-list" aria-hidden="true"></i> #</a></td>
+		<td style="text-align: left;"><a href="/scan/{{ scan.pk }}/segments/?sort=alphabetical"><i class="fa fa-th-list" aria-hidden="true"></i> A</a></td>
+		<td style="text-align: right;"><a href="/scan/{{ scan.pk }}/segments/?sort=frequency&output=csv"><i class="fa fa-download" aria-hidden="true"></i> #</a></td>
+		<td style="text-align: left;"><a href="/scan/{{ scan.pk }}/segments/?sort=alphabetical&output=csv"><i class="fa fa-download" aria-hidden="true"></i> A</a></td>
+	</tr>
+{% endif %}
+{% if scan.count_segments %}
+	<tr><th>words</th><td style="text-align: right;">{{ scan.word_count }}</td>
+		<td style="text-align: right;"><a href="/scan/{{ scan.pk }}/words/?sort=frequency"><i class="fa fa-th-list" aria-hidden="true"></i> #</a></td>
+		<td style="text-align: left;"><a href="/scan/{{ scan.pk }}/words/?sort=alphabetical"><i class="fa fa-th-list" aria-hidden="true"></i> A</a></td>
+		<td style="text-align: right;"><a href="/scan/{{ scan.pk }}/words/?sort=frequency&output=csv"><i class="fa fa-download" aria-hidden="true"></i> #</a></td>
+		<td style="text-align: left;"><a href="/scan/{{ scan.pk }}/words/?sort=alphabetical&output=csv"><i class="fa fa-download" aria-hidden="true"></i> A</a></td>
+	</tr>
+{% endif %}
 </tbody>
 </table>
 

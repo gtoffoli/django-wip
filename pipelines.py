@@ -9,6 +9,8 @@
 import time
 import urlparse
 import urllib2, json
+import re
+from collections import defaultdict
 
 # from scrapy.xlib.pydispatch import dispatcher
 # from scrapy import signals
@@ -18,9 +20,14 @@ import django
 django.setup()
 
 from django.utils import timezone
-from models import Site, Webpage, PageVersion
-from models import Scan, Link
 from settings import PAGES_EXCLUDE_BY_CONTENT
+from models import Site, Webpage, PageVersion
+from models import Scan, Link, WordCount, SegmentCount
+from utils import is_invariant_word, strings_from_html, normalize_string, make_segmenter, segments_from_string
+
+from wip.wip_nltk.tokenizers import NltkTokenizer
+tokenizer = NltkTokenizer()
+segmenter = make_segmenter('it')
 
 class WipDiscoverPipeline(object):
 
@@ -57,9 +64,46 @@ class WipDiscoverPipeline(object):
         """
         self.exporter.export_item(item)
         """
-        link = Link(scan_id=spider.scan_id, url=item['url'], status=item['status'], encoding=item['encoding'], size=item['size'], title=item['title'])
+        scan_id = spider.scan_id
+        scan = Scan.objects.get(pk=scan_id)
+        link = Link(scan=scan, url=item['url'], status=item['status'], encoding=item['encoding'], size=item['size'], title=item['title'])
         link.save()
         spider.page_count += 1
+        if not (scan.count_words or scan.count_segments):
+            return item
+        body = item['body']
+        html_string = re.sub("(<!--(.*?)-->)", "", body, flags=re.MULTILINE)
+        html_string = normalize_string(html_string)
+        if not html_string:
+            return item
+        tokens_dict = defaultdict(int)
+        segments_dict = defaultdict(int)
+        for s in strings_from_html(html_string):
+            if scan.count_words:
+                tokens = tokenizer.tokenize(s)
+                for token in tokens:
+                    if not is_invariant_word(token):
+                        tokens_dict[token] += 1
+            if scan.count_segments:
+                segments = segments_from_string(s, segmenter)
+                for segment in segments:
+                    segments_dict[segment] += 1
+        if scan.count_words:
+            for word, count in tokens_dict.items():
+                try:
+                    word_count = WordCount.objects.get(scan=scan, word=word)
+                    word_count.count += count
+                except:
+                    word_count = WordCount(scan=scan, word=word, count=count)
+                word_count.save()
+        if scan.count_segments:
+            for segment, count in segments_dict.items():
+                try:
+                    segment_count = SegmentCount.objects.get(scan=scan, segment=segment)
+                    segment_count.count += count
+                except:
+                    segment_count = SegmentCount(scan=scan, segment=segment, count=count)
+                segment_count.save()
         return item
 
 class WipCrawlPipeline(object):

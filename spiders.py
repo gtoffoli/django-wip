@@ -8,7 +8,7 @@ from scrapy.linkextractors import LinkExtractor
 from scrapy.utils.log import configure_logging
 from scrapy.exceptions import CloseSpider
 
-from models import Scan
+from models import Scan, Link, WordCount, SegmentCount
 
 # from http://stackoverflow.com/questions/11528739/running-scrapy-spiders-in-a-celery-task
 # from multiprocessing import Process
@@ -81,6 +81,7 @@ class WipDiscoverItem(scrapy.Item):
     status = scrapy.Field()
     encoding = scrapy.Field()
     size = scrapy.Field()
+    body = scrapy.Field()
     title = scrapy.Field()
 
 class WipDiscoverSpider(CrawlSpider):
@@ -102,6 +103,11 @@ class WipDiscoverSpider(CrawlSpider):
         print '--- spider_closed ---'
         scan = Scan.objects.get(pk=self.scan_id)
         scan.terminated = True
+        scan.page_count = Link.objects.filter(scan=scan).count()
+        if scan.count_words:
+            scan.word_count = WordCount.objects.filter(scan=scan).count()
+        if scan.count_segments:
+            scan.segment_count = SegmentCount.objects.filter(scan=scan).count()
         scan.save()
 
     def parse_item(self, response):
@@ -114,6 +120,7 @@ class WipDiscoverSpider(CrawlSpider):
             item['encoding'] = response.headers['Content-Type']
         except:
             item['encoding'] = ''
+        item['body'] = response.body
         item['size'] = len(response.body)
         try:
             title = response.xpath('/html/head/title/text()').extract()

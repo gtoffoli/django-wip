@@ -29,6 +29,10 @@ def discovery_children(request):
          'My scans',
          url='/my_scans/'
         ))
+    children.append (MenuItem(
+         'New scan',
+         url='/discover/'
+        ))
     return children        
 
 def languages_children(request):

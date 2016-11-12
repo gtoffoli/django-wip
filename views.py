@@ -43,7 +43,7 @@ from actstream import action, registry
 
 from models import Language, Site, Proxy, Webpage, PageVersion, TranslatedVersion
 from models import Block, BlockEdge, TranslatedBlock, BlockInPage, String, Txu, TxuSubject #, TranslatedVersion
-from models import Scan, Link
+from models import Scan, Link, WordCount, SegmentCount
 from models import segments_from_string, non_invariant_words
 from models import STRING_TYPE_DICT, UNKNOWN, SEGMENT #, TERM, FRAGMENT
 from models import TEXT_ASC # , ID_ASC, DATETIME_DESC, DATETIME_ASC
@@ -1871,6 +1871,14 @@ def get_language(language_code):
     return Language.objects.get(code=language_code)
 
 def user_scans(request, username=None):
+    if request.method == 'POST':
+        post = request.POST
+        if post.get('delete-scan', ''):
+            selection = post.getlist('selection')
+            print 'delete-scan', selection
+            for scan_id in selection:
+                scan = Scan.objects.get(pk=int(scan_id))
+                scan.delete()
     data_dict = {}
     user = username and User.objects.get(username=username) or request.user
     scans = Scan.objects.filter(user=user).order_by('-created')
@@ -1889,6 +1897,81 @@ def scan_detail(request, scan_id):
     data_dict['scan'] = scan
     data_dict['lines'] = lines
     return render_to_response('scan_detail.html', data_dict, context_instance=RequestContext(request))
+
+def scan_pages(request, scan_id):
+    scan = Scan.objects.get(pk=scan_id)
+    output = request.GET.get('output', '')
+    links = Link.objects.filter(scan=scan).order_by('created')
+    lines = []
+    if output == 'csv':
+        data = u'\r\n'.join(['%s\t%d\t%d\t%s\t%s' % (link.url, link.status, link.size, link.title, link.encoding) for link in links])
+        response = HttpResponse(data, content_type='application/octet-stream')
+        filename = u'%s_pages.csv' % (scan.get_label())
+        response['Content-Disposition'] = 'attachment; filename="%s"' % filename
+        return response
+    for link in links:
+        line = {"url": link.url, "status": link.status, "title": link.title, "encoding": link.encoding, "size": link.size, "encoding": link.encoding}
+        lines.append(line)
+    data_dict = {}
+    data_dict['scan'] = scan
+    data_dict['lines'] = lines
+    return render_to_response('scan_pages.html', data_dict, context_instance=RequestContext(request))
+
+def scan_words(request, scan_id):
+    scan = Scan.objects.get(pk=scan_id)
+    sort = request.GET.get('sort', 'frequency')
+    output = request.GET.get('output', '')
+    wordcounts = WordCount.objects.filter(scan=scan)
+    if sort.lower().startswith('a'):
+        wordcounts = wordcounts.order_by('word')
+        sorted_by = 'sorted alphabetically'
+    else:
+        wordcounts = wordcounts.order_by('-count')
+        sorted_by = 'by frequency'
+    if output == 'csv':
+        data = u'\r\n'.join(['%d\t%s' % (wordcount.count, wordcount.word) for wordcount in wordcounts])
+        response = HttpResponse(data, content_type='application/octet-stream')
+        filename = u'%s_words_%s.csv' % (scan.get_label(), sort)
+        response['Content-Disposition'] = 'attachment; filename="%s"' % filename
+        return response
+    lines = []
+    for wordcount in wordcounts:
+        line = {"count": wordcount.count, "word": wordcount.word}
+        lines.append(line)
+    data_dict = {}
+    data_dict['scan'] = scan
+    data_dict['sorted_by'] = sorted_by
+    data_dict['lines'] = lines
+    return render_to_response('scan_words.html', data_dict, context_instance=RequestContext(request))
+
+def scan_segments(request, scan_id):
+    scan = Scan.objects.get(pk=scan_id)
+    sort = request.GET.get('sort', 'frequency')
+    output = request.GET.get('output', '')
+    segmentcounts = SegmentCount.objects.filter(scan=scan)
+    if sort.lower().startswith('a'):
+        segmentcounts = segmentcounts.order_by('segment')
+        sorted_by = 'sorted alphabetically'
+    else:
+        segmentcounts = segmentcounts.order_by('-count')
+    if output == 'csv':
+        data = u'\r\n'.join(['%d\t%s' % (segmentcount.count, segmentcount.segment) for segmentcount in segmentcounts])
+        response = HttpResponse(data, content_type='application/octet-stream')
+        filename = u'%s_segments_%s.csv' % (scan.get_label(), sort)
+        response['Content-Disposition'] = 'attachment; filename="%s"' % filename
+        return response
+    lines = []
+    if output == 'csv':
+        pass
+        sorted_by = 'by frequency'
+    for segmentcount in segmentcounts:
+        line = {"count": segmentcount.count, "word": segmentcount.segment}
+        lines.append(line)
+    data_dict = {}
+    data_dict['scan'] = scan
+    data_dict['sorted_by'] = sorted_by
+    data_dict['lines'] = lines
+    return render_to_response('scan_segmentss.html', data_dict, context_instance=RequestContext(request))
 
 def scan_delete(request, scan_id):
     scan = Scan.objects.get(pk=scan_id)
@@ -2011,8 +2094,10 @@ def discover(request, site=None, scan_id=None):
             allow = data['allow']
             deny = data['deny']
             max_pages = data['max_pages']
+            count_words = data['count_words']
+            count_segments = data['count_segments']
             run_worker_process()
-            scan = Scan(name=name, allowed_domains=allowed_domains, start_urls=start_urls, allow=allow, deny=deny, max_pages=max_pages, task_id=0, user=user)
+            scan = Scan(name=name, allowed_domains=allowed_domains, start_urls=start_urls, allow=allow, deny=deny, max_pages=max_pages, count_words=count_words, count_segments=count_segments, task_id=0, user=user)
             scan.save()
             async_result = discover_task.delay(scan.pk)
             scan.task_id = async_result.task_id

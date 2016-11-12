@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load staticfiles i18n %}
 
-{% block head_title %}{% trans "recent scans by"|capfirst %} {{ user.username }}{% endblock %}
+{% block head_title %}{% trans "scans by"|capfirst %} {{ user.username }}{% endblock %}
 
 {% block extra_head %}
 <style>
@@ -10,24 +10,30 @@ th, td { text-align: left; vertical-align: top; }
 </style>
 {% endblock %}
 
-{% block title-page %}{% trans "recent scans by"|capfirst %} {{ user.username }}{% endblock %}
+{% block title-page %}{% trans "scans by"|capfirst %} {{ user.username }}{% endblock %}
 
 {% block content-page %}
 
+<form action="#" method="post" id="scans-form">{% csrf_token %}
 <table>
-<thead><th>id</th><th>task id</th><th>spider name</th><th>start</th><th>stop</th><th># pages</th></thead>
+<thead><th></th><th>id</th><th>task id</th><th>spider name</th><th>start</th><th>stop</th><th># pages</th><th># segments</th><th># words</th></thead>
 <tbody>
 {% for scan in scans %}
 	<tr>
+        <td><input type="checkbox" name="selection" value="{{ scan.pk }}" /></td>
 		<td>{{ scan.pk }}</td>
 		<td>{{ scan.task_id }}</td>
 		<td><a href="/scan/{{ scan.pk }}" title="show details">{{ scan.get_label }}</a></td>
 		<td>{{ scan.created }}</td>
-		<td>{{ scan.terminated }}</td>
+		<td>{{ scan.modified }}</td>
 		<td>{{ scan.get_links.count }}</td>
+		<td>{{ scan.segment_count }}</td>
+		<td>{{ scan.word_count }}</td>
 	</tr>
 {% endfor %}
 </tbody>
 </table>
+<input class="btn btn-default btn-sm" type="submit" name="delete-scan" value="{% trans "delete scan"|capfirst %}">
+</form>
 
 {% endblock %}

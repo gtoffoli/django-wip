@@ -23,9 +23,13 @@ from lxml import html, etree
 from guess_language import guessLanguage
 import urllib
 import unirest
+import srx_segmenter
 
 # from wip.settings import BLOCK_TAGS, TO_DROP_TAGS
 from django.conf import settings
+
+def is_invariant_word(word):
+    return word.count('#') or word.count('@') or word.count('http') or word.replace(',', '.').isnumeric()
 
 def element_tostring(e):
     # return html.tostring(e, encoding='utf-8')
@@ -56,6 +60,9 @@ def text_from_html(string):
             p.remove(c)
     return doc.text_content()
 
+def split_strip(s):
+    return " ".join(s.split())
+
 # http://stackoverflow.com/questions/4624062/get-all-text-inside-a-tag-in-lxml
 # http://stackoverflow.com/questions/4770191/lxml-etree-element-text-doesnt-return-the-entire-text-from-an-element
 # http://stackoverflow.com/questions/26304626/lxml-how-to-get-xpath-of-htmlelement
@@ -65,55 +72,55 @@ def strings_from_block(block, tree=None, exclude_xpaths=[]):
     if block_children:
         text_list = []
         text = block.text
-        if text: text = text.strip()
+        # if text: text = text.strip()
+        if text: text = split_strip(text)
         if text:
             text = unicode(text)
-            # print 'strings_from_block - 1: ', type(text)
             text_list.append(text)
         for child in children:
+            if child.tag  in settings.TO_DROP_TAGS:
+                continue
             if exclude_xpaths:
                 # NO [1] element index in xpath address !!!
                 # xpath = tree.getpath(child)
                 xpath = tree.getpath(child).replace('[1]','')
-                # print xpath
                 if xpath in exclude_xpaths:
                     continue
             if child.tag in settings.BLOCK_TAGS:
                 if text_list:
-                    # yield ' '.join(text_list)
-                    # print 'strings_from_block - 2: ', type(u' '.join(text_list))
                     yield u' '.join(text_list)
                 text_list = []
                 for el in strings_from_block(child, tree=tree, exclude_xpaths=exclude_xpaths):
-                    if el: el = el.strip()
+                    # if el: el = el.strip()
+                    if el: el = split_strip(el)
                     if el:
-                        # print 'strings_from_block - 3: ', type(el)
                         yield el
                 if child.tail:
-                    text = child.tail.strip()
+                    # text = child.tail.strip()
+                    text = split_strip(child.tail)
                     if text:
                         text = unicode(text)
-                        # print 'strings_from_block - 4: ', type(text)
                         text_list.append(text)
             else:
                 text = child.text_content()
-                if text: text = text.strip()
+                # if text: text = text.strip()
+                if text: text = split_strip(text)
                 if text:
                     text = unicode(text)
-                    # print 'strings_from_block - 5: ', type(text)
                     text_list.append(text)
         if text_list:
-            # print 'strings_from_block - 6: ', type(u' '.join(text_list))
             yield u' '.join(text_list)
     else:
         content = block.text_content()
-        if content: content = content.strip()
+        # if content: content = content.strip()
+        if content: content = split_strip(content)
         if content:
             content = unicode(content)
             # print 'strings_from_block - 7: ', type(content)
             yield content
     tail = block.tail
-    if tail: tail = tail.strip()
+    # if tail: tail = tail.strip()
+    if tail: tail = split_strip(tail)
     if tail:
         tail = unicode(tail)
         yield tail
@@ -322,7 +329,8 @@ def remove_bom(filepath):
     fp.write(s)
     fp.close()
     
-import re, htmlentitydefs
+import re, regex
+import htmlentitydefs
 """
 # Removes HTML or XML character references and entities from a text string.
 #
@@ -356,13 +364,16 @@ def normalize_string(s):
         # s = s.replace(u"\u2018", "'").replace(u"\u2019", "'").replace(' - ', ' – ')
         # s = s.replace("‘", "'").replace("’", "'").replace(' - ', ' – ')
         s = unescape(s)
-        s.translate(settings.TRANS_QUOTES)
-        s = s.replace(u"\u2018", u"'").replace(u"\u2019", u"'")
-        s = s.replace(u"\u201C", u'\"').replace(u"\u201D", u'\"')
-        s = s.replace(u"\u2026", u"..").replace(u"\u2033", u'\"')
-        s = s.replace(u"\u00a0", u" ")
-        s = s.replace(u"&#8216;", u"'").replace(u"&#8217;", u"'")
-        s = s.replace(u"&nbsp;", u" ").replace(u"&#160;", u" ").replace(u'&#39;', u" ")
+        try:
+            s.translate(settings.TRANS_QUOTES)
+            s = s.replace(u"\u2018", u"'").replace(u"\u2019", u"'")
+            s = s.replace(u"\u201C", u'\"').replace(u"\u201D", u'\"')
+            s = s.replace(u"\u2026", u"..").replace(u"\u2033", u'\"')
+            s = s.replace(u"\u00a0", u" ")
+            s = s.replace(u"&#8216;", u"'").replace(u"&#8217;", u"'")
+            s = s.replace(u"&nbsp;", u" ").replace(u"&#160;", u" ").replace(u'&#39;', u" ")
+        except:
+            pass
     return s
 
 def parse_xliff(filepath):
@@ -413,6 +424,58 @@ def pretty_html(in_path, out_name=''):
         out_file = in_file
     out_file.write(html_text)
     out_file.close
+
+def make_segmenter(language_code):
+    srx_filepath = os.path.join(settings.RESOURCES_ROOT, language_code, 'segment.srx')
+    srx_rules = srx_segmenter.parse(srx_filepath)
+    current_rules = srx_rules['Italian']
+    return srx_segmenter.SrxSegmenter(current_rules)
+
+re_eu_date = re.compile(r'(0?[1-9]|[1-2][0-9]|3[0-1])(-|/|\.)(0?[1-9]|1[0-2])(-|/|\.)([0-9]{4})') # es: 10/7/1953, 21-12-2015
+re_decimal_thousands_separators = re.compile(r'[0-9](\.|\,)[0-9]')
+re_spaces = re.compile(r'\b[\b]+')
+# see models.segments_from_string
+# def segments_from_string(string, site, segmenter, exclude_TM_invariants=True):
+def segments_from_string(string, segmenter):
+    if string.count('window') and string.count('document'):
+        return []
+    if string.count('flickr'):
+        return []
+    segments = segmenter.extract(string)[0]
+    filtered = []
+    for s in segments:
+        """ REPLACE NON-BREAK SPACES """
+        s = s.replace('\xc2\xa0', ' ')
+        s = re_spaces.sub(' ', s)
+        s = s.strip()
+        """ REMOVE PSEUDO-BULLETS """
+        if s.startswith(u'- ') or s.startswith(u'– '): s = s[2:]
+        if s.endswith(u' -') or s.endswith(u' –'): s = s[:-3]
+        s = s.strip()
+        if len(s) < 3:
+            continue
+        # KEEP SEGMENTS CONTAINING: DATES, NUMBERS INCLUDING SEPARATORS, CURRENCY SYMBOLS
+        if re_eu_date.findall(s) or re_decimal_thousands_separators.findall(s) or regex.findall(ur'\p{Sc}', s):
+            filtered.append(s)
+            continue
+        """ REMOVE RESIDUOUS SEGMENTS NON INCLUDING ANY LETTER """
+        if not re.search('[a-zA-Z]', s):
+            continue
+        if not s: continue
+        """ REMOVE SEGMENTS INCLUDING ONLY WORDS BELONGING TO INVARIANT CLASSES """
+        words = re.split(" |\'", s)
+        if len(words) > 1:
+            while words and is_invariant_word(words[0]):
+                words = words[1:]
+            while words and is_invariant_word(words[-1]):
+                words = words[:-1]
+            if not words: continue
+        if len(words) == 1: # 1 word at the start or as the result of stripping other words
+            word = words[0]
+            if is_invariant_word(word) or word.isupper():
+                continue
+        filtered.append(s)
+    return filtered
 
 # see: http://stackoverflow.com/questions/8506914/detect-whether-celery-is-available-running
 def get_celery_worker_stats():
