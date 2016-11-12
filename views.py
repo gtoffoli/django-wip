@@ -1880,8 +1880,14 @@ def user_scans(request, username=None):
                 scan = Scan.objects.get(pk=int(scan_id))
                 scan.delete()
     data_dict = {}
-    user = username and User.objects.get(username=username) or request.user
-    scans = Scan.objects.filter(user=user).order_by('-created')
+    if username is None:
+        user = request.user
+    elif username:
+        user = User.objects.get(username=username)
+        scans = Scan.objects.filter(user=user).order_by('-created')
+    else:
+        user = None
+        scans = Scan.objects.all().order_by('-created')
     data_dict['user'] = user  
     data_dict['scans'] = scans  
     return render_to_response('user_scans.html', data_dict, context_instance=RequestContext(request))

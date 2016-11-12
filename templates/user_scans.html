@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load staticfiles i18n %}
 
-{% block head_title %}{% trans "scans by"|capfirst %} {{ user.username }}{% endblock %}
+{% block head_title %}{% if user %}{% trans "scans by"|capfirst %} {{ user.username }}{% else %}{% trans "all scans"|capfirst %}{% endif %}{% endblock %}
 
 {% block extra_head %}
 <style>
@@ -10,13 +10,14 @@ th, td { text-align: left; vertical-align: top; }
 </style>
 {% endblock %}
 
-{% block title-page %}{% trans "scans by"|capfirst %} {{ user.username }}{% endblock %}
+{% block title-page %}{% if user %}{% trans "scans by"|capfirst %} {{ user.username }}{% else %}{% trans "all scans"|capfirst %}{% endif %}{% endblock %}
 
 {% block content-page %}
 
+{% if scans %}
 <form action="#" method="post" id="scans-form">{% csrf_token %}
 <table>
-<thead><th></th><th>id</th><th>task id</th><th>spider name</th><th>start</th><th>stop</th><th># pages</th><th># segments</th><th># words</th></thead>
+<thead><th></th><th>id</th><th>task id</th><th>spider name</th>{% if not user %}<th>user</th>{% endif %}<th>start</th><th>stop</th><th># pages</th><th># segments</th><th># words</th></thead>
 <tbody>
 {% for scan in scans %}
 	<tr>
@@ -24,6 +25,7 @@ th, td { text-align: left; vertical-align: top; }
 		<td>{{ scan.pk }}</td>
 		<td>{{ scan.task_id }}</td>
 		<td><a href="/scan/{{ scan.pk }}" title="show details">{{ scan.get_label }}</a></td>
+		{% if not user %}<td>{{ scan.user.username }}</td>{% endif %}
 		<td>{{ scan.created }}</td>
 		<td>{{ scan.modified }}</td>
 		<td>{{ scan.get_links.count }}</td>
@@ -35,5 +37,8 @@ th, td { text-align: left; vertical-align: top; }
 </table>
 <input class="btn btn-default btn-sm" type="submit" name="delete-scan" value="{% trans "delete scan"|capfirst %}">
 </form>
+{% else %}
+<div>{% trans "no scans are present"|capfirst %}.</div>
+{% endif %}
 
 {% endblock %}
