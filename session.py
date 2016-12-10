@@ -29,3 +29,9 @@ def get_site(request):
 
 def set_site(request, value):
     request.session["site"] = value
+
+def get_userrole(request):
+    return request.session.get("userrole", '')
+
+def set_userrole(request, value):
+    request.session["userrole"] = value

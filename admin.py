@@ -14,6 +14,7 @@ from models import Site, SiteTheme, Proxy, Webpage, PageVersion, TranslatedVersi
 from models import String, Txu, TxuSubject
 from models import Block, BlockEdge, BlockInPage, TranslatedBlock
 from models import Scan, Link, SegmentCount, WordCount
+from models import UserRole, Segment, Translation
 
 class SiteAdmin(admin.ModelAdmin):
     list_display = ['name', 'language', 'slug', 'path_prefix', 'url', 'allowed_domains', 'start_urls', 'deny',]
@@ -282,6 +283,20 @@ class WordCountAdmin(admin.ModelAdmin):
     scan_link.short_description = 'Scan'
     scan_link.allow_tags = True
 
+class UserRoleAdmin(admin.ModelAdmin):
+    list_display = ['id', 'user', 'role_type', 'level', 'site', 'source_language', 'target_language', 'creator',]
+    list_filter = ('site', 'role_type', 'source_language', 'target_language')
+
+class SegmentAdmin(admin.ModelAdmin):
+    list_display = ['site', 'language', 'text', 'is_fragment',]
+    list_filter = ['site', 'language']
+    search_fields = ['text',]
+
+class TranslationAdmin(admin.ModelAdmin):
+    list_display = ['language', 'text', 'user_role',]
+    list_filter = ['language']
+    search_fields = ['text',]
+
 admin.site.register(Site, SiteAdmin)
 admin.site.register(SiteTheme, SiteThemeAdmin)
 admin.site.register(Proxy, ProxyAdmin)
@@ -300,3 +315,7 @@ admin.site.register(Scan, ScanAdmin)
 admin.site.register(Link, LinkAdmin)
 admin.site.register(SegmentCount, SegmentCountAdmin)
 admin.site.register(WordCount, WordCountAdmin)
+
+admin.site.register(UserRole, UserRoleAdmin)
+admin.site.register(Segment, SegmentAdmin)
+admin.site.register(Translation, TranslationAdmin)

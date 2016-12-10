@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% load staticfiles i18n %}
+
+{% block head_title %}{% trans "User role"|capfirst %} of {{ user_role.user.username }}{% endblock %}
+
+{% block extra_head %}
+<style>
+</style>
+{% endblock %}
+
+{% block title-page %}{% trans "User role"|capfirst %} of {{ user_role.user.username }}{% endblock %}
+
+{% block content-page %}
+
+<div><label>User</label> {{ user_role.get_user_name }}</div>
+<div><label>Role</label> {{ user_role.get_type_name }}</div>
+{% if user_role.site %}
+<div><label>Site</label> {{ user_role.site.name }}</div>
+{% endif %}
+{% if user_role.source_language %}
+<div><label>Source language</label> {{ user_role.source_language }}</div>
+{% endif %}
+{% if user_role.target_language %}
+<div><label>Target language</label> {{ user_role.target_language }}</div>
+{% endif %}
+{% if user_role.level %}
+<div><label>Level</label> {{ user_role.level }}</div>
+{% endif %}
+<div><label>Created</label>
+{% if user_role.creator %}by {{ user_role.creator.username }}{% endif %}
+on {{ user_role.created|date:"d/m/Y" }}</div>
+
+{% endblock %}

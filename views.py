@@ -1,11 +1,10 @@
 # -*- coding: utf-8 -*-"""
 
 """
-Django views for wip application of wip project.
-
-For more information on this file, see
-https://docs.djangoproject.com/en/1.9/topics/db/models/
+see: Django's CBVs were a mistake
+http://lukeplant.me.uk/blog/posts/djangos-cbvs-were-a-mistake/
 """
+
 import sys
 """
 sys.stdout = codecs.getwriter('utf8')(sys.stdout)
@@ -44,6 +43,7 @@ from actstream import action, registry
 from models import Language, Site, Proxy, Webpage, PageVersion, TranslatedVersion
 from models import Block, BlockEdge, TranslatedBlock, BlockInPage, String, Txu, TxuSubject #, TranslatedVersion
 from models import Scan, Link, WordCount, SegmentCount
+from models import UserRole, Segment, Translation
 from models import segments_from_string, non_invariant_words
 from models import STRING_TYPE_DICT, UNKNOWN, SEGMENT #, TERM, FRAGMENT
 from models import TEXT_ASC # , ID_ASC, DATETIME_DESC, DATETIME_ASC
@@ -52,7 +52,8 @@ from models import MYMEMORY, TRANSLATION_SERVICE_DICT
 from forms import DiscoverForm
 from forms import SiteManageForm, ProxyManageForm, PageEditForm, PageSequencerForm, BlockEditForm, BlockSequencerForm
 from forms import StringSequencerForm, StringEditForm, StringsTranslationsForm, StringTranslationForm, TranslationServiceForm, FilterPagesForm
-from session import get_language, set_language, get_site, set_site
+from forms import UserRoleEditForm, ListSegmentsForm
+from session import get_language, set_language, get_site, set_site, get_userrole, set_userrole
 
 from settings import PAGE_SIZE, PAGE_STEPS
 from settings import DATA_ROOT, RESOURCES_ROOT, tagger_filename, BLOCK_TAGS, QUOTES, SEPARATORS, STRIPPED, DEFAULT_STRIPPED, EMPTY_WORDS, PAGES_EXCLUDE_BY_CONTENT
@@ -115,6 +116,95 @@ def home(request):
 def language(request, language_code):
     set_language(request, language_code or '')
     return HttpResponseRedirect(request.META.get('HTTP_REFERER'))
+
+def get_or_set_user_role(request, site=None, source_language=None, target_language=None):
+    user_role = get_userrole(request)
+    if not user_role:
+        qs = UserRole.objects.filter(user=request.user)
+        if site:
+            qs = qs.filter(site=site)
+        if source_language:
+            qs = qs.filter(source_language=source_language)
+        if target_language:
+            qs = qs.filter(target_language=target_language)
+        qs = qs.order_by('role_type')
+        user_role = qs[0]
+        set_userrole(request, user_role.id)
+    return user_role
+
+def my_roles(request, site=None):
+    qs = UserRole.objects.filter(user=request.user)
+    if site:
+        qs = qs.filter(site=site)
+    return qs.order_by('role_type', 'site', 'target_language__code', '-level')
+
+def user_role_select(request, role_id):
+    get_object_or_404(UserRole, pk=role_id)
+    set_userrole(request, role_id)
+    return HttpResponseRedirect(request.META.get('HTTP_REFERER'))
+
+def manage_roles(request):
+    user = request.user
+    qs = UserRole.objects.none()
+    if user.is_superuser:
+        qs = UserRole.objects.all()
+    else:
+        role_id = get_or_set_user_role()
+        my_role = get_object_or_404(UserRole, pk=role_id)
+        if my_role.role_type <= MANAGER:
+            qs = UserRole.objects.filter(site=my_role.site, user_role__role_type__gt=my_role.role_type)
+    user_roles = qs.order_by('role_type', 'site', 'target_language__code', '-level')
+    var_dict = {}
+    var_dict['user_roles'] = user_roles
+    return render_to_response('manage_roles.html', var_dict, context_instance=RequestContext(request))
+
+def role_detail(request, role_id):
+    user_role = UserRole.objects.get(pk=role_id)
+    var_dict = {}
+    var_dict['user_role'] = user_role
+    return render_to_response('role_detail.html', var_dict, context_instance=RequestContext(request))
+
+def role_edit(request, role_id=None):
+    user_role = None
+    if role_id:
+        user_role = UserRole.objects.get(pk=role_id)
+    if request.method == 'POST':
+        form = UserRoleEditForm(request.POST)
+        if form.is_valid():
+            data = form.cleaned_data
+            role_id = data.get('id', '')
+            if role_id:
+                role_id = int(role_id)
+                user_role = UserRole.objects.get(pk=role_id)
+                form = UserRoleEditForm(request.POST, instance=user_role)
+            else:
+                form = UserRoleEditForm(request.POST)
+            if request.POST.get('save', ''): 
+                user_role = form.save()
+                if role_id:
+                    if not data.get('source_language'):
+                        user_role.source_language = None
+                    if not data.get('target_language'):
+                        user_role.target_language = None
+                    user_role.save()
+                if not role_id:
+                    user_role.creator = request.user
+                    user_role.save()
+                return HttpResponseRedirect('/role/%d/' % user_role.id)
+            if request.POST.get('cancel', ''): 
+                if role_id:
+                    return HttpResponseRedirect('/role/%d/' % role_id)
+                else:
+                    return HttpResponseRedirect('/manage_roles/')
+        else:
+            return render_to_response('role_edit.html', { 'form': form }, context_instance=RequestContext(request))
+    else:
+        if role_id:
+            user_role = get_object_or_404(UserRole, pk=role_id)
+            form = UserRoleEditForm(instance=user_role)
+        else:
+            form = UserRoleEditForm()
+        return render_to_response('role_edit.html', { 'user_role': user_role, 'form': form }, context_instance=RequestContext(request))
 
 def sites(request):
     var_dict = {}
@@ -231,7 +321,6 @@ def site(request, site_slug):
                     page_version = page_versions[0]
                     skip_page = False
                     for content in PAGES_EXCLUDE_BY_CONTENT.get(site.slug, []):
-                        # if page_version.body.count(content):
                         if len(path)>1 and page_version.body.count(content):
                             skip_page = True
                             break
@@ -249,48 +338,12 @@ def site(request, site_slug):
                         print path
                         continue
                     for s in segments:
-                        """ THESE FILTERS HAVE BEEN POOLED IN THE models.segments_from_string FUNCTION
-                        s = s.replace('\xc2\xa0', ' ')
-                        if not s: continue
-                        # s = s.strip(SEPARATORS[language_code])
-                        s = s.strip()
-                        if not s: continue
-                        for left, right in QUOTES:
-                            if s[0]==left and s.count(right)<=1:
-                                s = s[1:]
-                                if not s: break
-                                s = s.replace(right, '').strip()
-                                if not s: break
-                            if s[-1]==right and s.count(left)<=1:
-                                s = s[:-1]
-                                if not s: break
-                                s = s.replace(right, '').strip()
-                                if not s: break
-                        if not s: continue
-                        words = re.split(" |\'", s)
-                        if len(words) > 1:
-                            stripped = False
-                            while words and can_strip(words[0]):
-                                words = words[1:]
-                                stripped = True
-                            while words and can_strip(words[-1]):
-                                words = words[:-1]
-                                stripped = True
-                            if not words: continue
-                            if stripped:
-                                s = ' '.join(words)
-                        if len(words) == 1:
-                            word = words[0]
-                            if can_strip(word) or word.isupper() or word.lower() in EMPTY_WORDS[language_code]:
-                                continue
-                        if s.startswith('Home'):
-                            continue
-                        """
                         if download_segments:
                             if not s in download_list:
                                 download_list.append(s)
                         else:
-                            is_model_instance, string = get_or_add_string(request, s, language, string_type=SEGMENT, add=True, txu=None, site=site, reliability=0)
+                            # is_model_instance, string = get_or_add_string(request, s, language, string_type=SEGMENT, add=True, txu=None, site=site, reliability=0)
+                            get_or_add_segment(request, s, language, site)
                         sys.stdout.write('.')
                 if download_segments:
                     # messages.add_message(request, messages.INFO, 'Downloaded %d segments.' % len(download_list))
@@ -317,9 +370,14 @@ def site(request, site_slug):
                 language = site.language
                 clear_invariants = data['clear_invariants']
                 if clear_invariants:
+                    """
                     strings = String.objects.filter(invariant=True, site=site)
                     for string in strings:
                         string.delete()
+                    """
+                    segments = Segment.objects.filter(is_invariant=True, site=site)
+                    for segment in segments:
+                        segment.delete()
                 f = request.FILES.get('file', None)
                 if f:
                     i = 0
@@ -332,11 +390,16 @@ def site(request, site_slug):
                         if line:
                             m += 1
                             try:
-                                if String.objects.filter(site=site, text=line, invariant=True):
+                                # if String.objects.filter(site=site, text=line, invariant=True):
+                                if Segment.objects.filter(site=site, text=line, is_invariant=True):
                                     d += 1
                                 else:
+                                    """
                                     string = String(txu=None, language=language, site=site, text=line, reliability=0, invariant=True)
                                     string.save()
+                                    """
+                                    segment = Segment(language=language, site=site, text=line, is_invariant=True)
+                                    segment.save()
                                     n += 1
                             except:
                                 print 'error: ', i
@@ -712,6 +775,17 @@ def get_or_add_string(request, text, language, site=None, string_type=UNKNOWN, a
             string = String(text=text, language=language, site=site)
     return is_model_instance, string
 
+def get_or_add_segment(request, text, language, site, is_fragment=False):
+    if isinstance(language, str):
+        language = Language.objects.get(code=language)
+    segments = Segment.objects.filter(text=text, language=language, site=site)
+    if segments:
+        segment = segments[0]
+    else:
+        segment = Segment(text=text, language=language, site=site, is_fragment=is_fragment, user=request.user)
+        segment.save()
+    return segment
+
 def block(request, block_id):
     """
     view block specified and allow moving back and forth among blocks of the same site filtered by:
@@ -841,20 +915,14 @@ def block_translate(request, block_id, target_code):
     source_language = block.get_language()
     target_language = get_object_or_404(Language, code=target_code)
     BlockSequencerForm.base_fields['translation_languages'].queryset = Language.objects.filter(code__in=proxy_codes)
-    # BlockSequencerForm.base_fields['extract_strings'] = forms.BooleanField(required=False, label='Extract strings', )
     save_block = apply_filter = goto = extract = '' 
     create = modify = ''
     translated_blocks = TranslatedBlock.objects.filter(block=block, language=target_language).order_by('-modified')
     translated_block = translated_blocks.count() and translated_blocks[0] or None
-    """
-    segments = block.block_get_segments(None)
-    """
     if translated_block:
         segments = translated_block.translated_block_get_segments(None)
     else:
         segments = block.block_get_segments(None)
-    # segments = [segment.strip(' .,;:*+-=').lower() for segment in segments]
-    # segments = [segment.strip(' .,;:*+-=') for segment in segments]
     segments = [segment.strip() for segment in segments]
     extract_strings = False
     post = request.POST
@@ -864,7 +932,6 @@ def block_translate(request, block_id, target_code):
         segment = request.POST.get('segment', '')
         string = request.POST.get('string', '')
         extract = request.POST.get('extract', '')
-        # if not (save_block or apply_filter):
         if not save_block:
             for key in post.keys():
                 if key.startswith('goto-'):
@@ -916,15 +983,16 @@ def block_translate(request, block_id, target_code):
                 extract_strings = False # data['extract_strings']
         elif extract:
             for segment in segments:
-                # is_model_instance, segment_string = get_or_add_string(segment, source_language, add=True)
-                is_model_instance, segment_string = get_or_add_string(request, segment, source_language, site=block.site, string_type=SEGMENT, add=True)
+                # is_model_instance, segment_string = get_or_add_string(request, segment, source_language, site=block.site, string_type=SEGMENT, add=True)
+                segment_string = get_or_add_segment(request, segment, source_language, block.site)
         elif segment:
-            # is_model_instance, segment_string = get_or_add_string(segment, source_language, add=True)
-            is_model_instance, segment_string = get_or_add_string(request, segment, source_language, site=block.site, string_type=SEGMENT, add=True)
+            #is_model_instance, segment_string = get_or_add_string(request, segment, source_language, site=block.site, string_type=SEGMENT, add=True)
+            segment_string = get_or_add_segment(request, segment, source_language, block.site)
+        """ CHE SIGNIFICA? RIVEDERE
         elif string:
-            # is_model_instance, segment_string = get_or_add_string(string, source_language, add=True)
             is_model_instance, segment_string = get_or_add_string(request, string, source_language, site=block.site, add=True)
             return HttpResponseRedirect('/string_translate/%d/%s/' % (segment_string.id, proxy_codes[0]))
+        """
     if (not post) or save_block or create or modify or extract or segment or string:
         sequencer_context = request.session.get('sequencer_context', {})
         if sequencer_context:
@@ -963,42 +1031,32 @@ def block_translate(request, block_id, target_code):
             continue
         if not non_invariant_words(segment.split(), site_invariants=site_invariants):
             continue
-        # if source_language in proxy_languages:
         if source_language == target_language:
             continue
+        """ RIVEDERE?
         is_model_instance, segment_string = get_or_add_string(request, segment, source_language, add=extract or extract_strings)
-        print 'segment_string: ',  segment_string
+        print 'segment_string: ', segment_string
         if is_model_instance:
+        """
+        segment_string = get_or_add_segment(request, segment, source_language, block.site)
+        if True:
             """ NON CANCELLARE
             like_strings = find_like_strings(segment_string, max_strings=5)
             """
             like_strings = []
             source_strings.append(like_strings)
-            translations = String.objects.filter(txu=segment_string.txu, language_id=target_code)
-            print 'translations: ', segment_string.txu, target_code, translations
+            # translations = String.objects.filter(txu=segment_string.txu, language_id=target_code)
+            translations = Translation.objects.filter(segment=segment_string, language=target_language)
             source_translations.append(translations)
+        """
         else:
             segment_string.id = 0
             source_strings.append([])
             source_translations.append([])
         source_segments.append(segment_string)
+        """
     source_segments = zip(source_segments, source_strings, source_translations)
-    print 'source_segments: ',  source_segments
-    """
-    target_strings = []
-    for segment_strings in source_strings:
-        translated_strings = []
-        for s in segment_strings:
-            strings = String.objects.filter(language=source_language, text=s, txu__isnull=False).order_by('-reliability')
-            if strings.count():
-                string = strings[0]
-                translations = String.objects.filter(txu=string.txu, language=target_language)
-                for translation in translations:
-                    text = translation.text
-                    if not text in translated_strings:
-                        translated_strings.append(text)
-        target_strings.append(translated_strings)
-    """
+    # print 'source_segments: ',  source_segments
     var_dict = {}
     var_dict['page_block'] = block
     webpage = webpage_id and Webpage.objects.get(pk=webpage_id) or None
@@ -1009,14 +1067,12 @@ def block_translate(request, block_id, target_code):
     var_dict['language'] = block.language or site.language
     var_dict['target_language'] = target_language
     var_dict['target_code'] = target_code
-    # var_dict['pages'] = block.webpages.all()
     if save_block or goto:
         return HttpResponseRedirect('/block/%d/translate/%s/' % (block.id, target_code) )       
     var_dict['edit_form'] = BlockEditForm(initial={'language': block.language, 'no_translate': block.no_translate,})
     var_dict['sequencer_form'] = BlockSequencerForm(initial={'webpage': webpage_id, 'block_age': block_age, 'translation_state': translation_state, 'translation_languages': translation_languages, 'translation_age': translation_age, 'source_text_filter': source_text_filter,})
     var_dict['source_segments'] = source_segments
     var_dict['translated_block'] = translated_block
-    # var_dict['target_strings'] = target_strings
     return render_to_response('block_translate.html', var_dict, context_instance=RequestContext(request))
 
 def propagate_block_translation(request, block, translated_block):
@@ -1282,7 +1338,6 @@ def string_translate(request, string_id, target_code):
                     provider = site and site.name or ''
                     target_txu = Txu(provider=provider, user=request.user)
                     target_txu.save()
-                # is_model_instance, target = get_or_add_string(request, translation, target_language, site=translation_site, string_type=string.string_type, add=True, txu=target_txu, reliability=5)
                 is_model_instance, target = get_or_add_string(request, translation, target_language, site=project_site, string_type=string.string_type, add=True, txu=target_txu, reliability=5)
                 if not txu or not same_txu:
                     string.txu = target_txu
@@ -1567,6 +1622,167 @@ def strings_translations(request, proxy_slug=None, state=None):
     var_dict['strings_translations_form'] = form
     return render_to_response('strings_translations.html', var_dict, context_instance=RequestContext(request))
 
+def list_segments(request, proxy_slug=None, state=None):
+    """
+    list translations from source language (code) to target language (code)
+    """
+    if not request.user.is_superuser:
+        return empty_page(request);
+    PAGE_SIZE = 100
+    tm_edit_context = request.session.get('tm_edit_context', {})
+    translation_state = state or tm_edit_context.get('translation_state', 0)
+    proxy = proxy_slug and Proxy.objects.get(slug=proxy_slug) or None
+    if proxy:
+        project_site = proxy.site
+        project_site_id = project_site.id
+        source_language = project_site.language
+        source_language_code = source_language.code
+        target_language = proxy.language
+        target_language_code = target_language.code
+    else:
+        project_site_id = tm_edit_context.get('project_site', None)
+        project_site = project_site_id and Site.objects.get(pk=project_site_id) or None
+        source_language_code = project_site and project_site.language_id or tm_edit_context.get('source_language', None)
+        source_language = source_language_code and Language.objects.get(code=source_language_code) or None
+        target_language_code = tm_edit_context.get('target_language', None)
+        target_language = target_language_code and Language.objects.get(code=target_language_code) or None
+        if project_site and target_language:
+            proxies = Proxy.objects.filter(site=project_site, language=target_language)
+            if proxies:
+                proxy = proxies[0]
+    source_text_filter = tm_edit_context.get('source_text_filter', '')
+    target_text_filter = tm_edit_context.get('target_text_filter', '')
+    show_other_targets = tm_edit_context.get('show_other_targets', False)
+    tm_edit_context['project_site'] = project_site_id
+    tm_edit_context['source_language'] = source_language_code
+    tm_edit_context['target_language'] = target_language_code
+    request.session['tm_edit_context'] = tm_edit_context
+    if request.method == 'POST':
+        post = request.POST
+        form = ListSegmentsForm(post)
+        if post.get('delete-segment', ''):
+            selection = post.getlist('selection')
+            print 'delete-segment', selection
+            for segment_id in selection:
+                segment = Segment.objects.get(pk=int(segment_id))
+                """
+                txu = string.txu
+                if txu:
+                    for string in String.objects.filter(txu=txu):
+                        string.delete()
+                    txu.delete()
+                else:
+                    string.delete()
+                """
+                segment.delete()
+        elif post.get('delete-translation', ''):
+            selection = post.getlist('selection')
+            print 'delete-translation', selection
+            for segment_id in selection:
+                segment = Segment.objects.get(pk=int(segment_id))
+                """
+                txu = string.txu
+                if txu:
+                    translations = String.objects.filter(txu=txu, language=target_language)
+                    for string in translations:
+                        string.delete()
+                """
+                # translations = segment.get_translations(target_languages=target_language)
+        elif post.get('make-invariant', ''):
+            selection = post.getlist('selection')
+            print 'make-invariant', selection
+            for segment_id in selection:
+                segment = Segment.objects.get(pk=int(segment_id))
+                """
+                txu = string.txu
+                string.txu = None
+                string.invariant = True
+                string.save()
+                if txu:
+                    for string in String.objects.filter(txu=txu):
+                        string.delete()
+                    txu.delete()
+                """
+        elif post.get('toggle-invariant', ''):
+            selection = post.getlist('selection')
+            print 'toggle-invariant', selection
+            for segment_id in selection:
+                segment = Segment.objects.get(pk=int(string_id))
+                if segment.invariant:
+                    segment.invariant = False
+                    segment.save()
+                    print 'True-> False'
+                # elif not string.txu:
+                else:
+                    segment.invariant = True
+                    segment.save()
+                    print 'False-> True'
+        elif form.is_valid():
+            data = form.cleaned_data
+            tm_edit_context['translation_state'] = translation_state = int(data['translation_state'])
+            project_site = data['project_site']
+            tm_edit_context['project_site'] = project_site and project_site.id or None
+            source_language = data['source_language']
+            tm_edit_context['source_language'] = source_language and source_language.code or None
+            target_language = data['target_language']
+            tm_edit_context['target_language'] = target_language and target_language.code or None
+            tm_edit_context['source_text_filter'] = source_text_filter = data['source_text_filter']
+            tm_edit_context['target_text_filter'] = target_text_filter = data['target_text_filter']
+            tm_edit_context['show_other_targets'] = show_other_targets = data['show_other_targets']
+            request.session['tm_edit_context'] = tm_edit_context
+            if project_site and target_language:
+                proxies = Proxy.objects.filter(site=project_site, language=target_language)
+                proxy = proxies and proxies[0] or None
+    else:
+        form = ListSegmentsForm(initial={'project_site': project_site, 'translation_state': translation_state, 'source_language': source_language, 'target_language': target_language, 'source_text_filter': source_text_filter, 'target_text_filter': target_text_filter, 'show_other_targets': show_other_targets, })
+
+    if translation_state == TRANSLATED:
+        translated = True
+    elif translation_state == TO_BE_TRANSLATED:
+        translated = False
+    else:
+        translated = None
+
+    var_dict = {}
+    var_dict['proxy'] = proxy
+    var_dict['site'] = project_site_id and Site.objects.get(pk=project_site_id) or None
+    var_dict['state'] = translation_state
+    var_dict['source_language'] = source_language
+    var_dict['target_language'] = target_language
+    var_dict['show_other_targets'] = show_other_targets
+
+    if project_site and translation_state == INVARIANT:
+        qs = Segment.objects.filter(site=project_site, is_invariant=True)
+    else:
+        qs = find_segments(source_languages=[source_language], target_languages=[target_language], site=project_site, translated=translated, order_by='')
+    if source_text_filter:
+        qs = qs.filter(text__icontains=source_text_filter)
+    if target_text_filter:
+        qs = qs.filter(translation_segment__text__icontains=target_text_filter)
+    qs = qs.order_by('text')
+    segment_count = qs.count()
+    var_dict['segment_count'] = segment_count
+    paginator = Paginator(qs, PAGE_SIZE)
+    page = request.GET.get('page', 1)
+    try:
+        segments = paginator.page(page)
+    except PageNotAnInteger:
+        # If page is not an integer, deliver first page.
+        page = 1
+        segments = paginator.page(1)
+    except EmptyPage:
+        # If page is out of range (e.g. 9999), deliver last page of results.
+        page = paginator.num_pages
+        segments = paginator.page(paginator.num_pages)
+    var_dict['page_size'] = PAGE_SIZE
+    var_dict['page'] = page = int(page)
+    var_dict['offset'] = (page-1) * PAGE_SIZE
+    var_dict['before'] = steps_before(page)
+    var_dict['after'] = steps_after(page, paginator.num_pages)
+    var_dict['segments'] = segments
+    var_dict['list_segments_form'] = form
+    return render_to_response('list_segments.html', var_dict, context_instance=RequestContext(request))
+
 def proxy_string_translations(request, proxy_slug=None, state=None):
     """
     list translations from source language (code) to target language (code)
@@ -1747,6 +1963,32 @@ def add_translated_string(request):
                 return JsonResponse({"data": "add-string","translated_id": translated_new_id,})
     return empty_page(request);
 
+def add_segment_translation(request):
+    if request.is_ajax() and request.method == 'POST':
+        form = request.POST
+        source_id = int(form.get('source_id'))
+        translation_id = int(form.get('translation_id'))
+        translated_text = form.get('translation')
+        target_language = form.get('t_l')
+        source_language = form.get('s_l')
+        site_name = form.get('site_name')
+        target_language = Language.objects.get(name=target_language)
+        source_language = Language.objects.get(name=source_language)
+        user_role = get_userrole(request)
+        if not user_role:
+            user_role = UserRole.objects.filter(user=request.user, source_language=source_language, target_language=target_language).order_by('role_type')[0]
+        segment = Segment.objects.filter(pk=source_id)
+        try:
+            translation = Translation.objects.get(segment=segment, language=target_language)
+        except:
+            translation = Translation(segment=segment, language=target_language)
+        translation.text = translated_text
+        translation.translation_type = MANUAL
+        translation.user_role = user_role
+        translation.save()
+        return JsonResponse({"data": "segment-translation", "segment_id": segment.id,"translation_id": translation.id})
+    return empty_page(request);
+
 def delete_translated_string(request):
     if request.is_ajax() and request.method == 'GET':
         form = request.GET
@@ -1861,6 +2103,34 @@ def find_strings(source_languages=[], target_languages=[], translated=None, site
             qs = qs.filter(as_source__isnull=True)
         """
     # return qs.order_by('language', 'text')
+    if order_by is None:
+        qs = qs.order_by('language', 'text')
+    elif order_by:
+        qs = qs.order_by(order_by)
+    return qs
+
+def find_segments(source_languages=[], target_languages=[], translated=None, site=None, order_by=None):
+    if isinstance(source_languages, Language):
+        source_languages = [source_languages]
+    if isinstance(target_languages, Language):
+        target_languages = [target_languages]
+    source_codes = [l.code for l in source_languages]
+    target_codes = [l.code for l in target_languages]
+    qs = Segment.objects
+    if site:
+        qs = qs.filter(site=site)
+    if source_languages:
+        source_codes = [l.code for l in source_languages]
+        qs = qs.filter(language_id__in=source_codes)
+    if translated is None:
+        if not source_languages:
+            qs = qs.all()
+    elif translated: # translated = True
+        if target_languages:
+            qs = qs.filter(translation_segment__language_id__in=target_codes).distinct()
+    else: # translated = False
+        if target_languages:
+            qs = qs.exclude(translation_segment__language_id__in=target_codes).distinct()
     if order_by is None:
         qs = qs.order_by('language', 'text')
     elif order_by:

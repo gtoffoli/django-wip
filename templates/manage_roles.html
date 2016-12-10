@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% load staticfiles i18n %}
+
+{% block head_title %}{% trans "manage roles"|capfirst %}{% endblock %}
+
+{% block extra_head %}
+<style>
+table { border-spacing: 10px 0; border-collapse: separate; }
+th, td { text-align: left; vertical-align: top; }
+</style>
+{% endblock %}
+
+{% block title-page %}{% trans "manage roles"|capfirst %}{% endblock %}
+
+{% block content-page %}
+
+{% if user_roles %}
+<form action="#" method="post" id="manage-roles">{% csrf_token %}
+<table>
+<thead><th></th><th>id</th><th>user</th><th>site</th><th>role</th><th>level</th><th>source</th><th>target</th></thead>
+<tbody>
+{% for user_role in user_roles %}
+	<tr>
+        <td><input type="checkbox" name="selection" value="{{ user_role.pk }}" /></td>
+		<td><a href="/role/{{ user_role.pk }}/">{{ user_role.pk }}</a></td>
+		<td>{{ user_role.user.username }}</td>
+		<td>{{ user_role.site.name }}</td>
+		<td>{{ user_role.get_type_name }}</td>
+		<td>{% if user_role.level %}{{ user_role.level }}{% endif %}</td>
+		<td>{% if user_role.source_language %}{{ user_role.source_language.code }}{% endif %}</td>
+		<td>{% if user_role.target_language %}{{ user_role.target_language.code }}{% endif %}</td>
+	</tr>
+{% endfor %}
+</tbody>
+</table>
+       <input class="btn btn-default btn-sm" type="submit" name="delete-roles" value="{% trans "delete selected roles"|capfirst %}">
+&nbsp; <input class="btn btn-default btn-sm" type="submit" name="add-role" value="{% trans "add role"|capfirst %}">
+</form>
+{% else %}
+<div>{% trans "no user roles are present"|capfirst %}.</div>
+{% endif %}
+
+{% endblock %}

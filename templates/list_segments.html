@@ -1,0 +1,241 @@
+{% extends "base.html" %}
+{% load staticfiles i18n %}
+
+{% block extra_head %}
+<style>
+.it { color: LimeGreen; }
+.en { color: #FF0088; }
+.es { color: OrangeRed; }
+.fr { color: blue; }   
+</style>
+{% endblock %}
+
+{% block head_title %}{% trans "segments"|capfirst %}
+{% if source_language %} in
+{{ source_language }}
+{% endif %}
+{{ state }}
+{% if target_language %} to
+{{ target_language }}
+{% endif %}
+{% endblock %}
+
+{% block body_id %}list_segments{% endblock %}
+
+{% block title-page %}{% trans "Segments translation"|capfirst %}{% if source_language %} from
+<pre style="display:inline; font-size:22px; padding:4.5px 9.5px">{{ source_language }}</pre>
+{% endif %}
+{% if target_language %} to
+<pre style="display:inline; font-size:22px; padding:4.5px 9.5px">{{ target_language }}</pre>
+{% endif %}
+{% if proxy %}
+<span style="font-size: medium;">Proxy: <a href="/proxy/{{ proxy.slug }}/">{{ proxy.name }}</a></span>
+{% endif %}
+{% if segment_count %}
+<span style="font-size: medium;">- {% trans "segments found"|capfirst %}: {{ segment_count }}</span>
+{% endif %}
+{% endblock %}
+
+{% block content-page %}
+
+
+<form action="#" method="post" id="translation-form">{% csrf_token %}
+
+<div>{% for field in list_segments_form.visible_fields|slice:"0:2" %}{{ field.label_tag }} {{ field }} &nbsp; {% endfor %}
+	 {% with field=list_segments_form.visible_fields.6 %}{{ field.label_tag }} {{ field }} {% endwith %}</div>
+<div>{% for field in list_segments_form.visible_fields|slice:"2:4" %}{{ field.label_tag }} {{ field }} &nbsp; {% endfor %}</div>
+<div>{% for field in list_segments_form.visible_fields|slice:"4:6" %}{{ field.label_tag }}<span style="font-size: medium;">&nbsp; </span>{{ field }} &nbsp; {% endfor %}</div>
+
+    {% if segments.paginator.num_pages > 1 %}
+      <div class="text-right">
+        <ul class="pagination mT0">
+          {% for p in before %}<li><a href="?page={{ p }}">{{ p }}</a></li>{% endfor %}
+          <li><span>{{ segments.number }}</span></li>
+          {% for p in after %}<li><a href="?page={{ p }}">{{ p }}</a></li>{% endfor %}
+        </ul>
+      </div>
+    {% endif %}
+
+  {% if segment_count %}
+<div style="margin-bottom: 0.5em;">
+<a class="btn btn-default btn-sm" href="/string_add_by_proxy/{{ proxy.slug }}/">{% trans "add segments"|capfirst %}</a>
+<input class="btn btn-default btn-sm" type="submit" name="delete-segment" value="{% trans "delete segment"|capfirst %}">
+<input class="btn btn-default btn-sm" type="submit" name="delete-translation" value="{% trans "delete translation"|capfirst %}">
+<input class="btn btn-default btn-sm" type="submit" name="make-invariant" value="{% trans "make invariant"|capfirst %}">
+<input class="btn btn-default btn-sm" type="submit" name="toggle-invariant" value="{% trans "toggle invariant"|capfirst %}">
+</div>
+
+    <table class="table table-responsive table-bordered table-striped mB5">
+      <thead>
+        <th class="text-right">#</th>
+        <th></th>
+        <th>id</th>
+        <th style="width:40%">{{ source_language }}</th>
+        <th style="width:54%">{{ target_language }}</th>
+      </thead>
+      <tbody>
+      {% for segment in segments %}
+        <tr>
+          <td class="text-right">{{forloop.counter|add:offset}}</td>
+          <td><input type="checkbox" name="selection" value="{{ segment.id }}" /></td>
+          <td class="text-right"><a href="/segment/{{ segment.id }}/" class="{{ source_language.code }}">{{ segment.id }}</a></td>
+          <td>
+            {{ segment.text }}
+          </td>
+          <td>
+          <table style="width:100%"><tbody>
+          <thead><th style="width:4%"></th><th style="width:85%"></th><th style="width:11%"></th></thead>
+          {% if not segment.is_invariant %}
+{% comment %}
+            {% if string.txu_id %}
+{% endcomment %}
+			{% with translations=segment.get_translations %}         
+              {% for translation in translations %}
+                {% if translation.0 == target_language %}
+                	<input type="hidden" name="source_id" value="{{ string.id }}" id="{{ string.id }}">
+                	<input type="hidden" name="txu_id" value="{{ string.txu_id}}" id="txu-{{ string.id }}">
+                    {% if translation.1 %}
+                      {% for s in translation.1 %}
+				  <tr>
+				  <td style="vertical-align:top;"><a href="/string/{{ s.id }}/"  class="{{ target_language.code }}">{{ target_language.code }}</a></td>
+				  <td>
+                        	<input type="hidden" name="translated_id" value="{{ s.id }}" id="translated-{{ string.id }}">
+                        	<textarea class="form-control custom-control" name="translation-{{ string.id }}" id="translation-{{ string.id }}" style="width:100%">{{ s.text }}</textarea>
+                  </td>
+                  <td class="text-center" style="vertical-align:top;">
+                        	<span class="input-group-btn">
+                  			<input class="btn btn-default btn-sm" type="button" name="save-{{ string.id }}-{{ translated_id }}-{{ string.txu_id}}" value="{% trans "save"|capfirst %}" onclick="save_translation('{{ string.id }}', 'txu-{{ string.id }}', 'translated-{{ string.id }}', 'translation-{{ string.id }}')">
+                        	</span>
+                  </td>
+                  </tr>
+                      {% endfor %}
+                    {% else %}
+				  <tr>
+				  <td></td>
+				  <td>
+                        <input type="hidden" name="translated_id" value="0" id="translated-{{ string.id }}">
+                        <textarea class="form-control custom-control" name="translation-{{ string.id }}" id="translation-{{ string.id }}" style="width:100%"></textarea>
+				  </td>
+                  <td class="text-center" style="vertical-align:top;">
+                        <span class="input-group-btn">
+                  		<input class="btn btn-default btn-sm" type="button" name="save-{{ string.id }}-{{ translated_id }}-0" value="{% trans "save"|capfirst %}" onclick="save_translation('{{ string.id }}', 'txu-{{ string.id }}', 'translated-{{ string.id }}', 'translation-{{ string.id }}')">
+                        </span>
+                  </td>
+                  </tr>
+                    {% endif %}
+                {% endif %}
+              {% endfor %}
+
+			  {% if show_other_targets %}
+              {% for translation in translations %}
+                {% if translation.0 != target_language %}
+                    {% if translation.1 %}
+                      {% for s in translation.1 %}                    
+				  <tr>
+                		<td style="font-size: smaller; vertical-align:top;"><a href="/string/{{ s.id }}/"  class="{{ translation.0.code }}">{{ translation.0.code }}</a></td>
+						<td style="font-size: smaller;">{{ s }}</td>
+						<td></td>
+				  <tr>
+              		  {% endfor %}
+              		{% endif %}
+                {% endif %}
+              {% endfor %}
+              {% endif %}
+{% comment %}
+
+            {% else %}
+			  <tr>
+              	  <input type="hidden" name="source_id" value="{{ string.id }}" id="{{ string.id }}">
+              	  <input type="hidden" name="txu_id" value="0" id="txu-{{ string.id }}">
+              	  <input type="hidden" name="translated_id" value="0" id="translated-{{ string.id }}">
+				<td style="vertical-align:top;" class="{{ target_language.code }}">{{ target_language.code }}</td>
+				<td>
+                  <span class="input-group-btn"></span><textarea class="form-control custom-control" name="translation-{{ string.id }}" id="translation-{{ string.id }}" style="width:100%"></textarea>
+				</td>
+				<td class="text-center" style="vertical-align:top;">
+                  <span class="input-group-btn">
+                  <input class="btn btn-default btn-sm" type="button" name="save-{{ string.id }}-0-0" value="{% trans "save"|capfirst %}" onclick="save_translation('{{ string.id }}', 'txu-{{ string.id }}', 'translated-{{ string.id }}', 'translation-{{ string.id }}')">
+                  </span>
+				</td>
+			  </tr>
+            {% endif %}
+{% endcomment %}
+		    {% endwith %}         
+          {% endif %}
+			</tbody></table>
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+
+<div style="margin-bottom: 0.5em;">
+<a class="btn btn-default btn-sm" href="/string_add_by_proxy/{{ proxy.slug }}/">{% trans "add segments"|capfirst %}</a>
+<input class="btn btn-default btn-sm" type="submit" name="delete-segment" value="{% trans "delete segment"|capfirst %}">
+<input class="btn btn-default btn-sm" type="submit" name="delete-translation" value="{% trans "delete translation"|capfirst %}">
+<input class="btn btn-default btn-sm" type="submit" name="make-invariant" value="{% trans "make invariant"|capfirst %}">
+<input class="btn btn-default btn-sm" type="submit" name="toggle-invariant" value="{% trans "toggle invariant"|capfirst %}">
+</div>
+
+  {% else %}
+    <p>{% trans "no segments were found"|capfirst %}</p>
+<div style="margin-top: 0.5em;">
+<a class="btn btn-default btn-sm" href="/string_add_by_proxy/{{ proxy.slug }}/">{% trans "add source string"|capfirst %}</a>
+</div>
+  {% endif %}
+
+</form>
+
+    {% if segments.paginator.num_pages > 1 %} 
+      <div class="text-right">
+        <ul class="pagination mB0">
+          {% for p in before %}<li><a href="?page={{ p }}">{{ p }}</a></li>{% endfor %}
+          <li><span>{{ segments.number }}</span></li>
+          {% for p in after %}<li><a href="?page={{ p }}">{{ p }}</a></li>{% endfor %}
+        </ul>
+      </div>
+    {% endif %}
+
+{% endblock %}
+
+{% block extra_script %}
+<script type="text/javascript">
+
+function save_translation(source_id, txu, translated, translation) {
+	var form = document.getElementById('translation-form');
+	var csrftoken = form.elements["csrfmiddlewaretoken"].value
+	var txu_id = document.getElementById(txu).value;
+	var translated_id = document.getElementById(translated).value;
+	var textarea = document.getElementById(translation);
+	var textvalue = textarea.value;
+	if (textvalue != '') {
+		$.ajax({
+			type: 'post', 
+			url: '/add_translated_segment/',
+			data: { 'csrfmiddlewaretoken': csrftoken,
+					'site_name': '{{ site.name}}',
+					's_l':  '{{ source_language }}',
+					't_l':  '{{ target_language }}',
+					'source_id': source_id,
+					'txu_id': txu_id,
+					'translated_id': translated_id,
+					'translation': textvalue,
+					},
+			success: function(json){
+				switch (json.data){ 
+					case 'add-txt-string':
+						$(txu_id).val(json.txu_id);
+						$(translated_id).val(json.translated_id);
+						break;
+					case "add-string":
+						$(translated_id).val(json.translated_id);
+				}
+			},
+			error: function() {
+				alert('Sorry! Something went wrong.');
+			}
+		});
+	}
+}
+</script>
+{% endblock %}

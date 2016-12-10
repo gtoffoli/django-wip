@@ -5,11 +5,25 @@ from django.utils.translation import ugettext as _, ugettext_lazy
 from vocabularies import Language
 from models import Site, Proxy
 from session import get_language, get_site
+from views import my_roles
 
 # print SITE_NAME
 
 Menu.items = {}
 Menu.sorted = {}
+
+def roles_children(request):
+    children = []
+    for user_role in my_roles(request):
+        children.append (MenuItem(
+             user_role.get_label(),
+             url='/role/%d/select/' % user_role.pk,
+            ))
+    children.append (MenuItem(
+         'Manage roles',
+         url='/manage_roles/',
+        ))
+    return children        
 
 def sites_children(request):
     children = []
@@ -21,18 +35,6 @@ def sites_children(request):
                  url='/site/%s/' % slug,
                  # selected=lambda site: get_site(request)==slug,
                 ))
-    return children        
-
-def discovery_children(request):
-    children = []
-    children.append (MenuItem(
-         'My scans',
-         url='/my_scans/'
-        ))
-    children.append (MenuItem(
-         'New scan',
-         url='/discover/'
-        ))
     return children        
 
 def languages_children(request):
@@ -62,6 +64,18 @@ def proxies_children(request):
                      proxy.name,
                      url='/proxy/%s/' % proxy.slug,
                     ))
+    return children        
+
+def discovery_children(request):
+    children = []
+    children.append (MenuItem(
+         'My scans',
+         url='/my_scans/'
+        ))
+    children.append (MenuItem(
+         'New scan',
+         url='/discover/'
+        ))
     return children        
 
 def strings_children(request):
@@ -101,19 +115,11 @@ def check_proxies(request):
     slug = get_site(request)
     return code and slug and Proxy.objects.filter(site__slug=slug, language_id=code).count() or False
 
-# Add a few items to our main menu
-"""
-Menu.add_item("main", MenuItem(ugettext_lazy("Home"),
-                               url='/',
-                               icon='',
-                               weight=10,
-                               separator=True))
-"""
-Menu.add_item("main", MenuItem(ugettext_lazy("Discovery"),
+Menu.add_item("main", MenuItem(ugettext_lazy("Roles"),
                                url='/',
                                icon='',
                                weight=20,
-                               children=discovery_children,
+                               children=roles_children,
                                check=lambda request: request.user.is_authenticated(),
                                separator=True))
 Menu.add_item("main", MenuItem(ugettext_lazy("Sites"),
@@ -139,6 +145,13 @@ Menu.add_item("main", MenuItem(ugettext_lazy("Proxies"),
                                # check=check_proxies,
                                check=lambda request: request.user.is_authenticated(),
                                separator=True))     
+Menu.add_item("main", MenuItem(ugettext_lazy("Discovery"),
+                               url='/',
+                               icon='',
+                               weight=20,
+                               children=discovery_children,
+                               check=lambda request: request.user.is_authenticated(),
+                               separator=True))
 
 Menu.add_item("main", MenuItem(ugettext_lazy("Strings"),
                                url='/',

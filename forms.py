@@ -4,8 +4,11 @@ Created on 08/feb/2016
 '''
 
 from django import forms
+from django.contrib.auth.models import User
 from models import Site, String
+from models import UserRole
 from models import STRING_TYPE_CHOICES, STRING_SORT_CHOICES, STRING_TRANSLATION_STATE_CHOICES, TRANSLATION_STATE_CHOICES, TRANSLATION_SERVICE_CHOICES
+from models import ROLE_TYPE_CHOICES
 from vocabularies import Language, Subject
 
 class SiteManageForm(forms.Form):
@@ -83,6 +86,15 @@ class StringsTranslationsForm(forms.Form):
     target_text_filter = forms.CharField(required=False, label="Text in target string", widget=forms.TextInput(attrs={'style': 'width: 500px;', 'onchange': 'javascript: this.form.submit()',}))
     show_other_targets = forms.BooleanField(required=False, label='Show other targets', widget=forms.CheckboxInput(attrs={'onchange': 'javascript: this.form.submit()',}))
 
+class ListSegmentsForm(forms.Form):
+    project_site = forms.ModelChoiceField(required=False, label="Project site", queryset=Site.objects.all(), widget=forms.Select(attrs={'style':'height: 24px;', 'onchange': 'javascript: this.form.submit()',}))
+    translation_state = forms.ChoiceField(required=False, label="Translation state", choices=STRING_TRANSLATION_STATE_CHOICES, widget=forms.Select(attrs={ 'style': 'width: auto; height: 2em;', 'onchange': 'javascript: this.form.submit()',}))
+    source_language = forms.ModelChoiceField(required=True, label="Source language", queryset=Language.objects.all(), widget=forms.Select(attrs={'style':'height: 24px;', 'onchange': 'javascript: this.form.submit()',}))
+    source_text_filter = forms.CharField(required=False, label="Text in source string", widget=forms.TextInput(attrs={'style': 'width: 500px;', 'onchange': 'javascript: this.form.submit()',}))
+    target_language = forms.ModelChoiceField(required=True, label="Target language", queryset=Language.objects.all(), widget=forms.Select(attrs={'style':'height: 24px;', 'onchange': 'javascript: this.form.submit()',}))
+    target_text_filter = forms.CharField(required=False, label="Text in target string", widget=forms.TextInput(attrs={'style': 'width: 500px;', 'onchange': 'javascript: this.form.submit()',}))
+    show_other_targets = forms.BooleanField(required=False, label='Show other targets', widget=forms.CheckboxInput(attrs={'onchange': 'javascript: this.form.submit()',}))
+
 class TranslationServiceForm(forms.Form):
     translation_services = forms.MultipleChoiceField(required=True, choices=TRANSLATION_SERVICE_CHOICES, label="Translation service", widget=forms.SelectMultiple(attrs={ 'style': 'width: auto;', 'size': 3,}))
 
@@ -100,3 +112,16 @@ class DiscoverForm(forms.Form):
     deny = forms.CharField(required=False, label="Deny", widget=forms.Textarea(attrs={'style': 'width: 100%; height: 40px;'}))
     count_words = forms.BooleanField(required=False, label='Extract word count')
     count_segments = forms.BooleanField(required=False, label='Extract segment count')
+
+class UserRoleEditForm(forms.ModelForm):
+    class Meta:
+        model = UserRole
+        exclude = ()
+
+    id = forms.CharField(required = False, widget=forms.HiddenInput())
+    user = forms.ModelChoiceField(queryset=User.objects.all(), widget=forms.Select(attrs={'style':'height: 24px;',}))
+    site = forms.ModelChoiceField(required=False, label="Site", queryset=Site.objects.all(), widget=forms.Select(attrs={'style':'height: 24px;',}))
+    role_type = forms.ChoiceField(required=False, choices=ROLE_TYPE_CHOICES, label="Tole type", widget=forms.Select(attrs={ 'style': 'width: auto; height: 2em;',}))
+    level = forms.IntegerField(required=False, label="Level", widget=forms.TextInput(attrs={'size': 8, 'style': 'width: 50px;',}))
+    source_language = forms.ModelChoiceField(required=False, label="Source language", queryset=Language.objects.all(), widget=forms.Select(attrs={'style':'height: 24px;',}))
+    target_language = forms.ModelChoiceField(required=False, label="Target language", queryset=Language.objects.all(), widget=forms.Select(attrs={'style':'height: 24px;',}))

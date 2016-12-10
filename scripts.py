@@ -10,8 +10,11 @@ import urllib2
 from datetime import datetime
 from collections import defaultdict
 from django.shortcuts import get_object_or_404
+from django.contrib.auth.models import User
 from settings import DATA_ROOT, RESOURCES_ROOT
 from models import Site, Webpage, PageVersion, Block, String, Txu, TxuSubject
+from models import UserRole, Segment, Translation, SEGMENT, FRAGMENT
+from models import OWNER, MANAGER, LINGUIST, REVISOR, TRANSLATOR, GUEST
 from vocabularies import Language, Subject
 from utils import string_checksum, normalize_string
 
@@ -267,3 +270,41 @@ def jeffs_run():
                       payload={'mantra': 'Simple is better than complex.'})  # availabe in spider as self.payload
     
     Processor(settings=settings).run([basicjob, jobwithdata])
+
+from .models import MANUAL
+def migrate_segments():
+    admin = User.objects.get(username='admin')
+    # for s in String.objects.filter(language_id='it', string_type__in=[SEGMENT, FRAGMENT]).exclude(site=None):
+    for s in String.objects.filter(language_id='it', string_type__in=[SEGMENT, FRAGMENT]):
+        site = None
+        if s.site:
+            site = s.site
+        elif s.txu and s.txu.provider:
+            txu = s.txu
+            provider = txu.provider
+            try:
+                site = Site.objects.get(name=provider)
+            except:
+                pass
+        if not site:
+            continue
+        segment = Segment(site=site, language_id='it', text=s.text, is_fragment=s.string_type==FRAGMENT, is_invariant=s.invariant)
+        segment.save()
+        if s.created:
+            segment.created = s.created
+            segment.save()
+        txu = s.txu
+        if not txu:
+            s.delete()
+            continue
+        for t in String.objects.filter(site=site, txu=txu, string_type__in=[SEGMENT, FRAGMENT]).exclude(language_id='it'):
+            user_role, created = UserRole.objects.get_or_create(user=admin, source_language=s.language, target_language=t.language, level=3, site=site, role_type=OWNER)
+            translation = Translation(segment=segment, language=t.language, text=t.text, translation_type=MANUAL, user_role=user_role)
+            translation.save()
+            if t.created:
+                translation.created = t.created
+                translation.save()
+            t.delete()
+        s.delete()
+        txu.delete()
+

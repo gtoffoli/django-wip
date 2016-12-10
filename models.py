@@ -1844,3 +1844,113 @@ class WordCount(models.Model):
     class Meta:
         verbose_name = _('word count')
         verbose_name_plural = _('word counts')
+
+def get_display_name(self):
+    display_name = self.username
+    if self.first_name and self.last_name:
+        display_name = '%s %s' % (self.first_name, self.last_name)
+    return display_name
+User.get_display_name = get_display_name
+
+OWNER = 0
+MANAGER = 1
+LINGUIST = 2
+REVISOR = 3
+TRANSLATOR = 4
+GUEST = 5
+ROLE_TYPE_CHOICES = (
+    (OWNER, _('Site owner'),),
+    (MANAGER, _('Site manager'),),
+    (LINGUIST, _('Linguist'),),
+    (REVISOR,  _('Revisor'),),
+    (TRANSLATOR,  _('Translator'),),
+    (GUEST,  _('Guest'),),
+)
+ROLE_TYPE_DICT = dict(ROLE_TYPE_CHOICES)
+
+class UserRole(models.Model):
+    user = models.ForeignKey(User, verbose_name='role owner', related_name='role_user', help_text='whom this role was granted')
+    role_type = models.IntegerField(choices=ROLE_TYPE_CHOICES, default=GUEST, verbose_name='role type')
+    level = models.IntegerField(verbose_name='level', help_text=_('level of experience/reliability: let try to use the range 1 to 5 (top level)'))
+    site = models.ForeignKey(Site, verbose_name='site/project', null=True, help_text="leave undefined for a global role")
+    source_language = models.ForeignKey(Language, verbose_name='source language', related_name='source_language', null=True, help_text="leave undefined if role applies to any source language")
+    target_language = models.ForeignKey(Language, verbose_name='target language', related_name='target_language', null=True, help_text="can be undefined only for some role types")
+    creator = models.ForeignKey(User, verbose_name='role creator', related_name='creator_user', blank=True, null=True, help_text='who granted this role')
+    created = CreationDateTimeField(verbose_name='role creation date')
+
+    class Meta:
+        verbose_name = _('user role')
+        verbose_name_plural = _('user roles')
+
+    def __unicode__(self):
+        source_code = self.source_language and self.source_language.code or ''
+        target_code = self.target_language and self.target_language.code or ''
+        return u'%s: %s of level %d for %s->%s couple and site %s' % (self.user.username, ROLE_TYPE_DICT[self.role_type], self.level, source_code, target_code, self.site.name)
+
+    def get_user_name(self):
+        return self.user.get_display_name()
+
+    def get_type_name(self):
+        return ROLE_TYPE_DICT[self.role_type]
+
+    def get_label(self):
+        label = '%s for %s' % (self.get_type_name(), self.site.name)
+        if self.target_language:
+            label += ' with %s as target' % self.target_language.name
+        return label
+   
+class Segment(models.Model):
+    site = models.ForeignKey(Site, verbose_name='source site')
+    language = models.ForeignKey(Language, verbose_name='source language')
+    is_fragment = models.BooleanField('fragment', default=False)
+    is_invariant = models.BooleanField('invariant', default=False)
+    text = models.TextField('plain text extracted', blank=True, null=True)
+    html = models.TextField('original text with tags', blank=True, null=True)
+    comment = models.TextField('comment', blank=True, null=True)
+    is_comment_settled = models.BooleanField('comment is settled', default=False)
+    created = CreationDateTimeField(verbose_name='creation date')
+
+    def get_translations(self, target_languages=[]):
+        if not target_languages:
+            target_languages = Language.objects.exclude(code=self.language.code).distinct().order_by('code')
+        translations = []
+        for language in target_languages:
+            target_translations = Translation.objects.filter(segment=self, language=language)
+            if target_translations:
+                has_translations = True
+                translations.append([language, target_translations])
+        print has_translations, len(translations)
+        return has_translations and translations or []
+
+TM = 1
+MT = 2
+MANUAL = 3
+TRANSLATION_TYPE_CHOICES = (
+    (0, _('Unspecified'),),
+    (TM, _('Translation Memory'),),
+    (MT, _('Machine Translation'),),
+    (MANUAL, _('Manual'),),
+)
+TRANSLATION_TYPE_DICT = dict(TRANSLATION_TYPE_CHOICES)
+
+TRANSLATION_SOURCE_TYPE_CHOICES = (
+    (TM, _('Translation Memory'),),
+    (MT, _('Machine Translation'),),
+)
+TRANSLATION_SOURCE_TYPE_DICT = dict(TRANSLATION_SOURCE_TYPE_CHOICES)
+
+class TranslationSource(models.Model):
+    name = models.CharField(max_length=100)
+    source_type = models.IntegerField(choices=TRANSLATION_SOURCE_TYPE_CHOICES, verbose_name='translation source type')
+
+class Translation(models.Model):
+    segment = models.ForeignKey(Segment, verbose_name='source segment', related_name='translation_segment')
+    language = models.ForeignKey(Language, verbose_name='target language')
+    text = models.TextField('translation of plain text', blank=True, null=True)
+    html = models.TextField('translation of the original text with tags', blank=True, null=True)
+    translation_type = models.IntegerField(choices=TRANSLATION_TYPE_CHOICES, default=0, verbose_name='translation type')
+    translation_source = models.ForeignKey(TranslationSource, verbose_name='translation source', blank=True, null=True)
+    is_locked = models.BooleanField('locked', default=False)
+    user_role = models.ForeignKey(UserRole, verbose_name='user role', blank=True, null=True)
+    timestamp = ModificationDateTimeField()
+
