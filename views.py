@@ -48,11 +48,13 @@ from models import segments_from_string, non_invariant_words
 from models import STRING_TYPE_DICT, UNKNOWN, SEGMENT #, TERM, FRAGMENT
 from models import TEXT_ASC # , ID_ASC, DATETIME_DESC, DATETIME_ASC
 from models import TO_BE_TRANSLATED, TRANSLATED, PARTIALLY, INVARIANT, ALREADY
-from models import MYMEMORY, TRANSLATION_SERVICE_DICT
+from models import ROLE_DICT, TRANSLATION_TYPE_DICT, TRANSLATION_SERVICE_DICT, MYMEMORY
+from models import TM, MT, MANUAL
 from forms import DiscoverForm
 from forms import SiteManageForm, ProxyManageForm, PageEditForm, PageSequencerForm, BlockEditForm, BlockSequencerForm
+from forms import SegmentSequencerForm, SegmentTranslationForm
 from forms import StringSequencerForm, StringEditForm, StringsTranslationsForm, StringTranslationForm, TranslationServiceForm, FilterPagesForm
-from forms import UserRoleEditForm, ListSegmentsForm
+from forms import UserRoleEditForm, ListSegmentsForm, ImportXliffForm
 from session import get_language, set_language, get_site, set_site, get_userrole, set_userrole
 
 from settings import PAGE_SIZE, PAGE_STEPS
@@ -118,8 +120,10 @@ def language(request, language_code):
     return HttpResponseRedirect(request.META.get('HTTP_REFERER'))
 
 def get_or_set_user_role(request, site=None, source_language=None, target_language=None):
-    user_role = get_userrole(request)
-    if not user_role:
+    user_role_id = get_userrole(request)
+    if user_role_id:
+        user_role = UserRole.objects.get(pk=user_role_id)
+    else:
         qs = UserRole.objects.filter(user=request.user)
         if site:
             qs = qs.filter(site=site)
@@ -149,8 +153,11 @@ def manage_roles(request):
     if user.is_superuser:
         qs = UserRole.objects.all()
     else:
+        """
         role_id = get_or_set_user_role()
         my_role = get_object_or_404(UserRole, pk=role_id)
+        """
+        my_role = get_or_set_user_role()
         if my_role.role_type <= MANAGER:
             qs = UserRole.objects.filter(site=my_role.site, user_role__role_type__gt=my_role.role_type)
     user_roles = qs.order_by('role_type', 'site', 'target_language__code', '-level')
@@ -533,6 +540,44 @@ def proxy(request, proxy_slug):
     var_dict['manage_form'] = ProxyManageForm()
     return render_to_response('proxy.html', var_dict, context_instance=RequestContext(request))
 
+def import_xliff(request, proxy_slug):
+    proxy = get_object_or_404(Proxy, slug=proxy_slug)
+    site = proxy.site
+    var_dict = {}
+    var_dict['proxy'] = proxy
+    post = request.POST
+    if post:
+        if post.get('cancel', ''):
+            messages.add_message(request, messages.INFO, 'operation was canceled.')
+            return HttpResponseRedirect('/proxy/%s/' % proxy_slug)        
+        form = ImportXliffForm(request.POST, request.FILES)
+        if form.is_valid():
+            data = form.cleaned_data
+            # xliff_file = request.FILES.get('file', None)
+            xliff_file = data['file']
+            file_name = xliff_file.name
+            file_size = xliff_file.size
+            charset = xliff_file.charset
+            print (file_name, file_size, charset)
+            msg = 'XLIFF file: %s - size: %d' % (file_name, file_size)
+            user_role = data['user_role']
+            status = proxy.import_translations(xliff_file, request=request, user_role=user_role)
+            if status.get('error', None):
+                msg += ' - Error: %s.' % status['error']
+            else:
+                msg += ' - %d translations found, %d translations imported.' % (status['found'], status['imported'])
+            messages.add_message(request, messages.INFO, msg)
+            return HttpResponseRedirect('/proxy/%s/' % proxy_slug)        
+    else:
+        form = ImportXliffForm()
+        qs = UserRole.objects.filter(site=site)
+        qs = qs.filter(Q(source_language__isnull=True) | Q(source_language=site.language))
+        qs = qs .filter(Q(target_language__isnull=True) | Q(target_language=proxy.language))
+        qs = qs.order_by('-role_type', 'level')
+        form.fields['user_role'].queryset = qs
+    var_dict['form'] = form
+    return render_to_response('import_xliff.html', var_dict, context_instance=RequestContext(request))
+
 def site_pages(request, site_slug):
     var_dict = {}
     site = get_object_or_404(Site, slug=site_slug)
@@ -785,6 +830,21 @@ def get_or_add_segment(request, text, language, site, is_fragment=False):
         segment = Segment(text=text, language=language, site=site, is_fragment=is_fragment, user=request.user)
         segment.save()
     return segment
+
+def get_or_add_translation(request, segment, text, language, translation_type=MANUAL, user_role=None):
+    if isinstance(language, str):
+        language = Language.objects.get(code=language)
+    if not user_role:
+        user_role_id = get_userrole(request)
+        user_role = UserRole.objects.get(pk=user_role_id)
+    translations = Translation.objects.filter(segment=segment, text=text, language=language)
+    if translations:
+        translation = translations[0]
+    else:
+        # translation = Translation(segment=segment, text=text, language=language, user=request.user)
+        translation = Translation(segment=segment, text=text, language=language, translation_type=translation_type, user_role=user_role)
+        translation.save()
+    return translation
 
 def block(request, block_id):
     """
@@ -1138,7 +1198,9 @@ def string_view(request, string_id):
     string_context = request.session.get('string_context', {})
     if string_context:
         string_types = string_context.get('string_types', [])
+        """
         project_site_id = string_context.get('project_site', None)
+        """
         translation_state = string_context.get('translation_state', TO_BE_TRANSLATED)
         translation_codes = string_context.get('translation_codes', [l.code for l in other_languages])
         translation_subjects = string_context.get('translation_subjects', [])
@@ -1146,15 +1208,19 @@ def string_view(request, string_id):
         show_similar = string_context.get('show_similar', False)
     else:
         string_types = []
+        """
         project_site_id = string.site.id
+        """
         translation_state = TO_BE_TRANSLATED
         translation_codes = [l.code for l in other_languages]
         translation_subjects = []
         order_by = TEXT_ASC
         show_similar = False
     translation_languages = Language.objects.filter(code__in=translation_codes)
+    """
     project_site = project_site_id and Site.objects.get(pk=project_site_id) or None
     print 'project_site: ', project_site
+    """
 
     apply_filter = goto = '' 
     post = request.POST
@@ -1171,6 +1237,88 @@ def string_view(request, string_id):
             data = form.cleaned_data
             print 'data: ', data
             string_types = data['string_types']
+            """
+            project_site = data['project_site']
+            project_site_id = project_site and project_site.id or ''
+            """
+            translation_state = int(data['translation_state'])
+            translation_languages = data['translation_languages']
+            translation_codes = [l.code for l in translation_languages]
+            order_by = int(data['order_by'])
+            show_similar = data['show_similar']
+        else:
+            print 'error', form.errors
+    """
+    print 'project_site: ', project_site
+    string_context['project_site'] = project_site_id
+    """
+    string_context['string_types'] = string_types
+    string_context['translation_state'] = translation_state
+    string_context['translation_codes'] = translation_codes
+    string_context['order_by'] = order_by
+    string_context['show_similar'] = show_similar
+    request.session['string_context'] = string_context
+    if goto:
+        return HttpResponseRedirect('/string/%d/' % string.id)        
+    """
+    n, first, last, previous, next = string.get_navigation(string_types=string_types, site=project_site, translation_state=translation_state, translation_codes=translation_codes, order_by=order_by)
+    """
+    n, first, last, previous, next = string.get_navigation(string_types=string_types, translation_state=translation_state, translation_codes=translation_codes, order_by=order_by)
+    var_dict['n'] = n
+    var_dict['first'] = first
+    var_dict['previous'] = previous
+    var_dict['next'] = next
+    var_dict['last'] = last
+    var_dict['translations'] = string.get_translations()
+    var_dict['similar_strings'] = show_similar and find_like_strings(string, max_strings=10) or []
+    """
+    var_dict['sequencer_form'] = StringSequencerForm(initial={'string_types': string_types, 'project_site': project_site, 'translation_state': translation_state, 'translation_languages': translation_languages, 'order_by': order_by, 'show_similar': show_similar})
+    """
+    var_dict['sequencer_form'] = StringSequencerForm(initial={'string_types': string_types, 'translation_state': translation_state, 'translation_languages': translation_languages, 'order_by': order_by, 'show_similar': show_similar})
+    return render_to_response('string_view.html', var_dict, context_instance=RequestContext(request))
+
+def segment_view(request, segment_id):
+    if not request.user.is_superuser:
+        return empty_page(request);
+    print ('segment_view: ', segment_id)
+    var_dict = {}
+    var_dict['segment'] = segment = get_object_or_404(Segment, pk=segment_id)
+    var_dict['source_language'] = source_language = segment.language
+    var_dict['other_languages'] = other_languages = source_language.get_other_languages()
+    print ('languages: ', source_language, other_languages)
+
+    SegmentSequencerForm.base_fields['translation_languages'].queryset = other_languages
+    segment_context = request.session.get('segment_context', {})
+    if segment_context:
+        project_site_id = segment_context.get('project_site', None)
+        translation_state = segment_context.get('translation_state', TO_BE_TRANSLATED)
+        translation_codes = segment_context.get('translation_codes', [l.code for l in other_languages])
+        translation_subjects = segment_context.get('translation_subjects', [])
+        order_by = segment_context.get('order_by', TEXT_ASC)
+        show_similar = segment_context.get('show_similar', False)
+    else:
+        project_site_id = segment.site.id
+        translation_state = TO_BE_TRANSLATED
+        translation_codes = [l.code for l in other_languages]
+        translation_subjects = []
+        order_by = TEXT_ASC
+        show_similar = False
+    translation_languages = Language.objects.filter(code__in=translation_codes)
+    project_site = project_site_id and Site.objects.get(pk=project_site_id) or None
+
+    apply_filter = goto = '' 
+    post = request.POST
+    if post:
+        apply_filter = post.get('apply_filter', '')
+        if not (apply_filter):
+            for key in post.keys():
+                if key.startswith('goto-'):
+                    goto = int(key.split('-')[1])
+                    segment = get_object_or_404(Segment, pk=goto)
+        # if (apply_filter or goto):
+        form = SegmentSequencerForm(post)
+        if form.is_valid():
+            data = form.cleaned_data
             project_site = data['project_site']
             project_site_id = project_site and project_site.id or ''
             translation_state = int(data['translation_state'])
@@ -1181,27 +1329,26 @@ def string_view(request, string_id):
         else:
             print 'error', form.errors
     print 'project_site: ', project_site
-    string_context['string_types'] = string_types
-    string_context['translation_state'] = translation_state
-    string_context['translation_codes'] = translation_codes
-    string_context['project_site'] = project_site_id
-    # string_context['translation_subjects'] = translation_subjects
-    string_context['order_by'] = order_by
-    string_context['show_similar'] = show_similar
-    request.session['string_context'] = string_context
+    segment_context['translation_state'] = translation_state
+    segment_context['translation_codes'] = translation_codes
+    segment_context['project_site'] = project_site_id
+    segment_context['order_by'] = order_by
+    segment_context['show_similar'] = show_similar
+    request.session['segment_context'] = segment_context
     if goto:
-        return HttpResponseRedirect('/string/%d/' % string.id)        
-    # previous, next = string.get_navigation(string_types=string_types, translation_state=translation_state, translation_codes=translation_codes, order_by=order_by)
-    n, first, last, previous, next = string.get_navigation(string_types=string_types, site=project_site, translation_state=translation_state, translation_codes=translation_codes, order_by=order_by)
+        return HttpResponseRedirect('/segment/%d/' % segment.id)        
+    n, first, last, previous, next = segment.get_navigation(site=project_site, translation_state=translation_state, translation_languages=translation_languages, order_by=order_by)
     var_dict['n'] = n
     var_dict['first'] = first
     var_dict['previous'] = previous
     var_dict['next'] = next
     var_dict['last'] = last
-    var_dict['translations'] = string.get_translations()
-    var_dict['similar_strings'] = show_similar and find_like_strings(string, max_strings=10) or []
-    var_dict['sequencer_form'] = StringSequencerForm(initial={'string_types': string_types, 'project_site': project_site, 'translation_state': translation_state, 'translation_languages': translation_languages, 'order_by': order_by, 'show_similar': show_similar})
-    return render_to_response('string_view.html', var_dict, context_instance=RequestContext(request))
+    var_dict['translations'] = segment.get_translations()
+    var_dict['similar_segments'] = show_similar and find_like_segments(segment, max_segments=10) or []
+    var_dict['sequencer_form'] = SegmentSequencerForm(initial={'project_site': project_site, 'translation_state': translation_state, 'translation_languages': translation_languages, 'order_by': order_by, 'show_similar': show_similar})
+    var_dict['TRANSLATION_TYPE_DICT'] = TRANSLATION_TYPE_DICT
+    var_dict['ROLE_DICT'] = ROLE_DICT
+    return render_to_response('segment_view.html', var_dict, context_instance=RequestContext(request))
 
 def string_edit(request, string_id=None, language_code='', proxy_slug=''):
     user = request.user
@@ -1391,6 +1538,104 @@ def string_translate(request, string_id, target_code):
     var_dict['translation_service_form'] = translation_service_form
     return render_to_response('string_translate.html', var_dict, context_instance=RequestContext(request))
 
+def segment_translate(request, segment_id, target_code):
+    if not request.user.is_superuser:
+        return empty_page(request);
+    var_dict = {}
+    var_dict['segment'] = segment = get_object_or_404(Segment, pk=segment_id)
+    var_dict['source_language'] = source_language = segment.language
+    var_dict['target_code'] = target_code
+    var_dict['target_language'] = target_language = Language.objects.get(code=target_code)
+    translation_codes = [target_code]
+    translation_languages = Language.objects.filter(code=target_code)
+
+    SegmentSequencerForm.base_fields['translation_languages'].queryset = translation_languages
+
+    segment_context = request.session.get('segment_context', {})
+    if segment_context:
+        translation_state = segment_context.get('translation_state', TO_BE_TRANSLATED)
+        translation_codes = segment_context.get('translation_codes', [target_code])
+        translation_services = segment_context.get('translation_services', [])
+        translation_subjects = segment_context.get('translation_subjects', [])
+        order_by = segment_context.get('order_by', TEXT_ASC)
+        show_similar = segment_context.get('show_similar', False)
+    else:
+        translation_state = TO_BE_TRANSLATED
+        translation_codes = [target_code]
+        translation_services = []
+        translation_subjects = []
+        order_by = TEXT_ASC
+        show_similar = False
+
+    translation_form = SegmentTranslationForm()
+    translation_service_form = TranslationServiceForm()
+    apply_filter = goto = save_translation = '' 
+    post = request.POST
+    if post:
+        apply_filter = post.get('apply_filter', '')
+        ask_service = post.get('ask_service', '')
+        if not (apply_filter or ask_service):
+            for key in post.keys():
+                if key.startswith('goto-'):
+                    goto = int(key.split('-')[1])
+                    segment = get_object_or_404(Segment, pk=goto)
+                elif key.startswith('save-'):
+                    save_translation = key.split('-')[1]
+        if ask_service:
+            translation_service_form = TranslationServiceForm(request.POST)
+            if translation_service_form.is_valid():
+                data = translation_service_form.cleaned_data
+                translation_services = data['translation_services']
+                if str(MYMEMORY) in translation_services:
+                    langpair = '%s|%s' % (source_language.code, target_code)
+                    status, translatedText, external_translations = ask_mymemory(segment.text, langpair)
+                    var_dict['external_translations'] = external_translations
+                    var_dict['translation_service'] = TRANSLATION_SERVICE_DICT[MYMEMORY]
+            else:
+                print 'error', translation_service_form.errors
+            translation_form = SegmentTranslationForm()
+        elif save_translation:
+            translation_form = SegmentTranslationForm(request.POST)
+            if translation_form.is_valid():
+                data = translation_form.cleaned_data
+                print data
+                translation_text = data['translation']
+                translationt = get_or_add_translation(request, segment, translation_text, target_language)
+            else:
+                print 'error', translation_form.errors
+                return render_to_response('segment_translate.html', {'translation_form': translation_form,}, context_instance=RequestContext(request))
+            translation_service_form = TranslationServiceForm()
+        else: # apply_filter
+            form = SegmentSequencerForm(post)
+            if form.is_valid():
+                data = form.cleaned_data
+                translation_state = int(data['translation_state'])
+                translation_languages = data['translation_languages']
+                translation_codes = [l.code for l in translation_languages]
+                order_by = int(data['order_by'])
+                show_similar = data['show_similar']
+    segment_context['translation_state'] = translation_state
+    segment_context['translation_codes'] = translation_codes
+    segment_context['order_by'] = order_by
+    segment_context['show_similar'] = show_similar
+    request.session['segment_context'] = segment_context
+    if goto:
+        return HttpResponseRedirect('/segment_translate/%d/%s/' % (segment.id, target_code))
+    n, first, last, previous, next = segment.get_navigation(translation_state=translation_state, translation_languages=translation_languages, order_by=order_by)
+    var_dict['n'] = n
+    var_dict['first'] = first
+    var_dict['previous'] = previous
+    var_dict['next'] = next
+    var_dict['last'] = last
+    var_dict['similar_segments'] = show_similar and find_like_segments(segment, translation_languages=[target_language], with_translations=True, max_segments=10) or []
+    var_dict['translations'] = segment.get_translations()
+    var_dict['sequencer_form'] = SegmentSequencerForm(initial={'translation_state': translation_state, 'translation_languages': translation_languages, 'order_by': order_by, 'show_similar': show_similar})
+    var_dict['translation_form'] = SegmentTranslationForm()
+    var_dict['translation_service_form'] = translation_service_form
+    var_dict['TRANSLATION_TYPE_DICT'] = TRANSLATION_TYPE_DICT
+    var_dict['ROLE_DICT'] = ROLE_DICT
+    return render_to_response('segment_translate.html', var_dict, context_instance=RequestContext(request))
+
 def raw_tokens(text, language_code):
     tokens = re.split(" |\'", text)
     raw_tokens = []
@@ -1470,9 +1715,51 @@ def find_like_strings(source_string, translation_languages=[], with_translations
     like_strings.sort(key=lambda x: x[0], reverse=True)
     return like_strings[:max_strings]
 
+def find_like_segments(source_segment, translation_languages=[], with_translations=False, min_chars=3, max_segments=10, min_score=0.4):
+    """
+    source_segment is an object of type Segment; we look for similar segments of the same language
+    first we use fuzzy search, then we find segments containing some of the same tokens
+    """
+    min_chars_times_10 = min_chars*10
+    language = source_segment.language
+    language_code = language.code
+    hits = source_segment.more_like_this(target_languages=translation_languages, limit=max_segments)
+    if not hits.count():
+        return []
+    source_tokens = filtered_tokens(source_segment.text, language_code, truncate=True, min_chars=min_chars)
+    source_set = set(source_tokens)
+    like_segments = []
+    for segment in hits:
+        if with_translations:
+            translations = segment.get_translations(target_language=translation_languages)
+        text = segment.text
+        tokens = raw_tokens(text, language_code)
+        l = len(tokens)
+        tokens = filtered_tokens(text, language_code, tokens=tokens, truncate=True, min_chars=min_chars)
+        l = float(len(source_tokens) + l + len(tokens))/3
+        like_set = set(tokens)
+        i = len(like_set.intersection(source_set))
+        if not i:
+            continue
+        """ core  formula """
+        similarity_score = float(i * sqrt(i)) / sqrt(l)
+        # print similarity_score, text
+        """ add a small pseudo-random element to compensate for the bias in the results of more_like_this """
+        correction = float(len(text) % min_chars) / min_chars_times_10
+        similarity_score += correction
+        if similarity_score < min_score:
+            continue
+        if with_translations:
+            like_segments.append([similarity_score, segment, translations])
+        else:
+            like_segments.append([similarity_score, segment])
+    like_segments.sort(key=lambda x: x[0], reverse=True)
+    return like_segments
+
 def strings_translations(request, proxy_slug=None, state=None):
     """
     list translations from source language (code) to target language (code)
+    NOW REPLACED BY function list_segments
     """
     if not request.user.is_superuser:
         return empty_page(request);
@@ -1687,7 +1974,9 @@ def list_segments(request, proxy_slug=None, state=None):
                     for string in translations:
                         string.delete()
                 """
-                # translations = segment.get_translations(target_languages=target_language)
+                translations = segment.get_translations(target_language=target_language)
+                for translation in translations:
+                    translation.delete()
         elif post.get('make-invariant', ''):
             selection = post.getlist('selection')
             print 'make-invariant', selection
@@ -1703,20 +1992,21 @@ def list_segments(request, proxy_slug=None, state=None):
                         string.delete()
                     txu.delete()
                 """
+                segment.is_invariant = True
+                segment.save()
         elif post.get('toggle-invariant', ''):
             selection = post.getlist('selection')
             print 'toggle-invariant', selection
             for segment_id in selection:
-                segment = Segment.objects.get(pk=int(string_id))
-                if segment.invariant:
-                    segment.invariant = False
-                    segment.save()
+                segment = Segment.objects.get(pk=int(segment_id))
+                if segment.is_invariant:
+                    segment.is_invariant = False
                     print 'True-> False'
                 # elif not string.txu:
                 else:
-                    segment.invariant = True
-                    segment.save()
+                    segment.is_invariant = True
                     print 'False-> True'
+                segment.save()
         elif form.is_valid():
             data = form.cleaned_data
             tm_edit_context['translation_state'] = translation_state = int(data['translation_state'])
@@ -1758,7 +2048,7 @@ def list_segments(request, proxy_slug=None, state=None):
     if source_text_filter:
         qs = qs.filter(text__icontains=source_text_filter)
     if target_text_filter:
-        qs = qs.filter(translation_segment__text__icontains=target_text_filter)
+        qs = qs.filter(segment_translation__text__icontains=target_text_filter)
     qs = qs.order_by('text')
     segment_count = qs.count()
     var_dict['segment_count'] = segment_count
@@ -2127,10 +2417,10 @@ def find_segments(source_languages=[], target_languages=[], translated=None, sit
             qs = qs.all()
     elif translated: # translated = True
         if target_languages:
-            qs = qs.filter(translation_segment__language_id__in=target_codes).distinct()
+            qs = qs.filter(segment_translation__language_id__in=target_codes).distinct()
     else: # translated = False
         if target_languages:
-            qs = qs.exclude(translation_segment__language_id__in=target_codes).distinct()
+            qs = qs.exclude(segment_translation__language_id__in=target_codes).distinct()
     if order_by is None:
         qs = qs.order_by('language', 'text')
     elif order_by:

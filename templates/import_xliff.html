@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% load staticfiles i18n %}
+
+{% block head_title %}{% trans "import translations from XLIFF file for proxy"|capfirst %} {{ proxy.name }}{% endblock %}
+
+{% block extra_head %}
+<style>
+</style>
+{% endblock %}
+
+{% block title-page %}{% trans "import translations from XLIFF file for proxy"|capfirst %} {{ proxy.name }}{% endblock %}
+
+{% block content-page %}
+
+<form action="/import_xliff/{{ proxy.slug }}/" method="post" id="import-xliff-form" enctype="multipart/form-data">{% csrf_token %}
+
+<fieldset>
+{% for field in form.hidden_fields %}{{ field }}{% endfor %}
+<fieldset>
+{% for field in form.visible_fields %}
+    <div class="form-group">
+      <label for="{{ field.name }}" {% if field.field.required %}class="required"{% endif %}>{{ field.label|capfirst}}</label>
+      <span class="txt-error">{{ field.errors }}</span>{{ field }}
+      {% if field.help_text %}<small id="{{ field.name }}helpBlock" class="help-block">{{ field.help_text }}</small>{% endif %}
+    </div>
+{% endfor %}
+</fieldset>
+
+ <div>
+	<input type="submit" name="import" class="btn btn-sm" value="Import"> &nbsp;&nbsp;
+	<input type="submit" name="cancel" class="btn btn-sm" value="Cancel"> &nbsp;&nbsp;
+</div>
+</fieldset>
+
+</form>
+ 
+{% endblock %}

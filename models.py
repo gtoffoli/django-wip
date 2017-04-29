@@ -401,18 +401,28 @@ class Site(models.Model):
 
     def add_fragment(self, text, path='', reliability=5):
         added = False
+        """
         strings = String.objects.filter(text=text, language=self.language, site=self)
         if strings:
             string = strings[0]
         else:
-            # string = String(text=text, language=self.language, txu=None, site=self, path=path, reliability=reliability, is_fragment=True)
             string = String(text=text, string_type=FRAGMENT, site=self, language=self.language, txu=None, path=path, reliability=reliability)
             string.save()
             added = True
         return string, added
+        """
+        segments = Segment.objects.filter(text=text, language=self.language, site=self)
+        if segments:
+            segment = segments[0]
+        else:
+            segment = Segment(text=text, is_fragment=True, site=self, language=self.language)
+            segment.save()
+            added = True
+        return segment, added
 
     def get_segments(self, translation_state=ANY):
-        return String.objects.filter(site=self, language=self.language, string_type=SEGMENT)
+        # return String.objects.filter(site=self, language=self.language, string_type=SEGMENT)
+        return Segment.objects.filter(site=self, language=self.language)
     
     def get_segment_count(self):
         return len(self.get_segments(translation_state=ANY))
@@ -491,18 +501,44 @@ class Proxy(models.Model):
                 blocks.append(block)
         return blocks
 
+    """
     def import_translations(self, file, request=None):
         user_id = request and request.user.id or 1
+        reliability = 5
+        target_code = target_language.code
+    """
+    def import_translations(self, xliff_file, request=None, user_role=None):
+        if not user_role:
+            pass # ma dovrebbe essere specificato 
         site = self.site
         source_language = site.language
         target_language = self.language
-        target_code = target_language.code
-        reliability = 5
-        tree = etree.iterparse(file)
-        m = n = 0
+        source_code = source_language.code.split('-')[0]
+        target_code = target_language.code.split('-')[0]
+        print (source_code, target_code)
+        status = { 'found': 0, 'imported': 0 }
+        tree = etree.iterparse(xliff_file, events=("start", "end"))
         for action, elem in tree:
-            # print("--- %s: %s | %s | %s" % (action, elem.tag, elem.text, elem.tail))
             tag = elem.tag
+            if tag.count('{') and tag.count('}'):
+                tag = tag.split('}')[1]
+            # if action == 'start' and 
+            print(action, tag)
+            if tag=='xliff' and action=='start':
+                xliff_version = elem.get('version')
+                status['version'] = xliff_version
+            elif tag=='file' and action=='start':
+                xliff_source_language = elem.get('source-language')
+                xliff_target_language = elem.get('target-language')
+                print ('source and target languages: ', xliff_source_language, xliff_target_language)
+                if not elem.get('source-language').split('-')[0]==source_code:
+                    status['error'] = "source language doesn't match"
+                    break
+                elif not elem.get('target-language').split('-')[0]==target_code:
+                    status['error'] = "target language doesn't match"
+                    break
+            elif action=='start':
+                continue
             text = elem.text
             if tag.endswith('source') and not tag.endswith('seg-source'):
                 source = text
@@ -517,8 +553,11 @@ class Proxy(models.Model):
                 else:
                     target = mrk_text
             elif tag.endswith('trans-unit'):
-                m += 1
+                if not source or not target:
+                    continue
+                status['found'] += 1
                 sys.stdout.write('.')
+                """
                 qs = String.objects.filter(text=source, language=source_language, site=site)
                 print qs.count()
                 if target_code == 'en':
@@ -546,14 +585,27 @@ class Proxy(models.Model):
                     source_string.save()
                 target_string = String(text=target, language=target_language, site=site, txu=txu, reliability=reliability)
                 target_string.save()
-                n += 1
+                """
+
+                """
+                segment, created = Segment.objects.get_or_create(text=source, language=source_language, site=site)
+                translation, created = Translation.objects.get_or_create(segment=segment, text=target, language=target_language, translation_type=MANUAL, user_role=user_role)
+                if created:
+                    status['imported'] += 1
+                """
+                try:
+                    segment = Segment.objects.get(text=source, language=source_language, site=site)
+                    translation = Translation.objects.get(segment=segment, text=target, language=target_language)
+                except:
+                    status['imported'] += 1
                 sys.stdout.write('+')
-        return m, n
+        return status
 
     def apply_translation_memory(self):
         # string_matcher = StringMatcher()
         site = self.site
         site_invariants = text_to_list(site.invariant_words)
+        source_language = site.language
         source_code = site.language_id
         target_language = self.language
         target_code = target_language.code
@@ -564,12 +616,6 @@ class Proxy(models.Model):
         n_partially = 0
         n_translated = 0
         if blocks_ready:
-            """
-            srx_filepath = os.path.join(RESOURCES_ROOT, 'segment.srx')
-            srx_rules = srx_segmenter.parse(srx_filepath)
-            italian_rules = srx_rules['Italian']
-            segmenter = srx_segmenter.SrxSegmenter(italian_rules)
-            """
             segmenter = site.make_segmenter()
         for block in blocks_ready:
             translated_block = block.get_last_translation(language=target_language)
@@ -593,13 +639,20 @@ class Proxy(models.Model):
                     ok_segments +=1
                     logger.info('block: %d invariant segment : %s' % (block.id, segment))
                     continue
+                """
                 if String.objects.filter(invariant=True, language_id=source_code, site=site, text=segment):
+                    ok_segments +=1
+                    logger.info('block: %d invariant string, segment : %s' % (block.id, segment))
+                    continue
+                """
+                if Segment.objects.filter(is_invariant=True, language=source_language, site=site, text=segment):
                     ok_segments +=1
                     logger.info('block: %d invariant string, segment : %s' % (block.id, segment))
                     continue
                 translated_segment = None
                 # matches = String.objects.filter(text__iexact=segment, txu__string__language_id__in=target_codes).distinct()
                 # matches = String.objects.filter(text=segment.upper(), txu__string__language_id=target_code).distinct().order_by('-reliability')
+                """
                 matches = String.objects.filter(text=segment, txu__string__language_id=target_code).distinct().order_by('-reliability')
                 n_matches = matches.count()
                 if n_matches:
@@ -609,11 +662,17 @@ class Proxy(models.Model):
                     translations = String.objects.filter(language=target_language, txu=match.txu)
                     if translations.count() == 1:
                         translated_segment = translations[0].text
+                """
+                translations = Translation.objects.filter(language=target_language, segment__site=site, segment__language=source_language, segment__text=segment).distinct().order_by('-translation_type', 'user_role__role_type', 'user_role__level')
+                if translations:
+                    translation = translations[0]
+                    """ add here some test on reliability """
+                    translated_segment = translations.text
                 else:
                     translated = False
                     if not segment.startswith('Home'):
                         logger.info('block: %d , n_matches: %d ,  segment: -%s-' % (block.id, n_matches, repr(segment)))
-                """
+                """ > vecchio: rivedere ?
                 elif len(words) == 1:
                     # matches = String.objects.filter(text__istartswith=segment, txu__string__language_id__in=target_codes).distinct()
                     matches = String.objects.filter(text__istartswith=segment, txu__string__language_id=target_code).distinct()
@@ -640,16 +699,11 @@ class Proxy(models.Model):
                                 if top_count > second_count and top_count >= matches_count/2:
                                     translated_segment = top_word
                                     print 'fuzzy'
-                """
+                < """
                 if translated_segment:
                     if segment[0].isupper() and translated_segment[0].islower():
                         translated_segment = translated_segment[0].upper() + translated_segment[1:]
                     count = body.count(segment)
-                    """
-                    if body.count(segment) == 1:
-                        body = body.replace(segment, '<span tx auto>%s</span>' % translated_segment)
-                        continue
-                    """
                     replaced = False
                     if count:
                         l_body = len(body)
@@ -667,7 +721,7 @@ class Proxy(models.Model):
                             break
                     if replaced:
                         continue
-                    """
+                    """  > vecchio: rivedere ?
                     if len(segments)==1 and not block.children.exists():
                         translated_element = html.fromstring(body)
                         replace_element_content(translated_element, translated_segment, tag='span', attrs={'tx':'', 'fuzzy':'',})
@@ -675,7 +729,7 @@ class Proxy(models.Model):
                         body = element_tostring(translated_element)
                         n_substitutions += 1
                         continue
-                    """
+                    < """
                     replaced = replace_segment(body, segment)
                     if replaced:
                         body = replaced
@@ -757,12 +811,23 @@ class Proxy(models.Model):
             see: https://www.safaribooksonline.com/library/view/python-cookbook-2nd/0596007973/ch01s19.html """
         site = self.site
         language = self.language
-        # qs = String.objects.filter(site=site, language=site.language, is_fragment=True, txu__string__language=self.language)
+        """
         qs = String.objects.filter(string_type=FRAGMENT, site=site, language=site.language, txu__string__language=self.language)
         # see: http://stackoverflow.com/questions/15465858/django-reverse-to-contains-icontains
         qs = qs.extra(where=['''%s LIKE wip_string.path'''], params=(path,),)
         if qs.count():
             adict = dict([[s.text, String.objects.filter(txu=s.txu, language=language)[0].text] for s in qs])
+        """
+        qs = Segment.objects.filter(is_fragment=True, site=site, language=site.language, segment__language=language)
+        # see: http://stackoverflow.com/questions/15465858/django-reverse-to-contains-icontains
+        """ > but the "path" field is missing in the Segment class !!!
+        qs = qs.extra(where=['''%s LIKE wip_string.path'''], params=(path,),)
+        > """
+        if qs.count():
+            adict = {}
+            for segment in qs:
+                translation = segment.get_language_translations(language)[0]
+                adict[segment.text] = translation.text
             rx = re.compile('|'.join(map(re.escape, adict)))
             def one_xlat(match):
                 return adict[match.group(0)]
@@ -1495,7 +1560,8 @@ class Block(node_factory('BlockEdge')):
                 return False
             if not non_invariant_words(segment.split(), site_invariants=site_invariants):
                 continue
-            matches = String.objects.filter(site=self.site, text=segment, invariant=True)
+            # matches = String.objects.filter(site=self.site, text=segment, invariant=True)
+            matches = Segment.objects.filter(site=self.site, text=segment, is_invariant=True)
             if not matches:
                 invariant = False
                 break
@@ -1778,7 +1844,8 @@ def segments_from_string(string, site, segmenter, exclude_TM_invariants=True):
                 continue
         """ REMOVE SEGMENT MATCHING SITE-ASSOCIATED INVARIANT STRINGS IN THE TM """
         if exclude_TM_invariants:
-            if String.objects.filter(site=site, language=site.language, text=s, invariant=True).count():
+            # if String.objects.filter(site=site, language=site.language, text=s, invariant=True).count():
+            if Segment.objects.filter(site=site, language=site.language, text=s, is_invariant=True).count():
                 continue
         filtered.append(s)
     return filtered
@@ -1867,6 +1934,7 @@ ROLE_TYPE_CHOICES = (
     (GUEST,  _('Guest'),),
 )
 ROLE_TYPE_DICT = dict(ROLE_TYPE_CHOICES)
+ROLE_DICT = { OWNER: 'O', MANAGER: 'M', LINGUIST: 'L', REVISOR: 'R', TRANSLATOR: 'T', GUEST: 'G' }
 
 class UserRole(models.Model):
     user = models.ForeignKey(User, verbose_name='role owner', related_name='role_user', help_text='whom this role was granted')
@@ -1910,17 +1978,86 @@ class Segment(models.Model):
     is_comment_settled = models.BooleanField('comment is settled', default=False)
     created = CreationDateTimeField(verbose_name='creation date')
 
-    def get_translations(self, target_languages=[]):
-        if not target_languages:
-            target_languages = Language.objects.exclude(code=self.language.code).distinct().order_by('code')
-        translations = []
+    class Meta:
+        verbose_name = _('segment')
+        verbose_name_plural = _('segments')
+
+    def __unicode__(self):
+        return self.text
+
+    def more_like_this(self, target_languages=[], limit=5):
+        """ to be redone with pg_trg """
+        qs = Segment.objects.filter(text=self.text)
+        if target_languages:
+            qs = qs.filter(segment_translation__language__in=target_languages)
+        if limit:
+            qs = qs[:limit]
+        return qs
+
+    def get_translations(self, target_language=[]):
+        if not isinstance(target_language, (list, tuple)):
+            return Translation.objects.filter(segment=self, language=target_language)
+        source_language = self.language
+        target_languages = target_language or [l for l in Language.objects.all().order_by('code') if not l==source_language]
+        has_translations = False
+        language_translations = []
         for language in target_languages:
-            target_translations = Translation.objects.filter(segment=self, language=language)
-            if target_translations:
+            translations = Translation.objects.filter(segment=self, language=language)
+            if translations:
                 has_translations = True
-                translations.append([language, target_translations])
-        print has_translations, len(translations)
-        return has_translations and translations or []
+                language_translations.append([language, translations])
+        # print has_translations, len(language_translations)
+        return has_translations and language_translations or []
+
+    def get_language_translations(self, target_language):
+        return Translation.objects.filter(segment=self, language=target_language).order_by('-translation_type', 'user_role__role_type', 'user_role__level')
+
+    def get_navigation(self, site=None, translation_state='', translation_languages=[], order_by=TEXT_ASC):
+        text = self.text
+        created = self.created
+        qs = Segment.objects.filter(language=self.language)
+        if site:
+            qs = qs.filter(site=site)
+        if translation_state == INVARIANT:
+            qs = qs.filter(is_invariant=True)
+        elif translation_state == TRANSLATED:
+            qs = qs.exclude(is_invariant=True)
+            qs = qs.filter(segment_translation__language__in=translation_languages)
+        elif translation_state == TO_BE_TRANSLATED:
+            qs = qs.exclude(is_invariant=True)
+            qs = qs.exclude(segment_translation__language__in=translation_languages)
+        first = last = previous = next = None
+        n = qs.count()
+        print n, order_by, TEXT_ASC, order_by == TEXT_ASC, 1 == 1
+        if n:
+            if order_by == TEXT_ASC:
+                qs = qs.order_by('text')
+                qs_before = qs.filter(text__lt=text).order_by('-text')
+                qs_after = qs.filter(text__gt=text).order_by('text')
+                print order_by, qs_before.count()
+            elif order_by == ID_ASC:
+                qs = qs.order_by('id')
+                qs_before = qs.filter(id__lt=id).order_by('-id')
+                qs_after = qs.filter(id__gt=id).order_by('id')
+                print order_by, qs_before.count()
+            elif order_by == DATETIME_ASC:
+                qs = qs.order_by('created')
+                qs_before = qs.filter(created__lt=created).order_by('-created')
+                qs_after = qs.filter(created__gt=created).order_by('created')
+                print order_by, qs_before.count()
+            elif order_by == DATETIME_DESC:
+                qs = qs.order_by('-created')
+                qs_before = qs.filter(created__gt=created).order_by('created')
+                qs_after = qs.filter(created__lt=created).order_by('-created')
+                print order_by, qs_before.count()
+            previous = qs_before.count() and qs_before[0] or None
+            next = qs_after.count() and qs_after[0] or None
+            first = qs[0]
+            first = not first.id==id or None
+            last = qs.reverse()[0]
+            last = not last.id==id or None
+        # return previous, next
+        return n, first, last, previous, next
 
 TM = 1
 MT = 2
@@ -1944,7 +2081,7 @@ class TranslationSource(models.Model):
     source_type = models.IntegerField(choices=TRANSLATION_SOURCE_TYPE_CHOICES, verbose_name='translation source type')
 
 class Translation(models.Model):
-    segment = models.ForeignKey(Segment, verbose_name='source segment', related_name='translation_segment')
+    segment = models.ForeignKey(Segment, verbose_name='source segment', related_name='segment_translation')
     language = models.ForeignKey(Language, verbose_name='target language')
     text = models.TextField('translation of plain text', blank=True, null=True)
     html = models.TextField('translation of the original text with tags', blank=True, null=True)

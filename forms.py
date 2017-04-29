@@ -4,6 +4,7 @@ Created on 08/feb/2016
 '''
 
 from django import forms
+from django.utils.translation import ugettext_lazy as _, string_concat
 from django.contrib.auth.models import User
 from models import Site, String
 from models import UserRole
@@ -56,6 +57,14 @@ class StringSequencerForm(forms.Form):
     order_by = forms.ChoiceField(required=False, choices=STRING_SORT_CHOICES, label="Sort order", widget=forms.Select(attrs={ 'style': 'width: auto; height: 2em;', }))
     show_similar = forms.BooleanField(required=False, label='Show similar', widget=forms.CheckboxInput(attrs={'onchange': 'javascript: this.form.submit()',}))
 
+class SegmentSequencerForm(forms.Form):
+    # string_types = forms.MultipleChoiceField(required=False, choices=STRING_TYPE_CHOICES, label="String types", widget=forms.SelectMultiple(attrs={ 'style': 'width: auto;', 'size': 4, 'onchange': 'javascript: this.form.submit()', }))
+    project_site = forms.ModelChoiceField(required=False, label="Project site", queryset=Site.objects.all(), widget=forms.Select(attrs={'style':'height: 24px;', 'onchange': 'javascript: this.form.submit()',}))
+    translation_state = forms.ChoiceField(required=False, choices=STRING_TRANSLATION_STATE_CHOICES, label="Translation state", widget=forms.Select(attrs={ 'style': 'width: auto; height: 2em;', 'onchange': 'javascript: this.form.submit()', }))
+    translation_languages = forms.ModelMultipleChoiceField(required=False, queryset=Language.objects.all(), label="Target languages", widget=forms.SelectMultiple(attrs={ 'style': 'width: auto;', 'size': 3, 'onchange': 'javascript: this.form.submit()', }))
+    order_by = forms.ChoiceField(required=False, choices=STRING_SORT_CHOICES, label="Sort order", widget=forms.Select(attrs={ 'style': 'width: auto; height: 2em;', }))
+    show_similar = forms.BooleanField(required=False, label='Show similar', widget=forms.CheckboxInput(attrs={'onchange': 'javascript: this.form.submit()',}))
+
 class StringEditForm(forms.ModelForm):
     class Meta:
         model = String
@@ -75,6 +84,10 @@ class StringTranslationForm(forms.Form):
     translation_site = forms.ModelChoiceField(required=True, queryset=Site.objects.all(), widget=forms.Select(attrs={'style':'height: 24px;',}))
     translation_subjects = forms.ModelMultipleChoiceField(required=False, queryset=Subject.objects.exclude(name='').exclude(name__isnull=True).order_by('code'), widget=forms.SelectMultiple(attrs={'size': 3,}))
     same_txu = forms.BooleanField(required=False, label='Add to same TU')
+    show_similar = forms.BooleanField(required=False, label='Show similar', widget=forms.CheckboxInput(attrs={'onchange': 'javascript: this.form.submit()',}))
+
+class SegmentTranslationForm(forms.Form):
+    translation = forms.CharField(required=True, widget=forms.Textarea(attrs={'style': 'width: 100%; height: 60px;'}))
     show_similar = forms.BooleanField(required=False, label='Show similar', widget=forms.CheckboxInput(attrs={'onchange': 'javascript: this.form.submit()',}))
 
 class StringsTranslationsForm(forms.Form):
@@ -125,3 +138,7 @@ class UserRoleEditForm(forms.ModelForm):
     level = forms.IntegerField(required=False, label="Level", widget=forms.TextInput(attrs={'size': 8, 'style': 'width: 50px;',}))
     source_language = forms.ModelChoiceField(required=False, label="Source language", queryset=Language.objects.all(), widget=forms.Select(attrs={'style':'height: 24px;',}))
     target_language = forms.ModelChoiceField(required=False, label="Target language", queryset=Language.objects.all(), widget=forms.Select(attrs={'style':'height: 24px;',}))
+
+class ImportXliffForm(forms.Form):
+    file = forms.FileField(label='Select a file to upload', widget=forms.FileInput(attrs={'accept': '.xlf'}), help_text=_('Usually XLIFF files have the .xlf extension'))
+    user_role = forms.ModelChoiceField(label="User role", queryset=UserRole.objects.all(), widget=forms.Select(attrs={'style':'height: 24px;'}), help_text=_('Choose a user role of the author of the translations in the XLIFF file.'))

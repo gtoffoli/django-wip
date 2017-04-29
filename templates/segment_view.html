@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% load staticfiles i18n %}
+{% load wip_tags %}
+
+{% block extra_head %}
+<style>
+fieldset {
+    border: 1px groove #ddd !important;
+    padding: 0 1.4em 1.4em 1.4em !important;
+    margin: 0 0 1.0em 0 !important;
+    -webkit-box-shadow:  0px 0px 0px 0px #000;
+            box-shadow:  0px 0px 0px 0px #000;
+}
+legend {
+    width: inherit; /* Or auto */
+    padding: 0 10px; /* To give a bit of padding on the left and right */
+    border-bottom:none;
+    font-size: small;
+    font-style: italic;
+}
+label { display: inline; font-weight: bold; margin-right: 1.0em; padding: 0.2em 0em; }
+pre { display: inline;  padding: 0; }
+pre code { display: inline; }
+tr.odd { background: LightGray; }
+tr.even { background: white; }
+.it { color: LimeGreen; }
+.en { color: #FF0088; }
+.es { color: OrangeRed; }
+.fr { color: blue; }   
+th, td { text-align: left; vertical-align: top; }
+</style>
+{% endblock %}
+
+{% block head_title %}Segment: {{ segment.text }}{% endblock %}
+
+{% block title-page %}
+<span style="color: black; font-size: smaller;">Segment: </span>
+<span class="{{ source_language.code }}" style="font-size: smaller;">{{ segment.text|truncatechars:64 }}</span>
+{% comment %}<a href="/segment_edit/{{ segment.id }}/" title="{% trans "show edit view" %}"><i class="fa fa-edit font07em c-white"></i></a>{% endcomment %}
+{% endblock %}
+
+{% block content-page %}
+<form action="/segment/{{ segment.id }}/" method="post">
+	{% csrf_token %}
+
+    <div>
+    <label>id</label>{{ segment.id }} &nbsp;
+    <label>source</label><span class="{{ source_language.code }}">{{ source_language.name }}</span> &nbsp;
+    {% if segment.site %}<label>site</label>{{ segment.site.name }} &nbsp;{% endif %}
+    {% if segment.is_invariant %}<label>invariant</label>True &nbsp;{% endif %}
+	</div>
+    <div><label>text</label>{{ segment.text }}</div>
+	{% if not segment.is_invariant %}
+   	<div>{% for l in other_languages %}
+   	<a class="btn btn-sm" href="/segment_translate/{{ segment.id }}/{{ l.code }}/">Translate to <span class="{{ l.code }}">{{ l }}</span></a>&nbsp;&nbsp;
+   	{% endfor %}</div>
+   	{% endif %}
+
+{% if translations %}
+	<fieldset>
+		<legend>Translations</legend>
+    <table style="width: 100%">
+    <tbody>
+	<tr><th>target</th><th>t-type</th><th>by</th><th style="text-align: left">text</th></tr>
+	{% for l, tt in translations %}
+	{% for t in tt %}{% with ur=t.user_role %}
+    <tr {% comment %}class="{% cycle 'odd' 'even' %}"{% endcomment %}>
+    	<td><a  class="{{ l.code }}" href="/translation/{{ t.id }}">{{ l }}</a></td>
+    	<td>{{ TRANSLATION_TYPE_DICT|lookup:t.translation_type }}</td>
+    	<td>{{ ROLE_DICT|lookup:ur.role_type }}-{{ ur.level }}: {{ ur.user.get_full_name }}</td>
+    	<td>{{ t.text }}</td>
+   	</tr>
+	{% endwith %}{% endfor %}
+	{% endfor %}
+	</tbody>
+	</table>
+	</fieldset>
+{% endif %}
+
+{% if similar_segments %}
+	<fieldset>
+		<legend>Similar segments</legend>
+    <table style="width: 100%; margin-top: 0;">
+    <tbody>
+	{% for score, s in similar_segments %}
+    <tr {% comment %}class="{% cycle 'odd' 'even' %}"{% endcomment %}>
+    	<td colspan=4>{{ score|floatformat:1 }} &nbsp; <a href="/segment/{{ s.id }}/" title="view info" class="{{ source_language.code }}">{{ s.text }}</a></td>
+   	</tr>
+	{% endfor %}
+	</tbody>
+	</table>
+	</fieldset>
+{% endif %}
+
+	<fieldset>
+		<legend>Navigation filters</legend>
+     <div>
+		{% comment %}<input type="submit" name="apply_filter" class="btn btn-sm" value="Apply filter below"> &nbsp;&nbsp;{% endcomment %}
+		{{ n }} segments found{% if n %}:{% endif %}
+		{% if previous %}<input type="submit" name="goto-{{ previous.id }}" class="btn btn-sm" value="Previous">{% endif %}
+		{% if next %}<input type="submit" name="goto-{{ next.id }}" class="btn btn-sm" value="Next">{% endif %}
+    </div>
+    <table><thead>
+    	<tr>{% for field in sequencer_form.visible_fields %}<th>{{ field.label_tag }}</th>{% endfor %}</tr>
+   	</thead><tbody><tr>
+		<td>{{ sequencer_form.project_site }}</td>
+		<td>{{ sequencer_form.translation_state }}</td>
+		<td>{{ sequencer_form.translation_languages }}</td>
+		<td>{{ sequencer_form.order_by }}</td>
+		<td style="text-align: center;">{{ sequencer_form.show_similar }}</td>
+	</tr></tbody></table>    	
+	</fieldset>
+
+</form>
+{% endblock %}

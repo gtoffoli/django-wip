@@ -82,6 +82,10 @@ class Language(CodedEntry):
     class Meta:
         verbose_name = _('language')
         verbose_name_plural = _('languages')
+        
+    def get_other_languages(self):
+        # return [l for l in Language.objects.all().order_by('code') if not l==self]
+        return Language.objects.exclude(code=self.code).order_by('code')
 
 class LanguageAdmin(CodedEntryAdmin):
     pass

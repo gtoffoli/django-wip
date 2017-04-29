@@ -65,7 +65,7 @@ class PageVersionAdmin(admin.ModelAdmin):
 
 class StringAdmin(admin.ModelAdmin):
     fields = ['string_type', 'language', 'text', 'site', 'path', 'invariant', 'reliability', 'user']
-    list_filter = ['language']
+    list_filter = ['string_type', 'language']
     list_display = ['id', 'string_type', 'language', 'text', 'site', 'path', 'invariant', 'reliability', 'txu_link', 'user', 'created', 'modified']
     search_fields = ['text',]
 

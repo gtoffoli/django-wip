@@ -58,7 +58,7 @@
 
   {% if segment_count %}
 <div style="margin-bottom: 0.5em;">
-<a class="btn btn-default btn-sm" href="/string_add_by_proxy/{{ proxy.slug }}/">{% trans "add segments"|capfirst %}</a>
+<a class="btn btn-default btn-sm" href="/segment_add_by_proxy/{{ proxy.slug }}/">{% trans "add segment"|capfirst %}</a>
 <input class="btn btn-default btn-sm" type="submit" name="delete-segment" value="{% trans "delete segment"|capfirst %}">
 <input class="btn btn-default btn-sm" type="submit" name="delete-translation" value="{% trans "delete translation"|capfirst %}">
 <input class="btn btn-default btn-sm" type="submit" name="make-invariant" value="{% trans "make invariant"|capfirst %}">
@@ -170,7 +170,7 @@
     </table>
 
 <div style="margin-bottom: 0.5em;">
-<a class="btn btn-default btn-sm" href="/string_add_by_proxy/{{ proxy.slug }}/">{% trans "add segments"|capfirst %}</a>
+<a class="btn btn-default btn-sm" href="/segment_add_by_proxy/{{ proxy.slug }}/">{% trans "add segment"|capfirst %}</a>
 <input class="btn btn-default btn-sm" type="submit" name="delete-segment" value="{% trans "delete segment"|capfirst %}">
 <input class="btn btn-default btn-sm" type="submit" name="delete-translation" value="{% trans "delete translation"|capfirst %}">
 <input class="btn btn-default btn-sm" type="submit" name="make-invariant" value="{% trans "make invariant"|capfirst %}">
@@ -180,7 +180,7 @@
   {% else %}
     <p>{% trans "no segments were found"|capfirst %}</p>
 <div style="margin-top: 0.5em;">
-<a class="btn btn-default btn-sm" href="/string_add_by_proxy/{{ proxy.slug }}/">{% trans "add source string"|capfirst %}</a>
+<a class="btn btn-default btn-sm" href="/segment_add_by_proxy/{{ proxy.slug }}/">{% trans "add segment"|capfirst %}</a>
 </div>
   {% endif %}
 
