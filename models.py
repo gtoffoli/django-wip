@@ -818,7 +818,8 @@ class Proxy(models.Model):
         if qs.count():
             adict = dict([[s.text, String.objects.filter(txu=s.txu, language=language)[0].text] for s in qs])
         """
-        qs = Segment.objects.filter(is_fragment=True, site=site, language=site.language, segment__language=language)
+        # qs = Segment.objects.filter(is_fragment=True, site=site, language=site.language, segment__language=language)
+        qs = Segment.objects.filter(is_fragment=True, site=site, language=site.language, segment_translation__language=language)
         # see: http://stackoverflow.com/questions/15465858/django-reverse-to-contains-icontains
         """ > but the "path" field is missing in the Segment class !!!
         qs = qs.extra(where=['''%s LIKE wip_string.path'''], params=(path,),)
