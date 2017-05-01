@@ -133,7 +133,7 @@
                       {% for s in translation.1 %}                    
 				  <tr>
                 		<td style="font-size: smaller; vertical-align:top;"><a href="/string/{{ s.id }}/"  class="{{ translation.0.code }}">{{ translation.0.code }}</a></td>
-						<td style="font-size: smaller;">{{ s }}</td>
+						<td style="font-size: smaller;">{{ s.text }}</td>
 						<td></td>
 				  <tr>
               		  {% endfor %}
