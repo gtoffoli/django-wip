@@ -3,6 +3,8 @@
 # converted from the LinearDoc javascript library of the Wikimedia Content translation project
 # https://github.com/wikimedia/mediawiki-services-cxserver/tree/master/lineardoc
 
+from .TextChunk import TextChunk
+from .Utils import esc, getOpenTagHtml, getCloseTagHtml, dumpTags
 
 """
  * A block of annotated inline text
@@ -23,7 +25,7 @@ class TextBlock:
                 'tags': textChunk.tags
                 }
             self.offsets.append(offset)
-            cursor += offset.length
+            cursor += offset['length']
 
     """
     /**
@@ -96,19 +98,19 @@ class TextBlock:
      */
     """
     def translateTags(self, targetText, rangeMappings):
-            # map of { offset: x, textChunks: [...] }
-            emptyTextChunks = {}
-            emptyTextChunkOffsets = []
-            # list of { start: x, length: x, textChunk: x }
-            textChunks = []
-    
+        # map of { offset: x, textChunks: [...] }
+        emptyTextChunks = {}
+        emptyTextChunkOffsets = []
+        # list of { start: x, length: x, textChunk: x }
+        textChunks = []
+
         def pushEmptyTextChunks(offset, chunks):
             for chunk in chunks:
                 textChunks.push({
                     'start': offset,
                     'length': 0,
                     'textChunk': chunk
-                }
+                })
 
         # Create map of empty text chunks, by offset
         for i in range(len(self.textChunks)):
@@ -252,7 +254,7 @@ class TextBlock:
             # Now add text and inline content
             html.push(esc(textChunk.text))
             if textChunk.inlineContent:
-                if textChunk.inlineContent.getHtml:
+                if textChunk.inlineContent.getHtml():
                     # a sub-doc
                     html.push(textChunk.inlineContent.getHtml())
                 else:
@@ -260,7 +262,6 @@ class TextBlock:
                     html.push(getOpenTagHtml(textChunk.inlineContent))
                     html.push(getCloseTagHtml(textChunk.inlineContent))
         # Finally, close any remaining tags
-        for ( j = oldTags.length - 1; j >= 0; j-- )
         for tag in reversed(oldTags):
             html.push(getCloseTagHtml(tag))
         return ''.join(html)
@@ -284,7 +285,7 @@ class TextBlock:
                 currentTextChunks, {
                     'name': 'span',
                     'attributes': {
-                        'class': 'cx-segment',
+                        'klass': 'cx-segment',
                         'data-segmentid': getNextId('segment')
                     }
                 }
@@ -334,31 +335,26 @@ class TextBlock:
      * @param {string} pad Whitespace to indent XML elements
      * @return {string[]} Array that will concatenate to an XML string representation
      */
-    TextBlock.prototype.dumpXmlArray = function ( pad ) {
-        var i, len, chunk, tagsDump, tagsAttr,
-            dump = [];
-        for ( i = 0, len = this.textChunks.length; i < len; i++ ) {
-            chunk = this.textChunks[ i ];
-            tagsDump = Utils.dumpTags( chunk.tags );
-            tagsAttr = tagsDump ? ' tags="' + tagsDump + '"' : '';
-            if ( chunk.text ) {
-                dump.push(
-                    pad + '<cxtextchunk' + tagsAttr + '>' +
-                    Utils.esc( chunk.text ).replace( /\n/g, '&#10;' ) +
-                    '</cxtextchunk>'
-                );
-            }
-            if ( chunk.inlineContent ) {
-                dump.push( pad + '<cxinlineelement' + tagsAttr + '>' );
-                if ( chunk.inlineContent.dumpXmlArray ) {
-                    // sub-doc: concatenate
-                    dump.push.apply( dump, chunk.inlineContent.dumpXmlArray( pad + '  ' ) );
-                } else {
-                    dump.push( pad + '  ' + '<' + chunk.inlineContent.name + '/>' );
-                }
-                dump.push( pad + '</cxinlineelement>' );
-            }
-        }
-        return dump;
-    };
     """
+    def dumpXmlArray(self, pad):
+        dump = []
+        for chunk in self.textChunks:
+            print 'dumpXmlArray - chunk.tags: ', chunk.tags
+            tagsDump = dumpTags(chunk.tags)
+            tagsAttr = tagsDump and ' tags="' + tagsDump + '"' or ''
+            if chunk.text:
+                dump.append(
+                    pad + '<cxtextchunk' + tagsAttr + '>' +
+                    esc(chunk.text).replace('\n', '&#10;') +
+                    '</cxtextchunk>'
+                )
+            if chunk.inlineContent:
+                dump.append(pad + '<cxinlineelement' + tagsAttr + '>')
+                if chunk.inlineContent.dumpXmlArray:
+                    # sub-doc: concatenate
+                    # dump.push.apply( dump, chunk.inlineContent.dumpXmlArray( pad + '  ' ) );
+                    dump.extend(chunk.inlineContent.dumpXmlArray(pad + '  '))
+                else:
+                    dump.append(pad + '  ' + '<' + chunk.inlineContent.name + '/>')
+                dump.append(pad + '</cxinlineelement>')
+        return dump

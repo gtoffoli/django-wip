@@ -21,7 +21,7 @@ def findAll(text, regex, callback):
             break
         boundary = callback(text, match)
         if boundary is not None:
-            boundaries.push(boundary)
+            boundaries.append(boundary)
     return boundaries
 
 """
@@ -66,16 +66,16 @@ def escAttr(string):
  */
 """
 def getOpenTagHtml(tag):
-    html = [ '<' + esc(tag.name)]
+    html = ['<' + esc(tag['name'])]
     attributes = []
-    for attr in tag.attributes:
-        attributes.push(attr)
+    for attr in tag['attributes']:
+        attributes.append(attr)
     attributes.sort()
     for attr in attributes:
-        html.push(' ' + esc(attr) + '="' + escAttr(tag.attributes[attr]) + '"')
+        html.append(' ' + esc(attr) + '="' + escAttr(tag['attributes'][attr]) + '"')
     if tag.isSelfClosing:
-        html.push(' /')
-    html.push('>')
+        html.append(' /')
+    html.append('>')
     return ''.join(html)
 
 """
@@ -89,11 +89,11 @@ def getOpenTagHtml(tag):
 """
 def cloneOpenTag(tag):
     newTag = {
-        'name': tag.name,
+        'name': tag['name'],
         'attributes': {}
     }
-    for attr in tag.attributes:
-        newTag.attributes[attr] = tag.attributes[attr]
+    for attr in tag['attributes']:
+        newTag['attributes'][attr] = tag['attributes'][attr]
     return newTag
 
 """
@@ -108,7 +108,7 @@ def cloneOpenTag(tag):
 def getCloseTagHtml(tag):
     if tag.isSelfClosing:
         return ''
-    return '</' + esc(tag.name) + '>'
+    return '</' + esc(tag['name']) + '>'
 
 """
 /**
@@ -124,10 +124,11 @@ def dumpTags(tagArray):
     if not tagArray:
         return ''
     for tag in tagArray:
+        print 'dumpTags - tag: ', tag
         attrDumps = []
-        for attr in tag.attributes:
-            attrDumps.push(attr + '=' + escAttr(tag.attributes[attr]))
-        tagDumps.push(tag.name + len(attrDumps) and ':' or '' + ','.join(attrDumps))
+        for attr in tag['attributes']:
+            attrDumps.append(attr + '=' + escAttr(tag['attributes'][attr]))
+        tagDumps.append(tag['name'] + (len(attrDumps) and ':' or '') + ','.join(attrDumps))
     if not tagDumps:
         return ''
     return ' '.join(tagDumps)
@@ -140,10 +141,10 @@ def dumpTags(tagArray):
  */
 """
 def isReference(tag):
-    if tag.name=='span' and tag.attributes.typeof=='mw:Extension/ref':
+    if tag['name']=='span' and tag['attributes'].get('typeof', '')=='mw:Extension/ref':
         # See https://www.mediawiki.org/wiki/Parsoid/MediaWiki_DOM_spec#Ref_and_References
         return True
-    elif tag.name=='sup' and tag.attributes.class=='reference':
+    elif tag['name']=='sup' and tag['attributes'].get('klass', '')=='reference':
         # See "cite_reference_link" message of Cite extension
         # https://www.mediawiki.org/wiki/Extension:Cite
         return True
@@ -159,7 +160,7 @@ def isReference(tag):
  */
 """
 def isSegment(tag):
-    return tag.name=='span' and tag.attributes.class=='cx-segment'
+    return tag['name']=='span' and tag['attributes'].get('klass', '')=='cx-segment'
 
 """
 /**

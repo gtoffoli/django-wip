@@ -59,10 +59,13 @@ class LineardocSAXHandler(ContentHandler):
         pass
 
     # def onopentag(self, tag):
-    def startElement(self, tagName, attributes):
+    def startElement(self, tagName, attrs):
+        attributes = {}
+        for name in attrs.getNames():
+            attributes[name] = attrs.getValue(name)
         tag = { 'name': tagName,
                 'attributes': attributes }
-        if self.options.isolateSegments and isSegment(tag):
+        if self.options.get('isolateSegments', None) and isSegment(tag):
             self.builder.pushBlockTag({
                 'name': 'div',
                 'attributes': {
@@ -86,7 +89,7 @@ class LineardocSAXHandler(ContentHandler):
             return
         elif isAnn and self.builder.inlineAnnotationTags:
             tag = self.builder.popInlineAnnotationTag(tagName)
-            if self.options.isolateSegments and isSegment(tag):
+            if self.options.get('isolateSegments', None) and isSegment(tag):
                 self.builder.popBlockTag('div')
         elif isAnn and self.builder.parent:
             # In a sub document: should be a span or sup that closes a reference
@@ -118,8 +121,9 @@ class LineardocSAXHandler(ContentHandler):
         return not blockTags_dict.get(tagName, False)
 
 def Parse(html):
-    builder = Builder()
+    builder = Builder(None, None)
     options = {}
     handler = LineardocSAXHandler(builder, options)
     parseString(html, handler)
-    return # some from builder
+    return builder.doc
+

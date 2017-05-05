@@ -46,7 +46,7 @@ class Doc:
      * @param {Object|string|TextBlock} item Open/close tag, space or text block
     """
     def addItem(self, item_type, item):
-        self.items.push({
+        self.items.append({
             'type': item_type,
             'item': item
         })
@@ -103,7 +103,7 @@ class Doc:
         html = []
 
         if self.wrapperTag:
-            html.push(getOpenTagHtml(self.wrapperTag))
+            html.append(getOpenTagHtml(self.wrapperTag))
 
         for i in self.items:
             item_type = i.type
@@ -114,22 +114,22 @@ class Doc:
 
             if item_type == 'open':
                 tag = item
-                html.push(getOpenTagHtml(tag))
+                html.append(getOpenTagHtml(tag))
             elif item_type == 'close':
-                html.push(getCloseTagHtml(tag))
+                html.append(getCloseTagHtml(tag))
             elif item_type == 'blockspace':
                 space = item
-                html.push(space)
+                html.append(space)
             elif item_type == 'textblock':
                 textblock = item
                 # textblock html list may be quite long, so concatenate now
-                html.push(textblock.getHtml())
+                html.append(textblock.getHtml())
             else:
                 print('Unknown item type at ' + item_type )
                 raise
                 
         if self.wrapperTag:
-            html.push(getCloseTagHtml(self.wrapperTag))
+            html.append(getCloseTagHtml(self.wrapperTag))
 
         return ''.join(html)
 
@@ -141,40 +141,40 @@ class Doc:
         dump = []
 
         if self.wrapperTag:
-            dump.push(pad + '<cxwrapper>')
+            dump.append(pad + '<cxwrapper>')
 
         for i in self.items:
-            item_type = i.type
-            item = i.item
+            item_type = i['type']
+            item = i['item']
 
             if item_type == 'open':
                 # open block tag
                 tag = item
-                dump.push(pad + '<' + tag.name + '>' )
-                if tag.name == 'head':
+                dump.append(pad + '<' + tag['name'] + '>' )
+                if tag['name'] == 'head':
                     # Add a few things for easy display
-                    dump.push(pad + '<meta charset="UTF-8" />')
-                    dump.push(pad + '<style>cxtextblock { border: solid #88f 1px }')
-                    dump.push(pad + 'cxtextchunk { border-right: solid #f88 1px }</style>')
+                    dump.append(pad + '<meta charset="UTF-8" />')
+                    dump.append(pad + '<style>cxtextblock { border: solid #88f 1px }')
+                    dump.append(pad + 'cxtextchunk { border-right: solid #f88 1px }</style>')
             elif item_type == 'close':
                 # close block tag
                 tag = item;
-                dump.push(pad + '</' + tag.name + '>')
+                dump.append(pad + '</' + tag['name'] + '>')
             elif item_type == 'blockspace':
                 # Non-inline whitespace
-                dump.push(pad + '<cxblockspace/>')
+                dump.append(pad + '<cxblockspace/>')
             elif item_type == 'textblock':
                 # Block of inline text
                 textBlock = item
-                dump.push(pad + '<cxtextblock>')
+                dump.append(pad + '<cxtextblock>')
                 dump.extend(textBlock.dumpXmlArray(pad + '  '))
-                dump.push(pad + '</cxtextblock>')
+                dump.append(pad + '</cxtextblock>')
             else:
                 print('Unknown item type at ' + item_type )
                 raise
 
         if self.wrapperTag:
-            dump.push(pad + '</cxwrapper>')
+            dump.append(pad + '</cxwrapper>')
 
         return dump
 
@@ -189,6 +189,6 @@ class Doc:
             if not item.type == 'textblock':
                 continue
             textblock = item.item;
-            segments.push(textblock.getHtml())
+            segments.append(textblock.getHtml())
 
         return segments
