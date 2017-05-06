@@ -70,18 +70,18 @@ class Doc:
                 raise
 
             for item in self.items:
-                if item.type == 'open':
-                    tag = cloneOpenTag(item.item)
+                if item['type'] == 'open':
+                    tag = cloneOpenTag(item['item'])
                     if tag.attributes.id:
                         #Kept for restoring the old articles.
                         tag.attributes['data-seqid'] = getNextId('block')
                     else:
                         tag.attributes.id = getNextId('block')
-                    newDoc.addItem(item.type, tag)
-                elif item.type == 'textblock':
-                    newDoc.addItem(item.type, item.item)
+                    newDoc.addItem(item['type'], tag)
+                elif item['type'] == 'textblock':
+                    newDoc.addItem(item['type'], item['item'])
                 else:
-                    textBlock = item.item
+                    textBlock = item['item']
                     newDoc.addItem(
                         'textblock',
                         textBlock.segment(getBoundaries, getNextId)
@@ -106,10 +106,10 @@ class Doc:
             html.append(getOpenTagHtml(self.wrapperTag))
 
         for i in self.items:
-            item_type = i.type
-            item = i.item
+            item_type = i['type']
+            item = i['item']
 
-            if item.attributes and item.attributes['class'] == 'cx-segment-block':
+            if isinstance(item, dict) and item['attributes'] and item['attributes']['class'] == 'cx-segment-block':
                 continue
 
             if item_type == 'open':
@@ -158,7 +158,7 @@ class Doc:
                     dump.append(pad + 'cxtextchunk { border-right: solid #f88 1px }</style>')
             elif item_type == 'close':
                 # close block tag
-                tag = item;
+                tag = item
                 dump.append(pad + '</' + tag['name'] + '>')
             elif item_type == 'blockspace':
                 # Non-inline whitespace
@@ -186,9 +186,32 @@ class Doc:
         segments = []
 
         for item in self.items:
-            if not item.type == 'textblock':
+            if not item['type'] == 'textblock':
                 continue
-            textblock = item.item;
+            textblock = item['item']
             segments.append(textblock.getHtml())
 
-        return segments
+    """ added by Giovanni Toffoli to get a LinearDov representation like in
+        https://www.mediawiki.org/wiki/Content_translation/Product_Definition/LinearDoc """
+    def dump(self):
+        lines = []
+        for item in self.items:
+            item_type = item['type']
+            if item_type == 'textblock':
+                for chunk in item['item'].textChunks:
+                    tags = []
+                    for tag_dict in chunk.tags:
+                        tag = "'<%s" % tag_dict['name']
+                        for attr_key, attr_value in tag_dict['attributes'].items():
+                            tag += ' %s="%s"' % (attr_key, attr_value)
+                        tag += ">'"
+                        tags.append(tag)
+                    tags = ', '.join(tags)
+                    line = "{text:'%s', tags:[%s]}" % (chunk.text, tags)
+                    if chunk.inlineContent:
+                        pass
+                    lines.append(line)
+            else:
+                line = '%s, %s' % (item_type, str(item['item']))
+            lines.append(line)
+        return '\n'.join(lines)

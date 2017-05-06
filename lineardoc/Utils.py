@@ -73,7 +73,7 @@ def getOpenTagHtml(tag):
     attributes.sort()
     for attr in attributes:
         html.append(' ' + esc(attr) + '="' + escAttr(tag['attributes'][attr]) + '"')
-    if tag.isSelfClosing:
+    if tag.get('isSelfClosing', None):
         html.append(' /')
     html.append('>')
     return ''.join(html)
@@ -106,7 +106,7 @@ def cloneOpenTag(tag):
  */
 """
 def getCloseTagHtml(tag):
-    if tag.isSelfClosing:
+    if tag.get('isSelfClosing', None):
         return ''
     return '</' + esc(tag['name']) + '>'
 
@@ -124,7 +124,6 @@ def dumpTags(tagArray):
     if not tagArray:
         return ''
     for tag in tagArray:
-        print 'dumpTags - tag: ', tag
         attrDumps = []
         for attr in tag['attributes']:
             attrDumps.append(attr + '=' + escAttr(tag['attributes'][attr]))

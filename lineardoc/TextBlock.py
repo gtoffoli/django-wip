@@ -106,7 +106,7 @@ class TextBlock:
 
         def pushEmptyTextChunks(offset, chunks):
             for chunk in chunks:
-                textChunks.push({
+                textChunks.append({
                     'start': offset,
                     'length': 0,
                     'textChunk': chunk
@@ -120,9 +120,9 @@ class TextBlock:
                 continue
             if not emptyTextChunks[offset]:
                 emptyTextChunks[offset] = []
-                emptyTextChunks[offset].push(textChunk)
+                emptyTextChunks[offset].append(textChunk)
         for offset in emptyTextChunks:
-            emptyTextChunkOffsets.push(offset)
+            emptyTextChunkOffsets.append(offset)
         emptyTextChunkOffsets.sort()
 
         for rangeMapping in rangeMappings:
@@ -133,7 +133,7 @@ class TextBlock:
             targetRangeEnd = targetRangeStart + rangeMapping.target.length
             sourceTextChunk = self.getTextChunkAt(rangeMapping.source.start)
             text = targetText[targetRangeStart : targetRangeEnd]
-            textChunks.push({
+            textChunks.append({
                 'start': targetRangeStart,
                 'length': rangeMapping.target.length,
                 'textChunk': TextChunk(
@@ -196,7 +196,7 @@ class TextBlock:
             tail = tail[:-space_length]
         if tail:
             # Append tail as text with commonTags
-            textChunks.push({
+            textChunks.append({
                 'start': pos,
                 'length': tail.length,
                 'textChunk': TextChunk(tail, commonTags, None)
@@ -208,7 +208,7 @@ class TextBlock:
             pushEmptyTextChunks(pos, emptyTextChunks[offset])
         if tailSpace:
             # Append tailSpace as text with commonTags
-            textChunks.push( {
+            textChunks.append( {
                 'start': pos,
                 'length': len(tailSpace),
                 'textChunk': TextChunk(tailSpace, commonTags, None)
@@ -247,23 +247,23 @@ class TextBlock:
                 else:
                     break
             for j in range(len(oldTags)-1, matchTop, -1):
-                html.push(getCloseTagHtml(oldTags[j]))
+                html.append(getCloseTagHtml(oldTags[j]))
             for j in range(matchTop+1, len(textChunk.tags)):
-                html.push(getOpenTagHtml(textChunk.tags[j]))
+                html.append(getOpenTagHtml(textChunk.tags[j]))
             oldTags = textChunk.tags
             # Now add text and inline content
-            html.push(esc(textChunk.text))
+            html.append(esc(textChunk.text))
             if textChunk.inlineContent:
                 if textChunk.inlineContent.getHtml():
                     # a sub-doc
-                    html.push(textChunk.inlineContent.getHtml())
+                    html.append(textChunk.inlineContent.getHtml())
                 else:
                     # an empty inline tag
-                    html.push(getOpenTagHtml(textChunk.inlineContent))
-                    html.push(getCloseTagHtml(textChunk.inlineContent))
+                    html.append(getOpenTagHtml(textChunk.inlineContent))
+                    html.append(getCloseTagHtml(textChunk.inlineContent))
         # Finally, close any remaining tags
         for tag in reversed(oldTags):
-            html.push(getCloseTagHtml(tag))
+            html.append(getCloseTagHtml(tag))
         return ''.join(html)
 
     """
@@ -320,7 +320,7 @@ class TextBlock:
                         textChunk.tags[:],
                         textChunk.inlineContent
                     )
-                    currentTextChunks.push(leftPart)
+                    currentTextChunks.append(leftPart)
                     offset += relOffset
                     flushChunks()
                     textChunk = rightPart
@@ -339,7 +339,6 @@ class TextBlock:
     def dumpXmlArray(self, pad):
         dump = []
         for chunk in self.textChunks:
-            print 'dumpXmlArray - chunk.tags: ', chunk.tags
             tagsDump = dumpTags(chunk.tags)
             tagsAttr = tagsDump and ' tags="' + tagsDump + '"' or ''
             if chunk.text:

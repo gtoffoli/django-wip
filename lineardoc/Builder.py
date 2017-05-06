@@ -49,7 +49,7 @@ class Builder:
         tag = None
         try:
             tag = self.blockTags.pop()
-            assert tag['name'] != tagName
+            assert tag['name'] == tagName
         except:
             print 'Mismatched block tags: open=' + (tag and tag['name'] or '') + ', close=' + tagName
         self.finishTextBlock()
