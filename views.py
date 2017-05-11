@@ -49,6 +49,7 @@ from models import STRING_TYPE_DICT, UNKNOWN, SEGMENT #, TERM, FRAGMENT
 from models import TEXT_ASC # , ID_ASC, DATETIME_DESC, DATETIME_ASC
 from models import TO_BE_TRANSLATED, TRANSLATED, PARTIALLY, INVARIANT, ALREADY
 from models import ROLE_DICT, TRANSLATION_TYPE_DICT, TRANSLATION_SERVICE_DICT, MYMEMORY
+from models import OWNER, MANAGER, LINGUIST, REVISOR, TRANSLATOR, GUEST
 from models import TM, MT, MANUAL
 from forms import DiscoverForm
 from forms import SiteManageForm, ProxyManageForm, PageEditForm, PageSequencerForm, BlockEditForm, BlockSequencerForm
@@ -1358,7 +1359,7 @@ def string_edit(request, string_id=None, language_code='', proxy_slug=''):
     string = string_id and get_object_or_404(String, pk=string_id) or None
     proxy = proxy_slug and get_object_or_404(Proxy, slug=proxy_slug) or None
     post = request.POST
-    print 'post: ', post
+    # print 'post: ', post
     if post:
         if post.get('cancel', ''):
             if string_id:
@@ -1546,6 +1547,7 @@ def segment_translate(request, segment_id, target_code):
     var_dict['source_language'] = source_language = segment.language
     var_dict['target_code'] = target_code
     var_dict['target_language'] = target_language = Language.objects.get(code=target_code)
+    var_dict['other_languages'] = source_language.get_other_languages()
     translation_codes = [target_code]
     translation_languages = Language.objects.filter(code=target_code)
 
@@ -1949,63 +1951,30 @@ def list_segments(request, proxy_slug=None, state=None):
         form = ListSegmentsForm(post)
         if post.get('delete-segment', ''):
             selection = post.getlist('selection')
-            print 'delete-segment', selection
             for segment_id in selection:
                 segment = Segment.objects.get(pk=int(segment_id))
-                """
-                txu = string.txu
-                if txu:
-                    for string in String.objects.filter(txu=txu):
-                        string.delete()
-                    txu.delete()
-                else:
-                    string.delete()
-                """
                 segment.delete()
         elif post.get('delete-translation', ''):
             selection = post.getlist('selection')
-            print 'delete-translation', selection
             for segment_id in selection:
                 segment = Segment.objects.get(pk=int(segment_id))
-                """
-                txu = string.txu
-                if txu:
-                    translations = String.objects.filter(txu=txu, language=target_language)
-                    for string in translations:
-                        string.delete()
-                """
                 translations = segment.get_translations(target_language=target_language)
                 for translation in translations:
                     translation.delete()
         elif post.get('make-invariant', ''):
             selection = post.getlist('selection')
-            print 'make-invariant', selection
             for segment_id in selection:
                 segment = Segment.objects.get(pk=int(segment_id))
-                """
-                txu = string.txu
-                string.txu = None
-                string.invariant = True
-                string.save()
-                if txu:
-                    for string in String.objects.filter(txu=txu):
-                        string.delete()
-                    txu.delete()
-                """
                 segment.is_invariant = True
                 segment.save()
         elif post.get('toggle-invariant', ''):
             selection = post.getlist('selection')
-            print 'toggle-invariant', selection
             for segment_id in selection:
                 segment = Segment.objects.get(pk=int(segment_id))
                 if segment.is_invariant:
                     segment.is_invariant = False
-                    print 'True-> False'
-                # elif not string.txu:
                 else:
                     segment.is_invariant = True
-                    print 'False-> True'
                 segment.save()
         elif form.is_valid():
             data = form.cleaned_data
@@ -2023,6 +1992,8 @@ def list_segments(request, proxy_slug=None, state=None):
             if project_site and target_language:
                 proxies = Proxy.objects.filter(site=project_site, language=target_language)
                 proxy = proxies and proxies[0] or None
+            if post.get('add-segment', '') and project_site and source_language and source_text_filter:
+                segment, created = Segment.objects.get_or_create(site=project_site, language=source_language, text=source_text_filter)
     else:
         form = ListSegmentsForm(initial={'project_site': project_site, 'translation_state': translation_state, 'source_language': source_language, 'target_language': target_language, 'source_text_filter': source_text_filter, 'target_text_filter': target_text_filter, 'show_other_targets': show_other_targets, })
 
@@ -2040,6 +2011,7 @@ def list_segments(request, proxy_slug=None, state=None):
     var_dict['source_language'] = source_language
     var_dict['target_language'] = target_language
     var_dict['show_other_targets'] = show_other_targets
+    var_dict['other_languages'] = Language.objects.exclude(code=target_language_code).order_by('code')
 
     if project_site and translation_state == INVARIANT:
         qs = Segment.objects.filter(site=project_site, is_invariant=True)
@@ -2072,6 +2044,38 @@ def list_segments(request, proxy_slug=None, state=None):
     var_dict['segments'] = segments
     var_dict['list_segments_form'] = form
     return render_to_response('list_segments.html', var_dict, context_instance=RequestContext(request))
+
+def add_update_translation(request):
+    if request.is_ajax() and request.method == 'POST':
+        form = request.POST
+        site_id = int(form.get('site_id', 0))
+        segment_id = int(form.get('segment_id'))
+        source_code = form.get('source_code')
+        target_code = form.get('target_code')
+        translation_id = int(form.get('translation_id', 0))
+        target_text = form.get('target_text')
+        segment = Segment.objects.get(pk=segment_id)
+        user_role_id = get_userrole(request)
+        if user_role_id:
+            user_role = UserRole.objects.get(pk=user_role_id)
+        else:
+            user_role = None
+            user_roles = UserRole.objects.filter(user=request.user, source_language_id=source_code, target_language_id=target_code, role_type__lt=GUEST).order_by('role_type')
+            for ur in user_roles:
+                if not ur.site or (ur.site.id == site_id):
+                    user_role = ur
+                    break
+        if not user_role:
+            pass # eccezione
+        if translation_id:
+            Translation.objects.filter(pk=translation_id).update(text=target_text, translation_type=MANUAL, user_role=user_role)
+            return JsonResponse({"data": "modify",})
+        else:
+            translation = Translation(segment=segment, language_id=target_code, text=target_text, translation_type=MANUAL, user_role=user_role)
+            translation.save()
+            translation_id = translation.id
+            return JsonResponse({"data": "add","translation_id": translation_id,})
+    return empty_page(request);
 
 def proxy_string_translations(request, proxy_slug=None, state=None):
     """

@@ -62,16 +62,14 @@ th, td { text-align: left; vertical-align: top; }
     <table style="width: 100%">
     <tbody>
 	<tr><th>target</th><th>t-type</th><th>by</th><th style="text-align: left">text</th></tr>
-	{% for l, tt in translations %}
-	{% for t in tt %}{% with ur=t.user_role %}
-    <tr {% comment %}class="{% cycle 'odd' 'even' %}"{% endcomment %}>
+	{% for l in other_languages %}{% for t in translations|lookup:l.code %}{% with ur=t.user_role %}
+    <tr>
     	<td><a  class="{{ l.code }}" href="/translation/{{ t.id }}">{{ l }}</a></td>
     	<td>{{ TRANSLATION_TYPE_DICT|lookup:t.translation_type }}</td>
-    	<td>{{ ROLE_DICT|lookup:ur.role_type }}-{{ ur.level }}: {{ ur.user.get_full_name }}</td>
+    	<td>{% if ur %}{{ ROLE_DICT|lookup:ur.role_type }}-{{ ur.level }}: {{ ur.user.get_full_name }}{% endif %}</td>
     	<td>{{ t.text }}</td>
    	</tr>
-	{% endwith %}{% endfor %}
-	{% endfor %}
+	{% endwith %}{% endfor %}{% endfor %}
 	</tbody>
 	</table>
 	</fieldset>

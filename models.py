@@ -1996,19 +1996,22 @@ class Segment(models.Model):
         return qs
 
     def get_translations(self, target_language=[]):
+        """ now returns a dict, previously a list of lists """
         if not isinstance(target_language, (list, tuple)):
             return Translation.objects.filter(segment=self, language=target_language)
         source_language = self.language
         target_languages = target_language or [l for l in Language.objects.all().order_by('code') if not l==source_language]
         has_translations = False
-        language_translations = []
+        # language_translations = []
+        language_translations = {}
         for language in target_languages:
             translations = Translation.objects.filter(segment=self, language=language)
             if translations:
                 has_translations = True
-                language_translations.append([language, translations])
-        # print has_translations, len(language_translations)
-        return has_translations and language_translations or []
+                # language_translations.append([language, translations])
+                language_translations[language.code] = translations
+        # return has_translations and language_translations or []
+        return has_translations and language_translations or {}
 
     def get_language_translations(self, target_language):
         return Translation.objects.filter(segment=self, language=target_language).order_by('-translation_type', 'user_role__role_type', 'user_role__level')

@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% load staticfiles i18n %}
+{% load wip_tags %}
 
 {% block extra_head %}
 <style>
@@ -58,7 +59,10 @@
 
   {% if segment_count %}
 <div style="margin-bottom: 0.5em;">
+{% comment %}
 <a class="btn btn-default btn-sm" href="/segment_add_by_proxy/{{ proxy.slug }}/">{% trans "add segment"|capfirst %}</a>
+{% endcomment %}
+<input class="btn btn-default btn-sm" type="submit" name="add-segment" value="{% trans "add segment"|capfirst %}">
 <input class="btn btn-default btn-sm" type="submit" name="delete-segment" value="{% trans "delete segment"|capfirst %}">
 <input class="btn btn-default btn-sm" type="submit" name="delete-translation" value="{% trans "delete translation"|capfirst %}">
 <input class="btn btn-default btn-sm" type="submit" name="make-invariant" value="{% trans "make invariant"|capfirst %}">
@@ -86,80 +90,51 @@
           <table style="width:100%"><tbody>
           <thead><th style="width:4%"></th><th style="width:85%"></th><th style="width:11%"></th></thead>
           {% if not segment.is_invariant %}
-{% comment %}
-            {% if string.txu_id %}
-{% endcomment %}
 			{% with translations=segment.get_translations %}         
-              {% for translation in translations %}
-                {% if translation.0 == target_language %}
-                	<input type="hidden" name="source_id" value="{{ string.id }}" id="{{ string.id }}">
-                	<input type="hidden" name="txu_id" value="{{ string.txu_id}}" id="txu-{{ string.id }}">
-                    {% if translation.1 %}
-                      {% for s in translation.1 %}
+            <input type="hidden" name="segment-{{ segment.id }}" id="segment-{{ segment.id }}" value="{{ segment.id }}">
+			{% with target_translations=translations|lookup:target_language.code %}
+			    {% if target_translations %}
+                    {% for translation in target_translations %}
 				  <tr>
-				  <td style="vertical-align:top;"><a href="/string/{{ s.id }}/"  class="{{ target_language.code }}">{{ target_language.code }}</a></td>
+				  <td style="vertical-align:top;"><a href="/translation/{{ translation.id }}/" class="{{ target_language.code }}">{{ target_language.code }}</a></td>
 				  <td>
-                        	<input type="hidden" name="translated_id" value="{{ s.id }}" id="translated-{{ string.id }}">
-                        	<textarea class="form-control custom-control" name="translation-{{ string.id }}" id="translation-{{ string.id }}" style="width:100%">{{ s.text }}</textarea>
+                        	<input type="hidden" name="translation-{{ translation.id }}" id="translation-{{ translation.id }}" value="{{ translation.id }}">
+                        	<textarea class="form-control custom-control" name="text-{{ translation.id }}" id="text-{{ translation.id }}" style="width:100%">{{ translation.text }}</textarea>
                   </td>
                   <td class="text-center" style="vertical-align:top;">
                         	<span class="input-group-btn">
-                  			<input class="btn btn-default btn-sm" type="button" name="save-{{ string.id }}-{{ translated_id }}-{{ string.txu_id}}" value="{% trans "save"|capfirst %}" onclick="save_translation('{{ string.id }}', 'txu-{{ string.id }}', 'translated-{{ string.id }}', 'translation-{{ string.id }}')">
+                  			<input class="btn btn-default btn-sm" type="button" name="save-{{ segment.id }}-{{ translation.id }}" value="{% trans "save"|capfirst %}" onclick="save_translation('segment-{{ segment.id }}', 'translation-{{ translation.id }}', 'text-{{ translation.id }}')">
                         	</span>
                   </td>
                   </tr>
-                      {% endfor %}
-                    {% else %}
+                    {% endfor %}
+  			    {% else %}
 				  <tr>
 				  <td></td>
 				  <td>
-                        <input type="hidden" name="translated_id" value="0" id="translated-{{ string.id }}">
-                        <textarea class="form-control custom-control" name="translation-{{ string.id }}" id="translation-{{ string.id }}" style="width:100%"></textarea>
+                        <textarea class="form-control custom-control" name="text-{{ segment.id }}" id="text-{{ segment.id }}" style="width:100%"></textarea>
 				  </td>
                   <td class="text-center" style="vertical-align:top;">
                         <span class="input-group-btn">
-                  		<input class="btn btn-default btn-sm" type="button" name="save-{{ string.id }}-{{ translated_id }}-0" value="{% trans "save"|capfirst %}" onclick="save_translation('{{ string.id }}', 'txu-{{ string.id }}', 'translated-{{ string.id }}', 'translation-{{ string.id }}')">
+                  		<input class="btn btn-default btn-sm" type="button" name="save-{{ segment.id }}-0" value="{% trans "save"|capfirst %}" onclick="save_translation('segment-{{ segment.id }}', null, 'text-{{ segment.id }}')">
                         </span>
                   </td>
                   </tr>
-                    {% endif %}
-                {% endif %}
-              {% endfor %}
+			    {% endif %}
+		    {% endwith %}         
 
-			  {% if show_other_targets %}
-              {% for translation in translations %}
-                {% if translation.0 != target_language %}
-                    {% if translation.1 %}
-                      {% for s in translation.1 %}                    
+		    {% if show_other_targets %}
+              {% for other_language in other_languages %}
+                {% for translation in translations|lookup:other_language.code %}
 				  <tr>
-                		<td style="font-size: smaller; vertical-align:top;"><a href="/string/{{ s.id }}/"  class="{{ translation.0.code }}">{{ translation.0.code }}</a></td>
-						<td style="font-size: smaller;">{{ s.text }}</td>
+                		<td style="font-size: smaller; vertical-align:top;"><a href="/translation/{{ translation.id }}/"  class="{{ other_language.code }}">{{ other_language.code }}</a></td>
+						<td style="font-size: smaller;">{{ translation.text }}</td>
 						<td></td>
 				  <tr>
-              		  {% endfor %}
-              		{% endif %}
-                {% endif %}
+                {% endfor %}
               {% endfor %}
-              {% endif %}
-{% comment %}
-
-            {% else %}
-			  <tr>
-              	  <input type="hidden" name="source_id" value="{{ string.id }}" id="{{ string.id }}">
-              	  <input type="hidden" name="txu_id" value="0" id="txu-{{ string.id }}">
-              	  <input type="hidden" name="translated_id" value="0" id="translated-{{ string.id }}">
-				<td style="vertical-align:top;" class="{{ target_language.code }}">{{ target_language.code }}</td>
-				<td>
-                  <span class="input-group-btn"></span><textarea class="form-control custom-control" name="translation-{{ string.id }}" id="translation-{{ string.id }}" style="width:100%"></textarea>
-				</td>
-				<td class="text-center" style="vertical-align:top;">
-                  <span class="input-group-btn">
-                  <input class="btn btn-default btn-sm" type="button" name="save-{{ string.id }}-0-0" value="{% trans "save"|capfirst %}" onclick="save_translation('{{ string.id }}', 'txu-{{ string.id }}', 'translated-{{ string.id }}', 'translation-{{ string.id }}')">
-                  </span>
-				</td>
-			  </tr>
             {% endif %}
-{% endcomment %}
+
 		    {% endwith %}         
           {% endif %}
 			</tbody></table>
@@ -170,7 +145,10 @@
     </table>
 
 <div style="margin-bottom: 0.5em;">
+{% comment %}
 <a class="btn btn-default btn-sm" href="/segment_add_by_proxy/{{ proxy.slug }}/">{% trans "add segment"|capfirst %}</a>
+{% endcomment %}
+<input class="btn btn-default btn-sm" type="submit" name="add-segment" value="{% trans "add segment"|capfirst %}">
 <input class="btn btn-default btn-sm" type="submit" name="delete-segment" value="{% trans "delete segment"|capfirst %}">
 <input class="btn btn-default btn-sm" type="submit" name="delete-translation" value="{% trans "delete translation"|capfirst %}">
 <input class="btn btn-default btn-sm" type="submit" name="make-invariant" value="{% trans "make invariant"|capfirst %}">
@@ -200,36 +178,29 @@
 
 {% block extra_script %}
 <script type="text/javascript">
-
-function save_translation(source_id, txu, translated, translation) {
+function save_translation(segment, translation, text) {
 	var form = document.getElementById('translation-form');
 	var csrftoken = form.elements["csrfmiddlewaretoken"].value
-	var txu_id = document.getElementById(txu).value;
-	var translated_id = document.getElementById(translated).value;
-	var textarea = document.getElementById(translation);
-	var textvalue = textarea.value;
-	if (textvalue != '') {
+	var segment_id = document.getElementById(segment).value;
+	var translation_id  = 0;
+	if (translation)
+		translation_id = document.getElementById(translation).value;
+	var textarea = document.getElementById(text);
+	var target_text = textarea.value;
+	if (target_text != '') {
 		$.ajax({
 			type: 'post', 
-			url: '/add_translated_segment/',
+			url: '/add_update_translation/',
 			data: { 'csrfmiddlewaretoken': csrftoken,
-					'site_name': '{{ site.name}}',
-					's_l':  '{{ source_language }}',
-					't_l':  '{{ target_language }}',
-					'source_id': source_id,
-					'txu_id': txu_id,
-					'translated_id': translated_id,
-					'translation': textvalue,
+					'site_id': '{{ site.id}}',
+					'source_code': '{{ source_language.code }}',
+					'target_code': '{{ target_language.code }}',
+					'segment_id': segment_id,
+					'translation_id': translation_id,
+					'target_text': target_text,
 					},
 			success: function(json){
-				switch (json.data){ 
-					case 'add-txt-string':
-						$(txu_id).val(json.txu_id);
-						$(translated_id).val(json.translated_id);
-						break;
-					case "add-string":
-						$(translated_id).val(json.translated_id);
-				}
+				$(translation_id).val(json.translation_id);
 			},
 			error: function() {
 				alert('Sorry! Something went wrong.');

@@ -69,6 +69,7 @@ urlpatterns = [
     url(r"^proxy/(?P<proxy_slug>[\w-]+)/$", views.proxy, name="proxy"),
     url(r"^import_xliff/(?P<proxy_slug>[\w-]+)/$", views.import_xliff, name="import_xliff"),
     url(r"^add_translated_string/$", views.add_translated_string, name="add_translated_string"),
+    url(r"^add_update_translation/$", views.add_update_translation, name="add_update_translation"),
     url(r"^delete_translated_string/$", views.delete_translated_string, name="delete_translated_string"),
     url(r"^strings_translations/(?P<proxy_slug>[\w-]+)/$", views.strings_translations, name="strings_translations"),
     url(r"^strings_translations/$", views.strings_translations, name="strings_translations"),

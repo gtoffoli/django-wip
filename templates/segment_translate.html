@@ -68,16 +68,14 @@ function capFirst(id) {
     <table style="width: 100%">
     <tbody>
 	<tr><th>target</th><th>t-type</th><th>by</th><th style="text-align: left">text</th></tr>
-	{% for l, tt in translations %}
-	{% for t in tt %}{% with ur=t.user_role %}
-    <tr {% comment %}class="{% cycle 'odd' 'even' %}"{% endcomment %}>
+	{% for l in other_languages %}{% for t in translations|lookup:l.code %}{% with ur=t.user_role %}
+    <tr>
     	<td><a  class="{{ l.code }}" href="/translation/{{ t.id }}">{{ l }}</a></td>
     	<td>{{ TRANSLATION_TYPE_DICT|lookup:t.translation_type }}</td>
-    	<td>{{ ROLE_DICT|lookup:ur.role_type }}-{{ ur.level }}: {{ ur.user.get_full_name }}</td>
+    	<td>{% if ur %}{{ ROLE_DICT|lookup:ur.role_type }}-{{ ur.level }}: {{ ur.user.get_full_name }}{% endif %}</td>
     	<td>{{ t.text }}<a onclick="addText(this.parentNode, 'id_translation')"><span class="fa fa-copy" style="font-size: 1.0em; padding-left: 1.0em;" title="append this translation to your translation"></span></a></td>
    	</tr>
-	{% endwith %}{% endfor %}
-	{% endfor %}
+	{% endwith %}{% endfor %}{% endfor %}
 	</tbody>
 	</table>
 	</fieldset>
@@ -110,15 +108,25 @@ function capFirst(id) {
 	{% endfor %}
     {% endif %}
 
-	{% if similar_strings %}
-    <tr><td colspan=4 style="padding-top: 0.5em; padding-bottom: 0.5em; font-size: large; font-weight: bold;">{{ target_language }} translations of similar strings</td></tr>
+	{% if similar_segments %}
+    <tr><td colspan=4 style="padding-top: 0.5em; padding-bottom: 0.5em; font-size: large; font-weight: bold;">{{ target_language }} translations of similar segments</td></tr>
 	<tr><th></th><th style="text-align: left">translation</th></tr>
+{% comment %}
 	{% for score, s, lltt in similar_strings %}{% for l, tt in lltt %}{% for t in tt %}
     <tr class="{% cycle 'odd' 'even' %}">
     	<td>{% if forloop.counter == 1 %}{{ score|floatformat:1 }} &nbsp; <a href="/string/{{ s.id }}/" class="{{ source_language.code }}">{{ s.text }}</a>{% endif %}</td>
     	<td>{% for token in t.tokens %}<a onclick="addText(this, 'id_translation')" style="cursor: pointer;" title="append this word to your translation">{{ token }} </a>{% endfor %}<a onclick="addText(this.parentNode, 'id_translation')"><span class="fa fa-copy" style="font-size: 1.0em; padding-left: 1.0em;" title="append this translation to your translation"></span></a></td>
    	</tr>
 	{% endfor %}{% endfor %}{% endfor %}
+{% endcomment %}
+	{% for score, s, translations in similar_segments %}
+	{% for l in other_languages %}{% for t in translations|lookup:l.code %}
+    <tr class="{% cycle 'odd' 'even' %}">
+    	<td>{% if forloop.counter == 1 %}{{ score|floatformat:1 }} &nbsp; <a href="/segment/{{ s.id }}/" class="{{ source_language.code }}">{{ s.text }}</a>{% endif %}</td>
+    	<td>{% for token in t.tokens %}<a onclick="addText(this, 'id_translation')" style="cursor: pointer;" title="append this word to your translation">{{ token }} </a>{% endfor %}<a onclick="addText(this.parentNode, 'id_translation')"><span class="fa fa-copy" style="font-size: 1.0em; padding-left: 1.0em;" title="append this translation to your translation"></span></a></td>
+   	</tr>
+	{% endfor %}{% endfor %}
+	{% endfor %}
     {% endif %}
 
 	</tbody>
