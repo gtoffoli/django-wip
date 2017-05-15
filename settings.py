@@ -139,6 +139,7 @@ LOGIN_REDIRECT_URL = '/'
 STATIC_URL = '/static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'static')
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+CACHE_ROOT = os.path.join(BASE_DIR, 'cache')
 
 BROKER_URL = 'amqp://guest:guest@localhost:5672//'
 

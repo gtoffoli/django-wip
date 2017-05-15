@@ -288,14 +288,25 @@ class UserRoleAdmin(admin.ModelAdmin):
     list_filter = ('site', 'role_type', 'source_language', 'target_language')
 
 class SegmentAdmin(admin.ModelAdmin):
-    list_display = ['site', 'language', 'text', 'is_fragment',]
+    list_display = ['id', 'site', 'language', 'text', 'is_fragment',]
     list_filter = ['site', 'language']
     search_fields = ['text',]
 
 class TranslationAdmin(admin.ModelAdmin):
-    list_display = ['language', 'text', 'user_role',]
+    list_display = ['id', 'segment_link', 'languages', 'text', 'user_role',]
     list_filter = ['language']
     search_fields = ['text',]
+
+    def segment_link(self, obj):
+        segment = obj.segment
+        url = '/admin/wip/segment/%d/' % segment.pk
+        link = '<a href="%s">%d</a>' % (url, segment.pk)
+        return link
+    segment_link.short_description = 'segment'
+    segment_link.allow_tags = True
+
+    def languages(self, obj):
+        return '%s -> %s' % (obj.segment.language_id, obj.language_id)
 
 admin.site.register(Site, SiteAdmin)
 admin.site.register(SiteTheme, SiteThemeAdmin)

@@ -77,6 +77,7 @@ urlpatterns = [
     url(r"^add_segment_translation/$", views.add_segment_translation, name="add_segment_translation"),
     url(r"^segment/(?P<segment_id>[\d]+)/$", views.segment_view, name="segment_view"),
     url(r"^segment_translate/(?P<segment_id>[\d]+)/(?P<target_code>[\w]+)/$", views.segment_translate, name="segment_translate"),
+    url(r"^translation/(?P<translation_id>[\d]+)/$", views.translation_view, name="translation_view"),
     # url(r"^my_task/$", views.my_task, name="my_task"),
     url(r'^navigation_autocomplete$', search_indexes.navigation_autocomplete, name='navigation_autocomplete'),
     url(r"^test/$", TemplateView.as_view(template_name="test.html"), name="test"),

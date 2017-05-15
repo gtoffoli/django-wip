@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% load staticfiles i18n %}
+{% load wip_tags %}
+
+{% block extra_head %}
+<style>
+fieldset {
+    border: 1px groove #ddd !important;
+    padding: 0 1.4em 1.4em 1.4em !important;
+    margin: 0 0 1.0em 0 !important;
+    -webkit-box-shadow:  0px 0px 0px 0px #000;
+            box-shadow:  0px 0px 0px 0px #000;
+}
+legend {
+    width: inherit; /* Or auto */
+    padding: 0 10px; /* To give a bit of padding on the left and right */
+    border-bottom:none;
+    font-size: small;
+    font-style: italic;
+}
+label { display: inline; font-weight: bold; margin-right: 1.0em; padding: 0.2em 0em; }
+pre { display: inline;  padding: 0; }
+pre code { display: inline; }
+tr.odd { background: LightGray; }
+tr.even { background: white; }
+.it { color: LimeGreen; }
+.en { color: #FF0088; }
+.es { color: OrangeRed; }
+.fr { color: blue; }   
+th, td { text-align: left; vertical-align: top; }
+</style>
+{% endblock %}
+
+{% block head_title %}Segment: {{ segment.text }}{% endblock %}
+
+{% block title-page %}
+<span style="color: black; font-size: smaller;">Translation: </span>
+<span class="{{ target_language.code }}" style="font-size: smaller;">{{ translation.text|truncatechars:64 }}</span>
+{% endblock %}
+
+{% block content-page %}
+<form action="/translation/{{ translation.id }}/" method="post">
+	{% csrf_token %}
+
+	<fieldset><legend>Segment</legend>
+    <div>
+    <label>id</label><a href="/segment/{{ segment.id }}/">{{ segment.id }}</a> &nbsp;
+    <span class="{{ source_language.code }}">{{ source_language.name }}</span> &nbsp;
+    {% if segment.site %}<label>site</label>{{ segment.site.name }} &nbsp;{% endif %}
+	</div>
+    <div>{{ segment.text }}</div>
+	</fieldset>
+
+	<fieldset><legend>Translation{% if translation.user_role %} by {{ translation.user_role }}{% endif %}</legend>
+    <div>
+    <label>id</label>{{ translation.id }} &nbsp;
+    <span class="{{ target_language.code }}">{{ target_language.name }}</span> &nbsp;
+    </div>
+    <div>{{ translation.text }}</div>
+	</fieldset>
+
+	{% if show_alignment %}
+	<fieldset><legend>Word alignment</legend>
+	<div>{{ alignment }}</div>
+	</fieldset>
+	{% endif %}
+
+    <div><label>Show word alignment</label> {{ translation_view_form.show_alignment }}</div>
+
+</form>
+{% endblock %}

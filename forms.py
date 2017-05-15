@@ -108,6 +108,9 @@ class ListSegmentsForm(forms.Form):
     target_text_filter = forms.CharField(required=False, label="Text in target string", widget=forms.TextInput(attrs={'style': 'width: 500px;', 'onchange': 'javascript: this.form.submit()',}))
     show_other_targets = forms.BooleanField(required=False, label='Show other targets', widget=forms.CheckboxInput(attrs={'onchange': 'javascript: this.form.submit()',}))
 
+class TranslationViewForm(forms.Form):
+    show_alignment = forms.BooleanField(required=False, label='Show alignment', widget=forms.CheckboxInput(attrs={'onchange': 'javascript: this.form.submit()',}))
+
 class TranslationServiceForm(forms.Form):
     translation_services = forms.MultipleChoiceField(required=True, choices=TRANSLATION_SERVICE_CHOICES, label="Translation service", widget=forms.SelectMultiple(attrs={ 'style': 'width: auto;', 'size': 3,}))
 

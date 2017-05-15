@@ -1927,12 +1927,12 @@ REVISOR = 3
 TRANSLATOR = 4
 GUEST = 5
 ROLE_TYPE_CHOICES = (
-    (OWNER, _('Site owner'),),
-    (MANAGER, _('Site manager'),),
-    (LINGUIST, _('Linguist'),),
-    (REVISOR,  _('Revisor'),),
-    (TRANSLATOR,  _('Translator'),),
-    (GUEST,  _('Guest'),),
+    (OWNER, 'Site owner'),
+    (MANAGER, 'Site manager'),
+    (LINGUIST, 'Linguist'),
+    (REVISOR,  'Revisor'),
+    (TRANSLATOR,  'Translator'),
+    (GUEST,  'Guest'),
 )
 ROLE_TYPE_DICT = dict(ROLE_TYPE_CHOICES)
 ROLE_DICT = { OWNER: 'O', MANAGER: 'M', LINGUIST: 'L', REVISOR: 'R', TRANSLATOR: 'T', GUEST: 'G' }
@@ -1954,7 +1954,14 @@ class UserRole(models.Model):
     def __unicode__(self):
         source_code = self.source_language and self.source_language.code or ''
         target_code = self.target_language and self.target_language.code or ''
-        return u'%s: %s of level %d for %s->%s couple and site %s' % (self.user.username, ROLE_TYPE_DICT[self.role_type], self.level, source_code, target_code, self.site.name)
+        # return u'%s: %s of level %d for %s->%s couple and site %s' % (self.user.username, ROLE_TYPE_DICT[self.role_type], self.level, source_code, target_code, self.site.name)
+        repr = [self.user.username, ROLE_TYPE_DICT[self.role_type]]
+        if self.site.name:
+            repr.append('site %s' % self.site.name)
+        if source_code and target_code:
+            repr.append('%s->%s' % (source_code, target_code))
+        repr.append('level %d' % self.level)
+        return ', '.join(repr)
 
     def get_user_name(self):
         return self.user.get_display_name()
@@ -2086,7 +2093,7 @@ class TranslationSource(models.Model):
 
 class Translation(models.Model):
     segment = models.ForeignKey(Segment, verbose_name='source segment', related_name='segment_translation')
-    language = models.ForeignKey(Language, verbose_name='target language')
+    language = models.ForeignKey(Language, verbose_name='language')
     text = models.TextField('translation of plain text', blank=True, null=True)
     html = models.TextField('translation of the original text with tags', blank=True, null=True)
     translation_type = models.IntegerField(choices=TRANSLATION_TYPE_CHOICES, default=0, verbose_name='translation type')

@@ -38,8 +38,11 @@ from django.db.models.expressions import RawSQL, Q
 from django import forms
 from django.contrib import messages
 from django.contrib.auth.models import User
+from django.contrib.auth.decorators import login_required
+from django.contrib.admin.views.decorators import staff_member_required
 from actstream import action, registry
 
+from wip.wip_nltk.tokenizers import NltkTokenizer
 from models import Language, Site, Proxy, Webpage, PageVersion, TranslatedVersion
 from models import Block, BlockEdge, TranslatedBlock, BlockInPage, String, Txu, TxuSubject #, TranslatedVersion
 from models import Scan, Link, WordCount, SegmentCount
@@ -53,7 +56,7 @@ from models import OWNER, MANAGER, LINGUIST, REVISOR, TRANSLATOR, GUEST
 from models import TM, MT, MANUAL
 from forms import DiscoverForm
 from forms import SiteManageForm, ProxyManageForm, PageEditForm, PageSequencerForm, BlockEditForm, BlockSequencerForm
-from forms import SegmentSequencerForm, SegmentTranslationForm
+from forms import SegmentSequencerForm, SegmentTranslationForm, TranslationViewForm
 from forms import StringSequencerForm, StringEditForm, StringsTranslationsForm, StringTranslationForm, TranslationServiceForm, FilterPagesForm
 from forms import UserRoleEditForm, ListSegmentsForm, ImportXliffForm
 from session import get_language, set_language, get_site, set_site, get_userrole, set_userrole
@@ -62,6 +65,7 @@ from settings import PAGE_SIZE, PAGE_STEPS
 from settings import DATA_ROOT, RESOURCES_ROOT, tagger_filename, BLOCK_TAGS, QUOTES, SEPARATORS, STRIPPED, DEFAULT_STRIPPED, EMPTY_WORDS, PAGES_EXCLUDE_BY_CONTENT
 from utils import strings_from_html, elements_from_element, block_checksum, ask_mymemory, text_to_list # , non_invariant_words
 import srx_segmenter
+from aligner import get_train_aligner, best_alignment
 
 registry.register(Site)
 registry.register(Proxy)
@@ -1278,15 +1282,12 @@ def string_view(request, string_id):
     var_dict['sequencer_form'] = StringSequencerForm(initial={'string_types': string_types, 'translation_state': translation_state, 'translation_languages': translation_languages, 'order_by': order_by, 'show_similar': show_similar})
     return render_to_response('string_view.html', var_dict, context_instance=RequestContext(request))
 
+@staff_member_required
 def segment_view(request, segment_id):
-    if not request.user.is_superuser:
-        return empty_page(request);
-    print ('segment_view: ', segment_id)
     var_dict = {}
     var_dict['segment'] = segment = get_object_or_404(Segment, pk=segment_id)
     var_dict['source_language'] = source_language = segment.language
     var_dict['other_languages'] = other_languages = source_language.get_other_languages()
-    print ('languages: ', source_language, other_languages)
 
     SegmentSequencerForm.base_fields['translation_languages'].queryset = other_languages
     segment_context = request.session.get('segment_context', {})
@@ -1350,6 +1351,28 @@ def segment_view(request, segment_id):
     var_dict['TRANSLATION_TYPE_DICT'] = TRANSLATION_TYPE_DICT
     var_dict['ROLE_DICT'] = ROLE_DICT
     return render_to_response('segment_view.html', var_dict, context_instance=RequestContext(request))
+
+@staff_member_required
+def translation_view(request, translation_id):
+    show_alignment = False
+    post = request.POST
+    if post:
+        show_alignment = post.get('show_alignment', '')
+    var_dict = {}
+    var_dict['translation'] = translation = get_object_or_404(Translation, pk=translation_id)
+    var_dict['segment'] = segment = translation.segment
+    var_dict['source_language'] = segment.language
+    var_dict['target_language'] = target_language = translation.language
+    var_dict['show_alignment'] = show_alignment
+    var_dict['translation_view_form'] = TranslationViewForm(initial={'show_alignment': show_alignment,})
+    if show_alignment:
+        proxies = Proxy.objects.filter(site=translation.segment.site, language=target_language)
+        if proxies:
+            lowercasing = True
+            tokenizer = NltkTokenizer(lowercasing=lowercasing)
+            aligner = get_train_aligner(proxies[0], tokenizer=tokenizer, lowercasing=lowercasing)
+            var_dict['alignment'] = best_alignment(aligner, segment.text, translation.text, tokenizer=tokenizer, lowercasing=lowercasing, tokens=True)
+    return render_to_response('translation_view.html', var_dict, context_instance=RequestContext(request))
 
 def string_edit(request, string_id=None, language_code='', proxy_slug=''):
     user = request.user
@@ -2060,8 +2083,13 @@ def add_update_translation(request):
             user_role = UserRole.objects.get(pk=user_role_id)
         else:
             user_role = None
-            user_roles = UserRole.objects.filter(user=request.user, source_language_id=source_code, target_language_id=target_code, role_type__lt=GUEST).order_by('role_type')
+            # user_roles = UserRole.objects.filter(user=request.user, source_language_id=source_code, target_language_id=target_code, role_type__lt=GUEST).order_by('role_type')
+            user_roles = UserRole.objects.filter(user=request.user).order_by('role_type')
             for ur in user_roles:
+                if ur.source_language and ur.source_language.id != source_code:
+                    continue
+                if ur.target_language and ur.target_language.id != target_code:
+                    continue
                 if not ur.site or (ur.site.id == site_id):
                     user_role = ur
                     break
