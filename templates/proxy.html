@@ -80,7 +80,8 @@
    		<input type="submit" name="import_translations" value="Import XLIFF translations" title="Import XLIFF translations" class="btn btn-default btn-sm"></span>
 {% endcomment %}
    		<a href="/import_xliff/{{ proxy.slug }}/" title="import XLIFF translations" class="mR30 btn btn-default btn-sm">{% trans "import XLIFF translations"|capfirst %}</a>
-   		<input type="submit" name="export_translations" value="Export XLIFF translations" title="Export XLIFF translations" class="btn btn-default btn-sm">
+   		<input type="submit" name="export_translations" value="Export XLIFF translations" title="Export XLIFF translations" class="mR30 btn btn-default btn-sm">
+   		<input type="submit" name="align_translations" value="Align translations" title="Align translations" class="btn btn-default btn-sm">
       </div>
       {% if page_count %}
         <div class="form-group"><span class="mR30"><input type="submit" name="cache_pages" value="Cache translated pages" title="cache translated pages" class="btn btn-default btn-sm"></span>{{ manage_form.delete_pages_confirmation }} Yes, I want to delete all translated pages <input type="submit" name="delete_pages" value="Delete translated pages" title="delete translated pages" class="btn btn-default btn-sm"></div>

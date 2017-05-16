@@ -36,6 +36,7 @@ from django.db import connection
 # from django.db.models import Q, Count
 from django.db.models.expressions import RawSQL, Q
 from django import forms
+from django.utils import timezone
 from django.contrib import messages
 from django.contrib.auth.models import User
 from django.contrib.auth.decorators import login_required
@@ -490,6 +491,7 @@ def proxy(request, proxy_slug):
         delete_proxy = post.get('delete_proxy', '')
         import_translations = post.get('import_translations', '')
         apply_tm = post.get('apply_tm', '')
+        align_translations = post.get('align_translations', '')
         propagate_up = post.get('propagate_up', '')
         form = ProxyManageForm(post)
         if form.is_valid():
@@ -513,6 +515,20 @@ def proxy(request, proxy_slug):
                 if f:
                     m, n = proxy.import_translations(f, request=request)
                     messages.add_message(request, messages.INFO, '%d translations read, %d translations added.' % (m, n))
+            elif align_translations:
+                # proxy.align_translations()
+                lowercasing = True
+                tokenizer = NltkTokenizer(lowercasing=lowercasing)
+                aligner = get_train_aligner(proxy, train=True, tokenizer=tokenizer, lowercasing=lowercasing)
+                segments = Segment.objects.filter(site=proxy.site, is_invariant=False)
+                for segment in segments:
+                    translations = Translation.objects.filter(segment=segment, language=proxy.language).exclude(alignment_type=MANUAL)
+                    for translation in translations:
+                        alignment = best_alignment(aligner, segment.text, translation.text, tokenizer=tokenizer, lowercasing=lowercasing)
+                        translation.alignment = ' '.join(['%s-%s' % (str(couple[0]), couple[1] is not None and str(couple[1]) or '') for couple in alignment])
+                        print 'translation.alignment: ', translation.alignment
+                        translation.alignment_type = MT
+                        translation.save()
             elif apply_tm:
                 n_ready, n_translated, n_partially = proxy.apply_translation_memory()
                 messages.add_message(request, messages.INFO, 'TM applied to %d blocks: %d fully translated, %d partially translated.' % (n_ready, n_translated, n_partially))
@@ -847,7 +863,7 @@ def get_or_add_translation(request, segment, text, language, translation_type=MA
         translation = translations[0]
     else:
         # translation = Translation(segment=segment, text=text, language=language, user=request.user)
-        translation = Translation(segment=segment, text=text, language=language, translation_type=translation_type, user_role=user_role)
+        translation = Translation(segment=segment, text=text, language=language, translation_type=translation_type, user_role=user_role, timestamp=timezone.now())
         translation.save()
     return translation
 
@@ -1354,24 +1370,30 @@ def segment_view(request, segment_id):
 
 @staff_member_required
 def translation_view(request, translation_id):
-    show_alignment = False
+    compute_alignment = False
     post = request.POST
     if post:
-        show_alignment = post.get('show_alignment', '')
+        compute_alignment = post.get('compute_alignment', '')
     var_dict = {}
     var_dict['translation'] = translation = get_object_or_404(Translation, pk=translation_id)
     var_dict['segment'] = segment = translation.segment
     var_dict['source_language'] = segment.language
     var_dict['target_language'] = target_language = translation.language
-    var_dict['show_alignment'] = show_alignment
-    var_dict['translation_view_form'] = TranslationViewForm(initial={'show_alignment': show_alignment,})
-    if show_alignment:
+    # var_dict['show_alignment'] = show_alignment
+    var_dict['translation_view_form'] = TranslationViewForm(initial={'compute_alignment': compute_alignment,})
+    if compute_alignment:
         proxies = Proxy.objects.filter(site=translation.segment.site, language=target_language)
         if proxies:
             lowercasing = True
             tokenizer = NltkTokenizer(lowercasing=lowercasing)
             aligner = get_train_aligner(proxies[0], tokenizer=tokenizer, lowercasing=lowercasing)
-            var_dict['alignment'] = best_alignment(aligner, segment.text, translation.text, tokenizer=tokenizer, lowercasing=lowercasing, tokens=True)
+            # var_dict['alignment'] = best_alignment(aligner, segment.text, translation.text, tokenizer=tokenizer, lowercasing=lowercasing, tokens=True)
+            alignment = best_alignment(aligner, segment.text, translation.text, tokenizer=tokenizer, lowercasing=lowercasing)
+            translation.alignment = ' '.join(['%s-%s' % (str(couple[0]), couple[1] is not None and str(couple[1]) or '') for couple in alignment])
+            print 'translation.alignment: ', translation.alignment
+            translation.alignment_type = MT
+            translation.save()
+    var_dict['alignment'] = translation.alignment
     return render_to_response('translation_view.html', var_dict, context_instance=RequestContext(request))
 
 def string_edit(request, string_id=None, language_code='', proxy_slug=''):
@@ -2096,10 +2118,10 @@ def add_update_translation(request):
         if not user_role:
             pass # eccezione
         if translation_id:
-            Translation.objects.filter(pk=translation_id).update(text=target_text, translation_type=MANUAL, user_role=user_role)
+            Translation.objects.filter(pk=translation_id).update(text=target_text, translation_type=MANUAL, user_role=user_role, timestamp=timezone.now())
             return JsonResponse({"data": "modify",})
         else:
-            translation = Translation(segment=segment, language_id=target_code, text=target_text, translation_type=MANUAL, user_role=user_role)
+            translation = Translation(segment=segment, language_id=target_code, text=target_text, translation_type=MANUAL, user_role=user_role, timestamp=timezone.now())
             translation.save()
             translation_id = translation.id
             return JsonResponse({"data": "add","translation_id": translation_id,})
@@ -2307,6 +2329,7 @@ def add_segment_translation(request):
         translation.text = translated_text
         translation.translation_type = MANUAL
         translation.user_role = user_role
+        translation.timestamp = timezone.now()
         translation.save()
         return JsonResponse({"data": "segment-translation", "segment_id": segment.id,"translation_id": translation.id})
     return empty_page(request);

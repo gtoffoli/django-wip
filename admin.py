@@ -293,7 +293,7 @@ class SegmentAdmin(admin.ModelAdmin):
     search_fields = ['text',]
 
 class TranslationAdmin(admin.ModelAdmin):
-    list_display = ['id', 'segment_link', 'languages', 'text', 'user_role',]
+    list_display = ['id', 'segment_link', 'language', 'text', 'user_role', 'translation_type', 'alignment_type']
     list_filter = ['language']
     search_fields = ['text',]
 

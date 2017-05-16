@@ -2094,11 +2094,13 @@ class TranslationSource(models.Model):
 class Translation(models.Model):
     segment = models.ForeignKey(Segment, verbose_name='source segment', related_name='segment_translation')
     language = models.ForeignKey(Language, verbose_name='language')
-    text = models.TextField('translation of plain text', blank=True, null=True)
-    html = models.TextField('translation of the original text with tags', blank=True, null=True)
+    text = models.TextField('target text', blank=True, null=True)
+    alignment = models.TextField('source to target alignment', blank=True, null=True)
     translation_type = models.IntegerField(choices=TRANSLATION_TYPE_CHOICES, default=0, verbose_name='translation type')
     translation_source = models.ForeignKey(TranslationSource, verbose_name='translation source', blank=True, null=True)
+    alignment_type = models.IntegerField(choices=TRANSLATION_TYPE_CHOICES, default=0, verbose_name='alignment type')
     is_locked = models.BooleanField('locked', default=False)
     user_role = models.ForeignKey(UserRole, verbose_name='user role', blank=True, null=True)
-    timestamp = ModificationDateTimeField()
+    # timestamp = ModificationDateTimeField()
+    timestamp = models.DateTimeField()
 

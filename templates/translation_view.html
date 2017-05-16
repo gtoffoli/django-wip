@@ -59,13 +59,12 @@ th, td { text-align: left; vertical-align: top; }
     <div>{{ translation.text }}</div>
 	</fieldset>
 
-	{% if show_alignment %}
 	<fieldset><legend>Word alignment</legend>
 	<div>{{ alignment }}</div>
-	</fieldset>
-	{% endif %}
 
-    <div><label>Show word alignment</label> {{ translation_view_form.show_alignment }}</div>
+    <div><label>Compute word alignment</label> {{ translation_view_form.compute_alignment }}</div>
+	</fieldset>
+
 
 </form>
 {% endblock %}

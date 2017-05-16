@@ -66,8 +66,10 @@ def best_alignment(aligner, source_text, target_text, tokenizer=None, lowercasin
     target_tokens = tokenize(target_text, tokenizer=tokenizer, lowercasing=lowercasing)
     sentence_pair = AlignedSent(source_tokens, target_tokens)
     alignment_info = aligner.best_model2_alignment(sentence_pair)
+    # print 'alignment_info.alignment: ', alignment_info.alignment
     alignment = alignment_info.zero_indexed_alignment()
     if not tokens:
+        # print 'zero_indexed_alignment: ', alignment
         return alignment
     bisentence = []
     for i, j in alignment:
