@@ -109,6 +109,7 @@ class ListSegmentsForm(forms.Form):
     show_other_targets = forms.BooleanField(required=False, label='Show other targets', widget=forms.CheckboxInput(attrs={'onchange': 'javascript: this.form.submit()',}))
 
 class TranslationViewForm(forms.Form):
+    alignment = forms.CharField(required = False, widget=forms.HiddenInput())
     compute_alignment = forms.BooleanField(required=False, label='Show alignment', widget=forms.CheckboxInput(attrs={'onchange': 'javascript: this.form.submit()',}))
 
 class TranslationServiceForm(forms.Form):

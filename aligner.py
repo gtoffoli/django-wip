@@ -2,14 +2,17 @@
 see the NLTK translate package: http://www.nltk.org/api/nltk.translate.html
 """
 
-import os
 import re
+"""
 import dill # required to pickle lambda functions
 import pickle
+"""
 from nltk.translate import AlignedSent, Alignment
+"""
 from nltk.translate import IBMModel2
 from django.conf import settings
 from .models import Segment, Translation
+"""
 
 def tokenize(text, lowercasing=False, tokenizer=None):
     # return re.split("[ |\']*", text)
@@ -20,6 +23,7 @@ def tokenize(text, lowercasing=False, tokenizer=None):
     tokens = re.split("[ |\.\,\;\:\'\"]*", text)
     return tokens
 
+"""
 def make_bitext(proxy, lowercasing=False, use_invariant=False, tokenizer=None):
     site = proxy.site
     target_language = proxy.language
@@ -60,16 +64,13 @@ def get_train_aligner(proxy, ibm_model=2, train=False, iterations=5, tokenizer=N
         pickle.dump(aligner, f, pickle.HIGHEST_PROTOCOL)
         f.close()
     return aligner
+"""
 
-def best_alignment(aligner, source_text, target_text, tokenizer=None, lowercasing=False, tokens=False):
-    source_tokens = tokenize(source_text, tokenizer=tokenizer, lowercasing=lowercasing)
-    target_tokens = tokenize(target_text, tokenizer=tokenizer, lowercasing=lowercasing)
+def best_alignment(aligner, source_tokens, target_tokens, tokens=False):
     sentence_pair = AlignedSent(source_tokens, target_tokens)
     alignment_info = aligner.best_model2_alignment(sentence_pair)
-    # print 'alignment_info.alignment: ', alignment_info.alignment
     alignment = alignment_info.zero_indexed_alignment()
     if not tokens:
-        # print 'zero_indexed_alignment: ', alignment
         return alignment
     bisentence = []
     for i, j in alignment:

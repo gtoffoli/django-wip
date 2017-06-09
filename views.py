@@ -66,7 +66,7 @@ from settings import PAGE_SIZE, PAGE_STEPS
 from settings import DATA_ROOT, RESOURCES_ROOT, tagger_filename, BLOCK_TAGS, QUOTES, SEPARATORS, STRIPPED, DEFAULT_STRIPPED, EMPTY_WORDS, PAGES_EXCLUDE_BY_CONTENT
 from utils import strings_from_html, elements_from_element, block_checksum, ask_mymemory, text_to_list # , non_invariant_words
 import srx_segmenter
-from aligner import get_train_aligner, best_alignment
+from aligner import tokenize, best_alignment #, get_train_aligner
 
 registry.register(Site)
 registry.register(Proxy)
@@ -516,15 +516,17 @@ def proxy(request, proxy_slug):
                     m, n = proxy.import_translations(f, request=request)
                     messages.add_message(request, messages.INFO, '%d translations read, %d translations added.' % (m, n))
             elif align_translations:
-                # proxy.align_translations()
                 lowercasing = True
                 tokenizer = NltkTokenizer(lowercasing=lowercasing)
-                aligner = get_train_aligner(proxy, train=True, tokenizer=tokenizer, lowercasing=lowercasing)
+                # aligner = get_train_aligner(proxy, train=True, tokenizer=tokenizer, lowercasing=lowercasing)
+                aligner = proxy.get_train_aligner(train=True, tokenizer=tokenizer, lowercasing=lowercasing)
                 segments = Segment.objects.filter(site=proxy.site, is_invariant=False)
                 for segment in segments:
+                    source_tokens = tokenize(segment.text, tokenizer=tokenizer, lowercasing=lowercasing)
                     translations = Translation.objects.filter(segment=segment, language=proxy.language).exclude(alignment_type=MANUAL)
                     for translation in translations:
-                        alignment = best_alignment(aligner, segment.text, translation.text, tokenizer=tokenizer, lowercasing=lowercasing)
+                        target_tokens = tokenize(translation.text, tokenizer=tokenizer, lowercasing=lowercasing)
+                        alignment = best_alignment(aligner, source_tokens, target_tokens)
                         translation.alignment = ' '.join(['%s-%s' % (str(couple[0]), couple[1] is not None and str(couple[1]) or '') for couple in alignment])
                         print 'translation.alignment: ', translation.alignment
                         translation.alignment_type = MT
@@ -1370,30 +1372,43 @@ def segment_view(request, segment_id):
 
 @staff_member_required
 def translation_view(request, translation_id):
+    alignment = ''
     compute_alignment = False
     post = request.POST
     if post:
-        compute_alignment = post.get('compute_alignment', '')
+        translation_view_form = TranslationViewForm(post)
+        if translation_view_form.is_valid():
+            data = translation_view_form.cleaned_data
+            alignment = data['alignment']
+            compute_alignment = data['compute_alignment']
     var_dict = {}
     var_dict['translation'] = translation = get_object_or_404(Translation, pk=translation_id)
     var_dict['segment'] = segment = translation.segment
     var_dict['source_language'] = segment.language
     var_dict['target_language'] = target_language = translation.language
-    # var_dict['show_alignment'] = show_alignment
     var_dict['translation_view_form'] = TranslationViewForm(initial={'compute_alignment': compute_alignment,})
+    if alignment:
+        translation.alignment = alignment
+        translation.save()
+    else:
+        alignment = translation.alignment
+    """
     if compute_alignment:
         proxies = Proxy.objects.filter(site=translation.segment.site, language=target_language)
         if proxies:
             lowercasing = True
             tokenizer = NltkTokenizer(lowercasing=lowercasing)
             aligner = get_train_aligner(proxies[0], tokenizer=tokenizer, lowercasing=lowercasing)
-            # var_dict['alignment'] = best_alignment(aligner, segment.text, translation.text, tokenizer=tokenizer, lowercasing=lowercasing, tokens=True)
-            alignment = best_alignment(aligner, segment.text, translation.text, tokenizer=tokenizer, lowercasing=lowercasing)
+            source_tokens = tokenize(segment.text, tokenizer=tokenizer, lowercasing=lowercasing)
+            target_tokens = tokenize(translation.text, tokenizer=tokenizer, lowercasing=lowercasing)
+            alignment = best_alignment(aligner, source_tokens, target_tokens)
             translation.alignment = ' '.join(['%s-%s' % (str(couple[0]), couple[1] is not None and str(couple[1]) or '') for couple in alignment])
             print 'translation.alignment: ', translation.alignment
             translation.alignment_type = MT
             translation.save()
-    var_dict['alignment'] = translation.alignment
+    """
+    var_dict['alignment'] = alignment
+    var_dict['can_edit'] = True
     return render_to_response('translation_view.html', var_dict, context_instance=RequestContext(request))
 
 def string_edit(request, string_id=None, language_code='', proxy_slug=''):

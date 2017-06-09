@@ -16,15 +16,20 @@ logger = logging.getLogger('wip')
 
 # from collections import defaultdict
 import os
+import json
 import time
 import urllib2
 import re, regex
 import difflib
 from collections import defaultdict
+import dill # required to pickle lambda functions
+import pickle
 # import datetime
 # from namedentities import unicode_entities
 # from Levenshtein.StringMatcher import StringMatcher
 from lxml import html, etree
+from nltk.translate import AlignedSent, Alignment, IBMModel2
+from django.conf import settings
 from django.db import models
 from django.db.models import Q
 from django.db.models.expressions import RawSQL
@@ -42,6 +47,7 @@ from django_diazo.middleware import DjangoDiazoMiddleware
 from wip.wip_nltk.tokenizers import NltkTokenizer
 from wip.wip_sd.sd_algorithm import SDAlgorithm
 from vocabularies import Language, Subject, ApprovalStatus
+from aligner import tokenize, best_alignment
 
 from settings import RESOURCES_ROOT, BLOCK_TAGS, BLOCKS_EXCLUDE_BY_XPATH, SEPARATORS, STRIPPED, EMPTY_WORDS, BOTH_QUOTES
 DEFAULT_USER = 1
@@ -834,6 +840,47 @@ class Proxy(models.Model):
                 return adict[match.group(0)]
             text = rx.sub(one_xlat, text)
         return text
+
+    def make_bitext(self, lowercasing=False, use_invariant=False, tokenizer=None):
+        site = self.site
+        target_language = self.language
+        segments = Segment.objects.filter(site=site)
+        bitext = []
+        for segment in segments:
+            segment_text = segment.text
+            source_tokens = tokenize(segment_text, tokenizer=tokenizer, lowercasing=lowercasing)
+            if segment.is_invariant:
+                if use_invariant:
+                    alignment = Alignment([(i, i) for i in range(len(source_tokens))])
+                    bitext.append(AlignedSent(source_tokens, source_tokens, alignment))
+            else:
+                translations = Translation.objects.filter(segment=segment, language=target_language)
+                for translation in translations:
+                    translation_text = translation.text
+                    target_tokens = tokenize(translation_text, tokenizer=tokenizer, lowercasing=lowercasing)
+                    bitext.append(AlignedSent(source_tokens, target_tokens))
+        return bitext
+
+    def get_train_aligner(self, ibm_model=2, train=False, iterations=5, tokenizer=None, lowercasing=False, use_invariant=False):
+        bitext = self.make_bitext(lowercasing=lowercasing, tokenizer=tokenizer, use_invariant=use_invariant)
+        site = self.site
+        aligner_name = 'align_%s_%s%s.pickle' % (site.slug, site.language_id, self.language_id)
+        aligner_path = os.path.join(settings.CACHE_ROOT, aligner_name)
+        if not train:
+            if os.path.isfile(aligner_path):
+                f = open(aligner_path, 'rb')
+                aligner = pickle.load(f)
+                f.close()
+                return aligner
+        if ibm_model == 3:
+            from nltk.translate import IBMModel3
+            aligner = IBMModel3(bitext, iterations)
+        else:
+            aligner = IBMModel2(bitext, iterations)
+            f = open(aligner_path, 'wb')
+            pickle.dump(aligner, f, pickle.HIGHEST_PROTOCOL)
+            f.close()
+        return aligner
 
 class Webpage(models.Model):
     site = models.ForeignKey(Site)
@@ -2104,3 +2151,47 @@ class Translation(models.Model):
     # timestamp = ModificationDateTimeField()
     timestamp = models.DateTimeField()
 
+    def make_json(self):
+        lowercasing = True
+        tokenizer = NltkTokenizer(lowercasing=lowercasing)
+        source_tokens = tokenize(self.segment.text, tokenizer=tokenizer, lowercasing=lowercasing)
+        target_tokens = tokenize(self.text, tokenizer=tokenizer, lowercasing=lowercasing)
+        cells = []
+        x = 10
+        i = 0
+        for token in source_tokens:
+            y = i*50
+            cells.append({
+                'type': 'basic.Rect',
+                'id': 'source-%d' % i,
+                'position': { 'x': x, 'y': y },
+                'attrs': {'text': {'text': '%d. %s' % (i, token), 'magnet': True }, 'nodetype': 'source',}
+            })
+            i += 1
+        x = 200
+        j = 0
+        for token in target_tokens:
+            y = j*50
+            cells.append({
+                'type': 'basic.Rect',
+                'id': 'target-%d' % j,
+                'position': { 'x': x, 'y': y },
+                'attrs': {'text': {'text': '%d. %s' % (j, token) }, 'nodetype': 'target',}
+            })
+            j += 1
+        if self.alignment:
+            ijs = self.alignment.split()
+            k = 0
+            for ij in ijs:
+                i, j = ij.split('-')
+                if i and j:
+                    cells.append({
+                        'type': 'link',
+                        'id': 'edge-%d' % k,
+                        'source': {'id': 'source-%s' % i},
+                        'target': {'id': 'target-%s' % j},
+                    })
+                k += 1
+        return json.dumps({ 'cells': cells })
+
+        

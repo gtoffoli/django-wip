@@ -1,0 +1,139 @@
+{% load staticfiles i18n %}
+
+<style>
+.element.basic.Rect, .element.basic.Circle {
+    cursor: pointer;
+}
+</style>
+
+<link rel="stylesheet" href="{% static "jointjs/joint.css" %}">
+<script type="text/javascript" src="{% static "jointjs/jquery-2.1.0.js" %}"></script>
+<script type="text/javascript" src="{% static "jointjs/lodash.min.js" %}"></script>
+<script type="text/javascript" src="{% static "jointjs/backbone-min.js" %}"></script>
+<script type="text/javascript" src="{% static "jointjs/graphlib.js" %}"></script>
+<script type="text/javascript" src="{% static "jointjs/joint.js" %}"></script>
+
+<script type="text/javascript">
+
+jQuery.noConflict(true)
+
+var node_height = 40;
+var node_padding = 10;
+var icon_size = 16;
+var node_color = '#CB4F98';
+var edge_color = '#CB4F98';
+
+var dagElement = $('#dag');
+var graph = new joint.dia.Graph;
+var paper = new joint.dia.Paper({
+    el: dagElement,
+    width: dagElement.width(),
+    height: dagElement.height(),
+    model: graph,
+    interactive: true,
+    async: false,
+});
+
+var json_in = '{{ translation.make_json|escapejs }}';
+// graph.fromJSON(JSON.parse(json_in));
+var parsed_in = JSON.parse(json_in);
+graph.fromJSON(parsed_in);
+
+function get_parsed_cell(id) {
+  cells = parsed_in['cells']
+  for (i = 0; i < cells.length; ++i) {
+	  cell = cells[i];
+	  if (cell['id'] === id)
+		  return cell
+  }
+}
+
+function label_width(label) {
+  width = 0;
+  for (i = 0; i < label.length; ++i) {
+    if (label[i] === label[i].toUpperCase())
+      width += 6;
+    else
+      width += 5;
+  }
+  return width;
+}
+graph.getElements().forEach(function(node, index, array) {
+  fill_color = node_color;
+  text_color = 'white';
+  
+  node.attr({ rect: { fill: fill_color, stroke: node_color, rx: 3, ry: 3 }});
+  node.set('index', index);
+  label = node.attr('text').text;
+  node.attr({ text: { text: label, fill: text_color, 'font-family': 'Open Sans, sans-serif', 'font-size': 11, 'text-anchor':'middle', }});
+  width = label_width(label) + node_padding * 2;
+  node.resize(width, node_height);
+});
+
+graph.getLinks().forEach(function(link, index) {
+  link.set('connector', { name: 'smooth' });
+  link.attr({
+    '.connection': { stroke: edge_color },
+  });
+  label = link.id.toString();
+});
+
+function on_node_dragged(cellView, x, y) {
+  this_cell = cellView.model;
+  // Find the first element below that is not a link nor the dragged element itself.
+  var elementBelow = graph.get('cells').find(function(cell) {
+    if (cell instanceof joint.dia.Link) return false; // Not interested in links.
+    if (cell.attr('nodetype') === 'source') return false; // Interested only to target nodes.
+    if (cell.getBBox().containsPoint(g.point(x, y))) return true;
+    return false;
+  });
+
+  if (elementBelow) {
+    source_id = this_cell.id;
+    target_id = elementBelow.id;
+    graph.addCell(new joint.dia.Link({
+      source: { id: source_id }, target: { id: target_id },
+      attrs: {
+		'.connection': { stroke: edge_color },
+	  }
+    }));
+  }
+  this_cell.set('position', get_parsed_cell(this_cell.id)['position']);
+}	
+
+function on_cell_dragged(cellView, x, y) {
+  this_cell = cellView.model;
+  if (! this_cell.isLink())
+    on_node_dragged(cellView, x, y);
+}
+
+paper.on('cell:pointerup', function (cellView, evt, x, y) {
+    on_cell_dragged(cellView, x, y);
+  });
+
+function get_alignment() {
+  alignment = [];
+  // i-j couple for each link between source and target node
+  graph.getLinks().forEach(function(link, index) {
+	  source_id = link.get('source').id;
+	  target_id = link.get('target').id;
+	  alignment.push(source_id.split('-')[1] + '-'  + target_id.split('-')[1])
+  });
+  // i- element for each link source node without an associated target
+  graph.getElements().forEach(function(node, index, array) {
+    if (node.attr('nodetype') == 'source') {
+      i = node.id.split('-')[1];
+      if (! alignment.find(function(element, index, array) { return element.startsWith(i); }, i))
+      	alignment.push(i + '-');
+    }  
+  });
+  alignment.sort();
+  alignment = alignment.join(' ');
+  return alignment;
+}
+
+graph.resetCells(graph.getCells());
+
+paper.fitToContent();
+
+</script>
