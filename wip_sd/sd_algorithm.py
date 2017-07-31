@@ -16,11 +16,11 @@ import re
 import urllib
 import copy
 # import nltk 
-from region import Region
+from .region import Region
 from lxml import etree, html
 from lxml.html import HtmlComment
 from lxml.html.clean import Cleaner 
-from terminal_colors import Tcolors
+from .terminal_colors import Tcolors
  
 VALID_TAGS = ['div','td','span','p','form','dd','dt','li']
 STRONG_TAGS = ['div','td','dd','dt','li']
@@ -69,18 +69,18 @@ class SDAlgorithm():
     
     def analyze_page(self):
                 
-        print "[*] Create DOM tree..."
+        print ("[*] Create DOM tree...")
         tree = self.construct_page_tree() 
         node = tree.getroot()
         self.cross_tree(node) 
-        print "[*] Calculating initial groups..."
-        print "[*] Merging groups..."
+        print ("[*] Calculating initial groups...")
+        print ("[*] Merging groups...")
         self.merge_groups(tree) 
-        print "[*] Creating regions..."
+        print ("[*] Creating regions...")
         self.create_regions(tree) 
-        print "[*] Calculating distances from max region..."
+        print ("[*] Calculating distances from max region...")
         self.calculate_distances_from_max(tree)  
-        print "[*] Printing regions...\n"
+        print ("[*] Printing regions...\n")
         for region in self.regions:
             region._print()  
             
@@ -131,39 +131,39 @@ class SDAlgorithm():
                 
                 context_validated =  self.candidate_context_validated(article, grouped_comments, max_group)            
                 if self.big_areas_in_same_level(article, grouped_comments, max_group) and not validated:
-                    print Tcolors.INFO + " Multiple similar regions detected!"
-                    print "Class: "
-                    print Tcolors.RES + " " + grouped_comments[max_group][0].class_name
-                    print "Texts: " 
+                    print (Tcolors.INFO + " Multiple similar regions detected!")
+                    print ("Class: ")
+                    print (Tcolors.RES + " " + grouped_comments[max_group][0].class_name)
+                    print ("Texts: ")
                     for reg in grouped_comments[max_group]:
-                        print reg.full_text
+                        print (reg.full_text)
                     return None, None, grouped_comments[max_group]
                 elif not context_validated: 
-                    print
+                    print ()
                     self.print_article(article)
-                    print 
-                    print Tcolors.INFO + " No comments found."                
+                    print ()
+                    print (Tcolors.INFO + " No comments found.")         
                     return article, None, None
                 elif context_validated:
-                    print 
-                    print Tcolors.INFO + " Article with comments detected!"
+                    print ()
+                    print (Tcolors.INFO + " Article with comments detected!")
                     self.print_article(article)
-                    print 
-                    print "Comment class:"      
-                    print Tcolors.RES + " " + max_group 
-                    print "Comments:" 
+                    print ()
+                    print ("Comment class:")   
+                    print (Tcolors.RES + " " + max_group)
+                    print ("Comments:")
                     for com in grouped_comments[max_group]:
-                        print com.full_text              
+                        print (com.full_text)         
                     return article, grouped_comments[max_group], None
             else:
                 self.print_article(article)
                 return article, None, None
         else: 
-            print Tcolors.INFO + " Multiple similar regions detected!"  
-            print Tcolors.RES
-            print "Texts: " 
+            print (Tcolors.INFO + " Multiple similar regions detected!")
+            print (Tcolors.RES)
+            print ("Texts: ")
             for reg in biggest_regions:
-                print reg.full_text
+                print (reg.full_text)
             return None, None, biggest_regions
     
     def group_regions(self):
@@ -389,7 +389,7 @@ class SDAlgorithm():
         Check whether the candidate comment regions validate as such based on
         the keywords that are detected in their content.
         """
-        print Tcolors.ACT + " Validating candidate comment group based on its content..."
+        print (Tcolors.ACT + " Validating candidate comment group based on its content...")
         COMMENT_TAGS = ['comment', 'reply', 'response', 'ident', 'said:', 'rate','user','inner','wrote:']
         STRONG_COMMENT_TAGS = ['comment','reply','user','said:','wrote:']
         
@@ -435,13 +435,13 @@ class SDAlgorithm():
         """
         Print the details of a detected article (class, title and text).
         """
-        print Tcolors.INFO + " Article detected!" 
-        print "Article class: "
-        print Tcolors.RES + " " + repr(article.class_name)
-        print "Article title: "
-        print article.get_ancestor_title() 
-        print "Article text: "
-        print article.full_text.replace("\n"," ") 
+        print (Tcolors.INFO + " Article detected!")
+        print ("Article class: ")
+        print (Tcolors.RES + " " + repr(article.class_name))
+        print ("Article title: ")
+        print (article.get_ancestor_title())
+        print ("Article text: ")
+        print (article.full_text.replace("\n"," "))
     
     def merge_groups(self, tree):
         """
@@ -534,17 +534,17 @@ class SDAlgorithm():
         """
         node_text = "" 
         try:
-        	t = node.text
-        	t = True
+            t = node.text
+            t = True
         except:
-        	t = False
+            t = False
         if t and node.text is not None: 
             node_text = node.text
         else:
             try: 
-        		itertext = list(node.itertext())
+                itertext = list(node.itertext())
             except: 
-        		itertext = []
+                itertext = []
             itertexts = [text for text in itertext if text is not None and re.sub(r"\n|\r|\t| |,|\.","",text) != ""]
             descendants = [des for des in list(node.iterdescendants())]
             descendants_length = len(descendants)
@@ -566,9 +566,9 @@ class SDAlgorithm():
         if node_text.find(".") == -1:
             node_text = ""
         elif(reduced == ""):
-           node_text = reduced
+            node_text = reduced
         elif reduced != "":
-           node_text = re.sub(r"\r|\t|\n|  |,,","",node_text) 
+            node_text = re.sub(r"\r|\t|\n|  |,,","",node_text) 
             
         return node_text 
     

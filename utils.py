@@ -400,8 +400,8 @@ def parse_xliff(filepath):
                 target = mrk_text
         elif tag.endswith('trans-unit'):
             i += 1
-            print i, source
-            print i, target
+            print (i, source)
+            print (i, target)
 
 def text_to_list(text):
     if not text:
@@ -458,7 +458,8 @@ def segments_from_string(string, segmenter):
         if len(s) < 3:
             continue
         # KEEP SEGMENTS CONTAINING: DATES, NUMBERS INCLUDING SEPARATORS, CURRENCY SYMBOLS
-        if re_eu_date.findall(s) or re_decimal_thousands_separators.findall(s) or regex.findall(ur'\p{Sc}', s):
+        # if re_eu_date.findall(s) or re_decimal_thousands_separators.findall(s) or regex.findall(ur'\p{Sc}', s):
+        if re_eu_date.findall(s) or re_decimal_thousands_separators.findall(s) or regex.findall(r'\p{Sc}', s):
             filtered.append(s)
             continue
         """ REMOVE RESIDUOUS SEGMENTS NON INCLUDING ANY LETTER """

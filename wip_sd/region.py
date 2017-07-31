@@ -15,7 +15,7 @@
 ####################################################################
 
 import re 
-from terminal_colors import Tcolors
+from .terminal_colors import Tcolors
 from lxml.html import HtmlComment 
 
 class Region():
@@ -73,17 +73,17 @@ class Region():
         """
         node_text = "\n" 
         for des in node.iter():
-			try:
-				if des.text is not None and (des.tag not in ['script', 'style','h1','h2']\
+            try:
+                if des.text is not None and (des.tag not in ['script', 'style','h1','h2']\
 		           and not isinstance(des, HtmlComment) and re.sub(r"\n|\r|\t| |,|;|\.","",des.text) != ""\
 		           or (des.tag == "p")) and des.text.find(".") > -1 and node_text.find(des.text_content()) == -1:
-					node_text += re.sub(r"\n|\r|\t","",des.text_content())
-					if des.tag == 'p':
-						node_text += "\n"   
-					elif des.tail is not None and des.tag in ['table']:
-						node_text += des.tail
-			except:
-				node_text += ""
+                    node_text += re.sub(r"\n|\r|\t","",des.text_content())
+                    if des.tag == 'p':
+                        node_text += "\n"   
+                    elif des.tail is not None and des.tag in ['table']:
+                        node_text += des.tail
+            except:
+                node_text += ""
                           
         node_text = node_text.replace("&gt",">")
         node_text = re.sub(r"  |,,|--|==|<!--(.|\s)*?-->|<!\[CDATA(.|\s)*?\]\]>","",node_text)  
@@ -148,5 +148,5 @@ class Region():
         print " Full text: \n", self.full_text 
         print "\n" + Tcolors.ENDC
         """
-    	pass 
+        pass 
 

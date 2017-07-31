@@ -126,4 +126,4 @@ def print_aligned(bitext, start=0, n=10):
             if j:
                 match.append(mots[j])
             matches.append(match)
-        print matches
+        print (matches)

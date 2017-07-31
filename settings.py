@@ -11,7 +11,7 @@ https://docs.djangoproject.com/en/1.9/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/1.9/ref/settings/
 """
-from private import *
+from .private import *
 
 import string
 import os
@@ -40,7 +40,7 @@ INSTALLED_APPS = [
     'allauth.account',
     'allauth.socialaccount',
     #'allauth.socialaccount.providers.oauth2',
-    'keyrock',
+    # 'keyrock',
     'bootstrap3',
     'menu',
     'httpproxy',
