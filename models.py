@@ -28,7 +28,7 @@ import pickle
 # from namedentities import unicode_entities
 # from Levenshtein.StringMatcher import StringMatcher
 from lxml import html, etree
-from nltk.translate import AlignedSent, Alignment, IBMModel2
+from nltk.translate import AlignedSent, Alignment, IBMModel2, IBMModel3
 from django.conf import settings
 from django.db import models
 from django.db.models import Q
@@ -841,7 +841,7 @@ class Proxy(models.Model):
             text = rx.sub(one_xlat, text)
         return text
 
-    def make_bitext(self, lowercasing=False, use_invariant=False, tokenizer=None):
+    def make_bitext(self, lowercasing=False, use_invariant=False, tokenizer=None, max_tokens=1000, max_fertility=1000):
         site = self.site
         target_language = self.language
         segments = Segment.objects.filter(site=site)
@@ -849,20 +849,27 @@ class Proxy(models.Model):
         for segment in segments:
             segment_text = segment.text
             source_tokens = tokenize(segment_text, tokenizer=tokenizer, lowercasing=lowercasing)
+            L = len(source_tokens)
+            if L > max_tokens:
+                continue
             if segment.is_invariant:
                 if use_invariant:
-                    alignment = Alignment([(i, i) for i in range(len(source_tokens))])
+                    alignment = Alignment([(i, i) for i in range(L)])
                     bitext.append(AlignedSent(source_tokens, source_tokens, alignment))
             else:
                 translations = Translation.objects.filter(segment=segment, language=target_language)
                 for translation in translations:
                     translation_text = translation.text
                     target_tokens = tokenize(translation_text, tokenizer=tokenizer, lowercasing=lowercasing)
+                    M = len(target_tokens)
+                    if M>max_tokens or abs(M-L)>max_fertility:
+                        continue
                     bitext.append(AlignedSent(source_tokens, target_tokens))
         return bitext
 
-    def get_train_aligner(self, ibm_model=2, train=False, iterations=5, tokenizer=None, lowercasing=False, use_invariant=False):
-        bitext = self.make_bitext(lowercasing=lowercasing, tokenizer=tokenizer, use_invariant=use_invariant)
+    def get_train_aligner(self, bitext=None, ibm_model=2, train=False, iterations=5, tokenizer=None, lowercasing=False, use_invariant=False, max_tokens=1000, max_fertility=1000):
+        if not bitext:
+            bitext = self.make_bitext(lowercasing=lowercasing, tokenizer=tokenizer, use_invariant=use_invariant, max_tokens=max_tokens, max_fertility=max_fertility)
         site = self.site
         aligner_name = 'align_%s_%s%s.pickle' % (site.slug, site.language_id, self.language_id)
         aligner_path = os.path.join(settings.CACHE_ROOT, aligner_name)
@@ -873,14 +880,43 @@ class Proxy(models.Model):
                 f.close()
                 return aligner
         if ibm_model == 3:
-            from nltk.translate import IBMModel3
             aligner = IBMModel3(bitext, iterations)
         else:
             aligner = IBMModel2(bitext, iterations)
+        if train:
             f = open(aligner_path, 'wb')
             pickle.dump(aligner, f, pickle.HIGHEST_PROTOCOL)
             f.close()
         return aligner
+
+    def clear_alignments(self):
+        target_language = self.language
+        segments = Segment.objects.filter(site=self.site)
+        for segment in segments:
+            translations = Translation.objects.filter(segment=segment, language=target_language)
+            for translation in translations:
+                if translation.alignment and not translation.alignment_type==MANUAL:
+                    translation.alignment = ''
+                    translation.save() 
+
+    def align_translations(self, aligner=None, bitext=None, ibm_model=2, iterations=5, tokenizer=None, lowercasing=False):
+        if not tokenizer:
+            tokenizer = NltkTokenizer(lowercasing=lowercasing)
+        if not aligner:
+            aligner = self.get_train_aligner(self, bitext=bitext, ibm_model=ibm_model, train=True, iterations=iterations, tokenizer=tokenizer, lowercasing=lowercasing)
+        target_language = self.language
+        segments = Segment.objects.filter(site=self.site)
+        for segment in segments:
+            source_tokens = tokenize(segment.text, tokenizer=tokenizer)
+            translations = Translation.objects.filter(segment=segment, language=target_language)
+            for translation in translations:
+                if not translation.alignment_type==MANUAL:
+                    target_tokens = tokenize(translation.text, tokenizer=tokenizer)
+                    alignment = best_alignment(aligner, source_tokens, target_tokens)
+                    translation.alignment = ' '.join(['%s-%s' % (str(couple[0]), couple[1] is not None and str(couple[1]) or '') for couple in alignment])
+                    print 'translation.alignment: ', translation.alignment
+                    translation.alignment_type = MT
+                    translation.save()
 
 class Webpage(models.Model):
     site = models.ForeignKey(Site)

@@ -12,6 +12,11 @@ from models import STRING_TYPE_CHOICES, STRING_SORT_CHOICES, STRING_TRANSLATION_
 from models import ROLE_TYPE_CHOICES
 from vocabularies import Language, Subject
 
+PARALLEL_SENTENCES_FORMAT_CHOICES = (
+    (1, _("xliff")),
+    (2, _("text"))
+)
+
 class SiteManageForm(forms.Form):
     clear_pages = forms.BooleanField(required=False, label='Clear pages')
     clear_blocks = forms.BooleanField(required=False, label='Clear blocks')
@@ -25,6 +30,7 @@ class ProxyManageForm(forms.Form):
     delete_blocks_confirmation = forms.BooleanField(required=False, label='Delete blocks confirmation')
     delete_proxy_confirmation = forms.BooleanField(required=False, label='Delete proxy confirmation')
     file = forms.FileField(required=False, label='Select a file to upload')
+    parallel_format = forms.ChoiceField(choices=PARALLEL_SENTENCES_FORMAT_CHOICES, label="Format", widget=forms.Select(attrs={ 'style': 'width: auto; height: 2em;',}))
 
 class PageEditForm(forms.Form):
     no_translate = forms.BooleanField(required=False, label='No translate')
@@ -107,6 +113,7 @@ class ListSegmentsForm(forms.Form):
     target_language = forms.ModelChoiceField(required=True, label="Target language", queryset=Language.objects.all(), widget=forms.Select(attrs={'style':'height: 24px;', 'onchange': 'javascript: this.form.submit()',}))
     target_text_filter = forms.CharField(required=False, label="Text in target string", widget=forms.TextInput(attrs={'style': 'width: 500px;', 'onchange': 'javascript: this.form.submit()',}))
     show_other_targets = forms.BooleanField(required=False, label='Show other targets', widget=forms.CheckboxInput(attrs={'onchange': 'javascript: this.form.submit()',}))
+    show_alignments = forms.BooleanField(required=False, label='Show alignments', widget=forms.CheckboxInput(attrs={'onchange': 'javascript: this.form.submit()',}))
 
 class TranslationViewForm(forms.Form):
     alignment = forms.CharField(required = False, widget=forms.HiddenInput())

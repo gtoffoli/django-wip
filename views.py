@@ -24,10 +24,11 @@ from math import sqrt
 from lxml import html, etree
 import json
 
-from settings import BASE_DIR, USE_SCRAPY, USE_NLTK
+# from settings import BASE_DIR, USE_SCRAPY, USE_NLTK
 
 from haystack.query import SearchQuerySet
 # from search_indexes import StringIndex
+from django.conf import settings
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from django.template import RequestContext
 from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
@@ -490,6 +491,7 @@ def proxy(request, proxy_slug):
         delete_blocks = post.get('delete_blocks', '')
         delete_proxy = post.get('delete_proxy', '')
         import_translations = post.get('import_translations', '')
+        export_translations = post.get('export_translations', '')
         apply_tm = post.get('apply_tm', '')
         align_translations = post.get('align_translations', '')
         propagate_up = post.get('propagate_up', '')
@@ -515,7 +517,30 @@ def proxy(request, proxy_slug):
                 if f:
                     m, n = proxy.import_translations(f, request=request)
                     messages.add_message(request, messages.INFO, '%d translations read, %d translations added.' % (m, n))
+            elif export_translations:
+                parallel_format = int(data['parallel_format'])
+                lines = []
+                segments = Segment.objects.filter(site=proxy.site, is_invariant=False)
+                for segment in segments:
+                    source_text = segment.text
+                    translations = Translation.objects.filter(segment=segment, language=proxy.language)
+                    for translation in translations:
+                        target_text = translation.text
+                        if parallel_format==1: # XLIFF
+                            pass
+                        elif parallel_format==2: # plain_text
+                            lines.append('%s . ||| . %s' % (source_text, target_text))
+                data = '\n'.join(lines)
+                if parallel_format==1: # XLIFF
+                    response = HttpResponse(data, content_type='application/xliff+xml')
+                    filename = '%s_translations.xlf' % proxy.slug
+                elif parallel_format==2: # plain_text
+                    response = HttpResponse(data, content_type='text/plain')
+                    filename = '%s_translations.txt' % proxy.slug
+                response['Content-Disposition'] = 'attachment; filename="%s"' % filename
+                return response
             elif align_translations:
+                """
                 lowercasing = True
                 tokenizer = NltkTokenizer(lowercasing=lowercasing)
                 # aligner = get_train_aligner(proxy, train=True, tokenizer=tokenizer, lowercasing=lowercasing)
@@ -531,6 +556,8 @@ def proxy(request, proxy_slug):
                         print 'translation.alignment: ', translation.alignment
                         translation.alignment_type = MT
                         translation.save()
+                """
+                proxy.align_translations(ibm_model=2, iterations=5)
             elif apply_tm:
                 n_ready, n_translated, n_partially = proxy.apply_translation_memory()
                 messages.add_message(request, messages.INFO, 'TM applied to %d blocks: %d fully translated, %d partially translated.' % (n_ready, n_translated, n_partially))
@@ -2002,6 +2029,7 @@ def list_segments(request, proxy_slug=None, state=None):
     source_text_filter = tm_edit_context.get('source_text_filter', '')
     target_text_filter = tm_edit_context.get('target_text_filter', '')
     show_other_targets = tm_edit_context.get('show_other_targets', False)
+    show_alignments = tm_edit_context.get('show_alignments', False)
     tm_edit_context['project_site'] = project_site_id
     tm_edit_context['source_language'] = source_language_code
     tm_edit_context['target_language'] = target_language_code
@@ -2048,6 +2076,7 @@ def list_segments(request, proxy_slug=None, state=None):
             tm_edit_context['source_text_filter'] = source_text_filter = data['source_text_filter']
             tm_edit_context['target_text_filter'] = target_text_filter = data['target_text_filter']
             tm_edit_context['show_other_targets'] = show_other_targets = data['show_other_targets']
+            tm_edit_context['show_alignments'] = show_alignments = data['show_alignments']
             request.session['tm_edit_context'] = tm_edit_context
             if project_site and target_language:
                 proxies = Proxy.objects.filter(site=project_site, language=target_language)
@@ -2071,6 +2100,7 @@ def list_segments(request, proxy_slug=None, state=None):
     var_dict['source_language'] = source_language
     var_dict['target_language'] = target_language
     var_dict['show_other_targets'] = show_other_targets
+    var_dict['show_alignments'] = show_alignments
     var_dict['other_languages'] = Language.objects.exclude(code=target_language_code).order_by('code')
 
     if project_site and translation_state == INVARIANT:
@@ -2788,7 +2818,7 @@ def crawl_site(site_pk):
     logger.info('Crawling site {0}'.format(site_pk))
     return site_crawl(site_pk)
 
-if USE_NLTK:
+if settings.USE_NLTK:
 
     import nltk
     from wip.wip_nltk.corpora import NltkCorpus

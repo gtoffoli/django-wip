@@ -43,7 +43,8 @@
 <form action="#" method="post" id="translation-form">{% csrf_token %}
 
 <div>{% for field in list_segments_form.visible_fields|slice:"0:2" %}{{ field.label_tag }} {{ field }} &nbsp; {% endfor %}
-	 {% with field=list_segments_form.visible_fields.6 %}{{ field.label_tag }} {{ field }} {% endwith %}</div>
+	 {% with field=list_segments_form.visible_fields.6 %}{{ field.label_tag }} {{ field }} {% endwith %}
+	 {% with field=list_segments_form.visible_fields.7 %}{{ field.label_tag }} {{ field }} {% endwith %}</div>
 <div>{% for field in list_segments_form.visible_fields|slice:"2:4" %}{{ field.label_tag }} {{ field }} &nbsp; {% endfor %}</div>
 <div>{% for field in list_segments_form.visible_fields|slice:"4:6" %}{{ field.label_tag }}<span style="font-size: medium;">&nbsp; </span>{{ field }} &nbsp; {% endfor %}</div>
 
@@ -100,6 +101,9 @@
 				  <td>
                         	<input type="hidden" name="translation-{{ translation.id }}" id="translation-{{ translation.id }}" value="{{ translation.id }}">
                         	<textarea class="form-control custom-control" name="text-{{ translation.id }}" id="text-{{ translation.id }}" style="width:100%">{{ translation.text }}</textarea>
+					    {% if show_alignments and translation.alignment %}
+							  <br />{{ translation.alignment }}
+			            {% endif %}
                   </td>
                   <td class="text-center" style="vertical-align:top;">
                         	<span class="input-group-btn">
@@ -122,6 +126,7 @@
                   </tr>
 			    {% endif %}
 		    {% endwith %}         
+
 
 		    {% if show_other_targets %}
               {% for other_language in other_languages %}
