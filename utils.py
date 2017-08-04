@@ -2,28 +2,41 @@
 
 import os
 import sys
+"""
 import codecs
 sys.stdout = codecs.getwriter('utf8')(sys.stdout)
 sys.stderr = codecs.getwriter('utf8')(sys.stderr)
+"""
 
-import logging
-logger = logging.getLogger('wip')
-
+"""
 import StringIO
 try:
     from cStringIO import StringIO as BytesIO
 except ImportError:
     from io import BytesIO
+"""
+if (sys.version_info > (3, 0)):
+    from io import StringIO
+    from html.entities import entitydefs as htmlentitydefs
+
+    def unichr(n):
+        return chr(n)
+else:
+    import StringIO
+    import htmlentitydefs
+
+import re, regex
+
 # from scrapy.utils.misc import md5sum
 import hashlib
 
-from string import maketrans 
+# from string import maketrans 
 from namedentities import unicode_entities
 from lxml import html, etree
-from guess_language import guessLanguage
+from guess_language.guess_language import guessLanguage
 import urllib
-import unirest
-import srx_segmenter
+# import unirest
+import wip.srx_segmenter
 
 # from wip.settings import BLOCK_TAGS, TO_DROP_TAGS
 from django.conf import settings
@@ -297,11 +310,14 @@ def ask_mymemory(string, langpair):
     baseurl = "https://translated-mymemory---translation-memory.p.mashape.com/api/get?"
     querydict = { 'key': translated_key, 'langpair': langpair, 'mt': 1, 'of': 'json', 'q': string, }
     headers={"X-Mashape-Key": "vBhqkjRytAmsh3COr4xRHcX2whEcp1mm26TjsnMw7ZFZSK6XIU", "Accept": "application/json"}
+    """
     querystring = urllib.urlencode(querydict)
     r = unirest.get(baseurl+querystring, headers=headers)
     code = r.code
     body = r.body
     status = body.get('responseStatus', 'no status')
+    """
+    code = body = status = None # ricodificare tutto con urllib o urllib2
     translations = []
     if status == 200:
         details = body.get('responseDetails', 'no details')
@@ -332,8 +348,6 @@ def remove_bom(filepath):
     fp.write(s)
     fp.close()
     
-import re, regex
-import htmlentitydefs
 """
 # Removes HTML or XML character references and entities from a text string.
 #

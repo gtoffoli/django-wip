@@ -6,11 +6,11 @@ Created on 08/feb/2016
 from django import forms
 from django.utils.translation import ugettext_lazy as _, string_concat
 from django.contrib.auth.models import User
-from models import Site, String
-from models import UserRole
-from models import STRING_TYPE_CHOICES, STRING_SORT_CHOICES, STRING_TRANSLATION_STATE_CHOICES, TRANSLATION_STATE_CHOICES, TRANSLATION_SERVICE_CHOICES
-from models import ROLE_TYPE_CHOICES
-from vocabularies import Language, Subject
+from .models import Site, String
+from .models import UserRole
+from .models import STRING_TYPE_CHOICES, STRING_SORT_CHOICES, STRING_TRANSLATION_STATE_CHOICES, TRANSLATION_STATE_CHOICES, TRANSLATION_SERVICE_CHOICES
+from .models import ROLE_TYPE_CHOICES
+from .vocabularies import Language, Subject
 
 PARALLEL_SENTENCES_FORMAT_CHOICES = (
     (1, _("xliff")),

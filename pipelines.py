@@ -5,9 +5,13 @@
 # Don't forget to add your pipeline to the ITEM_PIPELINES setting
 # See: http://doc.scrapy.org/en/latest/topics/item-pipeline.html
 
+import sys
+if (sys.version_info > (3, 0)):
+    from urllib import parse as urlparse
+else:
+    import urlparse
 
 import time
-import urlparse
 import urllib2, json
 import re
 from collections import defaultdict
@@ -20,10 +24,11 @@ import django
 django.setup()
 
 from django.utils import timezone
-from settings import PAGES_EXCLUDE_BY_CONTENT
-from models import Site, Webpage, PageVersion
-from models import Scan, Link, WordCount, SegmentCount
-from utils import is_invariant_word, strings_from_html, normalize_string, make_segmenter, segments_from_string
+from django.conf import settings
+# from settings import PAGES_EXCLUDE_BY_CONTENT
+from .models import Site, Webpage, PageVersion
+from .models import Scan, Link, WordCount, SegmentCount
+from .utils import is_invariant_word, strings_from_html, normalize_string, make_segmenter, segments_from_string
 
 from wip.wip_nltk.tokenizers import NltkTokenizer
 tokenizer = NltkTokenizer()
@@ -114,7 +119,7 @@ class WipCrawlPipeline(object):
 
     def process_item(self, item, spider):
         site = Site.objects.get(pk=item['site_id'])
-        for content in PAGES_EXCLUDE_BY_CONTENT.get(site.slug, []):
+        for content in settings.PAGES_EXCLUDE_BY_CONTENT.get(site.slug, []):
             if item['body'].count(content):
                 return item
         path = urlparse.urlparse(item['url']).path

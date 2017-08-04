@@ -1,10 +1,16 @@
 # -*- coding: utf-8 -*-"""
 
+import sys
+if (sys.version_info > (3, 0)):
+    from urllib import parse as urlparse
+else:
+    import urlparse
+
 import json
-import urlparse
+
 from django.http import HttpResponse, HttpResponseBadRequest
 from django.views.decorators.csrf import csrf_exempt
-from models import Proxy, Site, Webpage, BlockInPage
+from .models import Proxy, Site, Webpage, BlockInPage
 
 def dummy(url, xpath):
     pass
@@ -12,19 +18,19 @@ def dummy(url, xpath):
 # try to find a WIP proxy from a page url
 def url_to_proxy(url):
     parsed_url = urlparse.urlparse(url)
-    print 'parsed_url: ', parsed_url
+    print ('parsed_url: ', parsed_url)
     path = parsed_url.path
     splitted_path = path.split('/')
-    print 'splitted_path: ', splitted_path
+    print ('splitted_path: ', splitted_path)
     if len(splitted_path) >= 3:
         path = '/' + '/'.join(splitted_path[3:])
         site_prefix = splitted_path[1]
-        print 'site_prefix: ', site_prefix
+        print ('site_prefix: ', site_prefix)
         sites = Site.objects.filter(path_prefix=site_prefix)
         if sites.count()==1:
             site = sites[0]
             language_code = splitted_path[2]
-            print 'language_code: ', language_code
+            print ('language_code: ', language_code)
             proxies = Proxy.objects.filter(site=site, language_id=language_code)
             if proxies.count()==1:
                 return proxies[0], path
@@ -38,9 +44,9 @@ def send_fragment(request):
     if not request.method == 'POST':
         return HttpResponseBadRequest()
     request_host = request.META.get('HTTP_HOST', '')
-    print 'request_host: ', request_host
+    print ('request_host: ', request_host)
     json_data = json.loads(request.body)
-    print 'JSON data: ', json_data
+    print ('JSON data: ', json_data)
     url = json_data.get('url', '') 
     source = json_data.get('source', '')
     start = json_data.get('start', 0)
@@ -72,12 +78,12 @@ def send_block(request):
     if not request.method == 'POST':
         return HttpResponseBadRequest()
     request_host = request.META.get('HTTP_HOST', '')
-    print 'request_host: ', request_host
+    print ('request_host: ', request_host)
     json_data = json.loads(request.body)
     url = json_data.get('url', '') 
     xpath = json_data.get('xpath', '')
-    print 'url: ', url
-    print 'xpath: ', xpath
+    print ('url: ', url)
+    print ('xpath: ', xpath)
 
     data = {}
     # identify site and proxy
@@ -102,12 +108,12 @@ def find_block(request):
     if not request.method == 'POST':
         return HttpResponseBadRequest()
     request_host = request.META.get('HTTP_HOST', '')
-    print 'request_host: ', request_host
+    print ('request_host: ', request_host)
     json_data = json.loads(request.body)
     url = json_data.get('url', '') 
     xpath = json_data.get('xpath', '')
-    print 'url: ', url
-    print 'xpath: ', xpath
+    print ('url: ', url)
+    print ('xpath: ', xpath)
 
     data = { 'status': 'ko' }
     # identify site and proxy

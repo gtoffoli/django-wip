@@ -47,8 +47,10 @@ from django.contrib.contenttypes.fields import GenericForeignKey
 from django.utils.translation import ugettext_lazy as _
 from django_extensions.db.fields import CreationDateTimeField, ModificationDateTimeField, AutoSlugField
 from django_dag.models import node_factory, edge_factory
+"""
 from django_diazo.models import Theme
 from django_diazo.middleware import DjangoDiazoMiddleware
+"""
 from wip.wip_nltk.tokenizers import NltkTokenizer
 from wip.wip_sd.sd_algorithm import SDAlgorithm
 from .vocabularies import Language, Subject, ApprovalStatus
@@ -58,7 +60,7 @@ from .settings import RESOURCES_ROOT, BLOCK_TAGS, BLOCKS_EXCLUDE_BY_XPATH, SEPAR
 DEFAULT_USER = 1
 from .utils import element_tostring, text_from_html, strings_from_html, elements_from_element, replace_element_content, element_signature
 from .utils import normalize_string, replace_segment, string_checksum, text_to_list # , non_invariant_words
-import srx_segmenter
+import wip.srx_segmenter
 
 MYMEMORY = 1
 MATECAT = 2
@@ -138,7 +140,7 @@ class Site(models.Model):
     srx_rules = models.TextField(verbose_name='Custom SRX rules', blank=True, null=True, help_text="Custom SRX rules extending the standard set" )
     srx_initials = models.TextField(verbose_name='Custom initials', blank=True, null=True, help_text="Initials to be made explicit as SRX rules" )
     invariant_words = models.TextField(verbose_name='Custom invariant words', blank=True, null=True, help_text="Custom invariant words" )
-    themes = models.ManyToManyField(Theme, through='SiteTheme', related_name='site', blank=True, verbose_name='diazo themes')
+    # themes = models.ManyToManyField(Theme, through='SiteTheme', related_name='site', blank=True, verbose_name='diazo themes')
 
     def get_absolute_url(self):
         return '/site/%s/' % self.slug
@@ -395,8 +397,9 @@ class Site(models.Model):
             time.sleep(1)
         return webpages.count(), n_updates, n_unfound
 
+    """
     def get_active_theme(self, request):
-        """ see get_active_theme(request) in module django_diazo.utils"""
+        "" see get_active_theme(request) in module django_diazo.utils""
         if request.GET.get('theme', None):
             try:
                 theme = request.GET.get('theme')
@@ -409,6 +412,7 @@ class Site(models.Model):
             if theme.available(request):
                 return theme
         return None
+    """
 
     def add_fragment(self, text, path='', reliability=5):
         added = False
@@ -452,6 +456,7 @@ class Site(models.Model):
     def get_word_count(self, lowercasing=True):
         return len(self.get_token_frequency())
 
+"""
 class SiteTheme(models.Model):
     site = models.ForeignKey(Site, related_name='theme_used_for_site')
     theme = models.ForeignKey(Theme, related_name='site_using_theme')
@@ -459,6 +464,7 @@ class SiteTheme(models.Model):
     class Meta:
         verbose_name = _('theme used for site')
         verbose_name_plural = _('themes used for site')
+"""
 
 class Proxy(models.Model):
     name = models.CharField(max_length=100)

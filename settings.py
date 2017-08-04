@@ -23,6 +23,8 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'wip.settings')
 PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
 BASE_DIR = os.path.dirname(PROJECT_DIR)
 
+SILENCED_SYSTEM_CHECKS = []
+
 # Application definition
 INSTALLED_APPS = [
     'haystack',
@@ -47,14 +49,13 @@ INSTALLED_APPS = [
     'actstream',
     'django_dag',
     'adminsortable2',
-    'django_diazo',
-    # 'roles',
-    # 'kombu.transport.django',
+    # 'django_diazo',
     'rest_framework',
     'wip',
 ]
 
-MIDDLEWARE_CLASSES = [
+# MIDDLEWARE_CLASSES = [
+MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -63,10 +64,11 @@ MIDDLEWARE_CLASSES = [
     'django.contrib.auth.middleware.SessionAuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    # 'django_diazo.middleware.DjangoDiazoMiddleware',
     'wip.middleware.ProxyMiddleware',
     'django.middleware.http.ConditionalGetMiddleware',
 ]
+if (sys.version_info < (3, 0)):
+    MIDDLEWARE_CLASSES = MIDDLEWARE
 
 ROOT_URLCONF = 'wip.urls'
 
@@ -80,7 +82,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
-                'django_diazo.context_processors.diazo_enabled',
+                # 'django_diazo.context_processors.diazo_enabled',
                 'wip.context_processors.context_processor',
             ],
         'loaders': [
@@ -260,6 +262,7 @@ QUOTES = (
  ('“', '”',),
  ('‘', '’',),
 )
+
 BOTH_QUOTES = '\'"'
 # TRANS_QUOTES = string.maketrans("‘’“”", "''\"\"")
 TRANS_QUOTES = {

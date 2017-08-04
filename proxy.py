@@ -1,26 +1,33 @@
 # -*- coding: utf-8 -*-
 
+import sys
+if (sys.version_info > (3, 0)):
+    from urllib import parse as urlparse
+else:
+    import urlparse
+
+import os
 import re
-import urlparse
+from logging import getLogger
+
+from django.http import HttpResponse
 from django.utils.cache import patch_response_headers
 from django.core.cache import caches
 from httpproxy.views import HttpProxy
-from models import Site, Proxy, Webpage
 
-import os
-# from django.utils.decorators import method_decorator
-from django.http import HttpResponse
-from diazo.wsgi import DiazoMiddleware
-from diazo.utils import quote_param
-from logging import getLogger
+from .models import Site, Proxy, Webpage
+
+"""
 from lxml import etree
 from lxml.etree import tostring
-
 from repoze.xmliter.serializer import XMLSerializer
 from repoze.xmliter.utils import getHTMLSerializer
+from diazo.wsgi import DiazoMiddleware
+from diazo.utils import quote_param
 from diazo.compiler import compile_theme
 from django_diazo.settings import DOCTYPE
 # from django_diazo.utils import get_active_theme, check_themes_enabled, should_transform
+"""
 
 # REWRITE_REGEX = re.compile(r'((?:src|action|href)=["\'])/(?!\/)')
 REWRITE_REGEX = re.compile(r'((?:action)=["\'])/(?!\/)')
@@ -52,10 +59,12 @@ class WipHttpProxy(HttpProxy):
         """ see __init__ method of DjangoDiazoMiddleware in module django_diazo.middleware """
         super(WipHttpProxy, self).__init__(*args,**kwargs)
         self.app = None
+        """
         self.theme_id = None
         self.diazo = None
         self.transform = None
         self.params = {}
+        """
 
     def dispatch(self, request, url, *args, **kwargs):
         self.url = url
@@ -118,8 +127,9 @@ class WipHttpProxy(HttpProxy):
         # content_type = response.headers['Content-Type']
         trailer = response.content[:100]
         if trailer.count('<') and trailer.lower().count('html'):
-            # self.path = urlparse.urlparse(self.url).path
+            """
             response = self.transform_response(request, response)
+            """
             if self.proxy_id and self.language_code:
                 self.translate_response(request, response)
             else:
@@ -152,22 +162,22 @@ class WipHttpProxy(HttpProxy):
                 headers.append(hreflang_template % (proxy_url, proxy.language_id))
                 # print 'proxy_url: ', proxy_url
             link = ', '.join(headers)
-            print 'link: ', link
+            print ('link: ', link)
             response['Link'] = link
 
         return response
 
+    """
     def transform_response(self, request, response):
-        """ see process_response method of DjangoDiazoMiddleware in module django_diazo.middleware
+        "" see process_response method of DjangoDiazoMiddleware in module django_diazo.middleware
         Transform the response with Diazo if transformable
-        """
+        ""
         theme = self.site.get_active_theme(request)
         if not theme:
             return response
         content = response
         rules_file = os.path.join(theme.theme_path(), 'rules.xml')
         compiled_file = os.path.join(theme.theme_path(), 'compiled.xsl')
-        # if theme.id != self.theme_id or not os.path.exists(rules_file) or theme.debug:
         if not os.path.exists(compiled_file) or theme.debug:
             print 'self.theme_id: ', self.theme_id
             print 'theme.id: ', theme.id
@@ -195,7 +205,6 @@ class WipHttpProxy(HttpProxy):
             in_file = open(compiled_file, 'r')
             compiled_theme = etree.fromstring(in_file.read())
             in_file.close
-        # self.transform = etree.XSLT(compiled_theme, access_control=access_control)
         self.transform = etree.XSLT(compiled_theme)
         if isinstance(response, etree._Element):
             response = HttpResponse()
@@ -208,6 +217,7 @@ class WipHttpProxy(HttpProxy):
         if isinstance(response, etree._Element):
             response = HttpResponse('<?xml version="1.0" encoding="UTF-8"?>\n' + tostring(content))
         return response
+    """
 
     def translate_response(self, request, response):
         request = self.request
@@ -223,16 +233,16 @@ class WipHttpProxy(HttpProxy):
             content, transformed = proxy.translate_page_content(content)
         else:
             path = urlparse.urlparse(self.url).path
-            print 'translate_response: ', path
-            print 'enable_live_translation: ', proxy.enable_live_translation
+            print ('translate_response: ', path)
+            print ('enable_live_translation: ', proxy.enable_live_translation)
             webpages = Webpage.objects.filter(site=site, path=path).order_by('-created')
             if webpages:
                 webpage = webpages[0]
-                print 'no_translate', webpage.no_translate
+                print ('no_translate', webpage.no_translate)
                 if not webpage.no_translate:
                     content, transformed = webpage.get_translation(self.language_code)
             if not transformed and proxy.enable_live_translation:
-                print 'no translation found: ', path
+                print ('no translation found: ', path)
                 content, transformed = proxy.translate_page_content(content)
         # replace text or HTML fragment on the fly (new)
         content = proxy.replace_fragments(content, path)

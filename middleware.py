@@ -1,13 +1,14 @@
-from models import Proxy
+import sys
+from .models import Proxy
 
-"""
-FORWARDED_FOR_FIELDS = [
-        'HTTP_X_FORWARDED_FOR',
-        'HTTP_X_FORWARDED_HOST',
-        'HTTP_X_FORWARDED_SERVER',
-    ]
-"""
+# see: https://stackoverflow.com/questions/42232606/django-exception-middleware-typeerror-object-takes-no-parameters
 class ProxyMiddleware(object):
+
+    if (sys.version_info > (3, 0)):
+        def __init__(self, get_response):
+            self.get_response = get_response
+        def __call__(self, request):
+            return self.get_response(request)
 
     def process_request(self, request):
         """

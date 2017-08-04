@@ -57,9 +57,9 @@ class SrxSegmenter:
         break_point = sorted(candidate_break_points - non_break_points)
         source_text = self.source_text
         if verbose:
-            print 'non_break_points: ', non_break_points
-            print 'break_points: ', candidate_break_points
-            print 'break_point: ', break_point
+            print ('non_break_points: ', non_break_points)
+            print ('break_points: ', candidate_break_points)
+            print ('break_point: ', break_point)
 
         segments = []  # type: List[str]
         whitespaces = []  # type: List[str]

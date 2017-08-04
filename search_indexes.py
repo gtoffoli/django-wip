@@ -8,7 +8,7 @@ from django.db.models.signals import post_save, post_delete
 from haystack import indexes
 from haystack.query import SearchQuerySet
 
-from models import String
+from .models import String
 
 class StringIndex(indexes.SearchIndex, indexes.Indexable):
 

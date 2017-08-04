@@ -17,16 +17,17 @@ Including another URLconf
     3. Add a URL to urlpatterns:  url(r'^blog/', include(blog_urls))
 """
 
-from settings import USE_SCRAPY, USE_NLTK
+# from settings import USE_SCRAPY, USE_NLTK
+from django.conf import settings
 from django.conf.urls import include, url
 from django.views.generic import TemplateView
 from django.contrib import admin
-from models import Site, Proxy
-import views
-import search_indexes
-from api import find_block, send_block, send_fragment
-# import scripts
-from proxy import WipHttpProxy
+
+from .models import Site, Proxy
+from wip import views
+from wip import search_indexes
+from .api import find_block, send_block, send_fragment
+from .proxy import WipHttpProxy
 
 urlpatterns = [
     # url(r'^dummy/(?P<url>.*)$', WipHttpProxy.as_view(rewrite_links=True)),
@@ -90,7 +91,7 @@ urlpatterns += (
 )   
 
 
-if USE_SCRAPY:
+if settings.USE_SCRAPY:
     urlpatterns += (
         url(r"^site/(?P<site_slug>[\w-]+)/crawl/$", views.site_crawl_by_slug, name="site_crawl"),
         url(r"^my_scans/$", views.my_scans, name="my_scans"),
@@ -107,7 +108,7 @@ if USE_SCRAPY:
         # url(r"^view_discovery/(?P<scan_id>[\d]+)/$", views.view_discovery, name="view_discovery"),
         # url(r"^discovery_settings/$", views.discovery_settings, name="discoveyr_settings"),
     )   
-if USE_NLTK:
+if settings.USE_NLTK:
     urlpatterns += (
         url(r"^create_tagger/$", views.create_tagger, name="create_tagger"),
         url(r"^page_scan/(?P<fetched_id>[\d]+)/$", views.page_scan, name="page_scan"),

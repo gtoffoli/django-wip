@@ -10,8 +10,14 @@ import sys
 sys.stdout = codecs.getwriter('utf8')(sys.stdout)
 sys.stderr = codecs.getwriter('utf8')(sys.stderr)
 """
-reload(sys)  
-sys.setdefaultencoding('utf8')
+
+if (sys.version_info > (3, 0)):
+    # Python 3 code in this block
+    from importlib import reload
+else:
+    reload(sys)  
+    sys.setdefaultencoding('utf8')
+
 import os
 import time
 import datetime
@@ -44,30 +50,31 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.admin.views.decorators import staff_member_required
 from actstream import action, registry
 
-from wip.wip_nltk.tokenizers import NltkTokenizer
-from models import Language, Site, Proxy, Webpage, PageVersion, TranslatedVersion
-from models import Block, BlockEdge, TranslatedBlock, BlockInPage, String, Txu, TxuSubject #, TranslatedVersion
-from models import Scan, Link, WordCount, SegmentCount
-from models import UserRole, Segment, Translation
-from models import segments_from_string, non_invariant_words
-from models import STRING_TYPE_DICT, UNKNOWN, SEGMENT #, TERM, FRAGMENT
-from models import TEXT_ASC # , ID_ASC, DATETIME_DESC, DATETIME_ASC
-from models import TO_BE_TRANSLATED, TRANSLATED, PARTIALLY, INVARIANT, ALREADY
-from models import ROLE_DICT, TRANSLATION_TYPE_DICT, TRANSLATION_SERVICE_DICT, MYMEMORY
-from models import OWNER, MANAGER, LINGUIST, REVISOR, TRANSLATOR, GUEST
-from models import TM, MT, MANUAL
-from forms import DiscoverForm
-from forms import SiteManageForm, ProxyManageForm, PageEditForm, PageSequencerForm, BlockEditForm, BlockSequencerForm
-from forms import SegmentSequencerForm, SegmentTranslationForm, TranslationViewForm
-from forms import StringSequencerForm, StringEditForm, StringsTranslationsForm, StringTranslationForm, TranslationServiceForm, FilterPagesForm
-from forms import UserRoleEditForm, ListSegmentsForm, ImportXliffForm
-from session import get_language, set_language, get_site, set_site, get_userrole, set_userrole
-
+from .wip_nltk.tokenizers import NltkTokenizer
+from .models import Language, Site, Proxy, Webpage, PageVersion, TranslatedVersion
+from .models import Block, BlockEdge, TranslatedBlock, BlockInPage, String, Txu, TxuSubject #, TranslatedVersion
+from .models import Scan, Link, WordCount, SegmentCount
+from .models import UserRole, Segment, Translation
+from .models import segments_from_string, non_invariant_words
+from .models import STRING_TYPE_DICT, UNKNOWN, SEGMENT #, TERM, FRAGMENT
+from .models import TEXT_ASC # , ID_ASC, DATETIME_DESC, DATETIME_ASC
+from .models import TO_BE_TRANSLATED, TRANSLATED, PARTIALLY, INVARIANT, ALREADY
+from .models import ROLE_DICT, TRANSLATION_TYPE_DICT, TRANSLATION_SERVICE_DICT, MYMEMORY
+from .models import OWNER, MANAGER, LINGUIST, REVISOR, TRANSLATOR, GUEST
+from .models import TM, MT, MANUAL
+from .forms import DiscoverForm
+from .forms import SiteManageForm, ProxyManageForm, PageEditForm, PageSequencerForm, BlockEditForm, BlockSequencerForm
+from .forms import SegmentSequencerForm, SegmentTranslationForm, TranslationViewForm
+from .forms import StringSequencerForm, StringEditForm, StringsTranslationsForm, StringTranslationForm, TranslationServiceForm, FilterPagesForm
+from .forms import UserRoleEditForm, ListSegmentsForm, ImportXliffForm
+from .session import get_language, set_language, get_site, set_site, get_userrole, set_userrole
+"""
 from settings import PAGE_SIZE, PAGE_STEPS
 from settings import DATA_ROOT, RESOURCES_ROOT, tagger_filename, BLOCK_TAGS, QUOTES, SEPARATORS, STRIPPED, DEFAULT_STRIPPED, EMPTY_WORDS, PAGES_EXCLUDE_BY_CONTENT
-from utils import strings_from_html, elements_from_element, block_checksum, ask_mymemory, text_to_list # , non_invariant_words
-import srx_segmenter
-from aligner import tokenize, best_alignment #, get_train_aligner
+"""
+from .utils import strings_from_html, elements_from_element, block_checksum, ask_mymemory, text_to_list # , non_invariant_words
+from  wip import srx_segmenter
+from .aligner import tokenize, best_alignment #, get_train_aligner
 
 registry.register(Site)
 registry.register(Proxy)
@@ -89,7 +96,7 @@ def empty_page(request):
     return response
 
 def steps_before(page):
-    steps = list(PAGE_STEPS)
+    steps = list(settings.PAGE_STEPS)
     steps.reverse()
     steps = [page-step for step in steps if page-step >= 1 and page-step < page]
     if page > 1 and steps[0] > 1:
@@ -97,7 +104,7 @@ def steps_before(page):
     return steps
 
 def steps_after(page, page_count):
-    steps = [page+step for step in PAGE_STEPS if page+step > page and page+step <= page_count]
+    steps = [page+step for step in settings.PAGE_STEPS if page+step > page and page+step <= page_count]
     if page < page_count and steps[-1] < page_count:
         steps.append(page_count)
     return steps
@@ -269,7 +276,7 @@ def site(request, site_slug):
                 if clear_pages:
                     Webpage.objects.filter(site=site).delete()
                 task_id = crawl_site.delay(site.id)
-                print 'site_crawl : ', site.name, 'task id: ', task_id
+                print ('site_crawl : ', site.name, 'task id: ', task_id)
             elif extract_blocks:
                 clear_blocks = data['clear_blocks']
                 if clear_blocks:
@@ -303,7 +310,7 @@ def site(request, site_slug):
                         webpage.create_blocks_dag()
                     # except:
                     else:
-                        print 'extract_blocks: error on page ', webpage.id
+                        print ('extract_blocks: error on page ', webpage.id)
             elif refetch_pages:
                 n_pages, n_updates, n_unfound = site.refetch_pages()
                 messages.add_message(request, messages.INFO, 'Requested %d pages: %d updated, %d unfound' % (n_pages, n_updates, n_unfound))
@@ -315,7 +322,7 @@ def site(request, site_slug):
                 webpages = Webpage.objects.filter(site=site)
                 extract_deny_list = text_to_list(site.extract_deny)
                 if dry:
-                    print extract_deny_list
+                    print (extract_deny_list)
                 if download_segments:
                     download_list = []
                 for webpage in webpages:
@@ -334,7 +341,7 @@ def site(request, site_slug):
                         continue
                     page_version = page_versions[0]
                     skip_page = False
-                    for content in PAGES_EXCLUDE_BY_CONTENT.get(site.slug, []):
+                    for content in settings.PAGES_EXCLUDE_BY_CONTENT.get(site.slug, []):
                         if len(path)>1 and page_version.body.count(content):
                             skip_page = True
                             break
@@ -349,7 +356,7 @@ def site(request, site_slug):
                     """
                     segments = page_version.page_version_get_segments(segmenter=segmenter)
                     if dry:
-                        print path
+                        print (path)
                         continue
                     for s in segments:
                         if download_segments:
@@ -416,7 +423,7 @@ def site(request, site_slug):
                                     segment.save()
                                     n += 1
                             except:
-                                print 'error: ', i
+                                print ('error: ', i)
                     messages.add_message(request, messages.INFO, 'Imported %d invariants out of %d (%d repetitions).' % (n, m, d))
                 else:
                     messages.add_message(request, messages.ERROR, 'Please, select a file to upload.')
@@ -486,7 +493,7 @@ def proxy(request, proxy_slug):
     var_dict['language'] = language = proxy.language
     post = request.POST
     if post:
-        print 'request.POST: ', post
+        print ('request.POST: ', post)
         delete_pages = post.get('delete_pages', '')
         delete_blocks = post.get('delete_blocks', '')
         delete_proxy = post.get('delete_proxy', '')
@@ -562,7 +569,7 @@ def proxy(request, proxy_slug):
                 n_ready, n_translated, n_partially = proxy.apply_translation_memory()
                 messages.add_message(request, messages.INFO, 'TM applied to %d blocks: %d fully translated, %d partially translated.' % (n_ready, n_translated, n_partially))
             elif propagate_up:
-                print 'propagate_up'
+                print ('propagate_up')
                 n_new, n_updated, n_no_updated = proxy.propagate_up_block_updates()
                 messages.add_message(request, messages.INFO, 'Up propagation: %d new, %d updated, %d not updated blocks' % (n_new, n_updated, n_no_updated))
     webpages = Webpage.objects.filter(site=site).order_by('id')
@@ -655,7 +662,7 @@ def site_pages(request, site_slug):
         else:
             qs = qs.filter(path__icontains=path_filter)
     var_dict['page_count'] = page_count = qs.count()
-    paginator = Paginator(qs, PAGE_SIZE)
+    paginator = Paginator(qs, settings.PAGE_SIZE)
     page = request.GET.get('page', 1)
     try:
         site_pages = paginator.page(page)
@@ -667,9 +674,9 @@ def site_pages(request, site_slug):
         # If page is out of range (e.g. 9999), deliver last page of results.
         page = paginator.num_pages
         site_pages = paginator.page(paginator.num_pages)
-    var_dict['page_size'] = PAGE_SIZE
+    var_dict['page_size'] = settings.PAGE_SIZE
     var_dict['page'] = page = int(page)
-    var_dict['offset'] = (page-1) * PAGE_SIZE
+    var_dict['offset'] = (page-1) * settings.PAGE_SIZE
     var_dict['before'] = steps_before(page)
     var_dict['after'] = steps_after(page, paginator.num_pages)
     var_dict['site_pages'] = site_pages
@@ -776,7 +783,7 @@ def page_blocks(request, page_id):
     # qs = webpage.blocks.all()
     qs = BlockInPage.objects.filter(webpage=webpage).order_by('xpath', 'time')
     var_dict['block_count'] = qs.count()
-    paginator = Paginator(qs, PAGE_SIZE)
+    paginator = Paginator(qs, settings.PAGE_SIZE)
     page = request.GET.get('page', 1)
     try:
         page_blocks = paginator.page(page)
@@ -788,9 +795,9 @@ def page_blocks(request, page_id):
         # If page is out of range (e.g. 9999), deliver last page of results.
         page = paginator.num_pages
         page_blocks = paginator.page(paginator.num_pages)
-    var_dict['page_size'] = PAGE_SIZE
+    var_dict['page_size'] = settings.PAGE_SIZE
     var_dict['page'] = page = int(page)
-    var_dict['offset'] = (page-1) * PAGE_SIZE
+    var_dict['offset'] = (page-1) * settings.PAGE_SIZE
     var_dict['before'] = steps_before(page)
     var_dict['after'] = steps_after(page, paginator.num_pages)
     var_dict['page_blocks'] = page_blocks
@@ -822,7 +829,7 @@ def site_blocks(request, site_slug):
     var_dict['proxies'] = proxies = Proxy.objects.filter(site=site).order_by('language__code')   
     qs = Block.objects.filter(site=site).order_by('xpath')
     var_dict['block_count'] = block_count = qs.count()
-    paginator = Paginator(qs, PAGE_SIZE)
+    paginator = Paginator(qs, settings.PAGE_SIZE)
     page = request.GET.get('page', 1)
     try:
         site_blocks = paginator.page(page)
@@ -834,9 +841,9 @@ def site_blocks(request, site_slug):
         # If page is out of range (e.g. 9999), deliver last page of results.
         page = paginator.num_pages
         site_blocks = paginator.page(paginator.num_pages)
-    var_dict['page_size'] = PAGE_SIZE
+    var_dict['page_size'] = settings.PAGE_SIZE
     var_dict['page'] = page = int(page)
-    var_dict['offset'] = (page-1) * PAGE_SIZE
+    var_dict['offset'] = (page-1) * settings.PAGE_SIZE
     var_dict['before'] = steps_before(page)
     var_dict['after'] = steps_after(page, paginator.num_pages)
     var_dict['site_blocks'] = site_blocks
@@ -1202,7 +1209,7 @@ def propagate_block_translation(request, block, translated_block):
         similar_block_translation.save()
 
 # srx_filepath = os.path.join(RESOURCES_ROOT, 'segment.srx')
-srx_filepath = os.path.join(RESOURCES_ROOT, 'it', 'segment.srx')
+srx_filepath = os.path.join(settings.RESOURCES_ROOT, 'it', 'segment.srx')
 srx_rules = srx_segmenter.parse(srx_filepath)
 italian_rules = srx_rules['Italian']
 segmenter = srx_segmenter.SrxSegmenter(italian_rules)
@@ -1215,7 +1222,7 @@ def block_pages(request, block_id):
     var_dict['proxies'] =  proxies = Proxy.objects.filter(site=site)
     qs = block.webpages.all()
     var_dict['page_count'] = page_count = qs.count()
-    paginator = Paginator(qs, PAGE_SIZE)
+    paginator = Paginator(qs, settings.PAGE_SIZE)
     page = request.GET.get('page', 1)
     try:
         block_pages = paginator.page(page)
@@ -1227,9 +1234,9 @@ def block_pages(request, block_id):
         # If page is out of range (e.g. 9999), deliver last page of results.
         page = paginator.num_pages
         block_pages = paginator.page(paginator.num_pages)
-    var_dict['page_size'] = PAGE_SIZE
+    var_dict['page_size'] = settings.PAGE_SIZE
     var_dict['page'] = page = int(page)
-    var_dict['offset'] = (page-1) * PAGE_SIZE
+    var_dict['offset'] = (page-1) * settings.PAGE_SIZE
     var_dict['before'] = steps_before(page)
     var_dict['after'] = steps_after(page, paginator.num_pages)
     return render_to_response('block_pages.html', var_dict, context_instance=RequestContext(request))
@@ -1237,7 +1244,7 @@ def block_pages(request, block_id):
 def string_view(request, string_id):
     if not request.user.is_superuser:
         return empty_page(request);
-    print string_id
+    print (string_id)
     var_dict = {}
     var_dict['string'] = string = get_object_or_404(String, pk=string_id)
     var_dict['string_type'] = STRING_TYPE_DICT[string.string_type]
@@ -1285,7 +1292,7 @@ def string_view(request, string_id):
         form = StringSequencerForm(post)
         if form.is_valid():
             data = form.cleaned_data
-            print 'data: ', data
+            print ('data: ', data)
             string_types = data['string_types']
             """
             project_site = data['project_site']
@@ -1297,7 +1304,7 @@ def string_view(request, string_id):
             order_by = int(data['order_by'])
             show_similar = data['show_similar']
         else:
-            print 'error', form.errors
+            print ('error', form.errors)
     """
     print 'project_site: ', project_site
     string_context['project_site'] = project_site_id
@@ -1374,8 +1381,8 @@ def segment_view(request, segment_id):
             order_by = int(data['order_by'])
             show_similar = data['show_similar']
         else:
-            print 'error', form.errors
-    print 'project_site: ', project_site
+            print ('error', form.errors)
+    print ('project_site: ', project_site)
     segment_context['translation_state'] = translation_state
     segment_context['translation_codes'] = translation_codes
     segment_context['project_site'] = project_site_id
@@ -1555,13 +1562,13 @@ def string_translate(request, string_id, target_code):
                     var_dict['external_translations'] = external_translations
                     var_dict['translation_service'] = TRANSLATION_SERVICE_DICT[MYMEMORY]
             else:
-                print 'error', translation_service_form.errors
+                print ('error', translation_service_form.errors)
             translation_form = StringTranslationForm()
         elif save_translation:
             translation_form = StringTranslationForm(request.POST)
             if translation_form.is_valid():
                 data = translation_form.cleaned_data
-                print data
+                print (data)
                 translation = data['translation']
                 site = data['translation_site']
                 translation_subjects = data['translation_subjects']
@@ -1585,7 +1592,7 @@ def string_translate(request, string_id, target_code):
                         txu_subject = TxuSubject(txu=target_txu, subject=subject)
                         txu_subject.save()
             else:
-                print 'error', translation_form.errors
+                print ('error', translation_form.errors)
                 return render_to_response('string_translate.html', {'translation_form': translation_form,}, context_instance=RequestContext(request))
             translation_service_form = TranslationServiceForm()
         else: # apply_filter
@@ -1681,17 +1688,17 @@ def segment_translate(request, segment_id, target_code):
                     var_dict['external_translations'] = external_translations
                     var_dict['translation_service'] = TRANSLATION_SERVICE_DICT[MYMEMORY]
             else:
-                print 'error', translation_service_form.errors
+                print ('error', translation_service_form.errors)
             translation_form = SegmentTranslationForm()
         elif save_translation:
             translation_form = SegmentTranslationForm(request.POST)
             if translation_form.is_valid():
                 data = translation_form.cleaned_data
-                print data
+                print (data)
                 translation_text = data['translation']
                 translationt = get_or_add_translation(request, segment, translation_text, target_language)
             else:
-                print 'error', translation_form.errors
+                print ('error', translation_form.errors)
                 return render_to_response('segment_translate.html', {'translation_form': translation_form,}, context_instance=RequestContext(request))
             translation_service_form = TranslationServiceForm()
         else: # apply_filter
@@ -1730,7 +1737,7 @@ def raw_tokens(text, language_code):
     raw_tokens = []
     for token in tokens:
         # token = token.strip(STRIPPED[language_code])
-        token = token.strip(DEFAULT_STRIPPED)
+        token = token.strip(DEFAULT_settings.DEFAULT_STRIPPED)
         if not token:
             continue
         raw_tokens.append(token)
@@ -1748,7 +1755,7 @@ def filtered_tokens(text, language_code, tokens=[], truncate=False, min_chars=10
         n_chars = len(token)
         if n_chars < min_chars:
             continue
-        if token in EMPTY_WORDS[language_code]:
+        if token in settings.EMPTY_WORDS[language_code]:
             continue
         filtered_tokens.append(token)
     return filtered_tokens
@@ -1852,7 +1859,7 @@ def strings_translations(request, proxy_slug=None, state=None):
     """
     if not request.user.is_superuser:
         return empty_page(request);
-    PAGE_SIZE = 100
+    # PAGE_SIZE = 100
     tm_edit_context = request.session.get('tm_edit_context', {})
     translation_state = state or tm_edit_context.get('translation_state', 0)
     proxy = proxy_slug and Proxy.objects.get(slug=proxy_slug) or None
@@ -1886,7 +1893,7 @@ def strings_translations(request, proxy_slug=None, state=None):
         form = StringsTranslationsForm(post)
         if post.get('delete-segment', ''):
             selection = post.getlist('selection')
-            print 'delete-segment', selection
+            print ('delete-segment', selection)
             for string_id in selection:
                 string = String.objects.get(pk=int(string_id))
                 txu = string.txu
@@ -1898,7 +1905,7 @@ def strings_translations(request, proxy_slug=None, state=None):
                     string.delete()
         elif post.get('delete-translation', ''):
             selection = post.getlist('selection')
-            print 'delete-translation', selection
+            print ('delete-translation', selection)
             for string_id in selection:
                 string = String.objects.get(pk=int(string_id))
                 txu = string.txu
@@ -1908,7 +1915,7 @@ def strings_translations(request, proxy_slug=None, state=None):
                         string.delete()
         elif post.get('make-invariant', ''):
             selection = post.getlist('selection')
-            print 'make-invariant', selection
+            print ('make-invariant', selection)
             for string_id in selection:
                 string = String.objects.get(pk=int(string_id))
                 txu = string.txu
@@ -1921,17 +1928,17 @@ def strings_translations(request, proxy_slug=None, state=None):
                     txu.delete()
         elif post.get('toggle-invariant', ''):
             selection = post.getlist('selection')
-            print 'toggle-invariant', selection
+            print ('toggle-invariant', selection)
             for string_id in selection:
                 string = String.objects.get(pk=int(string_id))
                 if string.invariant:
                     string.invariant = False
                     string.save()
-                    print 'True-> False'
+                    print ('True-> False')
                 elif not string.txu:
                     string.invariant = True
                     string.save()
-                    print 'False-> True'
+                    print ('False-> True')
         elif form.is_valid():
             data = form.cleaned_data
             tm_edit_context['translation_state'] = translation_state = int(data['translation_state'])
@@ -1989,9 +1996,9 @@ def strings_translations(request, proxy_slug=None, state=None):
         # If page is out of range (e.g. 9999), deliver last page of results.
         page = paginator.num_pages
         strings = paginator.page(paginator.num_pages)
-    var_dict['page_size'] = PAGE_SIZE
+    var_dict['page_size'] = settings.PAGE_SIZE
     var_dict['page'] = page = int(page)
-    var_dict['offset'] = (page-1) * PAGE_SIZE
+    var_dict['offset'] = (page-1) * settings.PAGE_SIZE
     var_dict['before'] = steps_before(page)
     var_dict['after'] = steps_after(page, paginator.num_pages)
     var_dict['strings'] = strings
@@ -2004,7 +2011,7 @@ def list_segments(request, proxy_slug=None, state=None):
     """
     if not request.user.is_superuser:
         return empty_page(request);
-    PAGE_SIZE = 100
+    # PAGE_SIZE = 100
     tm_edit_context = request.session.get('tm_edit_context', {})
     translation_state = state or tm_edit_context.get('translation_state', 0)
     proxy = proxy_slug and Proxy.objects.get(slug=proxy_slug) or None
@@ -2114,7 +2121,7 @@ def list_segments(request, proxy_slug=None, state=None):
     qs = qs.order_by('text')
     segment_count = qs.count()
     var_dict['segment_count'] = segment_count
-    paginator = Paginator(qs, PAGE_SIZE)
+    paginator = Paginator(qs, settings.PAGE_SIZE)
     page = request.GET.get('page', 1)
     try:
         segments = paginator.page(page)
@@ -2126,9 +2133,9 @@ def list_segments(request, proxy_slug=None, state=None):
         # If page is out of range (e.g. 9999), deliver last page of results.
         page = paginator.num_pages
         segments = paginator.page(paginator.num_pages)
-    var_dict['page_size'] = PAGE_SIZE
+    var_dict['page_size'] = settings.PAGE_SIZE
     var_dict['page'] = page = int(page)
-    var_dict['offset'] = (page-1) * PAGE_SIZE
+    var_dict['offset'] = (page-1) * settings.PAGE_SIZE
     var_dict['before'] = steps_before(page)
     var_dict['after'] = steps_after(page, paginator.num_pages)
     var_dict['segments'] = segments
@@ -2178,7 +2185,7 @@ def proxy_string_translations(request, proxy_slug=None, state=None):
     """
     if not request.user.is_superuser:
         return empty_page(request);
-    PAGE_SIZE = 100
+    # PAGE_SIZE = 100
     proxy = proxy_slug and Proxy.objects.get(slug=proxy_slug) or None
 
     tm_edit_context = request.session.get('tm_edit_context', {})
@@ -2202,7 +2209,7 @@ def proxy_string_translations(request, proxy_slug=None, state=None):
         form = StringsTranslationsForm(post)
         if post.get('delete-segment', ''):
             selection = post.getlist('selection')
-            print 'delete-segment', selection
+            print ('delete-segment', selection)
             for string_id in selection:
                 string = String.objects.get(pk=int(string_id))
                 txu = string.txu
@@ -2214,7 +2221,7 @@ def proxy_string_translations(request, proxy_slug=None, state=None):
                     string.delete()
         elif post.get('delete-translation', ''):
             selection = post.getlist('selection')
-            print 'delete-translation', selection
+            print ('delete-translation', selection)
             for string_id in selection:
                 string = String.objects.get(pk=int(string_id))
                 txu = string.txu
@@ -2224,7 +2231,7 @@ def proxy_string_translations(request, proxy_slug=None, state=None):
                         string.delete()
         elif post.get('make-invariant', ''):
             selection = post.getlist('selection')
-            print 'make-invariant', selection
+            print ('make-invariant', selection)
             for string_id in selection:
                 string = String.objects.get(pk=int(string_id))
                 txu = string.txu
@@ -2237,17 +2244,17 @@ def proxy_string_translations(request, proxy_slug=None, state=None):
                     txu.delete()
         elif post.get('toggle-invariant', ''):
             selection = post.getlist('selection')
-            print 'toggle-invariant', selection
+            print ('toggle-invariant', selection)
             for string_id in selection:
                 string = String.objects.get(pk=int(string_id))
                 if string.invariant:
                     string.invariant = False
                     string.save()
-                    print 'True-> False'
+                    print ('True-> False')
                 elif not string.txu:
                     string.invariant = True
                     string.save()
-                    print 'False-> True'
+                    print ('False-> True')
         elif form.is_valid():
             data = form.cleaned_data
             tm_edit_context['translation_state'] = translation_state = int(data['translation_state'])
@@ -2290,7 +2297,7 @@ def proxy_string_translations(request, proxy_slug=None, state=None):
     qs = qs.order_by('text')
     string_count = qs.count()
     var_dict['string_count'] = string_count
-    paginator = Paginator(qs, PAGE_SIZE)
+    paginator = Paginator(qs, settings.PAGE_SIZE)
     page = request.GET.get('page', 1)
     try:
         strings = paginator.page(page)
@@ -2302,9 +2309,9 @@ def proxy_string_translations(request, proxy_slug=None, state=None):
         # If page is out of range (e.g. 9999), deliver last page of results.
         page = paginator.num_pages
         strings = paginator.page(paginator.num_pages)
-    var_dict['page_size'] = PAGE_SIZE
+    var_dict['page_size'] = settings.PAGE_SIZE
     var_dict['page'] = page = int(page)
-    var_dict['offset'] = (page-1) * PAGE_SIZE
+    var_dict['offset'] = (page-1) * settings.PAGE_SIZE
     var_dict['before'] = steps_before(page)
     var_dict['after'] = steps_after(page, paginator.num_pages)
     var_dict['strings'] = strings
@@ -2327,25 +2334,25 @@ def add_translated_string(request):
         source_language = Language.objects.get(name=source_language)
         reliability = 5
         if (txu_id == 0):
-            print 'txu non esiste'
+            print ('txu non esiste')
             target_txu = Txu(provider=site_name, user=request.user)
             target_txu.save()
             target_txu_id = target_txu.id
-            print target_txu_id
+            print (target_txu_id)
             string = String.objects.filter(pk=source_id).update(txu=target_txu.id)
             string_new = String(text=translation, language=target_language, txu=target_txu, site=None, reliability=reliability, invariant=False)
             string_new.save()
             translated_new_id = string_new.id
-            print translated_new_id
+            print (translated_new_id)
             return JsonResponse({"data": "add-txt-string","txu_id": target_txu_id,"translated_id": translated_new_id,})
         else:
             string = String.objects.filter(pk=translated_id)
             if string:
-                print 'txu esiste update stringa'
+                print ('txu esiste update stringa')
                 string.update(text=translation)
                 return JsonResponse({"data": "modify-string",})
             else:
-                print 'txu esiste nuova stringa'
+                print ('txu esiste nuova stringa')
                 string_new = String(txu_id=txu_id, language=target_language, site=None, text=translation, reliability=reliability, invariant=False)
                 string_new.save()
                 translated_new_id = string_new.id
@@ -2385,7 +2392,7 @@ def delete_translated_string(request):
         source_id = int(form.get('source_id'))
         translated_id = int(form.get('translated_id'))
         txu_id = int(form.get('txu_id'))
-        print source_id
+        print (source_id)
         return JsonResponse({"data": "delete-string",})
     return empty_page(request);
     
@@ -2402,7 +2409,7 @@ def list_strings(request, sources, state, targets=[]):
             strings = String.objects.filter(id__in=string_ids)
             for string in strings:
                 string.delete()
-    PAGE_SIZE = 100
+    # PAGE_SIZE = 100
     var_dict = {}
     var_dict['sources'] = sources
     var_dict['state'] = state
@@ -2429,7 +2436,7 @@ def list_strings(request, sources, state, targets=[]):
     var_dict['target_codes'] = [l.code for l in target_languages]
     qs = find_strings(source_languages=source_languages, target_languages=target_languages, translated=translated)
     var_dict['string_count'] = qs.count()
-    paginator = Paginator(qs, PAGE_SIZE)
+    paginator = Paginator(qs, settings.PAGE_SIZE)
     page = request.GET.get('page', 1)
     try:
         strings = paginator.page(page)
@@ -2441,9 +2448,9 @@ def list_strings(request, sources, state, targets=[]):
         # If page is out of range (e.g. 9999), deliver last page of results.
         page = paginator.num_pages
         strings = paginator.page(paginator.num_pages)
-    var_dict['page_size'] = PAGE_SIZE
+    var_dict['page_size'] = settings.PAGE_SIZE
     var_dict['page'] = page = int(page)
-    var_dict['offset'] = (page-1) * PAGE_SIZE
+    var_dict['offset'] = (page-1) * settings.PAGE_SIZE
     var_dict['before'] = steps_before(page)
     var_dict['after'] = steps_after(page, paginator.num_pages)
     var_dict['strings'] = strings
@@ -2535,7 +2542,7 @@ def user_scans(request, username=None):
         post = request.POST
         if post.get('delete-scan', ''):
             selection = post.getlist('selection')
-            print 'delete-scan', selection
+            print ('delete-scan', selection)
             for scan_id in selection:
                 scan = Scan.objects.get(pk=int(scan_id))
                 scan.delete()
@@ -2682,14 +2689,14 @@ def scan_download(request, scan_id):
 from scrapy.spiders import Rule #, CrawlSpider
 from scrapy.linkextractors import LinkExtractor
 from scrapy.crawler import CrawlerProcess
-from spiders import WipSiteCrawlerScript, WipDiscoverScript, WipCrawlSpider
+from .spiders import WipSiteCrawlerScript, WipDiscoverScript, WipCrawlSpider
 
 from celery.utils.log import get_task_logger
-from celery_apps import app
 from celery.task.control import revoke
 from celery.bin import worker
 from billiard.process import Process
-from utils import get_celery_worker_stats
+from .celery_apps import app
+from .utils import get_celery_worker_stats
 
 def run_worker():
     w = worker.worker(app=app)
@@ -2704,9 +2711,9 @@ def run_worker_process():
         if key.startswith('celery@'):
             pid = value.get('pid', None)
     if pid:
-        print '--- worker is running ---'
+        print ('--- worker is running ---')
     else:
-        print '--- running worker ---'
+        print ('--- running worker ---')
         p = Process(target=run_worker, args=[])
         p.start()
         while not pid and i < 10:
@@ -2721,7 +2728,7 @@ def run_worker_process():
 def stop_crawler(request, scan_id):
     scan = Scan.objects.get(pk=scan_id)
     task_id = scan.task_id
-    print '--- stopping task %s ---' % task_id
+    print ('--- stopping task %s ---' % task_id)
     revoke(task_id, terminate=True)
     scan.terminated = True
     scan.save()
@@ -2804,12 +2811,12 @@ def site_crawl_by_slug(request, site_slug):
         process.start() # the script will block here until the crawling is finished
         process.stop()
     else:
-        print 'site_crawl_by_slug : ', site_slug
+        print ('site_crawl_by_slug : ', site_slug)
         """
         crawl_site.apply_async(args=(site.id,))
         """
         task_id = crawl_site.delay(site.id)
-        print 'task id: ', task_id
+        print ('task id: ', task_id)
     return HttpResponseRedirect('/site/%s/' % site_slug)
 
 @app.task()
@@ -2846,7 +2853,7 @@ if settings.USE_NLTK:
         if not filename.endswith(ext):
             filename += ext
         if request.GET.get('auto', False):
-            filepath = os.path.join(DATA_ROOT, filename)
+            filepath = os.path.join(settings.DATA_ROOT, filename)
             f = open(filepath, 'wb')
             f.write(data)
             return HttpResponseRedirect('/')
@@ -2860,7 +2867,7 @@ if settings.USE_NLTK:
         if text.startswith(u'\ufeff'):
             text = text[1:]
         if not tagger:
-            tagger = NltkTagger(language=language, tagger_input_file=os.path.join(DATA_ROOT, tagger_filename))
+            tagger = NltkTagger(language=language, tagger_input_file=os.path.join(settings.DATA_ROOT, settings.tagger_filename))
         tagged_tokens = tagger.tag(text=text)
         if not chunker:
             chunker = NltkChunker(language='it')
@@ -2887,7 +2894,7 @@ if settings.USE_NLTK:
         ext = request.GET.get('ext', False)
         string = tag = chunk = True
         if tag or chunk or ext:
-            tagger = NltkTagger(language=language, tagger_input_file=os.path.join(DATA_ROOT, tagger_filename))
+            tagger = NltkTagger(language=language, tagger_input_file=os.path.join(settings.DATA_ROOT, settings.tagger_filename))
         if chunk or ext:
             chunker = NltkChunker(language='it')
         var_dict = {} 
