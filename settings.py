@@ -49,7 +49,7 @@ INSTALLED_APPS = [
     'actstream',
     'django_dag',
     'adminsortable2',
-    # 'django_diazo',
+    'django_diazo',
     'rest_framework',
     'wip',
 ]
@@ -82,7 +82,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
-                # 'django_diazo.context_processors.diazo_enabled',
+                'django_diazo.context_processors.diazo_enabled',
                 'wip.context_processors.context_processor',
             ],
         'loaders': [

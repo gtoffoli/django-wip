@@ -9,6 +9,7 @@ import django.db.models.deletion
 class Migration(migrations.Migration):
 
     dependencies = [
+        ('django_diazo', '0001_initial'),
         ('wip', '0026_site_srx_initials'),
     ]
 

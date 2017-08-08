@@ -22,12 +22,12 @@ from lxml import etree
 from lxml.etree import tostring
 from repoze.xmliter.serializer import XMLSerializer
 from repoze.xmliter.utils import getHTMLSerializer
+"""
 from diazo.wsgi import DiazoMiddleware
 from diazo.utils import quote_param
 from diazo.compiler import compile_theme
 from django_diazo.settings import DOCTYPE
 # from django_diazo.utils import get_active_theme, check_themes_enabled, should_transform
-"""
 
 # REWRITE_REGEX = re.compile(r'((?:src|action|href)=["\'])/(?!\/)')
 REWRITE_REGEX = re.compile(r'((?:action)=["\'])/(?!\/)')
@@ -59,12 +59,12 @@ class WipHttpProxy(HttpProxy):
         """ see __init__ method of DjangoDiazoMiddleware in module django_diazo.middleware """
         super(WipHttpProxy, self).__init__(*args,**kwargs)
         self.app = None
-        """
+        """ """
         self.theme_id = None
         self.diazo = None
         self.transform = None
         self.params = {}
-        """
+        """ """
 
     def dispatch(self, request, url, *args, **kwargs):
         self.url = url
@@ -127,9 +127,9 @@ class WipHttpProxy(HttpProxy):
         # content_type = response.headers['Content-Type']
         trailer = response.content[:100]
         if trailer.count('<') and trailer.lower().count('html'):
-            """
+            """ """
             response = self.transform_response(request, response)
-            """
+            """ """
             if self.proxy_id and self.language_code:
                 self.translate_response(request, response)
             else:
@@ -167,11 +167,11 @@ class WipHttpProxy(HttpProxy):
 
         return response
 
-    """
+    """ """
     def transform_response(self, request, response):
-        "" see process_response method of DjangoDiazoMiddleware in module django_diazo.middleware
+        """ see process_response method of DjangoDiazoMiddleware in module django_diazo.middleware
         Transform the response with Diazo if transformable
-        ""
+        """
         theme = self.site.get_active_theme(request)
         if not theme:
             return response
@@ -179,10 +179,10 @@ class WipHttpProxy(HttpProxy):
         rules_file = os.path.join(theme.theme_path(), 'rules.xml')
         compiled_file = os.path.join(theme.theme_path(), 'compiled.xsl')
         if not os.path.exists(compiled_file) or theme.debug:
-            print 'self.theme_id: ', self.theme_id
-            print 'theme.id: ', theme.id
-            print 'os.path.exists(rules_file): ', os.path.exists(rules_file)
-            print 'theme.debug: ', theme.debug
+            print ('self.theme_id: ', self.theme_id)
+            print ('theme.id: ', theme.id)
+            print ('os.path.exists(rules_file): ', os.path.exists(rules_file))
+            print ('theme.debug: ', theme.debug)
             self.theme_id = theme.id
             read_network = False
             access_control = etree.XSLTAccessControl(read_file=True, write_file=False, create_dir=False, read_network=read_network, write_network=False)
@@ -210,14 +210,14 @@ class WipHttpProxy(HttpProxy):
             response = HttpResponse()
         else:
             parser = etree.HTMLParser(remove_blank_text=True, remove_comments=True)
-            print 'parser: ', parser
+            print ('parser: ', parser)
             content = etree.fromstring(response.content, parser)
         result = self.transform(content, **self.params)
         response.content = XMLSerializer(result, doctype=DOCTYPE).serialize()
         if isinstance(response, etree._Element):
             response = HttpResponse('<?xml version="1.0" encoding="UTF-8"?>\n' + tostring(content))
         return response
-    """
+    """ """
 
     def translate_response(self, request, response):
         request = self.request

@@ -47,10 +47,8 @@ from django.contrib.contenttypes.fields import GenericForeignKey
 from django.utils.translation import ugettext_lazy as _
 from django_extensions.db.fields import CreationDateTimeField, ModificationDateTimeField, AutoSlugField
 from django_dag.models import node_factory, edge_factory
-"""
 from django_diazo.models import Theme
-from django_diazo.middleware import DjangoDiazoMiddleware
-"""
+# from django_diazo.middleware import DjangoDiazoMiddleware
 from wip.wip_nltk.tokenizers import NltkTokenizer
 from wip.wip_sd.sd_algorithm import SDAlgorithm
 from .vocabularies import Language, Subject, ApprovalStatus
@@ -140,7 +138,7 @@ class Site(models.Model):
     srx_rules = models.TextField(verbose_name='Custom SRX rules', blank=True, null=True, help_text="Custom SRX rules extending the standard set" )
     srx_initials = models.TextField(verbose_name='Custom initials', blank=True, null=True, help_text="Initials to be made explicit as SRX rules" )
     invariant_words = models.TextField(verbose_name='Custom invariant words', blank=True, null=True, help_text="Custom invariant words" )
-    # themes = models.ManyToManyField(Theme, through='SiteTheme', related_name='site', blank=True, verbose_name='diazo themes')
+    themes = models.ManyToManyField(Theme, through='SiteTheme', related_name='site', blank=True, verbose_name='diazo themes')
 
     def get_absolute_url(self):
         return '/site/%s/' % self.slug
@@ -397,9 +395,8 @@ class Site(models.Model):
             time.sleep(1)
         return webpages.count(), n_updates, n_unfound
 
-    """
     def get_active_theme(self, request):
-        "" see get_active_theme(request) in module django_diazo.utils""
+        """ see get_active_theme(request) in module django_diazo.utils"""
         if request.GET.get('theme', None):
             try:
                 theme = request.GET.get('theme')
@@ -412,7 +409,6 @@ class Site(models.Model):
             if theme.available(request):
                 return theme
         return None
-    """
 
     def add_fragment(self, text, path='', reliability=5):
         added = False
@@ -456,7 +452,6 @@ class Site(models.Model):
     def get_word_count(self, lowercasing=True):
         return len(self.get_token_frequency())
 
-"""
 class SiteTheme(models.Model):
     site = models.ForeignKey(Site, related_name='theme_used_for_site')
     theme = models.ForeignKey(Theme, related_name='site_using_theme')
@@ -464,7 +459,6 @@ class SiteTheme(models.Model):
     class Meta:
         verbose_name = _('theme used for site')
         verbose_name_plural = _('themes used for site')
-"""
 
 class Proxy(models.Model):
     name = models.CharField(max_length=100)
@@ -1479,27 +1473,6 @@ class Block(node_factory('BlockEdge')):
     def num_children(self):
         return len(self.get_children())
 
-    """ substituted by integrating django_dag
-    def get_children(self, webpage=None):
-        if webpage:
-            blocks_in_pages = BlockInPage.objects.get(block=self, webpage=webpage).order_by('-time')
-            if blocks_in_pages.count():
-                block_in_page = blocks_in_pages[0]
-            else:
-                return []
-        else:
-            blocks_in_pages = BlockInPage.objects.filter(block=self).order_by('-time')
-            if blocks_in_pages.count():
-                block_in_page = blocks_in_pages[0]
-                webpage = block_in_page.webpage
-            else:
-                return []
-        xpath = block_in_page.xpath
-        step_count = xpath.count('/')
-        blocks_in_pages = BlockInPage.objects.filter(webpage=webpage, xpath__startswith=xpath)
-        return [bip.block for bip in blocks_in_pages if bip.xpath.count('/')==(step_count+1)]
-    """
-
     def get_previous_next(self, include_language=None, exclude_language=None, order_by='id', skip_no_translate=None):
         site = self.site
         qs = Block.objects.filter(site=site)
@@ -1618,12 +1591,6 @@ class Block(node_factory('BlockEdge')):
         last_translation = self.get_last_translation(language)
         if last_translation:
             return last_translation.state
-        """
-        if not self.children.exists():
-            return 0
-        down_edges = BlockEdge.objects.filter(parent=self).all()
-        children = [edge.child for edge in down_edges]
-        """
         children = self.get_children()
         if not children:
             return NONE

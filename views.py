@@ -38,7 +38,7 @@ from django.conf import settings
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from django.template import RequestContext
 from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
-from django.shortcuts import render_to_response, get_object_or_404
+from django.shortcuts import render, render_to_response, get_object_or_404
 from django.db import connection
 # from django.db.models import Q, Count
 from django.db.models.expressions import RawSQL, Q
@@ -86,12 +86,14 @@ registry.register(TranslatedBlock)
 #     action.send(user, verb='Create', action_object=forum, target=project)
 
 def robots(request):
-    response = render_to_response('robots.txt', {}, context_instance=RequestContext(request))
+    # response = render_to_response('robots.txt', {}, context_instance=RequestContext(request))
+    response = render(request, 'robots.txt', {})
     response['Content-Type'] = 'text/plain; charset=utf-8'
     return response
 
 def empty_page(request):
-    response = render_to_response('robots.txt', {}, context_instance=RequestContext(request))
+    # response = render_to_response('robots.txt', {}, context_instance=RequestContext(request))
+    response = render(request, 'robots.txt', {})
     response['Content-Type'] = 'text/plain; charset=utf-8'
     return response
 
@@ -127,7 +129,8 @@ def home(request):
         site_dict['proxies'] = proxies
         sites.append(site_dict)
     var_dict['sites'] = sites
-    return render_to_response('homepage.html', var_dict, context_instance=RequestContext(request))
+    # return render_to_response('homepage.html', var_dict, context_instance=RequestContext(request))
+    return render(request, 'homepage.html', var_dict)
 
 def language(request, language_code):
     set_language(request, language_code or '')
@@ -177,13 +180,15 @@ def manage_roles(request):
     user_roles = qs.order_by('role_type', 'site', 'target_language__code', '-level')
     var_dict = {}
     var_dict['user_roles'] = user_roles
-    return render_to_response('manage_roles.html', var_dict, context_instance=RequestContext(request))
+    # return render_to_response('manage_roles.html', var_dict, context_instance=RequestContext(request))
+    return render(request, 'manage_roles.html', var_dict)
 
 def role_detail(request, role_id):
     user_role = UserRole.objects.get(pk=role_id)
     var_dict = {}
     var_dict['user_role'] = user_role
-    return render_to_response('role_detail.html', var_dict, context_instance=RequestContext(request))
+    # return render_to_response('role_detail.html', var_dict, context_instance=RequestContext(request))
+    return render(request, 'role_detail.html', var_dict)
 
 def role_edit(request, role_id=None):
     user_role = None
@@ -218,26 +223,30 @@ def role_edit(request, role_id=None):
                 else:
                     return HttpResponseRedirect('/manage_roles/')
         else:
-            return render_to_response('role_edit.html', { 'form': form }, context_instance=RequestContext(request))
+            # return render_to_response('role_edit.html', { 'form': form }, context_instance=RequestContext(request))
+            return render(request, 'role_edit.html', { 'form': form })
     else:
         if role_id:
             user_role = get_object_or_404(UserRole, pk=role_id)
             form = UserRoleEditForm(instance=user_role)
         else:
             form = UserRoleEditForm()
-        return render_to_response('role_edit.html', { 'user_role': user_role, 'form': form }, context_instance=RequestContext(request))
+        # return render_to_response('role_edit.html', { 'user_role': user_role, 'form': form }, context_instance=RequestContext(request))
+        return render(request, 'role_edit.html', { 'user_role': user_role, 'form': form })
 
 def sites(request):
     var_dict = {}
     sites = Site.objects.all().order_by('name')
     var_dict['sites'] = sites
-    return render_to_response('sites.html', var_dict, context_instance=RequestContext(request))
+    # return render_to_response('sites.html', var_dict, context_instance=RequestContext(request))
+    return render(request, 'sites.html', var_dict)
 
 def proxies(request):
     var_dict = {}
     proxies = Proxy.objects.all().order_by('site__name')
     var_dict['proxies'] = proxies
-    return render_to_response('proxies.html', var_dict, context_instance=RequestContext(request))
+    # return render_to_response('proxies.html', var_dict, context_instance=RequestContext(request))
+    return render(request, 'proxies.html', var_dict)
 
 def site(request, site_slug):
     user = request.user
@@ -479,7 +488,8 @@ def site(request, site_slug):
     var_dict['blocks_invariant'] = blocks_invariant
     var_dict['blocks_proxy_list'] = blocks_proxy_list
     var_dict['manage_form'] = SiteManageForm()
-    return render_to_response('site.html', var_dict, context_instance=RequestContext(request))
+    # return render_to_response('site.html', var_dict, context_instance=RequestContext(request))
+    return render(request, 'site.html', var_dict)
 
 def proxy(request, proxy_slug):
     user = request.user
@@ -595,7 +605,8 @@ def proxy(request, proxy_slug):
     var_dict['blocks_ready'] = blocks_ready = proxy.blocks_ready()
     var_dict['ready_count'] = len(blocks_ready)
     var_dict['manage_form'] = ProxyManageForm()
-    return render_to_response('proxy.html', var_dict, context_instance=RequestContext(request))
+    # return render_to_response('proxy.html', var_dict, context_instance=RequestContext(request))
+    return render(request, 'proxy.html', var_dict)
 
 def import_xliff(request, proxy_slug):
     proxy = get_object_or_404(Proxy, slug=proxy_slug)
@@ -633,7 +644,8 @@ def import_xliff(request, proxy_slug):
         qs = qs.order_by('-role_type', 'level')
         form.fields['user_role'].queryset = qs
     var_dict['form'] = form
-    return render_to_response('import_xliff.html', var_dict, context_instance=RequestContext(request))
+    # return render_to_response('import_xliff.html', var_dict, context_instance=RequestContext(request))
+    return render(request, 'import_xliff.html', var_dict)
 
 def site_pages(request, site_slug):
     var_dict = {}
@@ -680,7 +692,8 @@ def site_pages(request, site_slug):
     var_dict['before'] = steps_before(page)
     var_dict['after'] = steps_after(page, paginator.num_pages)
     var_dict['site_pages'] = site_pages
-    return render_to_response('pages.html', var_dict, context_instance=RequestContext(request))
+    # return render_to_response('pages.html', var_dict, context_instance=RequestContext(request))
+    return render(request, 'pages.html', var_dict)
 
 def page(request, page_id):
     var_dict = {}
@@ -774,7 +787,8 @@ def page(request, page_id):
     var_dict['block_count'] = total
     var_dict['invariant'] = invariant
     var_dict['proxy_list'] = proxy_list
-    return render_to_response('page.html', var_dict, context_instance=RequestContext(request))
+    # return render_to_response('page.html', var_dict, context_instance=RequestContext(request))
+    return render(request, 'page.html', var_dict)
 
 def page_blocks(request, page_id):
     var_dict = {}
@@ -801,7 +815,8 @@ def page_blocks(request, page_id):
     var_dict['before'] = steps_before(page)
     var_dict['after'] = steps_after(page, paginator.num_pages)
     var_dict['page_blocks'] = page_blocks
-    return render_to_response('page_blocks.html', var_dict, context_instance=RequestContext(request))
+    # return render_to_response('page_blocks.html', var_dict, context_instance=RequestContext(request))
+    return render(request, 'page_blocks.html', var_dict)
 
 def page_extract_blocks(request, page_id):
     webpage = get_object_or_404(Webpage, pk=page_id)
@@ -847,7 +862,8 @@ def site_blocks(request, site_slug):
     var_dict['before'] = steps_before(page)
     var_dict['after'] = steps_after(page, paginator.num_pages)
     var_dict['site_blocks'] = site_blocks
-    return render_to_response('blocks.html', var_dict, context_instance=RequestContext(request))
+    # return render_to_response('blocks.html', var_dict, context_instance=RequestContext(request))
+    return render(request, 'blocks.html', var_dict)
 
 def site_translated_blocks(request, site_slug):
     var_dict = {}
@@ -855,7 +871,8 @@ def site_translated_blocks(request, site_slug):
     var_dict['site'] = site
     var_dict['translated_blocks'] = blocks = TranslatedBlock.objects.filter(block__site=site)
     var_dict['translated_blocks_count'] = blocks.count()
-    return render_to_response('translated_blocks.html', var_dict, context_instance=RequestContext(request))
+    # return render_to_response('translated_blocks.html', var_dict, context_instance=RequestContext(request))
+    return render(request, 'translated_blocks.html', var_dict)
 
 def get_or_add_string(request, text, language, site=None, string_type=UNKNOWN, add=False, txu=None, reliability=1):
     if isinstance(language, str):
@@ -1022,7 +1039,8 @@ def block(request, block_id):
         return HttpResponseRedirect('/block/%d/' % block.id)        
     var_dict['edit_form'] = BlockEditForm(initial={'language': block.language, 'no_translate': block.no_translate,})
     var_dict['sequencer_form'] = BlockSequencerForm(initial={'webpage': webpage_id, 'block_age': block_age, 'translation_state': translation_state, 'translation_languages': translation_languages, 'translation_age': translation_age, 'source_text_filter': source_text_filter, 'list_pages': list_pages, })
-    return render_to_response('block.html', var_dict, context_instance=RequestContext(request))
+    # return render_to_response('block.html', var_dict, context_instance=RequestContext(request))
+    return render(request, 'block.html', var_dict)
 
 # def block_translate(request, block_id):
 def block_translate(request, block_id, target_code):
@@ -1190,7 +1208,8 @@ def block_translate(request, block_id, target_code):
     var_dict['sequencer_form'] = BlockSequencerForm(initial={'webpage': webpage_id, 'block_age': block_age, 'translation_state': translation_state, 'translation_languages': translation_languages, 'translation_age': translation_age, 'source_text_filter': source_text_filter,})
     var_dict['source_segments'] = source_segments
     var_dict['translated_block'] = translated_block
-    return render_to_response('block_translate.html', var_dict, context_instance=RequestContext(request))
+    # return render_to_response('block_translate.html', var_dict, context_instance=RequestContext(request))
+    return render(request, 'block_translate.html', var_dict)
 
 def propagate_block_translation(request, block, translated_block):
     similar_blocks = Block.objects.filter(site=block.site, checksum=block.checksum)
@@ -1239,7 +1258,8 @@ def block_pages(request, block_id):
     var_dict['offset'] = (page-1) * settings.PAGE_SIZE
     var_dict['before'] = steps_before(page)
     var_dict['after'] = steps_after(page, paginator.num_pages)
-    return render_to_response('block_pages.html', var_dict, context_instance=RequestContext(request))
+    # return render_to_response('block_pages.html', var_dict, context_instance=RequestContext(request))
+    return render(request, 'block_pages.html', var_dict)
 
 def string_view(request, string_id):
     if not request.user.is_superuser:
@@ -1332,7 +1352,8 @@ def string_view(request, string_id):
     var_dict['sequencer_form'] = StringSequencerForm(initial={'string_types': string_types, 'project_site': project_site, 'translation_state': translation_state, 'translation_languages': translation_languages, 'order_by': order_by, 'show_similar': show_similar})
     """
     var_dict['sequencer_form'] = StringSequencerForm(initial={'string_types': string_types, 'translation_state': translation_state, 'translation_languages': translation_languages, 'order_by': order_by, 'show_similar': show_similar})
-    return render_to_response('string_view.html', var_dict, context_instance=RequestContext(request))
+    # return render_to_response('string_view.html', var_dict, context_instance=RequestContext(request))
+    return render(request, 'string_view.html', var_dict)
 
 @staff_member_required
 def segment_view(request, segment_id):
@@ -1402,7 +1423,8 @@ def segment_view(request, segment_id):
     var_dict['sequencer_form'] = SegmentSequencerForm(initial={'project_site': project_site, 'translation_state': translation_state, 'translation_languages': translation_languages, 'order_by': order_by, 'show_similar': show_similar})
     var_dict['TRANSLATION_TYPE_DICT'] = TRANSLATION_TYPE_DICT
     var_dict['ROLE_DICT'] = ROLE_DICT
-    return render_to_response('segment_view.html', var_dict, context_instance=RequestContext(request))
+    # return render_to_response('segment_view.html', var_dict, context_instance=RequestContext(request))
+    return render(request, 'segment_view.html', var_dict)
 
 @staff_member_required
 def translation_view(request, translation_id):
@@ -1443,7 +1465,8 @@ def translation_view(request, translation_id):
     """
     var_dict['alignment'] = alignment
     var_dict['can_edit'] = True
-    return render_to_response('translation_view.html', var_dict, context_instance=RequestContext(request))
+    # return render_to_response('translation_view.html', var_dict, context_instance=RequestContext(request))
+    return render(request, 'translation_view.html', var_dict)
 
 def string_edit(request, string_id=None, language_code='', proxy_slug=''):
     user = request.user
@@ -1496,7 +1519,8 @@ def string_edit(request, string_id=None, language_code='', proxy_slug=''):
     var_dict['proxy'] = proxy
     var_dict['translations'] = string and string.get_translations() or []
     var_dict['string_edit_form'] = string_edit_form
-    return render_to_response('string_edit.html', var_dict, context_instance=RequestContext(request))
+    # return render_to_response('string_edit.html', var_dict, context_instance=RequestContext(request))
+    return render(request, 'string_edit.html', var_dict)
 
 def string_translate(request, string_id, target_code):
     if not request.user.is_superuser:
@@ -1593,7 +1617,8 @@ def string_translate(request, string_id, target_code):
                         txu_subject.save()
             else:
                 print ('error', translation_form.errors)
-                return render_to_response('string_translate.html', {'translation_form': translation_form,}, context_instance=RequestContext(request))
+                # return render_to_response('string_translate.html', {'translation_form': translation_form,}, context_instance=RequestContext(request))
+                return render(request, 'string_translate.html', {'translation_form': translation_form,})
             translation_service_form = TranslationServiceForm()
         else: # apply_filter
             form = StringSequencerForm(post)
@@ -1631,7 +1656,8 @@ def string_translate(request, string_id, target_code):
     # var_dict['translation_form'] = StringTranslationForm(initial={'translation_site': translation_site, 'translation_subjects': translation_subjects,})
     var_dict['translation_form'] = StringTranslationForm(initial={'translation_site': project_site, 'translation_subjects': translation_subjects,})
     var_dict['translation_service_form'] = translation_service_form
-    return render_to_response('string_translate.html', var_dict, context_instance=RequestContext(request))
+    # return render_to_response('string_translate.html', var_dict, context_instance=RequestContext(request))
+    return render(request, 'string_translate.html', var_dict)
 
 def segment_translate(request, segment_id, target_code):
     if not request.user.is_superuser:
@@ -1699,7 +1725,8 @@ def segment_translate(request, segment_id, target_code):
                 translationt = get_or_add_translation(request, segment, translation_text, target_language)
             else:
                 print ('error', translation_form.errors)
-                return render_to_response('segment_translate.html', {'translation_form': translation_form,}, context_instance=RequestContext(request))
+                # return render_to_response('segment_translate.html', {'translation_form': translation_form,}, context_instance=RequestContext(request))
+                return render(request, 'segment_translate.html', {'translation_form': translation_form,})
             translation_service_form = TranslationServiceForm()
         else: # apply_filter
             form = SegmentSequencerForm(post)
@@ -1730,7 +1757,8 @@ def segment_translate(request, segment_id, target_code):
     var_dict['translation_service_form'] = translation_service_form
     var_dict['TRANSLATION_TYPE_DICT'] = TRANSLATION_TYPE_DICT
     var_dict['ROLE_DICT'] = ROLE_DICT
-    return render_to_response('segment_translate.html', var_dict, context_instance=RequestContext(request))
+    # return render_to_response('segment_translate.html', var_dict, context_instance=RequestContext(request))
+    return render(request, 'segment_translate.html', var_dict)
 
 def raw_tokens(text, language_code):
     tokens = re.split(" |\'", text)
@@ -2003,7 +2031,8 @@ def strings_translations(request, proxy_slug=None, state=None):
     var_dict['after'] = steps_after(page, paginator.num_pages)
     var_dict['strings'] = strings
     var_dict['strings_translations_form'] = form
-    return render_to_response('strings_translations.html', var_dict, context_instance=RequestContext(request))
+    # return render_to_response('strings_translations.html', var_dict, context_instance=RequestContext(request))
+    return render(request, 'strings_translations.html', var_dict)
 
 def list_segments(request, proxy_slug=None, state=None):
     """
@@ -2140,7 +2169,8 @@ def list_segments(request, proxy_slug=None, state=None):
     var_dict['after'] = steps_after(page, paginator.num_pages)
     var_dict['segments'] = segments
     var_dict['list_segments_form'] = form
-    return render_to_response('list_segments.html', var_dict, context_instance=RequestContext(request))
+    # return render_to_response('list_segments.html', var_dict, context_instance=RequestContext(request))
+    return render(request, 'list_segments.html', var_dict)
 
 def add_update_translation(request):
     if request.is_ajax() and request.method == 'POST':
@@ -2316,7 +2346,8 @@ def proxy_string_translations(request, proxy_slug=None, state=None):
     var_dict['after'] = steps_after(page, paginator.num_pages)
     var_dict['strings'] = strings
     var_dict['strings_translations_form'] = form
-    return render_to_response('proxy_string_translations.html', var_dict, context_instance=RequestContext(request))
+    # return render_to_response('proxy_string_translations.html', var_dict, context_instance=RequestContext(request))
+    return render(request, 'proxy_string_translations.html', var_dict)
 
 def add_translated_string(request):
     user = request.user
@@ -2454,7 +2485,8 @@ def list_strings(request, sources, state, targets=[]):
     var_dict['before'] = steps_before(page)
     var_dict['after'] = steps_after(page, paginator.num_pages)
     var_dict['strings'] = strings
-    return render_to_response('list_strings.html', var_dict, context_instance=RequestContext(request))
+    # return render_to_response('list_strings.html', var_dict, context_instance=RequestContext(request))
+    return render(request, 'list_strings.html', var_dict)
 
 # def find_strings(source_languages=[], target_languages=[], translated=None, site=None):
 def find_strings(source_languages=[], target_languages=[], translated=None, site=None, order_by=None):
@@ -2555,7 +2587,8 @@ def user_scans(request, username=None):
         scans = Scan.objects.all().order_by('-created')
     data_dict['user'] = user  
     data_dict['scans'] = scans  
-    return render_to_response('user_scans.html', data_dict, context_instance=RequestContext(request))
+    # return render_to_response('user_scans.html', data_dict, context_instance=RequestContext(request))
+    return render(request, 'user_scans.html', data_dict)
 
 def my_scans(request):
     return user_scans(request, username=request.user.username)
@@ -2570,7 +2603,8 @@ def scan_detail(request, scan_id):
         lines.append(line)
     data_dict['scan'] = scan
     data_dict['lines'] = lines
-    return render_to_response('scan_detail.html', data_dict, context_instance=RequestContext(request))
+    # return render_to_response('scan_detail.html', data_dict, context_instance=RequestContext(request))
+    return render(request, 'scan_detail.html', data_dict)
 
 def scan_pages(request, scan_id):
     scan = Scan.objects.get(pk=scan_id)
@@ -2589,7 +2623,8 @@ def scan_pages(request, scan_id):
     data_dict = {}
     data_dict['scan'] = scan
     data_dict['lines'] = lines
-    return render_to_response('scan_pages.html', data_dict, context_instance=RequestContext(request))
+    # return render_to_response('scan_pages.html', data_dict, context_instance=RequestContext(request))
+    return render(request, 'scan_pages.html', data_dict)
 
 def scan_words(request, scan_id):
     scan = Scan.objects.get(pk=scan_id)
@@ -2616,7 +2651,8 @@ def scan_words(request, scan_id):
     data_dict['scan'] = scan
     data_dict['sorted_by'] = sorted_by
     data_dict['lines'] = lines
-    return render_to_response('scan_words.html', data_dict, context_instance=RequestContext(request))
+    # return render_to_response('scan_words.html', data_dict, context_instance=RequestContext(request))
+    return render(request, 'scan_words.html', data_dict)
 
 def scan_segments(request, scan_id):
     scan = Scan.objects.get(pk=scan_id)
@@ -2645,7 +2681,8 @@ def scan_segments(request, scan_id):
     data_dict['scan'] = scan
     data_dict['sorted_by'] = sorted_by
     data_dict['lines'] = lines
-    return render_to_response('scan_segmentss.html', data_dict, context_instance=RequestContext(request))
+    # return render_to_response('scan_segmentss.html', data_dict, context_instance=RequestContext(request))
+    return render(request, 'scan_segments.html', data_dict)
 
 def scan_delete(request, scan_id):
     scan = Scan.objects.get(pk=scan_id)
@@ -2781,7 +2818,8 @@ def discover(request, site=None, scan_id=None):
             data_dict['scan_label'] = scan.get_label()
             data_dict['i_line'] = 0
     data_dict['discover_form'] = form
-    return render_to_response('discover.html', data_dict, context_instance=RequestContext(request))
+    # return render_to_response('discover.html', data_dict, context_instance=RequestContext(request))
+    return render(request, 'discover.html', data_dict)
 
 def site_crawl(site_pk):
     crawler_script = WipSiteCrawlerScript()
@@ -2946,4 +2984,5 @@ if settings.USE_NLTK:
                             strings.extend(terms)
                 var_dict['tags'] = tags
                 var_dict['chunks'] = chunks
-        return render_to_response('page_scan.html', var_dict, context_instance=RequestContext(request))
+        # return render_to_response('page_scan.html', var_dict, context_instance=RequestContext(request))
+        return render(request, 'page_scan.html', var_dict)
