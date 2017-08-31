@@ -123,6 +123,10 @@ STRING_SORT_CHOICES = (
 )
 STRING_SORT_DICT = dict(STRING_SORT_CHOICES)
 
+PARALLEL_FORMAT_NONE = 0
+PARALLEL_FORMAT_XLIFF = 1
+PARALLEL_FORMAT_TEXT = 2
+
 class Site(models.Model):
     name = models.CharField(max_length=100)
     slug = AutoSlugField(unique=True, populate_from='name', editable=True)
@@ -845,6 +849,37 @@ class Proxy(models.Model):
                 return adict[match.group(0)]
             text = rx.sub(one_xlat, text)
         return text
+
+    def export_translations(self, outfile_1, outfile_2=None, parallel_format=PARALLEL_FORMAT_NONE, tokenizer_1=None, tokenizer_2=None, lowercasing=False, max_tokens=1000, max_fertility=1000):
+        segments = Segment.objects.filter(site=self.site, is_invariant=False)
+        if parallel_format == PARALLEL_FORMAT_XLIFF:
+            pass
+        for segment in segments:
+            source_text = segment.text
+            if tokenizer_1:
+                source_tokens = tokenize(source_text, tokenizer=tokenizer_1, lowercasing=lowercasing)
+                L = len(source_tokens)
+                if L > max_tokens:
+                    continue
+                source_text = ' '.join(source_tokens)
+            translations = Translation.objects.filter(segment=segment, language=self.language)
+            for translation in translations:
+                target_text = translation.text
+                if tokenizer_2:
+                    target_tokens = tokenize(target_text, tokenizer=tokenizer_2, lowercasing=lowercasing)
+                    M = len(target_tokens)
+                    if M>max_tokens or abs(M-L)>max_fertility:
+                        continue
+                    target_text = ' '.join(target_tokens)
+                    if parallel_format == PARALLEL_FORMAT_XLIFF:
+                        pass
+                    elif parallel_format == PARALLEL_FORMAT_TEXT:
+                        outfile_1.write('%s . ||| . %s\n' % (source_text, target_text))
+                    elif parallel_format == PARALLEL_FORMAT_NONE:
+                        outfile_1.write('%s\n' % source_text)
+                        outfile_2.write('%s\n' % target_text)
+        if parallel_format == PARALLEL_FORMAT_XLIFF:
+            pass
 
     def make_bitext(self, lowercasing=False, use_invariant=False, tokenizer=None, max_tokens=1000, max_fertility=1000):
         site = self.site

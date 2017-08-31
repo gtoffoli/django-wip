@@ -51,6 +51,7 @@ Temporary Items
 #############
 
 *.py[cod]
+*.pyc
 
 # Packages
 *.egg

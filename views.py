@@ -62,6 +62,7 @@ from .models import TO_BE_TRANSLATED, TRANSLATED, PARTIALLY, INVARIANT, ALREADY
 from .models import ROLE_DICT, TRANSLATION_TYPE_DICT, TRANSLATION_SERVICE_DICT, MYMEMORY
 from .models import OWNER, MANAGER, LINGUIST, REVISOR, TRANSLATOR, GUEST
 from .models import TM, MT, MANUAL
+from .models import PARALLEL_FORMAT_NONE, PARALLEL_FORMAT_XLIFF, PARALLEL_FORMAT_TEXT
 from .forms import DiscoverForm
 from .forms import SiteManageForm, ProxyManageForm, PageEditForm, PageSequencerForm, BlockEditForm, BlockSequencerForm
 from .forms import SegmentSequencerForm, SegmentTranslationForm, TranslationViewForm
@@ -543,15 +544,15 @@ def proxy(request, proxy_slug):
                     translations = Translation.objects.filter(segment=segment, language=proxy.language)
                     for translation in translations:
                         target_text = translation.text
-                        if parallel_format==1: # XLIFF
+                        if parallel_format==PARALLEL_FORMAT_XLIFF: # XLIFF
                             pass
-                        elif parallel_format==2: # plain_text
+                        elif parallel_format==PARALLEL_FORMAT_TEXT: # plain_text
                             lines.append('%s . ||| . %s' % (source_text, target_text))
                 data = '\n'.join(lines)
-                if parallel_format==1: # XLIFF
+                if parallel_format==PARALLEL_FORMAT_XLIFF: # XLIFF
                     response = HttpResponse(data, content_type='application/xliff+xml')
                     filename = '%s_translations.xlf' % proxy.slug
-                elif parallel_format==2: # plain_text
+                elif parallel_format==PARALLEL_FORMAT_TEXT: # plain_text
                     response = HttpResponse(data, content_type='text/plain')
                     filename = '%s_translations.txt' % proxy.slug
                 response['Content-Disposition'] = 'attachment; filename="%s"' % filename

@@ -2,12 +2,13 @@ from menu import Menu, MenuItem
 from django.core.urlresolvers import reverse
 from django.utils.translation import ugettext as _, ugettext_lazy
 # from settings import SITE_NAME
-from vocabularies import Language
-from models import Site, Proxy
-from session import get_language, get_site
-from views import my_roles
+from .vocabularies import Language
+from .models import Site, Proxy
+from .session import get_language, get_site
+from .views import my_roles
 
 # print SITE_NAME
+# print('importing menus.py')
 
 Menu.items = {}
 Menu.sorted = {}

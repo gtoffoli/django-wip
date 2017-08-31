@@ -3,6 +3,9 @@ import codecs
 import re
 import nltk
 
+if (sys.version_info > (3, 0)):
+    basestring = str
+
 from wip.settings import RESOURCES_ROOT
 
 class NltkTokenizer(object):
