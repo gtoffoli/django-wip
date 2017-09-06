@@ -58,14 +58,14 @@ from .models import UserRole, Segment, Translation
 from .models import segments_from_string, non_invariant_words
 from .models import STRING_TYPE_DICT, UNKNOWN, SEGMENT #, TERM, FRAGMENT
 from .models import TEXT_ASC # , ID_ASC, DATETIME_DESC, DATETIME_ASC
-from .models import TO_BE_TRANSLATED, TRANSLATED, PARTIALLY, INVARIANT, ALREADY
+from .models import ANY, TO_BE_TRANSLATED, TRANSLATED, PARTIALLY, INVARIANT, ALREADY
 from .models import ROLE_DICT, TRANSLATION_TYPE_DICT, TRANSLATION_SERVICE_DICT, MYMEMORY
 from .models import OWNER, MANAGER, LINGUIST, REVISOR, TRANSLATOR, GUEST
 from .models import TM, MT, MANUAL
 from .models import PARALLEL_FORMAT_NONE, PARALLEL_FORMAT_XLIFF, PARALLEL_FORMAT_TEXT
 from .forms import DiscoverForm
 from .forms import SiteManageForm, ProxyManageForm, PageEditForm, PageSequencerForm, BlockEditForm, BlockSequencerForm
-from .forms import SegmentSequencerForm, SegmentTranslationForm, TranslationViewForm
+from .forms import SegmentSequencerForm, SegmentTranslationForm, TranslationViewForm, TranslationSequencerForm
 from .forms import StringSequencerForm, StringEditForm, StringsTranslationsForm, StringTranslationForm, TranslationServiceForm, FilterPagesForm
 from .forms import UserRoleEditForm, ListSegmentsForm, ImportXliffForm
 from .session import get_language, set_language, get_site, set_site, get_userrole, set_userrole
@@ -389,7 +389,7 @@ def site(request, site_slug):
                 data = u'\r\n'.join(['%s %d' % (item[0], item[1]) for item in sorted_words_distribution])
                 response = HttpResponse(data, content_type='application/octet-stream')
                 time_stamp = datetime.datetime.now().strftime('%y%m%d-%H-%M-%S')
-                filename = u'%s-words.%s.txt' % (site.slug, time_stamp)
+                filename = u'%s-%s-words.%s.txt' % (site.slug, site.language_id, time_stamp)
                 response['Content-Disposition'] = 'attachment; filename="%s"' % filename
                 return response
             elif delete_site:
@@ -502,6 +502,8 @@ def proxy(request, proxy_slug):
     var_dict['can_view'] = proxy.can_view(user)
     var_dict['site'] = site = proxy.site
     var_dict['language'] = language = proxy.language
+    words_distribution = proxy.get_token_frequency(lowercasing=True)
+    var_dict['word_count'] = len(words_distribution)
     post = request.POST
     if post:
         print ('request.POST: ', post)
@@ -510,8 +512,10 @@ def proxy(request, proxy_slug):
         delete_proxy = post.get('delete_proxy', '')
         import_translations = post.get('import_translations', '')
         export_translations = post.get('export_translations', '')
+        download_words_distribution = post.get('download_words_distribution', '')
         apply_tm = post.get('apply_tm', '')
         align_translations = post.get('align_translations', '')
+        evaluate_aligner = post.get('evaluate_aligner', '')
         propagate_up = post.get('propagate_up', '')
         form = ProxyManageForm(post)
         if form.is_valid():
@@ -557,7 +561,7 @@ def proxy(request, proxy_slug):
                     filename = '%s_translations.txt' % proxy.slug
                 response['Content-Disposition'] = 'attachment; filename="%s"' % filename
                 return response
-            elif align_translations:
+            elif align_translations or evaluate_aligner:
                 """
                 lowercasing = True
                 tokenizer = NltkTokenizer(lowercasing=lowercasing)
@@ -575,7 +579,19 @@ def proxy(request, proxy_slug):
                         translation.alignment_type = MT
                         translation.save()
                 """
-                proxy.align_translations(ibm_model=2, iterations=5)
+                aligner = int(data['aligner'])
+                if aligner == 1: # eflomal
+                    proxy.eflomal_align_translations(evaluate=evaluate_aligner)
+                elif aligner == 2: # NLTK IBM models
+                    proxy.align_translations(ibm_model=2, iterations=5, evaluate=evaluate_aligner)                
+            elif download_words_distribution:
+                sorted_words_distribution = sorted(words_distribution.items(), key=lambda item: item[1], reverse=True)
+                data = u'\r\n'.join(['%s %d' % (item[0], item[1]) for item in sorted_words_distribution])
+                response = HttpResponse(data, content_type='application/octet-stream')
+                time_stamp = datetime.datetime.now().strftime('%y%m%d-%H-%M-%S')
+                filename = u'%s-%s-words.%s.txt' % (site.slug, proxy.language_id, time_stamp)
+                response['Content-Disposition'] = 'attachment; filename="%s"' % filename
+                return response
             elif apply_tm:
                 n_ready, n_translated, n_partially = proxy.apply_translation_memory()
                 messages.add_message(request, messages.INFO, 'TM applied to %d blocks: %d fully translated, %d partially translated.' % (n_ready, n_translated, n_partially))
@@ -1424,49 +1440,76 @@ def segment_view(request, segment_id):
     var_dict['sequencer_form'] = SegmentSequencerForm(initial={'project_site': project_site, 'translation_state': translation_state, 'translation_languages': translation_languages, 'order_by': order_by, 'show_similar': show_similar})
     var_dict['TRANSLATION_TYPE_DICT'] = TRANSLATION_TYPE_DICT
     var_dict['ROLE_DICT'] = ROLE_DICT
-    # return render_to_response('segment_view.html', var_dict, context_instance=RequestContext(request))
     return render(request, 'segment_view.html', var_dict)
 
 @staff_member_required
 def translation_view(request, translation_id):
     alignment = ''
     compute_alignment = False
-    post = request.POST
-    if post:
-        translation_view_form = TranslationViewForm(post)
-        if translation_view_form.is_valid():
-            data = translation_view_form.cleaned_data
-            alignment = data['alignment']
-            compute_alignment = data['compute_alignment']
+
     var_dict = {}
     var_dict['translation'] = translation = get_object_or_404(Translation, pk=translation_id)
     var_dict['segment'] = segment = translation.segment
     var_dict['source_language'] = segment.language
-    var_dict['target_language'] = target_language = translation.language
+
+    translation_context = request.session.get('translation_context', {})
+    if translation_context:
+        order_by = translation_context.get('order_by', TEXT_ASC)
+        alignment_type = translation_context.get('alignment_type', ANY)
+    else:
+        order_by = TEXT_ASC
+        alignment_type = ANY
+
+    apply_filter = goto = '' 
+    post = request.POST
+    if post:
+        print('post')
+        if post.get('alignment', ''):
+            translation_view_form = TranslationViewForm(post)
+            print('alignment')
+            if translation_view_form.is_valid():
+                data = translation_view_form.cleaned_data
+                alignment = data['alignment']
+                print('alignment: ', alignment)
+                compute_alignment = data['compute_alignment']
+        else:
+            apply_filter = post.get('apply_filter', '')
+            if not (apply_filter):
+                for key in post.keys():
+                    if key.startswith('goto-'):
+                        goto = int(key.split('-')[1])
+                        translation = get_object_or_404(Translation, pk=goto)
+            form = TranslationSequencerForm(post)
+            if form.is_valid():
+                data = form.cleaned_data
+                order_by = int(data['order_by'])
+                alignment_type = int(data['alignment_type'])
+            else:
+                print ('error', form.errors)
+
+    translation_context['order_by'] = order_by
+    translation_context['alignment_type'] = alignment_type
+    request.session['translation_context'] = translation_context
+    if goto:
+        return HttpResponseRedirect('/translation/%d/' % translation.id)        
+    n, first, last, previous, next = translation.get_navigation(order_by=order_by, alignment_type=alignment_type)
+    var_dict['n'] = n
+    var_dict['first'] = first
+    var_dict['previous'] = previous
+    var_dict['next'] = next
+    var_dict['last'] = last
+
     var_dict['translation_view_form'] = TranslationViewForm(initial={'compute_alignment': compute_alignment,})
     if alignment:
         translation.alignment = alignment
+        translation.alignment_type = MANUAL
         translation.save()
     else:
         alignment = translation.alignment
-    """
-    if compute_alignment:
-        proxies = Proxy.objects.filter(site=translation.segment.site, language=target_language)
-        if proxies:
-            lowercasing = True
-            tokenizer = NltkTokenizer(lowercasing=lowercasing)
-            aligner = get_train_aligner(proxies[0], tokenizer=tokenizer, lowercasing=lowercasing)
-            source_tokens = tokenize(segment.text, tokenizer=tokenizer, lowercasing=lowercasing)
-            target_tokens = tokenize(translation.text, tokenizer=tokenizer, lowercasing=lowercasing)
-            alignment = best_alignment(aligner, source_tokens, target_tokens)
-            translation.alignment = ' '.join(['%s-%s' % (str(couple[0]), couple[1] is not None and str(couple[1]) or '') for couple in alignment])
-            print 'translation.alignment: ', translation.alignment
-            translation.alignment_type = MT
-            translation.save()
-    """
     var_dict['alignment'] = alignment
+    var_dict['alignment_type'] = translation.alignment_type==MANUAL and 'manual' or ''
     var_dict['can_edit'] = True
-    # return render_to_response('translation_view.html', var_dict, context_instance=RequestContext(request))
+    var_dict['sequencer_form'] = TranslationSequencerForm(initial={'order_by': order_by, 'alignment_type': alignment_type})
     return render(request, 'translation_view.html', var_dict)
 
 def string_edit(request, string_id=None, language_code='', proxy_slug=''):

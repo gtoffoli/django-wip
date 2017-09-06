@@ -16,8 +16,11 @@ class VocabularyEntry(models.Model):
     def option_label(self):
         return self.name
 
-    def __unicode__(self):
+    def __str__(self):
         return self.name
+
+    def __unicode__(self):
+        return self.__str__()
 
 class VocabularyEntryAdmin(admin.ModelAdmin):
     fieldset = ['name', 'order',]
@@ -49,11 +52,14 @@ class CodedEntry(models.Model):
     def only_name (self):
         return '%s' % (self.name)
 
-    def __unicode__(self):
+    def __str__(self):
         try:
             return self.name
         except:
             return self.code
+
+    def __unicode__(self):
+        return self.__str__()
 
 class CodedEntryAdmin(admin.ModelAdmin):
     fieldset = ['code', 'name',]
@@ -100,7 +106,7 @@ class Subject(CodedEntry):
         ordering = ['code']
 
     def label_from_instance(self):
-        return self.__unicode__()
+        return self.__str__()
 
 class SubjectAdmin(CodedEntryAdmin):
     pass

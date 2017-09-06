@@ -39,27 +39,50 @@ th, td { text-align: left; vertical-align: top; }
 {% endblock %}
 
 {% block content-page %}
-<form action="/translation/{{ translation.id }}/" method="post">
-	{% csrf_token %}
-
-	<fieldset><legend>Segment</legend>
-    <div>
+	<fieldset>
+	<legend>Segment - 
     <label>id</label><a href="/segment/{{ segment.id }}/">{{ segment.id }}</a> &nbsp;
     <span class="{{ source_language.code }}">{{ source_language.name }}</span> &nbsp;
     {% if segment.site %}<label>site</label>{{ segment.site.name }} &nbsp;{% endif %}
-	</div>
+	</legend>
     <div>{{ segment.text }}</div>
 	</fieldset>
 
-	<fieldset><legend>Translation{% if translation.user_role %} by {{ translation.user_role }}{% endif %}</legend>
-    <div>
-    <label>id</label>{{ translation.id }} &nbsp;
+	<fieldset>
+	<legend>Translation - 
+	<label>id</label>{{ translation.id }} &nbsp;
     <span class="{{ target_language.code }}">{{ target_language.name }}</span> &nbsp;
-    </div>
+	{% if translation.user_role %} <label>by</label>{{ translation.user_role }}{% endif %}
+	</legend>
     <div>{{ translation.text }}</div>
 	</fieldset>
 
-	<fieldset><legend>Word alignment</legend>
+<form action="/translation/{{ translation.id }}/" id="sequencer_form" method="post">
+	{% csrf_token %}
+	<fieldset>
+		<legend>Navigation filters</legend>
+     <div>
+		{% comment %}<input type="submit" name="apply_filter" class="btn btn-sm" value="Apply filter below"> &nbsp;&nbsp;{% endcomment %}
+		{{ n }} translations found{% if n %}:{% endif %}
+		{% if previous %}<input type="submit" name="goto-{{ previous.id }}" class="btn btn-sm" value="Previous">{% endif %}
+		{% if next %}<input type="submit" name="goto-{{ next.id }}" class="btn btn-sm" value="Next">{% endif %}
+    </div>
+    <table><thead>
+    	<tr>{% for field in sequencer_form.visible_fields %}<th>{{ field.label_tag }}</th>{% endfor %}</tr>
+   	</thead><tbody><tr>
+		<td>{{ sequencer_form.order_by }}</td>
+		<td style="text-align: center;">{{ sequencer_form.alignment_type }}</td>
+	</tr></tbody></table>    	
+	</fieldset>
+</form>
+
+<form action="/translation/{{ translation.id }}/"  id="alignment_form" method="post">
+	{% csrf_token %}
+
+	<fieldset>
+	<legend>Word alignment - 
+	{% if alignment_type %}<label>type</label>{{ alignment_type }}{% endif %}
+	</legend>
 	<div>{{ alignment }}</div>
 
 	<div id="dag" style="margin-top: 0.5em; margin-bottom: 0.5em;"></div>
@@ -69,7 +92,6 @@ th, td { text-align: left; vertical-align: top; }
  
     <div><label>Compute alignment</label> {{ translation_view_form.compute_alignment }}</div>
 	</fieldset>
-
 </form>
 {% endblock %}
 

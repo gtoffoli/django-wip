@@ -238,7 +238,9 @@ NLTK_DATA_PATH = ''
 LEXICONS = ''
 CORPORA = ''
 DATA_ROOT = os.path.join(BASE_DIR, 'data')
+SITES_ROOT = os.path.join(BASE_DIR, 'sites')
 RESOURCES_ROOT = os.path.join(PROJECT_DIR, 'resources')
+
 # morphit_path = "/Tecnica/CL/risorse/italiano/morph-it/morph-it.48/morph-it_048.txt"
 morphit_filename = "morph-it_048.txt"
 morphit_path = os.path.join(RESOURCES_ROOT, morphit_filename)

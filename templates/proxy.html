@@ -47,6 +47,7 @@
     <thead>
       <th>{% trans "pages"|capfirst %}</th>
       <th>.. {% trans "translated" %}</th>
+	  <th>{% trans "words"|capfirst %}</th>
       <th>{% trans "page blocks"|capfirst %}</th>
       <th>.. {% trans "invariants" %}</th>
       <th>.. {% trans "translated" %}</th>
@@ -56,6 +57,7 @@
     <tbody>
       <td>{% if page_count %}<span class="mR10">{{ page_count }}</span><span class="mR10"><a href="/site/{{ site.slug }}/pages/" title="{% trans "list pages" %}"><i class="fa fa-th-list"></i></a></span><a href="/page/{{ first_page.id }}/" title="{% trans "browse all pages" %}"><i class="fa fa-caret-square-o-right"></i></a>{% else %}0{% endif %}</td>
       <td>{{ translated_pages_count }}</td>
+      <td>{{ word_count }}</td>
       <td>{% if block_count %}<span class="mR10">{{ block_count }}</span><span class="mR10"><a href="/site/{{ site.slug }}/blocks/" title="{% trans "list blocks" %}"><i class="fa fa-th-list"></i></a></span><a href="/block/{{ first_block.id }}/" title="{% trans "browse all blocks" %}"><i class="fa fa-caret-square-o-right"></i></a>{% else %}0{% endif %}</td>
       <td>{{ blocks_invariant }}</td>
       <td>{{ translated_blocks_count }}</td>
@@ -81,8 +83,11 @@
 {% endcomment %}
    		<a href="/import_xliff/{{ proxy.slug }}/" title="import XLIFF translations" class="mR30 btn btn-default btn-sm">{% trans "import XLIFF translations"|capfirst %}</a>
 		{{ manage_form.parallel_format }}
-   		<input type="submit" name="export_translations" value="Export translations" title="Export translations" class="mR30 btn btn-default btn-sm">
-   		<input type="submit" name="align_translations" value="Align translations" title="Align translations" class="btn btn-default btn-sm">
+   		<span><input type="submit" name="export_translations" value="Export translations" title="Export translations" class="mR30 btn btn-default btn-sm"></span>	
+   		<span class="mR10">{{ manage_form.aligner }}
+   		                   <input type="submit" name="align_translations" value="Align translations" title="Align translations" class="btn btn-default btn-sm">
+   		                   <input type="submit" name="evaluate_aligner" value="Evaluate aligner" title="Evaluate aligner" class="btn btn-default btn-sm"></span>
+  		<span><input type="submit" name="download_words_distribution" value="Download words distribution" title="Download words distributions" class="btn btn-default btn-sm"></span>
       </div>
       {% if page_count %}
         <div class="form-group"><span class="mR30"><input type="submit" name="cache_pages" value="Cache translated pages" title="cache translated pages" class="btn btn-default btn-sm"></span>{{ manage_form.delete_pages_confirmation }} Yes, I want to delete all translated pages <input type="submit" name="delete_pages" value="Delete translated pages" title="delete translated pages" class="btn btn-default btn-sm"></div>

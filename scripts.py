@@ -1,22 +1,26 @@
 # -*- coding: utf-8 -*-
 
+import os
 import sys
+"""
 import codecs
 sys.stdout = codecs.getwriter('utf8')(sys.stdout)
 sys.stderr = codecs.getwriter('utf8')(sys.stderr)
+"""
 
-import os
-import urllib2
+# import urllib2
 from datetime import datetime
 from collections import defaultdict
+from django.conf import settings
 from django.shortcuts import get_object_or_404
 from django.contrib.auth.models import User
-from settings import DATA_ROOT, RESOURCES_ROOT
-from models import Site, Webpage, PageVersion, Block, String, Txu, TxuSubject
-from models import UserRole, Segment, Translation, SEGMENT, FRAGMENT
-from models import OWNER, MANAGER, LINGUIST, REVISOR, TRANSLATOR, GUEST
-from vocabularies import Language, Subject
-from utils import string_checksum, normalize_string
+# from settings import DATA_ROOT, RESOURCES_ROOT, SITES_ROOT
+from .models import Site, Webpage, PageVersion, Block, String, Proxy, Txu, TxuSubject
+from .models import UserRole, Segment, Translation, SEGMENT, FRAGMENT
+from .models import OWNER, MANAGER, LINGUIST, REVISOR, TRANSLATOR, GUEST
+from .vocabularies import Language, Subject
+from .utils import string_checksum, normalize_string
+from wip import srx_segmenter
 
 def set_blocks_language(slug, dry=False):
     from wip.utils import guess_block_language
@@ -24,7 +28,7 @@ def set_blocks_language(slug, dry=False):
     blocks = Block.objects.filter(site=site, language__isnull=True)
     for block in blocks:
         code = guess_block_language(block)
-        print block.id, code
+        print (block.id, code)
         if code in ['en',] and not dry:
             block.language_id = code
             block.save()
@@ -33,7 +37,7 @@ migration = '2811'
 health = '2841'
 education = '3206'
 
-IATE_path = os.path.join(DATA_ROOT, 'IATE')
+IATE_path = os.path.join(settings.DATA_ROOT, 'IATE')
 LANGUAGES = ['it', 'en', 'es', 'fr',]
 N_LANGUAGES = len(LANGUAGES)
 filename_template = 'export_EN_ES_FR_IT_2016-02-16_All_Langs_Domain_%s.tbx'
@@ -48,8 +52,8 @@ def import_tbx(path='', base_path=IATE_path, filename=filename_template, sector=
         path = os.path.join(base_path, filename)
     tree = ElementTree.parse(path)
     root = tree.getroot()
-    print root.tag
-    print root.find('martifHeader').find('fileDesc').find('sourceDesc').find('p').text
+    print (root.tag)
+    print (root.find('martifHeader').find('fileDesc').find('sourceDesc').find('p').text)
     entries = root.find('text').find('body').findall('termEntry')
     n_entries = len(entries)
     n_tigs = n_terms = n_strings = 0 
@@ -120,13 +124,13 @@ def import_tbx(path='', base_path=IATE_path, filename=filename_template, sector=
                             string.save()
                             n_strings += 1
 
-    print n_entries, ' entries'
-    print n_tigs, ' tigs'
-    print n_terms, ' terms'
-    print n_strings, ' strings'
+    print (n_entries, ' entries')
+    print (n_tigs, ' tigs')
+    print (n_terms, ' terms')
+    print (n_strings, ' strings')
 
 def feed_txu_index():
-    print datetime.now()
+    print (datetime.now())
     codes = ['en', 'es', 'fr', 'it']
     txus = Txu.objects.all()
     n_entries = n_strings = 0
@@ -145,8 +149,8 @@ def feed_txu_index():
             elif code == 'it':
                 txu.it = True
         txu.save()
-    print n_entries, n_strings
-    print datetime.now()
+    print (n_entries, n_strings)
+    print (datetime.now())
 
 def test(request):
     var_dict = {}
@@ -154,7 +158,7 @@ def test(request):
     return render_to_response('homepage.html', var_dict, context_instance=RequestContext(request))
 
 def import_invariants(filename, language, site):
-    path = os.path.join(DATA_ROOT, filename)
+    path = os.path.join(settings.DATA_ROOT, filename)
     file = open(path, 'r')
     for line in file:
         line = line.strip()
@@ -173,7 +177,7 @@ def export_segments(site, source_code='it', target_code='it'):
     source = Language.objects.get(code=source_code)
     target = Language.objects.get(code=target_code)
     strings = find_strings(site=site, source_languages=[source], target_languages=[target], translated=False)
-    print strings.count()
+    print (strings.count())
     # file = open('alfa.txt', 'w')
     file = open('%s_alfa.txt' % site.slug, 'w')
     for s in strings:
@@ -186,8 +190,7 @@ def export_segments(site, source_code='it', target_code='it'):
       file.write(s.text + '\n')
     file.close()
 
-import srx_segmenter
-srx_filepath = os.path.join(RESOURCES_ROOT, 'it', 'segment.srx')
+srx_filepath = os.path.join(settings.RESOURCES_ROOT, 'it', 'segment.srx')
 srx_rules = srx_segmenter.parse(srx_filepath)
 italian_rules = srx_rules['Italian']
 segmenter = srx_segmenter.SrxSegmenter(italian_rules)
@@ -201,7 +204,7 @@ def db_fix_italian_strings():
       t = s.text
       t2 = normalize_string(t)
       if not t2 == t:
-        print s.id, t, t2
+        print (s.id, t, t2)
         s.text = t2
         s.save()    
 
@@ -229,7 +232,7 @@ def fix_pages_checksum(site_slug, verbose=False):
         checksum = site.page_checksum(version.body)
         if not checksum == version.checksum:
             if verbose:
-                print version.checksum, '->', checksum, version.webpage.path
+                print (version.checksum, '->', checksum, version.webpage.path)
             version.checksum = site.page_checksum(version.body)
             version.save()
             n_updates += 1
@@ -308,3 +311,15 @@ def migrate_segments():
         s.delete()
         txu.delete()
 
+def create_filepaths():
+    if not os.path.isdir(settings.SITES_ROOT):
+        os.mkdir(settings.SITES_ROOT)
+    sites = Site.objects.all()
+    for site in sites:
+        if not os.path.isdir(site.get_filepath()):
+            os.mkdir(site.get_filepath())
+        for proxy in Proxy.objects.filter(site=site):
+            if not os.path.isdir(proxy.get_filepath()):
+                os.mkdir(proxy.get_filepath())
+
+        

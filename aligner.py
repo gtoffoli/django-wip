@@ -3,12 +3,14 @@ see the NLTK translate package: http://www.nltk.org/api/nltk.translate.html
 """
 
 import sys
+import os
 from collections import defaultdict
 import re
 """
 import dill # required to pickle lambda functions
 import pickle
 """
+from django.conf import settings
 from nltk.translate import AlignedSent, Alignment, IBMModel
 from nltk.translate.ibm2 import IBMModel2, Model2Counts
 from nltk.translate.ibm3 import IBMModel3
@@ -122,6 +124,14 @@ def best_alignment(aligner, source_tokens=[], target_tokens=[], tokens=False, al
         bisentence.append(biword)
     return bisentence
 
+def aer(alignment, reference):
+    alignment_list = alignment.split()
+    reference_list = reference.split()
+    alignment_set = set(alignment_list)
+    reference_set = set(reference_list)
+    # return float(len(alignment_set.intersection(reference_set)))/len(alignment_list)
+    return 2 * float(len(alignment_set.intersection(reference_set))) / (len(alignment_list)+len(reference_list))
+
 def print_aligned(bitext, start=0, n=10):
     for aligned_sent in bitext[start:n]:
         words = aligned_sent.words
@@ -138,24 +148,29 @@ if (sys.version_info > (3, 0)):
     import eflomal
     
     # def proxy_eflomal_align(proxy, base_path='\wip3\sandbox', lowercasing=True, max_tokens=6, max_fertility=1):
-    def proxy_eflomal_align(proxy, base_path='\wip3\sandbox', lowercasing=True, max_tokens=1000, max_fertility=100):
-        proxy_slug = proxy.slug
-        tokenizer = NltkTokenizer()
+    def proxy_eflomal_align(proxy, base_path=None, lowercasing=False, max_tokens=1000, max_fertility=100, translation_ids=None):
+        if not base_path:
+            base_path = os.path.join(settings.BASE_DIR, 'sandbox') 
+        proxy_code = '%s_%s' % (proxy.site.slug, proxy.language_id)
+        tokenizer_1 = NltkTokenizer(language=proxy.site.language_id, lowercasing=lowercasing)
+        tokenizer_2 = NltkTokenizer(language=proxy.language_id, lowercasing=lowercasing)
         tokenized_1 = StringIO()
         tokenized_2 = StringIO()
-        proxy.export_translations(tokenized_1, outfile_2=tokenized_2, tokenizer_1=tokenizer, tokenizer_2=tokenizer, lowercasing=lowercasing, max_tokens=max_tokens, max_fertility=max_fertility)
+        proxy.export_translations(tokenized_1, outfile_2=tokenized_2, outfile_3=translation_ids, tokenizer_1=tokenizer_1, tokenizer_2=tokenizer_2, lowercasing=lowercasing, max_tokens=max_tokens, max_fertility=max_fertility)
         tokenized_1.seek(0)
         tokenized_2.seek(0)
         sents_1, index_1 = eflomal.read_text(tokenized_1, lowercasing, 0, 0)
         sents_2, index_2 = eflomal.read_text(tokenized_2, lowercasing, 0, 0)
         rev_index_1 = dict((v,k) for k,v in index_1.items())
         rev_index_2 = dict((v,k) for k,v in index_2.items())
-        source_filename = '%s\%s_source.txt' % (base_path, proxy_slug)
-        target_filename = '%s\%s_target.txt' % (base_path, proxy_slug)
-        scores_filename = '%s\%s_scores.txt' % (base_path, proxy_slug)
-        links_filename_fwd = '%s\%s_links_fwd.txt' % (base_path, proxy_slug)
-        links_filename_rev = '%s\%s_links_rev.txt' % (base_path, proxy_slug)
-        statistics_filename = '%s\%s_stats.txt' % (base_path, proxy_slug)
+        source_filename = os.path.join(base_path, '%s_source.txt' % proxy_code)
+        target_filename = os.path.join(base_path, '%s_target.txt' % proxy_code)
+        scores_filename = os.path.join(base_path, '%s_scores.txt' % proxy_code)
+        links_filename_fwd = os.path.join(base_path, '%s_links_fwd.txt' % proxy_code)
+        links_filename_rev = os.path.join(base_path, '%s_links_rev.txt' % proxy_code)
+        statistics_filename = os.path.join(base_path, '%s_stats.txt' % proxy_code)
+        all_filename = os.path.join(base_path, '%s_all.txt' % proxy_code)
+
         source_file =  open(source_filename, 'w')
         target_file =  open(target_filename, 'w')
         eflomal.write_text(source_file, tuple(sents_1), len(index_1))
@@ -164,7 +179,6 @@ if (sys.version_info > (3, 0)):
         target_file.close()
         eflomal.align(source_filename, target_filename, scores_filename=scores_filename, links_filename_fwd=links_filename_fwd, links_filename_rev=links_filename_rev, statistics_filename=statistics_filename, quiet=False, use_gdb=False)
     
-        all_filename = '%s\%s_all.txt' % (base_path, proxy_slug)
         all_file =  open(all_filename, 'w', encoding="utf-8")
         score_file = open(scores_filename, 'r')
         file_fwd = open(links_filename_fwd, 'r')
@@ -177,7 +191,7 @@ if (sys.version_info > (3, 0)):
             target = ' '.join([rev_index_2[token] for token in sents_2[i]])
             links_fwd = file_fwd.readline()[:-1]
             links_rev = file_rev.readline()[:-1]
-            all_file.write('%s [%s] [%s] (%s) (%s)\n' % (score, source, target, links_fwd, links_rev))
+            all_file.write('(%s) (%s) [%s] [%s] %s\n' % (links_fwd, links_rev, source, target, score))
             i += 1
         all_file.close()
         score_file.close()

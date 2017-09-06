@@ -17,6 +17,17 @@ PARALLEL_SENTENCES_FORMAT_CHOICES = (
     (2, _("text"))
 )
 
+ALIGNMENT_CHOICES = (
+    (0, _("any")),
+    (2, _("mt")),
+    (3, _("manual"))
+)
+
+ALIGNER_CHOICES = (
+    (1, _("eflomal")),
+    (2, _("nltk"))
+)
+
 class SiteManageForm(forms.Form):
     clear_pages = forms.BooleanField(required=False, label='Clear pages')
     clear_blocks = forms.BooleanField(required=False, label='Clear blocks')
@@ -31,6 +42,7 @@ class ProxyManageForm(forms.Form):
     delete_proxy_confirmation = forms.BooleanField(required=False, label='Delete proxy confirmation')
     file = forms.FileField(required=False, label='Select a file to upload')
     parallel_format = forms.ChoiceField(choices=PARALLEL_SENTENCES_FORMAT_CHOICES, label="Format", widget=forms.Select(attrs={ 'style': 'width: auto; height: 2em;',}))
+    aligner = forms.ChoiceField(choices=ALIGNER_CHOICES, label="Aligner", widget=forms.Select(attrs={ 'style': 'width: auto; height: 2em;',}))
 
 class PageEditForm(forms.Form):
     no_translate = forms.BooleanField(required=False, label='No translate')
@@ -70,6 +82,10 @@ class SegmentSequencerForm(forms.Form):
     translation_languages = forms.ModelMultipleChoiceField(required=False, queryset=Language.objects.all(), label="Target languages", widget=forms.SelectMultiple(attrs={ 'style': 'width: auto;', 'size': 3, 'onchange': 'javascript: this.form.submit()', }))
     order_by = forms.ChoiceField(required=False, choices=STRING_SORT_CHOICES, label="Sort order", widget=forms.Select(attrs={ 'style': 'width: auto; height: 2em;', }))
     show_similar = forms.BooleanField(required=False, label='Show similar', widget=forms.CheckboxInput(attrs={'onchange': 'javascript: this.form.submit()',}))
+
+class TranslationSequencerForm(forms.Form):
+    order_by = forms.ChoiceField(required=False, choices=STRING_SORT_CHOICES, label="Sort order", widget=forms.Select(attrs={ 'style': 'width: auto; height: 2em;', }))
+    alignment_type = forms.ChoiceField(required=False, choices=ALIGNMENT_CHOICES, label="Alignment type", widget=forms.Select(attrs={ 'style': 'width: auto; height: 2em;', 'onchange': 'javascript: this.form.submit()', }))
 
 class StringEditForm(forms.ModelForm):
     class Meta:

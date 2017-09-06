@@ -12,10 +12,16 @@ if (sys.version_info > (3, 0)):
     # Python 3 code in this block
     from importlib import reload
     import urllib.request as urllib2
+    from wip.aligner import proxy_eflomal_align
+    from io import StringIO
 else:
     reload(sys)  
     sys.setdefaultencoding('utf8')
     import urllib2
+    import dill # required to pickle lambda functions
+    import pickle
+    # import StringIO
+    from StringIO import StringIO
 
 import logging
 logger = logging.getLogger('wip')
@@ -27,8 +33,6 @@ import time
 import re, regex
 import difflib
 from collections import defaultdict
-import dill # required to pickle lambda functions
-import pickle
 # import datetime
 # from namedentities import unicode_entities
 # from Levenshtein.StringMatcher import StringMatcher
@@ -52,7 +56,7 @@ from django_diazo.models import Theme
 from wip.wip_nltk.tokenizers import NltkTokenizer
 from wip.wip_sd.sd_algorithm import SDAlgorithm
 from .vocabularies import Language, Subject, ApprovalStatus
-from .aligner import tokenize, best_alignment
+from .aligner import tokenize, best_alignment, aer
 
 from .settings import RESOURCES_ROOT, BLOCK_TAGS, BLOCKS_EXCLUDE_BY_XPATH, SEPARATORS, STRIPPED, EMPTY_WORDS, BOTH_QUOTES
 DEFAULT_USER = 1
@@ -147,6 +151,9 @@ class Site(models.Model):
     def get_absolute_url(self):
         return '/site/%s/' % self.slug
 
+    def get_filepath(self):
+        return os.path.join(settings.SITES_ROOT, self.slug)
+
     def can_manage(self, user):
         return user.is_superuser
 
@@ -156,8 +163,11 @@ class Site(models.Model):
     def can_view(self, user):
         return user.is_authenticated()
 
-    def __unicode__(self):
+    def __str__(self):
         return self.name
+
+    def __unicode__(self):
+        return self.__str__()
 
     def get_allowed_domains(self):
         return text_to_list(self.allowed_domains)
@@ -443,7 +453,8 @@ class Site(models.Model):
         return len(self.get_segments(translation_state=ANY))
 
     def get_token_frequency(self, lowercasing=True):
-        tokenizer = NltkTokenizer(lowercasing=lowercasing)
+        # tokenizer = NltkTokenizer(lowercasing=lowercasing)
+        tokenizer = NltkTokenizer(language=self.language_id, lowercasing=lowercasing)
         tokens_dict = defaultdict(int)
         segments = self.get_segments()
         for segment in segments:
@@ -481,6 +492,9 @@ class Proxy(models.Model):
 
     def get_absolute_url(self):
         return '/proxy/%s/' % self.slug
+
+    def get_filepath(self):
+        return os.path.join(self.site.get_filepath(), self.language_id)
 
     def can_manage(self, user):
         return user.is_superuser
@@ -850,7 +864,8 @@ class Proxy(models.Model):
             text = rx.sub(one_xlat, text)
         return text
 
-    def export_translations(self, outfile_1, outfile_2=None, parallel_format=PARALLEL_FORMAT_NONE, tokenizer_1=None, tokenizer_2=None, lowercasing=False, max_tokens=1000, max_fertility=1000):
+    # def export_translations(self, outfile_1, outfile_2=None, parallel_format=PARALLEL_FORMAT_NONE, tokenizer_1=None, tokenizer_2=None, lowercasing=False, max_tokens=1000, max_fertility=1000):
+    def export_translations(self, outfile_1, outfile_2=None, outfile_3=None, parallel_format=PARALLEL_FORMAT_NONE, tokenizer_1=None, tokenizer_2=None, lowercasing=False, max_tokens=1000, max_fertility=1000):
         segments = Segment.objects.filter(site=self.site, is_invariant=False)
         if parallel_format == PARALLEL_FORMAT_XLIFF:
             pass
@@ -878,6 +893,8 @@ class Proxy(models.Model):
                     elif parallel_format == PARALLEL_FORMAT_NONE:
                         outfile_1.write('%s\n' % source_text)
                         outfile_2.write('%s\n' % target_text)
+                    if outfile_3:
+                        outfile_3.write('%d\n' % translation.id)
         if parallel_format == PARALLEL_FORMAT_XLIFF:
             pass
 
@@ -914,19 +931,21 @@ class Proxy(models.Model):
         aligner_name = 'align_%s_%s%s.pickle' % (site.slug, site.language_id, self.language_id)
         aligner_path = os.path.join(settings.CACHE_ROOT, aligner_name)
         if not train:
-            if os.path.isfile(aligner_path):
-                f = open(aligner_path, 'rb')
-                aligner = pickle.load(f)
-                f.close()
-                return aligner
+            if (sys.version_info < (3, 0)):
+                if os.path.isfile(aligner_path):
+                    f = open(aligner_path, 'rb')
+                    aligner = pickle.load(f)
+                    f.close()
+                    return aligner
         if ibm_model == 3:
             aligner = IBMModel3(bitext, iterations)
         else:
             aligner = IBMModel2(bitext, iterations)
         if train:
-            f = open(aligner_path, 'wb')
-            pickle.dump(aligner, f, pickle.HIGHEST_PROTOCOL)
-            f.close()
+            if (sys.version_info < (3, 0)):
+                f = open(aligner_path, 'wb')
+                pickle.dump(aligner, f, pickle.HIGHEST_PROTOCOL)
+                f.close()
         return aligner
 
     def clear_alignments(self):
@@ -939,24 +958,96 @@ class Proxy(models.Model):
                     translation.alignment = ''
                     translation.save() 
 
-    def align_translations(self, aligner=None, bitext=None, ibm_model=2, iterations=5, tokenizer=None, lowercasing=False):
+    def align_translations(self, aligner=None, bitext=None, ibm_model=2, iterations=5, tokenizer=None, lowercasing=False, evaluate=False):
+        if not evaluate:
+            self.clear_alignments()
         if not tokenizer:
             tokenizer = NltkTokenizer(lowercasing=lowercasing)
         if not aligner:
-            aligner = self.get_train_aligner(self, bitext=bitext, ibm_model=ibm_model, train=True, iterations=iterations, tokenizer=tokenizer, lowercasing=lowercasing)
+            aligner = self.get_train_aligner(bitext=bitext, ibm_model=ibm_model, train=True, iterations=iterations, tokenizer=tokenizer, lowercasing=lowercasing)
         target_language = self.language
+        if evaluate:
+            aer_total = 0.0
+            n_evaluated = 0
         segments = Segment.objects.filter(site=self.site)
         for segment in segments:
             source_tokens = tokenize(segment.text, tokenizer=tokenizer)
             translations = Translation.objects.filter(segment=segment, language=target_language)
             for translation in translations:
-                if not translation.alignment_type==MANUAL:
+                if evaluate or not translation.alignment_type==MANUAL:
                     target_tokens = tokenize(translation.text, tokenizer=tokenizer)
                     alignment = best_alignment(aligner, source_tokens, target_tokens)
+                    """
                     translation.alignment = ' '.join(['%s-%s' % (str(couple[0]), couple[1] is not None and str(couple[1]) or '') for couple in alignment])
                     print ('translation.alignment: ', translation.alignment)
+                    """
+                    alignment = ' '.join(['%s-%s' % (str(couple[0]), couple[1] is not None and str(couple[1]) or '') for couple in alignment])
+                    # print ('alignment: ', alignment)
+                if evaluate:
+                    if translation.alignment_type==MANUAL:
+                        aer_total += aer(alignment, translation.alignment)
+                        n_evaluated += 1
+                else:
+                    if not translation.alignment_type==MANUAL:
+                        translation.alignment = alignment
+                        translation.alignment_type = MT
+                        translation.save()
+        if evaluate and n_evaluated:
+            print ('evaluation: ', aer_total/n_evaluated)
+    
+    def eflomal_align_translations(self, lowercasing=False, max_tokens=1000, max_fertility=100, evaluate=False):
+        if not evaluate:
+            self.clear_alignments()
+        proxy_code = '%s_%s' % (self.site.slug, self.language_id)
+        base_path = os.path.join(settings.BASE_DIR, 'sandbox')
+        translation_ids = StringIO()
+        proxy_eflomal_align(self, base_path=base_path, lowercasing=lowercasing, max_tokens=max_tokens, max_fertility=max_fertility, translation_ids=translation_ids)
+        all_filename = os.path.join(base_path, '%s_all.txt' % proxy_code)
+        all_file = open(all_filename, 'r', encoding="utf-8")
+        translation_ids.seek(0)
+        if evaluate:
+            aer_total = 0.0
+            n_evaluated = 0
+        for line in all_file:
+            translation_id = int(translation_ids.readline().replace('\n', ''))
+            translation = Translation.objects.get(id=translation_id)
+            print (translation_id)
+            stop = line.find(')')
+            alignment = line[1:stop]
+            print (alignment)
+            if evaluate:
+                if translation.alignment_type==MANUAL:
+                    aer_total += aer(alignment, translation.alignment)
+                    n_evaluated += 1
+            else:
+                if not translation.alignment_type==MANUAL:
+                    translation.alignment = alignment
                     translation.alignment_type = MT
                     translation.save()
+        all_file.close()
+        if evaluate and n_evaluated:
+            print ('evaluation: ', aer_total/n_evaluated)
+
+    def get_translations(self, translation_type=ANY):
+        translations = Translation.objects.filter(segment__site=self.site, language=self.language)
+        if translation_type:
+            translations = translations.filter(translation_type=translation_type)
+        return translations
+    
+    def get_translation_count(self):
+        return len(self.get_translations(translation_type=ANY))
+
+    def get_token_frequency(self, lowercasing=True):
+        # tokenizer = NltkTokenizer(lowercasing=lowercasing)
+        tokenizer = NltkTokenizer(language=self.language_id, lowercasing=lowercasing)
+        tokens_dict = defaultdict(int)
+        translations = self.get_translations()
+        for translation in translations:
+            tokens = tokenizer.tokenize(translation.text)
+            for token in tokens:
+                if not is_invariant_word(token):
+                    tokens_dict[token] += 1
+        return tokens_dict
 
 class Webpage(models.Model):
     site = models.ForeignKey(Site)
@@ -977,8 +1068,11 @@ class Webpage(models.Model):
         verbose_name_plural = _('original pages')
         ordering = ('path',)
 
-    def __unicode__(self):
+    def __str__(self):
         return self.path
+
+    def __unicode__(self):
+        return self.__str__()
 
     def title_or_path(self):
         return self.path
@@ -1332,8 +1426,11 @@ class Txu(models.Model):
         verbose_name_plural = _('translation units')
         ordering = ('-created',)
 
-    def __unicode__(self):
+    def __str__(self):
         return self.entry_id or str(self.id)
+
+    def __unicode__(self):
+        return self.__str__()
 
     def update_languages(self):
         strings = String.objects.filter(txu=self)
@@ -1376,8 +1473,11 @@ class String(models.Model):
         verbose_name_plural = _('strings')
         ordering = ('-id',)
 
-    def __unicode__(self):
+    def __str__(self):
         return self.text
+
+    def __unicode__(self):
+        return self.__str__()
 
     def language_code(self):
         return self.language.code
@@ -1486,9 +1586,12 @@ class Block(node_factory('BlockEdge')):
             label = label[:80] + ' ...'
         return label
 
-    def __unicode__(self):
+    def __str__(self):
         # return self.xpath
         return self.get_label()
+
+    def __unicode__(self):
+        return self.__str__()
 
     def normalized_body(self):
         return normalize_string(self.body)
@@ -2048,7 +2151,7 @@ class UserRole(models.Model):
         verbose_name = _('user role')
         verbose_name_plural = _('user roles')
 
-    def __unicode__(self):
+    def __str__(self):
         source_code = self.source_language and self.source_language.code or ''
         target_code = self.target_language and self.target_language.code or ''
         # return u'%s: %s of level %d for %s->%s couple and site %s' % (self.user.username, ROLE_TYPE_DICT[self.role_type], self.level, source_code, target_code, self.site.name)
@@ -2059,6 +2162,9 @@ class UserRole(models.Model):
             repr.append('%s->%s' % (source_code, target_code))
         repr.append('level %d' % self.level)
         return ', '.join(repr)
+
+    def __unicode__(self):
+        return self.__str__()
 
     def get_user_name(self):
         return self.user.get_display_name()
@@ -2087,8 +2193,11 @@ class Segment(models.Model):
         verbose_name = _('segment')
         verbose_name_plural = _('segments')
 
-    def __unicode__(self):
+    def __str__(self):
         return self.text
+
+    def __unicode__(self):
+        return self.__str__()
 
     def more_like_this(self, target_languages=[], limit=5):
         """ to be redone with pg_trg """
@@ -2200,6 +2309,35 @@ class Translation(models.Model):
     user_role = models.ForeignKey(UserRole, verbose_name='user role', blank=True, null=True)
     # timestamp = ModificationDateTimeField()
     timestamp = models.DateTimeField()
+
+    def get_navigation(self, order_by=TEXT_ASC, alignment_type=ANY):
+        text = self.segment.text
+        segment = self.segment
+        site = segment.site
+        qs = Translation.objects.filter(language=self.language, segment__site=site)
+        if alignment_type:
+            qs = qs.filter(alignment_type=alignment_type)   
+        first = last = previous = next = None
+        n = qs.count()
+        print (n, order_by, TEXT_ASC, order_by == TEXT_ASC, 1 == 1)
+        if n:
+            if order_by == TEXT_ASC:
+                qs = qs.order_by('segment__text', 'text')
+                qs_before = qs.filter(segment__text__lt=text).order_by('-segment__text', '-text')
+                qs_after = qs.filter(segment__text__gt=text).order_by('segment__text', 'text')
+                print (order_by, qs_before.count())
+            elif order_by == ID_ASC:
+                qs = qs.order_by('segment__id', 'id')
+                qs_before = qs.filter(segment__id__lt=id).order_by('-segment__id', '-id')
+                qs_after = qs.filter(segment__id__gt=id).order_by('segment__id', 'id')
+                print (order_by, qs_before.count())
+            previous = qs_before.count() and qs_before[0] or None
+            next = qs_after.count() and qs_after[0] or None
+            first = qs[0]
+            first = not first.id==id or None
+            last = qs.reverse()[0]
+            last = not last.id==id or None
+        return n, first, last, previous, next
 
     def make_json(self):
         lowercasing = True

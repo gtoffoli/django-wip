@@ -2,20 +2,31 @@ import sys, os, inspect
 import codecs
 import re
 import nltk
+from nltk.tokenize import TreebankWordTokenizer
+from nltk.tokenize import word_tokenize
+
+from django.conf import settings
 
 if (sys.version_info > (3, 0)):
     basestring = str
 
-from wip.settings import RESOURCES_ROOT
+# from wip.settings import RESOURCES_ROOT
 
 class NltkTokenizer(object):
     """An object representing a tokenizer wizard"""
 
     def __init__(self, language=None, tokenizer=None, regexps=[], lowercasing=False, replacements=''):
         """ set language """
+        """
         language = language==u'it' and u'italian' or language
         self.language = language or u'italian'
         self.tokenizer = tokenizer or u'baroni'
+        """
+        self.tokenizer = tokenizer
+        if not language or language==u'it':
+            self.language = 'italian'
+            self.tokenizer = self.tokenizer or u'baroni'
+        self.tokenizer = self.tokenizer or u'word'
         self.regexps = regexps
         self.lowercasing = lowercasing
         self.replacements = replacements
@@ -25,11 +36,15 @@ class NltkTokenizer(object):
         if self.tokenizer == u'punkt':
             tokenizer = nltk.data.load('tokenizers/punkt/%s.pickle' % self.language)
             return tokenizer.tokenize(text)
-        elif self.tokenizer == u'baroni' or language==u'italian':
+        # elif self.tokenizer == u'baroni' or language==u'italian':
+        elif self.tokenizer == u'baroni':
             return self.baroni_regexp_tokenize(text)
-        else:
-            # return []
-            return nltk.word_tokenize(text)
+        else: # word
+            # return nltk.word_tokenize(text)
+            if self.lowercasing:
+                text = text.lower()
+            tokenizer = TreebankWordTokenizer()
+            return tokenizer.tokenize(text)
 
     def baroni_regexp_tokenize(self, text):
         """ from regexp_tokenizer.pl by Marco Baroni, baroni AT sslmit.unibo.it """
@@ -52,7 +67,7 @@ class NltkTokenizer(object):
             this_dir, this_filename = os.path.split(__file__)
             regexp_path = os.path.join(this_dir, 'data', '%s_regexps.txt' % self.language)
             """
-            regexp_path = os.path.join(RESOURCES_ROOT, 'it', '%s_regexps.txt' % self.language)
+            regexp_path = os.path.join(settings.RESOURCES_ROOT, 'it', '%s_regexps.txt' % self.language)
             f = codecs.open(regexp_path, 'r', 'unicode_escape')
             regexp_list = []
             for line in f.readlines():
