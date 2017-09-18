@@ -18,6 +18,7 @@ from django.contrib.auth.models import User
 from .models import Site, Webpage, PageVersion, Block, String, Proxy, Txu, TxuSubject
 from .models import UserRole, Segment, Translation, SEGMENT, FRAGMENT
 from .models import OWNER, MANAGER, LINGUIST, REVISOR, TRANSLATOR, GUEST
+from .models import MANUAL
 from .vocabularies import Language, Subject
 from .utils import string_checksum, normalize_string
 from wip import srx_segmenter
@@ -274,7 +275,6 @@ def jeffs_run():
     
     Processor(settings=settings).run([basicjob, jobwithdata])
 
-from .models import MANUAL
 def migrate_segments():
     admin = User.objects.get(username='admin')
     # for s in String.objects.filter(language_id='it', string_type__in=[SEGMENT, FRAGMENT]).exclude(site=None):
@@ -322,4 +322,29 @@ def create_filepaths():
             if not os.path.isdir(proxy.get_filepath()):
                 os.mkdir(proxy.get_filepath())
 
-        
+from .aligner import split_alignment, merge_alignments
+def proxy_unsymmetrize_alignment(proxy, alignment_type=MANUAL):
+    base_path = os.path.join(settings.BASE_DIR, 'sandbox') 
+    proxy_code = '%s_%s' % (proxy.site.slug, proxy.language_id)
+    filename = os.path.join(base_path, '%s_unsymmetrize.txt' % proxy_code)
+    out_file =  open(filename, 'w')
+    segments = Segment.objects.filter(site=proxy.site)
+    for segment in segments:
+        segment_text = segment.text
+        translations = Translation.objects.filter(segment=segment, language=proxy.language)
+        if alignment_type:
+            translations = translations.filter(alignment_type=alignment_type)
+        for translation in translations:
+            translation_text = translation.text
+            alignment = translation.alignment
+            if alignment:
+                print (alignment)
+                fwd, rev = split_alignment(alignment)
+                both = merge_alignments(fwd, rev)
+                out_file.write('%s\n' % segment_text)
+                out_file.write('%s\n' % translation_text)
+                out_file.write('%s\n' % alignment)
+                out_file.write('%s\n' % fwd)
+                out_file.write('%s\n' % rev)
+                out_file.write('%s\n' % both)
+    out_file.close()

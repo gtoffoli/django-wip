@@ -14,6 +14,7 @@ from django.conf import settings
 from nltk.translate import AlignedSent, Alignment, IBMModel
 from nltk.translate.ibm2 import IBMModel2, Model2Counts
 from nltk.translate.ibm3 import IBMModel3
+from nltk.translate.gdfa import grow_diag_final_and
 from wip.wip_nltk.tokenizers import NltkTokenizer
 """
 from nltk.translate import IBMModel2
@@ -144,11 +145,53 @@ def print_aligned(bitext, start=0, n=10):
             matches.append(match)
         print (matches)
 
+
+def symmetrize_alignments(srclen, trglen, e2f, f2e):
+    """
+    symmetrize forward and reverse alignments using the NLTK grow_diag_final_and algorithm
+    """
+    alignment = grow_diag_final_and(srclen, trglen, e2f, f2e)
+    alignment = sorted(alignment, key=lambda x: (x[0], x[1]))
+    return ' '.join(['-'.join([str(link[0]), str(link[1])]) for link in alignment])
+
+def proxy_symmetrize_alignments(proxy, base_path=None):
+    if not base_path:
+        base_path = os.path.join(settings.BASE_DIR, 'sandbox') 
+    proxy_code = '%s_%s' % (proxy.site.slug, proxy.language_id)
+    source_filename = os.path.join(base_path, '%s_source.txt' % proxy_code)
+    target_filename = os.path.join(base_path, '%s_target.txt' % proxy_code)
+    links_filename_fwd = os.path.join(base_path, '%s_links_fwd.txt' % proxy_code)
+    links_filename_rev = os.path.join(base_path, '%s_links_rev.txt' % proxy_code)
+    links_sym_filename = os.path.join(base_path, '%s_links_sym.txt' % proxy_code)
+    source_file =  open(source_filename, 'r')
+    target_file =  open(target_filename, 'r')
+    file_fwd = open(links_filename_fwd, 'r')
+    file_rev = open(links_filename_rev, 'r')
+    file_sym = open(links_sym_filename, 'w')
+
+    n_source_sents, n_source_words = list(map(int, source_file.readline().split()))
+    n_target_sents, n_target_words = list(map(int, target_file.readline().split()))
+    assert (n_source_sents == n_target_sents)
+    while n_source_sents:
+        n_source_sents -= 1
+        srclen = len(list(map(int, source_file.readline().split())))
+        trglen = len(list(map(int, target_file.readline().split())))
+        e2f = file_fwd.readline()
+        f2e = file_rev.readline()
+        alignment = symmetrize_alignments(srclen, trglen, e2f, f2e)
+        file_sym.write('%s\n' % alignment)
+    
+    source_file.close()
+    target_file.close()
+    file_fwd.close()
+    file_rev.close()
+    file_sym.close()        
+
 if (sys.version_info > (3, 0)):
     import eflomal
     
     # def proxy_eflomal_align(proxy, base_path='\wip3\sandbox', lowercasing=True, max_tokens=6, max_fertility=1):
-    def proxy_eflomal_align(proxy, base_path=None, lowercasing=False, max_tokens=1000, max_fertility=100, translation_ids=None):
+    def proxy_eflomal_align(proxy, base_path=None, lowercasing=False, max_tokens=1000, max_fertility=100, translation_ids=None, use_know_links=False):
         if not base_path:
             base_path = os.path.join(settings.BASE_DIR, 'sandbox') 
         proxy_code = '%s_%s' % (proxy.site.slug, proxy.language_id)
@@ -156,7 +199,16 @@ if (sys.version_info > (3, 0)):
         tokenizer_2 = NltkTokenizer(language=proxy.language_id, lowercasing=lowercasing)
         tokenized_1 = StringIO()
         tokenized_2 = StringIO()
-        proxy.export_translations(tokenized_1, outfile_2=tokenized_2, outfile_3=translation_ids, tokenizer_1=tokenizer_1, tokenizer_2=tokenizer_2, lowercasing=lowercasing, max_tokens=max_tokens, max_fertility=max_fertility)
+        known_links_fwd = known_links_rev = None
+        if use_know_links:
+            known_links_filename_fwd = os.path.join(base_path, '%s_known_links_fwd.txt' % proxy_code)
+            known_links_filename_rev = os.path.join(base_path, '%s_known_links_rev.txt' % proxy_code)
+            known_links_fwd = open(known_links_filename_fwd, 'w')
+            known_links_rev = open(known_links_filename_rev, 'w')
+        proxy.export_translations(tokenized_1, outfile_2=tokenized_2, outfile_3=translation_ids, tokenizer_1=tokenizer_1, tokenizer_2=tokenizer_2, lowercasing=lowercasing, max_tokens=max_tokens, max_fertility=max_fertility, known_links_fwd=known_links_fwd, known_links_rev=known_links_rev)
+        if use_know_links:
+            known_links_fwd.close()
+            known_links_rev.close()
         tokenized_1.seek(0)
         tokenized_2.seek(0)
         sents_1, index_1 = eflomal.read_text(tokenized_1, lowercasing, 0, 0)
@@ -171,14 +223,13 @@ if (sys.version_info > (3, 0)):
         statistics_filename = os.path.join(base_path, '%s_stats.txt' % proxy_code)
         all_filename = os.path.join(base_path, '%s_all.txt' % proxy_code)
 
-        source_file =  open(source_filename, 'w')
-        target_file =  open(target_filename, 'w')
+        source_file = open(source_filename, 'w')
+        target_file = open(target_filename, 'w')
         eflomal.write_text(source_file, tuple(sents_1), len(index_1))
         source_file.close()
         eflomal.write_text(target_file, tuple(sents_2), len(index_2))
         target_file.close()
         eflomal.align(source_filename, target_filename, scores_filename=scores_filename, links_filename_fwd=links_filename_fwd, links_filename_rev=links_filename_rev, statistics_filename=statistics_filename, quiet=False, use_gdb=False)
-    
         all_file =  open(all_filename, 'w', encoding="utf-8")
         score_file = open(scores_filename, 'r')
         file_fwd = open(links_filename_fwd, 'r')
@@ -197,3 +248,58 @@ if (sys.version_info > (3, 0)):
         score_file.close()
         file_fwd.close()
         file_rev.close()
+
+def split_alignment(alignment):
+    """
+    alignment: a symmetric alignment, in pharaoh text format
+    fwd: an asymmetric alignment keeping only links whose right element is unique
+    rev: an asymmetric alignment keeping only links whose left  element is unique
+    """
+    links = []
+    lefts = []
+    rights = []
+    for link in alignment.split():
+        left, right = link.split('-')
+        if not left or not right:
+            continue
+        left = int(left)
+        right = int(right)
+        links.append([left, right])
+        links.sort(key=lambda x: (x[0], x[1]))
+        lefts.append(left)
+        rights.append(right)
+    fwd = []
+    for link in links:
+        if lefts.count(link[0]) > 1:
+            continue
+        fwd.append(link)
+    fwd = ' '.join(['-'.join([str(link[0]), str(link[1])]) for link in fwd])
+    rev = []
+    for link in links:
+        if rights.count(link[1]) > 1:
+            continue
+        rev.append(link)
+    rev = ' '.join(['-'.join([str(link[0]), str(link[1])]) for link in rev])
+    return fwd, rev
+
+def merge_alignments(fwd, rev):        
+    """
+    very rough symmetrization alorithm
+    fwd: an asymmetric forward alignment, in pharaoh text format
+    rev: an asymmetric reverse alignment, in pharaoh text format
+    alignment: a symmetrized alignment including all links without duplicates, in pharaoh text format
+    """
+    fwd = fwd.split()
+    rev = rev.split()
+    links = fwd
+    for link in rev:
+        if not link in links:
+            links.append(link)
+    alignment = []
+    for link in links:
+        left, right = link.split('-')
+        left = int(left)
+        right = int(right)
+        alignment.append([left, right])
+        alignment.sort(key=lambda x: (x[0], x[1]))
+    return ' '.join(['-'.join([str(link[0]), str(link[1])]) for link in alignment])

@@ -1451,6 +1451,7 @@ def translation_view(request, translation_id):
     var_dict['translation'] = translation = get_object_or_404(Translation, pk=translation_id)
     var_dict['segment'] = segment = translation.segment
     var_dict['source_language'] = segment.language
+    var_dict['target_language'] = translation.language
 
     translation_context = request.session.get('translation_context', {})
     if translation_context:

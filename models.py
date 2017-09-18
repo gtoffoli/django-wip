@@ -12,7 +12,7 @@ if (sys.version_info > (3, 0)):
     # Python 3 code in this block
     from importlib import reload
     import urllib.request as urllib2
-    from wip.aligner import proxy_eflomal_align
+    from wip.aligner import split_alignment, proxy_symmetrize_alignments, proxy_eflomal_align
     from io import StringIO
 else:
     reload(sys)  
@@ -865,7 +865,7 @@ class Proxy(models.Model):
         return text
 
     # def export_translations(self, outfile_1, outfile_2=None, parallel_format=PARALLEL_FORMAT_NONE, tokenizer_1=None, tokenizer_2=None, lowercasing=False, max_tokens=1000, max_fertility=1000):
-    def export_translations(self, outfile_1, outfile_2=None, outfile_3=None, parallel_format=PARALLEL_FORMAT_NONE, tokenizer_1=None, tokenizer_2=None, lowercasing=False, max_tokens=1000, max_fertility=1000):
+    def export_translations(self, outfile_1, outfile_2=None, outfile_3=None, parallel_format=PARALLEL_FORMAT_NONE, tokenizer_1=None, tokenizer_2=None, lowercasing=False, max_tokens=1000, max_fertility=1000, known_links_fwd=None, known_links_rev=None):
         segments = Segment.objects.filter(site=self.site, is_invariant=False)
         if parallel_format == PARALLEL_FORMAT_XLIFF:
             pass
@@ -893,6 +893,12 @@ class Proxy(models.Model):
                     elif parallel_format == PARALLEL_FORMAT_NONE:
                         outfile_1.write('%s\n' % source_text)
                         outfile_2.write('%s\n' % target_text)
+                        if known_links_fwd and known_links_rev:
+                            fwd = rev = ''
+                            if translation.alignment and translation.alignment_type==MANUAL:
+                                fwd, rev = split_alignment(translation.alignment)
+                            known_links_fwd.write('%s\n' % fwd)
+                            known_links_rev.write('%s\n' % rev)
                     if outfile_3:
                         outfile_3.write('%d\n' % translation.id)
         if parallel_format == PARALLEL_FORMAT_XLIFF:
@@ -995,25 +1001,34 @@ class Proxy(models.Model):
         if evaluate and n_evaluated:
             print ('evaluation: ', aer_total/n_evaluated)
     
-    def eflomal_align_translations(self, lowercasing=False, max_tokens=1000, max_fertility=100, evaluate=False):
+    def eflomal_align_translations(self, lowercasing=False, max_tokens=1000, max_fertility=100, symmetrize=True, evaluate=False):
         if not evaluate:
             self.clear_alignments()
         proxy_code = '%s_%s' % (self.site.slug, self.language_id)
         base_path = os.path.join(settings.BASE_DIR, 'sandbox')
         translation_ids = StringIO()
-        proxy_eflomal_align(self, base_path=base_path, lowercasing=lowercasing, max_tokens=max_tokens, max_fertility=max_fertility, translation_ids=translation_ids)
-        all_filename = os.path.join(base_path, '%s_all.txt' % proxy_code)
-        all_file = open(all_filename, 'r', encoding="utf-8")
+        # proxy_eflomal_align(self, base_path=base_path, lowercasing=lowercasing, max_tokens=max_tokens, max_fertility=max_fertility, translation_ids=translation_ids)
+        proxy_eflomal_align(self, base_path=base_path, lowercasing=lowercasing, max_tokens=max_tokens, max_fertility=max_fertility, translation_ids=translation_ids, use_know_links=True)
+        if symmetrize:
+            proxy_symmetrize_alignments(self)
+            links_sym_filename = os.path.join(base_path, '%s_links_sym.txt' % proxy_code)
+            alignment_file = open(links_sym_filename, 'r')
+        else:
+            all_filename = os.path.join(base_path, '%s_all.txt' % proxy_code)
+            alignment_file = open(all_filename, 'r', encoding="utf-8")
         translation_ids.seek(0)
         if evaluate:
             aer_total = 0.0
             n_evaluated = 0
-        for line in all_file:
+        for line in alignment_file:
             translation_id = int(translation_ids.readline().replace('\n', ''))
             translation = Translation.objects.get(id=translation_id)
             print (translation_id)
-            stop = line.find(')')
-            alignment = line[1:stop]
+            if symmetrize:
+                alignment = line.replace('\n', '')
+            else:
+                stop = line.find(')')
+                alignment = line[1:stop]
             print (alignment)
             if evaluate:
                 if translation.alignment_type==MANUAL:
@@ -1024,7 +1039,7 @@ class Proxy(models.Model):
                     translation.alignment = alignment
                     translation.alignment_type = MT
                     translation.save()
-        all_file.close()
+        alignment_file.close()
         if evaluate and n_evaluated:
             print ('evaluation: ', aer_total/n_evaluated)
 
