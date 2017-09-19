@@ -89,6 +89,8 @@ cpdef write_text(pyfile, tuple sents, int voc_size):
 def align(
         str source_filename,
         str target_filename,
+        str fixed_links_filename_fwd=None,
+        str fixed_links_filename_rev=None,
         str links_filename_fwd=None,
         str links_filename_rev=None,
         str statistics_filename=None,
@@ -106,6 +108,8 @@ def align(
     source_filename -- str with source text filename, this and the target
                        text should both be written using write_text()
     target_filename -- str with target text filename
+    fixed_links_filename_fwd -- if given, input text file with fixed (known) sentence alignments (forward direction)
+    fixed_links_filename_rev -- if given, input text file with fixed (known) sentence alignments (reverse direction)
     links_filename_fwd -- if given, write links here (forward direction)
     links_filename_rev -- if given, write links here (reverse direction)
     statistics_filename -- if given, write alignment statistics here
@@ -146,6 +150,8 @@ def align(
     if quiet: args.append('-q')
     if model >= 2: args.extend(['-2', str(n_iterations[1])])
     if model >= 3: args.extend(['-3', str(n_iterations[2])])
+    if fixed_links_filename_fwd: args.extend(['-F', fixed_links_filename_fwd])
+    if fixed_links_filename_rev: args.extend(['-R', fixed_links_filename_rev])
     if links_filename_fwd: args.extend(['-f', links_filename_fwd])
     if links_filename_rev: args.extend(['-r', links_filename_rev])
     if statistics_filename: args.extend(['-S', statistics_filename])
