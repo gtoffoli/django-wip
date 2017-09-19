@@ -856,7 +856,7 @@ struct text* text_read(const char *filename) {
 // Reads from file and parses a text line with an unknown number of alignment links aj1, aj2, .. ajL
 // max_link is the size of the input links buffer provided by the calling function.
 struct sentence_alignment *fixed_alignment_read(FILE *file, link_t max_links, link_t *links_buffer) {
-	link_t n_links = 0;
+    link_t n_links = 0;
     for (link_t i=0; i<max_links; i++) {
         if (fscanf(file, "%"SCNlink, &(links_buffer[i])) != 1) {
         	n_links = i;
@@ -882,6 +882,8 @@ struct sentence_alignment *fixed_alignment_read(FILE *file, link_t max_links, li
 // other lines contain sentence level links of known (possibly partial) alignments.
 // File lines are in the same number and order of couple of files of a tokenized bi-text.
 struct sentence_alignments* fixed_alignments_read(const char *fixed_alignments_filename) {
+    fprintf(stderr, "Reading fixed alignments\n");
+
 	int n;
     FILE *file = (!strcmp(fixed_alignments_filename, "-"))? stdin: fopen(fixed_alignments_filename, "r");
     if (file == NULL) {
@@ -1082,7 +1084,7 @@ int main(int argc, char *argv[]) {
 
     omp_set_nested(1);
 
-    while ((opt = getopt(argc, argv, "s:t:f:r:S:x:1:2:3:n:qm:N:h"))
+    while ((opt = getopt(argc, argv, "s:t:f:r:F:R:S:x:1:2:3:n:qm:N:h"))
             != -1)
     {
         switch(opt) {
@@ -1134,6 +1136,10 @@ int main(int argc, char *argv[]) {
                 source->vocabulary_size, target->vocabulary_size);
     }
 
+    if (!quiet) {
+        fprintf(stderr, "fixed_links_filename_fwd: %s\n", fixed_links_filename_fwd);
+        fprintf(stderr, "fixed_links_filename_rev: %s\n", fixed_links_filename_rev);
+    }
     size_t n_sentences = source->n_sentences;
     struct sentence_alignments* fixed_links_fwd = NULL;
     struct sentence_alignments* fixed_links_rev = NULL;

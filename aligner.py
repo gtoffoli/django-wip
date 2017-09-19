@@ -199,16 +199,17 @@ if (sys.version_info > (3, 0)):
         tokenizer_2 = NltkTokenizer(language=proxy.language_id, lowercasing=lowercasing)
         tokenized_1 = StringIO()
         tokenized_2 = StringIO()
+        known_links_filename_fwd = os.path.join(base_path, '%s_known_links_fwd.txt' % proxy_code)
+        known_links_filename_rev = os.path.join(base_path, '%s_known_links_rev.txt' % proxy_code)
         known_links_fwd = known_links_rev = None
         if use_know_links:
-            known_links_filename_fwd = os.path.join(base_path, '%s_known_links_fwd.txt' % proxy_code)
-            known_links_filename_rev = os.path.join(base_path, '%s_known_links_rev.txt' % proxy_code)
             known_links_fwd = open(known_links_filename_fwd, 'w')
             known_links_rev = open(known_links_filename_rev, 'w')
-        proxy.export_translations(tokenized_1, outfile_2=tokenized_2, outfile_3=translation_ids, tokenizer_1=tokenizer_1, tokenizer_2=tokenizer_2, lowercasing=lowercasing, max_tokens=max_tokens, max_fertility=max_fertility, known_links_fwd=known_links_fwd, known_links_rev=known_links_rev)
-        if use_know_links:
+            proxy.export_translations(tokenized_1, outfile_2=tokenized_2, outfile_3=translation_ids, tokenizer_1=tokenizer_1, tokenizer_2=tokenizer_2, lowercasing=lowercasing, max_tokens=max_tokens, max_fertility=max_fertility, known_links_fwd=known_links_fwd, known_links_rev=known_links_rev)
             known_links_fwd.close()
             known_links_rev.close()
+        else:
+            proxy.export_translations(tokenized_1, outfile_2=tokenized_2, outfile_3=translation_ids, tokenizer_1=tokenizer_1, tokenizer_2=tokenizer_2, lowercasing=lowercasing, max_tokens=max_tokens, max_fertility=max_fertility)
         tokenized_1.seek(0)
         tokenized_2.seek(0)
         sents_1, index_1 = eflomal.read_text(tokenized_1, lowercasing, 0, 0)
@@ -229,8 +230,11 @@ if (sys.version_info > (3, 0)):
         source_file.close()
         eflomal.write_text(target_file, tuple(sents_2), len(index_2))
         target_file.close()
-        # eflomal.align(source_filename, target_filename, scores_filename=scores_filename, links_filename_fwd=links_filename_fwd, links_filename_rev=links_filename_rev, statistics_filename=statistics_filename, quiet=False, use_gdb=False)
-        eflomal.align(source_filename, target_filename, scores_filename=scores_filename, links_filename_fwd=links_filename_fwd, links_filename_rev=links_filename_rev, statistics_filename=statistics_filename, quiet=False, use_gdb=False, fixed_links_filename_fwd=known_links_filename_fwd, fixed_links_filename_rev=known_links_filename_rev)
+        print (known_links_filename_fwd, known_links_filename_rev)
+        if use_know_links:
+            eflomal.align(source_filename, target_filename, scores_filename=scores_filename, links_filename_fwd=links_filename_fwd, links_filename_rev=links_filename_rev, statistics_filename=statistics_filename, quiet=False, use_gdb=False, fixed_links_filename_fwd=known_links_filename_fwd, fixed_links_filename_rev=known_links_filename_rev)
+        else:
+            eflomal.align(source_filename, target_filename, scores_filename=scores_filename, links_filename_fwd=links_filename_fwd, links_filename_rev=links_filename_rev, statistics_filename=statistics_filename, quiet=False, use_gdb=False)
         all_file =  open(all_filename, 'w', encoding="utf-8")
         score_file = open(scores_filename, 'r')
         file_fwd = open(links_filename_fwd, 'r')
