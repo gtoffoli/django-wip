@@ -869,6 +869,10 @@ class Proxy(models.Model):
         segments = Segment.objects.filter(site=self.site, is_invariant=False)
         if parallel_format == PARALLEL_FORMAT_XLIFF:
             pass
+        if known_links_fwd and known_links_rev:
+            known_links_fwd.write('%5d %d\n' % (0, max_tokens))
+            known_links_rev.write('%5d %d\n' % (0, max_tokens))
+        n_translations = 0
         for segment in segments:
             source_text = segment.text
             if tokenizer_1:
@@ -886,23 +890,27 @@ class Proxy(models.Model):
                     if M>max_tokens or abs(M-L)>max_fertility:
                         continue
                     target_text = ' '.join(target_tokens)
-                    if parallel_format == PARALLEL_FORMAT_XLIFF:
-                        pass
-                    elif parallel_format == PARALLEL_FORMAT_TEXT:
-                        outfile_1.write('%s . ||| . %s\n' % (source_text, target_text))
-                    elif parallel_format == PARALLEL_FORMAT_NONE:
-                        outfile_1.write('%s\n' % source_text)
-                        outfile_2.write('%s\n' % target_text)
-                        if known_links_fwd and known_links_rev:
-                            fwd = rev = ''
-                            if translation.alignment and translation.alignment_type==MANUAL:
-                                fwd, rev = split_alignment(translation.alignment)
-                            known_links_fwd.write('%s\n' % fwd)
-                            known_links_rev.write('%s\n' % rev)
-                    if outfile_3:
-                        outfile_3.write('%d\n' % translation.id)
-        if parallel_format == PARALLEL_FORMAT_XLIFF:
-            pass
+                if parallel_format == PARALLEL_FORMAT_XLIFF:
+                    pass
+                elif parallel_format == PARALLEL_FORMAT_TEXT:
+                    outfile_1.write('%s . ||| . %s\n' % (source_text, target_text))
+                elif parallel_format == PARALLEL_FORMAT_NONE:
+                    outfile_1.write('%s\n' % source_text)
+                    outfile_2.write('%s\n' % target_text)
+                    if known_links_fwd and known_links_rev:
+                        fwd = rev = ''
+                        if translation.alignment and translation.alignment_type==MANUAL:
+                            fwd, rev = split_alignment(translation.alignment)
+                        known_links_fwd.write('%s\n' % fwd)
+                        known_links_rev.write('%s\n' % rev)
+                if outfile_3:
+                    outfile_3.write('%d\n' % translation.id)
+                n_translations += 1
+        if known_links_fwd and known_links_rev:
+            known_links_fwd.seek(0)
+            known_links_fwd.write('%5d %d\n' % (n_translations, max_tokens))
+            known_links_rev.seek(0)
+            known_links_rev.write('%5d %d\n' % (n_translations, max_tokens))
 
     def make_bitext(self, lowercasing=False, use_invariant=False, tokenizer=None, max_tokens=1000, max_fertility=1000):
         site = self.site
@@ -1001,7 +1009,7 @@ class Proxy(models.Model):
         if evaluate and n_evaluated:
             print ('evaluation: ', aer_total/n_evaluated)
     
-    def eflomal_align_translations(self, lowercasing=False, max_tokens=1000, max_fertility=100, symmetrize=True, evaluate=False):
+    def eflomal_align_translations(self, lowercasing=False, max_tokens=1000, max_fertility=100, symmetrize=True, evaluate=False, verbose=False):
         if not evaluate:
             self.clear_alignments()
         proxy_code = '%s_%s' % (self.site.slug, self.language_id)
@@ -1023,13 +1031,15 @@ class Proxy(models.Model):
         for line in alignment_file:
             translation_id = int(translation_ids.readline().replace('\n', ''))
             translation = Translation.objects.get(id=translation_id)
-            print (translation_id)
+            if verbose:
+                print (translation_id)
             if symmetrize:
                 alignment = line.replace('\n', '')
             else:
                 stop = line.find(')')
                 alignment = line[1:stop]
-            print (alignment)
+            if verbose:
+                print (alignment)
             if evaluate:
                 if translation.alignment_type==MANUAL:
                     aer_total += aer(alignment, translation.alignment)
