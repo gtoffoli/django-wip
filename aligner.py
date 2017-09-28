@@ -232,9 +232,9 @@ if (sys.version_info > (3, 0)):
         target_file.close()
         print (known_links_filename_fwd, known_links_filename_rev)
         if use_know_links:
-            eflomal.align(source_filename, target_filename, scores_filename=scores_filename, links_filename_fwd=links_filename_fwd, links_filename_rev=links_filename_rev, statistics_filename=statistics_filename, quiet=False, use_gdb=False, fixed_links_filename_fwd=known_links_filename_fwd, fixed_links_filename_rev=known_links_filename_rev)
+            eflomal.align(source_filename, target_filename, scores_filename=scores_filename, links_filename_fwd=links_filename_fwd, links_filename_rev=links_filename_rev, statistics_filename=statistics_filename, quiet=False, use_gdb=True, fixed_links_filename_fwd=known_links_filename_fwd, fixed_links_filename_rev=known_links_filename_rev)
         else:
-            eflomal.align(source_filename, target_filename, scores_filename=scores_filename, links_filename_fwd=links_filename_fwd, links_filename_rev=links_filename_rev, statistics_filename=statistics_filename, quiet=False, use_gdb=False)
+            eflomal.align(source_filename, target_filename, scores_filename=scores_filename, links_filename_fwd=links_filename_fwd, links_filename_rev=links_filename_rev, statistics_filename=statistics_filename, quiet=False, use_gdb=True)
         all_file =  open(all_filename, 'w', encoding="utf-8")
         score_file = open(scores_filename, 'r')
         file_fwd = open(links_filename_fwd, 'r')
@@ -275,13 +275,13 @@ def split_alignment(alignment):
         rights.append(right)
     fwd = []
     for link in links:
-        if lefts.count(link[0]) > 1:
+        if rights.count(link[1]) > 1:
             continue
         fwd.append(link)
     fwd = ' '.join(['-'.join([str(link[0]), str(link[1])]) for link in fwd])
     rev = []
     for link in links:
-        if rights.count(link[1]) > 1:
+        if lefts.count(link[0]) > 1:
             continue
         rev.append(link)
     rev = ' '.join(['-'.join([str(link[0]), str(link[1])]) for link in rev])

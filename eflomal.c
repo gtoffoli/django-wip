@@ -93,16 +93,16 @@ struct text {
     struct sentence **sentences;
 };
 
-struct sentence_alignment {
+struct fixed_sentence_alignment {
     link_t length;
     link_t links[];
 };
 
-struct sentence_alignments
+struct fixed_sentence_alignments
 {
    char *filename;
    size_t n_sentences;
-   struct sentence_alignment **sentence_links;
+   struct fixed_sentence_alignment **sentence_alignments;
 };
 
 struct text_alignment {
@@ -120,7 +120,7 @@ struct text_alignment {
     // aligned, but don't trust the statistics):
     size_t n_clean; // 0 (the default) means all sentences should be used
     count null_prior;
-    const struct sentence_alignments *fixed_alignments;
+    struct fixed_sentence_alignments *fixed_sentence_alignments;
 };
 
 double seconds(void) {
@@ -654,16 +654,36 @@ void text_alignment_make_counts(struct text_alignment *ta) {
 void text_alignment_randomize(struct text_alignment *ta, random_state *state) {
     struct sentence **source_sentences = ta->source->sentences;
     struct sentence **target_sentences = ta->target->sentences;
+    struct fixed_sentence_alignments *fixed_sentence_alignments = ta->fixed_sentence_alignments;
+    struct fixed_sentence_alignment *sentence_alignment;
     for (size_t sent=0; sent<ta->target->n_sentences; sent++) {
         link_t *links = ta->sentence_links[sent];
         if (links == NULL) continue;
         const struct sentence *source_sentence = source_sentences[sent];
         const struct sentence *target_sentence = target_sentences[sent];
+        link_t *fixed_links = NULL;
+        if (fixed_sentence_alignments != NULL) {
+        	sentence_alignment = fixed_sentence_alignments->sentence_alignments[sent];
+        	if (sentence_alignment != NULL) {
+            	fprintf(stderr, "----- sent # %i: %i tokens, %i links\n", sent, target_sentence->length, sentence_alignment->length);
+        		fixed_links = sentence_alignment->links;
+            }
+        }
         for (size_t j=0; j<target_sentence->length; j++) {
             if (random_uniform32(state) < ta->null_prior) {
                 links[j] = NULL_LINK;
             } else {
                 links[j] = random_uint32_biased(state, source_sentence->length);
+            }
+            if (fixed_links != NULL) {
+            	link_t fixed_link = fixed_links[j];
+            	if (fixed_link != NULL_LINK) {
+                	fprintf(stderr, "%i-%i\n", fixed_links[j], j);
+            		if (fixed_link < source_sentence->length)
+            			links[j] = fixed_link;
+            		else
+            			fprintf(stderr, "link %i not less than length %i of source sentence # %i\n", fixed_link, source_sentence->length, sent);
+            	}
             }
         }
     }
@@ -853,73 +873,116 @@ struct text* text_read(const char *filename) {
     return text;
 }
 
-// Reads from file and parses a text line with an unknown number of alignment links aj1, aj2, .. ajL
+// Reads from file and parses a text line with an unknown number of alignment pairs
 // max_link is the size of the input links buffer provided by the calling function.
-struct sentence_alignment *fixed_alignment_read(FILE *file, link_t max_links, link_t *links_buffer) {
+// struct fixed_sentence_alignment *fixed_alignment_read(FILE *file, link_t *links_buffer, const struct sentence *sentence) {
+struct fixed_sentence_alignment *fixed_alignment_read(FILE *file, link_t *links_buffer, size_t sent, link_t n_source_tokens, link_t n_target_tokens, int reverse) {
+	#define MAX_CHARS 10000
+    char line[MAX_CHARS+1]; // to be replaced with a dynamic buffer allocated by the calling function
+
+    memset(links_buffer, 0xffU, n_target_tokens*sizeof(link_t));
+
     link_t n_links = 0;
-    for (link_t i=0; i<max_links; i++) {
-        if (fscanf(file, "%"SCNlink, &(links_buffer[i])) != 1) {
-        	n_links = i;
-            break;
+    char *p_line = line;
+    char pair[10];
+    char *token;
+    const char delimiter[2] = "-";
+    link_t left, right;
+	if (fgets(line, MAX_CHARS, file) != NULL) {
+        if (strlen(line) > 1) {
+            fprintf(stderr, "Reading alignment # %i\n", sent+1);
+			fprintf(stderr, "%s", line);
+			fprintf(stderr, "pairs:");
+			for (link_t i=0; i<n_target_tokens; i++) {
+				if (sscanf(p_line, "%s", pair) != 1)
+					break;
+				p_line += strlen(pair)+1;
+				token = strtok(pair, delimiter);
+				left = (link_t) atoi(token);
+				token = strtok(NULL, delimiter);
+				right = (link_t) atoi(token);
+				fprintf(stderr, " %i,%i", left, right);
+				if (left >= n_source_tokens) {
+					fprintf(stderr, "\ninvalid link aj: %i (n_source_tokens=%i)\n", left, n_source_tokens);
+					break;
+				}
+				if (right >= n_target_tokens) {
+					fprintf(stderr, "\ninvalid link j: %i (n_source_tokens=%i)\n", right, n_target_tokens);
+					break;
+				}
+				links_buffer[right] = left;
+				n_links += 1;
+			}
         }
     }
-    struct sentence_alignment *fixed_alignment = NULL;
-    if (n_links) {
-        size_t sentence_alignment_size = sizeof(struct sentence_alignment) + n_links*sizeof(link_t);
-        if ((fixed_alignment = (struct sentence_alignment *) malloc(sentence_alignment_size)) == NULL) {
-            perror("fixed_alignments_read(): failed to allocate sentence alignment");
+
+    struct fixed_sentence_alignment *fixed_alignment = NULL;
+    if (n_links > 0) {
+    	fprintf(stderr, "\nRead %i links\n", n_links);
+        size_t sentence_alignment_size = sizeof(struct fixed_sentence_alignment) + n_target_tokens*sizeof(link_t);
+        if ((fixed_alignment = (struct fixed_sentence_alignment *) malloc(sentence_alignment_size)) == NULL) {
+            perror("fixed_alignment_read(): failed to allocate sentence alignment");
             exit(EXIT_FAILURE);
         }
-        fixed_alignment->length = n_links;
-        memcpy(&fixed_alignment->links, links_buffer, n_links*sizeof(link_t));
+        fixed_alignment->length = n_target_tokens;
+        memcpy(&fixed_alignment->links, links_buffer, n_target_tokens*sizeof(link_t));
     }
+
     return fixed_alignment;
 }
 
-// Creates an auxiliary sentence_alignments structure containing known asymmetric alignments
+// Creates an auxiliary fixed_sentence_alignments structure containing known asymmetric alignments
 // from an input file whose first line specifies the number of following lines.
 // Empty lines correspond to unknown alignments;
 // other lines contain sentence level links of known (possibly partial) alignments.
 // File lines are in the same number and order of couple of files of a tokenized bi-text.
-struct sentence_alignments* fixed_alignments_read(const char *fixed_alignments_filename) {
+struct fixed_sentence_alignments* fixed_alignments_read(const char *fixed_alignments_filename, const struct text *source, const struct text *target, int reverse) {
     fprintf(stderr, "Reading fixed alignments\n");
 
-	int n;
+    size_t n_sentences = source->n_sentences;
+    struct sentence **source_sentences = source->sentences;
+    struct sentence **target_sentences = target->sentences;
+    link_t n_source_tokens, n_target_tokens;
+
+    int n = 0;
     FILE *file = (!strcmp(fixed_alignments_filename, "-"))? stdin: fopen(fixed_alignments_filename, "r");
     if (file == NULL) {
         perror("fixed_alignments_read(): failed to open fixed alignments file");
         return NULL;
     }
-    struct sentence_alignments *fixed_alignments = malloc(sizeof(struct sentence_alignments));
-    if (fixed_alignments == NULL) {
+    struct fixed_sentence_alignments *fixed_sentence_alignments = malloc(sizeof(struct fixed_sentence_alignments));
+    if (fixed_sentence_alignments == NULL) {
         perror("fixed_alignments_read(): failed to allocate structure");
         if (file != stdin) fclose(file);
         return NULL;
     }
-    if ((fixed_alignments->filename = malloc(strlen(fixed_alignments_filename)+1)) == NULL) {
+    if ((fixed_sentence_alignments->filename = malloc(strlen(fixed_alignments_filename)+1)) == NULL) {
         perror("fixed_alignments_read(): failed to allocate filename string");
         exit(EXIT_FAILURE);
     }
-    strcpy(fixed_alignments->filename, fixed_alignments_filename);
+    strcpy(fixed_sentence_alignments->filename, fixed_alignments_filename);
 
-    int n_sentences; // number of lines with sentence alignments
-    int max_links; // max number of links in sentence alignment
-	n = fscanf(file, "%i %i\n", &n_sentences, &max_links);
-    // if (!quiet)
-        fprintf(stderr, "Reading %i fixed alignments, each of max %i links, from %s\n", n_sentences, max_links, fixed_alignments_filename);
-	fixed_alignments->n_sentences = n_sentences;
-	if (n != 2)
+    int n_alignments = 0; // number of lines with sentence alignments
+    int max_links = 0; // max number of links in sentence alignment
+	// n = fscanf(file, "%i %i\n", &n_alignments, &max_links);
+    char line[20+1];
+	if (fgets(line, 20, file) != NULL) {
+		n = sscanf(line, "%i %i", &n_alignments, &max_links);
+	}
+	if ((n != 2) || (n_alignments != n_sentences))
 	{
         fprintf(stderr,
-                "%i %i \n", n, fixed_alignments->n_sentences);
+                "%i %i %i \n", n, n_alignments, max_links);
         fprintf(stderr,
                 "fixed_alignments_read(): failed to read header in %s\n", fixed_alignments_filename);
-        free(fixed_alignments);
+        free(fixed_sentence_alignments);
         if (file != stdin) fclose(file);
         return NULL;
     }
+	fixed_sentence_alignments->n_sentences = n_sentences;
+    fprintf(stderr, "Reading %i fixed alignments, each of max %i links, from %s\n", n_sentences, max_links, fixed_alignments_filename);
 
-    if ((fixed_alignments->sentence_links = malloc(n_sentences*sizeof(struct sentence_alignment*)))
+    if ((fixed_sentence_alignments->sentence_alignments = malloc(n_sentences*sizeof(struct fixed_sentence_alignment*)))
             == NULL)
     {
         perror("fixed_alignments_read(): failed to allocate pointers to sentence alignments");
@@ -934,11 +997,14 @@ struct sentence_alignments* fixed_alignments_read(const char *fixed_alignments_f
         exit(EXIT_FAILURE);
     }
 
-    for (size_t i=0; i<n_sentences; i++)
-    	fixed_alignments->sentence_links[i] = fixed_alignment_read(file, max_links, links_buffer);
+    for (size_t sent=0; sent<n_sentences; sent++) {
+        n_source_tokens = source_sentences[sent]->length;
+        n_target_tokens = target_sentences[sent]->length;
+    	fixed_sentence_alignments->sentence_alignments[sent] = fixed_alignment_read(file, links_buffer, sent, n_source_tokens, n_target_tokens, reverse);
+    }
 
     if (file != stdin) fclose(file);
-    return fixed_alignments;
+    return fixed_sentence_alignments;
 }
 
 
@@ -946,7 +1012,7 @@ static void align(
         int reverse,
         const struct text *source,
         const struct text *target,
-        const struct sentence_alignments *fixed_alignments,
+        struct fixed_sentence_alignments *fixed_sentence_alignments,
         int model,
         double null_prior,
         int n_samplers,
@@ -968,16 +1034,23 @@ static void align(
         tas[i] = text_alignment_create(
                 (reverse? target: source), (reverse? source: target));
         tas[i]->null_prior = null_prior;
+        if (fixed_sentence_alignments->n_sentences != source->n_sentences) {
+            perror("number of fixed alignments is different than number of sentences");
+            exit(1);
+        }
+        tas[i]->fixed_sentence_alignments = fixed_sentence_alignments;
+        if (!quiet && (fixed_sentence_alignments != NULL))
+            fprintf(stderr, "Loaded fixed alignments\n");
     }
     if (!quiet)
         fprintf(stderr, "Created alignment structures: %.3f s\n",
                 seconds() - t0);
 
     t0 = seconds();
-#pragma omp parallel for
+// #pragma omp parallel for
     for (int i=0; i<n_samplers; i++) {
         random_state local_state;
-#pragma omp critical
+// #pragma omp critical
         {
             local_state = random_split_state(&state);
         }
@@ -993,10 +1066,10 @@ static void align(
                         m, n_iters[m-1]);
             t0 = seconds();
 
-#pragma omp parallel for
+// #pragma omp parallel for
             for (int i=0; i<n_samplers; i++) {
                 random_state local_state;
-#pragma omp critical
+// #pragma omp critical
                 {
                     local_state = random_split_state(&state);
                 }
@@ -1141,29 +1214,25 @@ int main(int argc, char *argv[]) {
         fprintf(stderr, "fixed_links_filename_rev: %s\n", fixed_links_filename_rev);
     }
     size_t n_sentences = source->n_sentences;
-    struct sentence_alignments* fixed_links_fwd = NULL;
-    struct sentence_alignments* fixed_links_rev = NULL;
-    if ((fixed_links_filename_fwd != NULL) && (fixed_links_filename_rev != NULL)) {
-        t0 = seconds();
-        fixed_links_fwd = fixed_alignments_read(fixed_links_filename_fwd);
-        fixed_links_rev = fixed_alignments_read(fixed_links_filename_rev);
-        if ((fixed_links_fwd->n_sentences != n_sentences) || (fixed_links_rev->n_sentences != n_sentences)) {
-            fprintf(stderr, "A fixed link file has wrong length\n");
-            fixed_links_fwd = NULL; fixed_links_rev = NULL;
-        }
-    }
 
-#pragma omp parallel for
+// #pragma omp parallel for
     for (int reverse=0; reverse<=1; reverse++) {
-    	struct sentence_alignments* fixed_alignments =
-            (reverse? fixed_links_rev: fixed_links_fwd);
+        struct fixed_sentence_alignments* fixed_sentence_alignments = NULL;
+    	char *fixed_links_filename = (reverse? fixed_links_filename_rev: fixed_links_filename_fwd);
+    	if (fixed_links_filename != NULL) {
+    		fixed_sentence_alignments = fixed_alignments_read(fixed_links_filename, source, target, reverse);
+            if (fixed_sentence_alignments->n_sentences != n_sentences) {
+                fprintf(stderr, "A fixed link file has wrong length\n");
+                fixed_sentence_alignments = NULL;
+            }
+    	}
+
         char *links_filename =
             (reverse? links_filename_rev: links_filename_fwd);
         if (links_filename != NULL ||
                 (!reverse && links_filename_fwd == NULL &&
                  links_filename_rev == NULL))
-            // align(reverse, source, target, model, null_prior, n_samplers,
-            align(reverse, source, target, fixed_alignments, model, null_prior, n_samplers,
+            align(reverse, source, target, fixed_sentence_alignments, model, null_prior, n_samplers,
                   quiet, n_iters, links_filename, stats_filename,
                   scores_filename);
     }

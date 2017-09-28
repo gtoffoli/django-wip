@@ -1042,6 +1042,9 @@ class Proxy(models.Model):
                 print (alignment)
             if evaluate:
                 if translation.alignment_type==MANUAL:
+                    print ('--- fixed and computed alignment for translation # %d' % translation.id)
+                    print (translation.alignment)
+                    print (alignment)
                     aer_total += aer(alignment, translation.alignment)
                     n_evaluated += 1
             else:
@@ -2336,6 +2339,7 @@ class Translation(models.Model):
     timestamp = models.DateTimeField()
 
     def get_navigation(self, order_by=TEXT_ASC, alignment_type=ANY):
+        id = self.id
         text = self.segment.text
         segment = self.segment
         site = segment.site
