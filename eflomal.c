@@ -219,6 +219,8 @@ void text_alignment_sample(
     const int model = ta->model;
     struct sentence **source_sentences = ta->source->sentences;
     struct sentence **target_sentences = ta->target->sentences;
+    struct fixed_sentence_alignments *fixed_sentence_alignments = ta->fixed_sentence_alignments;
+    struct fixed_sentence_alignment *sentence_alignment;
     // probability distribution to sample from
     count ps[MAX_SENT_LEN+1];
     // fertility of tokens in sentence
@@ -310,6 +312,14 @@ void text_alignment_sample(
         const size_t target_length = target_sentence->length;
         const token *source_tokens = source_sentence->tokens;
         const token *target_tokens = target_sentence->tokens;
+        link_t *fixed_links = NULL;
+        if (fixed_sentence_alignments != NULL) {
+        	sentence_alignment = fixed_sentence_alignments->sentence_alignments[sent];
+        	if (sentence_alignment != NULL) {
+            	// fprintf(stderr, "--sample-- sent # %i: %i tokens, %i links\n", sent, target_sentence->length, sentence_alignment->length);
+        		fixed_links = sentence_alignment->links;
+            }
+        }
 
         int samples_left = n_samples-1;
         int samplers_left = n_samplers-1;
@@ -350,7 +360,17 @@ resample:;
         // aligned word to the left (or -1 if there is no such word)
         int aa_jm1 = -1;
         for (size_t j=0; j<target_length; j++) {
-            const token f = target_tokens[j];
+
+            if (fixed_links != NULL) {
+            	link_t fixed_link = fixed_links[j];
+            	if (fixed_link != NULL_LINK) {
+            		if (fixed_link >= source_sentence->length)
+            			fprintf(stderr, "link %i not less than length %i of source sentence # %i\n", fixed_link, source_sentence->length, sent);
+            		continue;
+            	}
+            }
+
+        	const token f = target_tokens[j];
             const link_t old_i = links[j];
             token old_e;
 
@@ -665,7 +685,7 @@ void text_alignment_randomize(struct text_alignment *ta, random_state *state) {
         if (fixed_sentence_alignments != NULL) {
         	sentence_alignment = fixed_sentence_alignments->sentence_alignments[sent];
         	if (sentence_alignment != NULL) {
-            	fprintf(stderr, "----- sent # %i: %i tokens, %i links\n", sent, target_sentence->length, sentence_alignment->length);
+            	fprintf(stderr, "--randomize-- sent # %i: %i tokens, %i links\n", sent, target_sentence->length, sentence_alignment->length);
         		fixed_links = sentence_alignment->links;
             }
         }
@@ -678,7 +698,7 @@ void text_alignment_randomize(struct text_alignment *ta, random_state *state) {
             if (fixed_links != NULL) {
             	link_t fixed_link = fixed_links[j];
             	if (fixed_link != NULL_LINK) {
-                	fprintf(stderr, "%i-%i\n", fixed_links[j], j);
+                	// fprintf(stderr, "%i-%i\n", fixed_links[j], j);
             		if (fixed_link < source_sentence->length)
             			links[j] = fixed_link;
             		else
@@ -887,12 +907,12 @@ struct fixed_sentence_alignment *fixed_alignment_read(FILE *file, link_t *links_
     char pair[10];
     char *token;
     const char delimiter[2] = "-";
-    link_t left, right;
+    link_t left, right, temp;
 	if (fgets(line, MAX_CHARS, file) != NULL) {
         if (strlen(line) > 1) {
             fprintf(stderr, "Reading alignment # %i\n", sent+1);
 			fprintf(stderr, "%s", line);
-			fprintf(stderr, "pairs:");
+			// fprintf(stderr, "pairs:");
 			for (link_t i=0; i<n_target_tokens; i++) {
 				if (sscanf(p_line, "%s", pair) != 1)
 					break;
@@ -901,13 +921,16 @@ struct fixed_sentence_alignment *fixed_alignment_read(FILE *file, link_t *links_
 				left = (link_t) atoi(token);
 				token = strtok(NULL, delimiter);
 				right = (link_t) atoi(token);
-				fprintf(stderr, " %i,%i", left, right);
+				if (reverse) {
+					temp = left; left = right; right = temp;
+				}
+				// fprintf(stderr, " %i,%i", left, right);
 				if (left >= n_source_tokens) {
 					fprintf(stderr, "\ninvalid link aj: %i (n_source_tokens=%i)\n", left, n_source_tokens);
 					break;
 				}
 				if (right >= n_target_tokens) {
-					fprintf(stderr, "\ninvalid link j: %i (n_source_tokens=%i)\n", right, n_target_tokens);
+					fprintf(stderr, "\ninvalid link j: %i (n_target_tokens=%i)\n", right, n_target_tokens);
 					break;
 				}
 				links_buffer[right] = left;
@@ -936,7 +959,7 @@ struct fixed_sentence_alignment *fixed_alignment_read(FILE *file, link_t *links_
 // Empty lines correspond to unknown alignments;
 // other lines contain sentence level links of known (possibly partial) alignments.
 // File lines are in the same number and order of couple of files of a tokenized bi-text.
-struct fixed_sentence_alignments* fixed_alignments_read(const char *fixed_alignments_filename, const struct text *source, const struct text *target, int reverse) {
+struct fixed_sentence_alignments* fixed_alignments_read(int reverse, const struct text *source, const struct text *target, const char *fixed_alignments_filename) {
     fprintf(stderr, "Reading fixed alignments\n");
 
     size_t n_sentences = source->n_sentences;
@@ -1216,11 +1239,12 @@ int main(int argc, char *argv[]) {
     size_t n_sentences = source->n_sentences;
 
 // #pragma omp parallel for
+    // for (int reverse=0; reverse<=1; reverse++) {
     for (int reverse=0; reverse<=1; reverse++) {
         struct fixed_sentence_alignments* fixed_sentence_alignments = NULL;
     	char *fixed_links_filename = (reverse? fixed_links_filename_rev: fixed_links_filename_fwd);
     	if (fixed_links_filename != NULL) {
-    		fixed_sentence_alignments = fixed_alignments_read(fixed_links_filename, source, target, reverse);
+    		fixed_sentence_alignments = fixed_alignments_read(reverse, (reverse? target: source), (reverse? source: target), fixed_links_filename);
             if (fixed_sentence_alignments->n_sentences != n_sentences) {
                 fprintf(stderr, "A fixed link file has wrong length\n");
                 fixed_sentence_alignments = NULL;
