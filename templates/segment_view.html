@@ -64,7 +64,7 @@ th, td { text-align: left; vertical-align: top; }
 	<tr><th>target</th><th>t-type</th><th>by</th><th style="text-align: left">text</th></tr>
 	{% for l in other_languages %}{% for t in translations|lookup:l.code %}{% with ur=t.user_role %}
     <tr>
-    	<td><a  class="{{ l.code }}" href="/translation/{{ t.id }}">{{ l }}</a></td>
+    	<td><a  class="{{ l.code }}" href="/translation_align/{{ t.id }}">{{ l }}</a></td>
     	<td>{{ TRANSLATION_TYPE_DICT|lookup:t.translation_type }}</td>
     	<td>{% if ur %}{{ ROLE_DICT|lookup:ur.role_type }}-{{ ur.level }}: {{ ur.user.get_full_name }}{% endif %}</td>
     	<td>{{ t.text }}</td>

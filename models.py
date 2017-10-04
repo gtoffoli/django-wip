@@ -197,7 +197,7 @@ class Site(models.Model):
                 else:
                     beforebreak_text = '(?%s)' % '|'.join([re.escape(item) for item in custom_rules_list])
                 afterbreak_text = '\s'
-                print (beforebreak_text, afterbreak_text)
+                # print (beforebreak_text, afterbreak_text)
                 non_breaks = current_rules['non_breaks']
                 non_breaks.append((beforebreak_text, afterbreak_text))
                 current_rules['non_breaks'] = non_breaks
@@ -363,7 +363,7 @@ class Site(models.Model):
                 l_1 = page_version.body.splitlines()
                 l_2 = body.splitlines()
                 l_diff = difflib.Differ().compare(l_1, l_2)
-                print ('\n'.join(l_diff))
+                # print ('\n'.join(l_diff))
         # if not dry and (not page_version or size != page_version.size or checksum != page_version.checksum):
         if extract_block or (not dry and (not page_version or checksum != page_version.checksum)):
             page_version = PageVersion(webpage=webpage, delay=delay, response_code=response_code, size=size, checksum=checksum, body=body)
@@ -544,7 +544,7 @@ class Proxy(models.Model):
         target_language = self.language
         source_code = source_language.code.split('-')[0]
         target_code = target_language.code.split('-')[0]
-        print (source_code, target_code)
+        # print (source_code, target_code)
         status = { 'found': 0, 'imported': 0 }
         tree = etree.iterparse(xliff_file, events=("start", "end"))
         for action, elem in tree:
@@ -552,14 +552,14 @@ class Proxy(models.Model):
             if tag.count('{') and tag.count('}'):
                 tag = tag.split('}')[1]
             # if action == 'start' and 
-            print(action, tag)
+            # print(action, tag)
             if tag=='xliff' and action=='start':
                 xliff_version = elem.get('version')
                 status['version'] = xliff_version
             elif tag=='file' and action=='start':
                 xliff_source_language = elem.get('source-language')
                 xliff_target_language = elem.get('target-language')
-                print ('source and target languages: ', xliff_source_language, xliff_target_language)
+                # print ('source and target languages: ', xliff_source_language, xliff_target_language)
                 if not elem.get('source-language').split('-')[0]==source_code:
                     status['error'] = "source language doesn't match"
                     break
@@ -796,7 +796,7 @@ class Proxy(models.Model):
         translated_document, has_translation = translated_element(content_document, self.site, webpage=None, language=self.language, translate_live=self.enable_live_translation)
         if has_translation:
             content = element_tostring(translated_document)
-        print ('translate_page_content: ', has_translation)
+        # print ('translate_page_content: ', has_translation)
         return content, has_translation
 
     def propagate_up_block_updates(self):
@@ -820,16 +820,16 @@ class Proxy(models.Model):
             if translation_date:
                 if translated_block:
                     if translated_block.modified > translation_date:
-                        print ('no_updated') #, label
+                        # print ('no_updated') #, label
                         n_no_updated +=1
                         continue
                     else:
                         n_updated +=1
-                        print ('updated') #, label
+                        # print ('updated') #, label
                 else:
                     translated_block = TranslatedBlock(block=block, language=language)
                     n_new +=1
-                    print ('new') #, label
+                    # print ('new') #, label
                 # translated_block.body = html.tostring(translated_element)
                 translated_block.body = element_tostring(translated_element)
                 translated_block.save()
@@ -1125,6 +1125,10 @@ class Webpage(models.Model):
         body = response.read()
         return body
 
+    def get_last_version(self):
+        versions = PageVersion.objects.filter(webpage=self).order_by('-time')
+        return versions and versions[0] or None
+
     def get_translation(self, language_code, use_cache=True, cache=False):
         content = None
         has_translation = False
@@ -1313,7 +1317,7 @@ class Webpage(models.Model):
                     if xpath and el_xpath==xpath:
                         done = True
                         break
-        print (self.path, n_1, n_2, n_3)
+        # print (self.path, n_1, n_2, n_3)
         return n_1, n_2, n_3
 
     def create_blocks_dag(self, verbose=False):
@@ -1336,7 +1340,7 @@ class Webpage(models.Model):
                         try:
                             parent.add_child(block)
                             n += 1
-                            print (xpaths[j], xpath)
+                            # print (xpaths[j], xpath)
                         except:
                             print ('create_blocks_dag error:', xpaths[j], xpath)
                     break
@@ -1527,15 +1531,15 @@ class String(models.Model):
         return has_translations and translations or []
 
     def get_navigation(self, string_types=[], site=None, translation_state='', translation_codes=[], order_by=TEXT_ASC):
-        print ('order_by: ', order_by)
+        # print ('order_by: ', order_by)
         text = self.text
         id = self.id
         modified = self.modified
         qs = String.objects.filter(language_id=self.language_id)
-        print (1, qs.count())
+        # print (1, qs.count())
         if string_types:
             qs = qs.filter(string_type__in=string_types)
-            print (2, qs.count())
+            # print (2, qs.count())
         if site:
             qs = qs.filter(site=site)
         if translation_state == INVARIANT:
@@ -1556,32 +1560,32 @@ class String(models.Model):
                 qs = qs.filter(txu__fr=False)
             if 'it' in translation_codes:
                 qs = qs.filter(txu__it=False)
-            print (3, qs.count())
-            print (4, translation_codes)
+            # print (3, qs.count())
+            # print (4, translation_codes)
         first = last = previous = next = None
         n = qs.count()
-        print (n, order_by, TEXT_ASC, order_by == TEXT_ASC, 1 == 1)
+        # print (n, order_by, TEXT_ASC, order_by == TEXT_ASC, 1 == 1)
         if n:
             if order_by == TEXT_ASC:
                 qs = qs.order_by('text')
                 qs_before = qs.filter(text__lt=text).order_by('-text')
                 qs_after = qs.filter(text__gt=text).order_by('text')
-                print (order_by, qs_before.count())
+                # print (order_by, qs_before.count())
             elif order_by == ID_ASC:
                 qs = qs.order_by('id')
                 qs_before = qs.filter(id__lt=id).order_by('-id')
                 qs_after = qs.filter(id__gt=id).order_by('id')
-                print (order_by, qs_before.count())
+                # print (order_by, qs_before.count())
             elif order_by == DATETIME_ASC:
                 qs = qs.order_by('modified')
                 qs_before = qs.filter(modified__lt=modified).order_by('-modified')
                 qs_after = qs.filter(modified__gt=modified).order_by('modified')
-                print (order_by, qs_before.count())
+                # print (order_by, qs_before.count())
             elif order_by == DATETIME_DESC:
                 qs = qs.order_by('-modified')
                 qs_before = qs.filter(modified__gt=modified).order_by('modified')
                 qs_after = qs.filter(modified__lt=modified).order_by('-modified')
-                print (order_by, qs_before.count())
+                # print (order_by, qs_before.count())
             previous = qs_before.count() and qs_before[0] or None
             next = qs_after.count() and qs_after[0] or None
             first = qs[0]
@@ -1784,7 +1788,7 @@ class Block(node_factory('BlockEdge')):
         invariant = True
         for segment in segments:
             if not type(segment) == unicode:
-                print (self.id, segment)
+                # print (self.id, segment)
                 return False
             if not non_invariant_words(segment.split(), site_invariants=site_invariants):
                 continue
@@ -1843,9 +1847,9 @@ class Block(node_factory('BlockEdge')):
                 if n>1 and child_tags_dict_1[tag] > 1:
                     branch += '[%d]' % n
                 child_xpath = '%s/%s' % (xpath, branch)
-                print (child_xpath)
+                # print (child_xpath)
                 blocks_in_page = BlockInPage.objects.filter(webpage=webpage, xpath=child_xpath).order_by('-block__time')
-                print (blocks_in_page.count(), webpage)
+                # print (blocks_in_page.count(), webpage)
                 if blocks_in_page:
                     child_block = blocks_in_page[0].block           
                     translated_child, child_translation_date = child_block.translated_block_element(language, element=child_element, webpage=webpage, xpath=child_xpath)
@@ -1909,7 +1913,7 @@ def translated_element(element, site, webpage=None, language=None, xpath='/html'
         checksum = element_signature(element)
         blocks = Block.objects.filter(site=site, checksum=checksum).order_by('-time')
         block = blocks and blocks[0] or None
-        if block: print ('checksum: ', checksum, 'block: ', block)
+        # if block: print ('checksum: ', checksum, 'block: ', block)
     if block:
         if block.no_translate:
             return element, True
@@ -2273,28 +2277,28 @@ class Segment(models.Model):
             qs = qs.exclude(segment_translation__language__in=translation_languages)
         first = last = previous = next = None
         n = qs.count()
-        print (n, order_by, TEXT_ASC, order_by == TEXT_ASC, 1 == 1)
+        # print (n, order_by, TEXT_ASC, order_by == TEXT_ASC, 1 == 1)
         if n:
             if order_by == TEXT_ASC:
                 qs = qs.order_by('text')
                 qs_before = qs.filter(text__lt=text).order_by('-text')
                 qs_after = qs.filter(text__gt=text).order_by('text')
-                print (order_by, qs_before.count())
+                # print (order_by, qs_before.count())
             elif order_by == ID_ASC:
                 qs = qs.order_by('id')
                 qs_before = qs.filter(id__lt=id).order_by('-id')
                 qs_after = qs.filter(id__gt=id).order_by('id')
-                print (order_by, qs_before.count())
+                # print (order_by, qs_before.count())
             elif order_by == DATETIME_ASC:
                 qs = qs.order_by('created')
                 qs_before = qs.filter(created__lt=created).order_by('-created')
                 qs_after = qs.filter(created__gt=created).order_by('created')
-                print (order_by, qs_before.count())
+                # print (order_by, qs_before.count())
             elif order_by == DATETIME_DESC:
                 qs = qs.order_by('-created')
                 qs_before = qs.filter(created__gt=created).order_by('created')
                 qs_after = qs.filter(created__lt=created).order_by('-created')
-                print (order_by, qs_before.count())
+                # print (order_by, qs_before.count())
             previous = qs_before.count() and qs_before[0] or None
             next = qs_after.count() and qs_after[0] or None
             first = qs[0]
@@ -2348,18 +2352,18 @@ class Translation(models.Model):
             qs = qs.filter(alignment_type=alignment_type)   
         first = last = previous = next = None
         n = qs.count()
-        print (n, order_by, TEXT_ASC, order_by == TEXT_ASC, 1 == 1)
+        # print (n, order_by, TEXT_ASC, order_by == TEXT_ASC, 1 == 1)
         if n:
             if order_by == TEXT_ASC:
                 qs = qs.order_by('segment__text', 'text')
                 qs_before = qs.filter(segment__text__lt=text).order_by('-segment__text', '-text')
                 qs_after = qs.filter(segment__text__gt=text).order_by('segment__text', 'text')
-                print (order_by, qs_before.count())
+                # print (order_by, qs_before.count())
             elif order_by == ID_ASC:
                 qs = qs.order_by('segment__id', 'id')
                 qs_before = qs.filter(segment__id__lt=id).order_by('-segment__id', '-id')
                 qs_after = qs.filter(segment__id__gt=id).order_by('segment__id', 'id')
-                print (order_by, qs_before.count())
+                # print (order_by, qs_before.count())
             previous = qs_before.count() and qs_before[0] or None
             next = qs_after.count() and qs_after[0] or None
             first = qs[0]
@@ -2385,7 +2389,7 @@ class Translation(models.Model):
                 'attrs': {'text': {'text': '%d. %s' % (i, token), 'magnet': True }, 'nodetype': 'source',}
             })
             i += 1
-        x = 200
+        x = 400
         j = 0
         for token in target_tokens:
             y = j*50

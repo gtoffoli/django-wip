@@ -94,7 +94,14 @@ class WipHttpProxy(HttpProxy):
             response = self.play(request)
             # TODO: avoid repetition, flow of logic could be improved
             if self.rewrite:
+                """
                 response = self.rewrite_response(request, response)
+                """
+                if hasattr(self.content, 'decode'):
+                    self.content = response.content.decode('utf-8')
+                self.rewrite_response(request)
+                if hasattr(self.content, 'encode'):
+                    response.content = self.content.encode('utf-8')
             return response
 
         key = '%s-%s' % (proxy.site.path_prefix, url)
@@ -121,15 +128,15 @@ class WipHttpProxy(HttpProxy):
         parsed_url = urlparse.urlparse(url)
         self.path = parsed_url.path
         if self.proxy and self.path == 'robots.txt':
-            response.content = self.proxy.robots_txt
+            # response.content = self.proxy.robots_txt
+            response.content = self.proxy.robots_txt.encode('utf-8')
             return response
 
-        # content_type = response.headers['Content-Type']
         trailer = response.content[:100]
-        if trailer.count('<') and trailer.lower().count('html'):
-            """ """
+        # if trailer.count('<') and trailer.lower().count('html'):
+        if trailer.count('<'.encode('utf-8')) and trailer.lower().count('html'.encode('utf-8')):
+            """
             response = self.transform_response(request, response)
-            """ """
             if self.proxy_id and self.language_code:
                 self.translate_response(request, response)
             else:
@@ -140,19 +147,24 @@ class WipHttpProxy(HttpProxy):
             if self.rewrite_links:
                 response = self.replace_links(response)
                 response = self.rewrite_response(request, response)
+            """
+            self.content = response.content.decode('utf-8')
+            # self.transform_response(request, response)
+            if self.proxy_id and self.language_code:
+                self.translate_response(request)
+            else:
+                if self.mode == 'record':
+                    self.record(response)
+                if self.rewrite:
+                    self.rewrite_response(request)
+            if self.rewrite_links:
+                self.replace_links()
+                self.rewrite_response(request)
+            response.content = self.content.encode('utf-8')
 
         if self.proxy:
             headers = []
             original_url = '%s/%s' % (self.site.url, self.path)
-            """
-            print 'site: ', self.site
-            print 'proxy: ', self.proxy
-            print 'base_url: ', self.base_url
-            print 'host: ', self.host
-            print 'path: ', self.path
-            print 'original_url: ', original_url
-            """
-            headers.append(hreflang_template % (original_url, self.site.language_id))
             protocol = 'http://'
             for proxy in Proxy.objects.filter(site=self.site):
                 if self.online and proxy.host:
@@ -160,14 +172,12 @@ class WipHttpProxy(HttpProxy):
                 else:
                     proxy_url = '%slocalhost:8000/%s/%s' % (protocol, proxy.base_path, self.path)
                 headers.append(hreflang_template % (proxy_url, proxy.language_id))
-                # print 'proxy_url: ', proxy_url
             link = ', '.join(headers)
-            print ('link: ', link)
+            # print ('link: ', link)
             response['Link'] = link
 
         return response
 
-    """ """
     def transform_response(self, request, response):
         """ see process_response method of DjangoDiazoMiddleware in module django_diazo.middleware
         Transform the response with Diazo if transformable
@@ -179,10 +189,12 @@ class WipHttpProxy(HttpProxy):
         rules_file = os.path.join(theme.theme_path(), 'rules.xml')
         compiled_file = os.path.join(theme.theme_path(), 'compiled.xsl')
         if not os.path.exists(compiled_file) or theme.debug:
+            """
             print ('self.theme_id: ', self.theme_id)
             print ('theme.id: ', theme.id)
             print ('os.path.exists(rules_file): ', os.path.exists(rules_file))
             print ('theme.debug: ', theme.debug)
+            """
             self.theme_id = theme.id
             read_network = False
             access_control = etree.XSLTAccessControl(read_file=True, write_file=False, create_dir=False, read_network=read_network, write_network=False)
@@ -210,18 +222,20 @@ class WipHttpProxy(HttpProxy):
             response = HttpResponse()
         else:
             parser = etree.HTMLParser(remove_blank_text=True, remove_comments=True)
-            print ('parser: ', parser)
+            # print ('parser: ', parser)
             content = etree.fromstring(response.content, parser)
         result = self.transform(content, **self.params)
         response.content = XMLSerializer(result, doctype=DOCTYPE).serialize()
         if isinstance(response, etree._Element):
             response = HttpResponse('<?xml version="1.0" encoding="UTF-8"?>\n' + tostring(content))
         return response
-    """ """
 
+    """
     def translate_response(self, request, response):
         request = self.request
         content = response.content
+    """
+    def translate_response(self, request):
         if self.proxy:
             proxy = self.proxy
             site = self.site
@@ -230,43 +244,55 @@ class WipHttpProxy(HttpProxy):
             site = proxy.site
         transformed = False
         if request.GET or request.POST:
+            """
             content, transformed = proxy.translate_page_content(content)
+            """
+            self.content, transformed = proxy.translate_page_content(self.content)
         else:
             path = urlparse.urlparse(self.url).path
-            print ('translate_response: ', path)
-            print ('enable_live_translation: ', proxy.enable_live_translation)
+            # print ('translate_response: ', path)
+            # print ('enable_live_translation: ', proxy.enable_live_translation)
             webpages = Webpage.objects.filter(site=site, path=path).order_by('-created')
             if webpages:
                 webpage = webpages[0]
-                print ('no_translate', webpage.no_translate)
+                # print ('no_translate', webpage.no_translate)
                 if not webpage.no_translate:
+                    """
                     content, transformed = webpage.get_translation(self.language_code)
+                    """
+                    self.content, transformed = webpage.get_translation(self.language_code)
             if not transformed and proxy.enable_live_translation:
-                print ('no translation found: ', path)
+                # print ('no translation found: ', path)
+                """
                 content, transformed = proxy.translate_page_content(content)
+                """
+                self.content, transformed = proxy.translate_page_content(self.content)
         # replace text or HTML fragment on the fly (new)
+        """
         content = proxy.replace_fragments(content, path)
-        # if transformed:
         response.content = content
         return response
+        """
+        if hasattr(self.content, 'decode'):
+            self.content = self.content.decode()
+        self.content = proxy.replace_fragments(self.content, path)
 
-    def replace_links(self, response):
+    def replace_links(self):
+    # def replace_links(self, response):
         """
         Rewrites unconditionally the links in the HTML
         replacing the base url of the original site (if any) with the proxy prefix
         """
+        """
         content = response.content
         content = content.replace(self.base_url, self.prefix)
-        """
-        if self.language_code == 'en':
-            content = content.replace('Cerca corsi', 'Search courses').replace('Cerca...', 'Search...')
-        if self.language_code == 'es':
-            content = content.replace('Cerca corsi', 'Buscar cursos').replace('Cerca...', 'Buscar...')
-        """
         response.content = content
         return response
+        """
+        self.content = self.content.replace(self.base_url, self.prefix)
 
-    def rewrite_response(self, request, response):
+    # def rewrite_response(self, request, response):
+    def rewrite_response(self, request):
         """
         Rewrites the response to fix references to resources loaded from HTML
         files (images, etc.).
@@ -275,16 +301,22 @@ class WipHttpProxy(HttpProxy):
             "src", "href" and "action" attributes with a value starting with "/"
         """
         proxy_root = self.original_request_path.rsplit(request.path, 1)[0]
+        """
         content = response.content
         content = REWRITE_REGEX.sub(r'\1{}/'.format(proxy_root), content)
+        """
+        self.content = REWRITE_REGEX.sub(r'\1{}/'.format(proxy_root), self.content)
         site_url = self.base_url
         extra = ''
         if request.user.is_superuser:
             webpages = Webpage.objects.filter(site=self.site, path=self.path).order_by('-created')
             if webpages:
                 extra = '<a href="/page/%s/">@</a> ' % webpages[0].id
-        # if self.proxy:
+        """
         if self.proxy and self.online:
             content = BODY_REGEX.sub(r'\1' + info[self.language_code] % (extra, site_url, site_url.split('//')[1]), content)
         response.content = content
         return response
+        """
+        if self.proxy and self.online:
+            self.content = BODY_REGEX.sub(r'\1' + info[self.language_code] % (extra, site_url, site_url.split('//')[1]), self.content)

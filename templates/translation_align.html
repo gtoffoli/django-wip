@@ -57,7 +57,7 @@ th, td { text-align: left; vertical-align: top; }
     <div>{{ translation.text }}</div>
 	</fieldset>
 
-<form action="/translation/{{ translation.id }}/" id="sequencer_form" method="post">
+<form action="/translation_align/{{ translation.id }}/" id="sequencer_form" method="post">
 	{% csrf_token %}
 	<fieldset>
 		<legend>Navigation filters</legend>
@@ -76,7 +76,7 @@ th, td { text-align: left; vertical-align: top; }
 	</fieldset>
 </form>
 
-<form action="/translation/{{ translation.id }}/"  id="alignment_form" method="post">
+<form action="/translation_align/{{ translation.id }}/"  id="alignment_form" method="post">
 	{% csrf_token %}
 
 	<fieldset>
@@ -87,10 +87,12 @@ th, td { text-align: left; vertical-align: top; }
 
 	<div id="dag" style="margin-top: 0.5em; margin-bottom: 0.5em;"></div>
 
-	{{ translation_view_form.alignment }}
-	<div><input type="button" name="save_alignment" class="btn btn-default btn-sm" onclick="document.getElementById('id_alignment').value=get_alignment(); this.form.submit();" value="Save alignment"></div>
+	{{ translation_align_form.alignment }}
+	
+	<div><input type="submit" name="save_draft_alignment" class="btn btn-default btn-sm" onclick="document.getElementById('id_alignment').value=get_alignment(); this.form.submit();" value="Save draft alignment">
+  &nbsp; <input type="submit" name="save_confirmed_alignment" class="btn btn-default btn-sm" onclick="document.getElementById('id_alignment').value=get_alignment(); this.form.submit();" value="Save confirmed alignment"></div>
  
-    <div><label>Compute alignment</label> {{ translation_view_form.compute_alignment }}</div>
+    <div><label>Compute alignment</label> {{ translation_align_form.compute_alignment }}</div>
 	</fieldset>
 </form>
 {% endblock %}

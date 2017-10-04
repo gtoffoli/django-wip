@@ -308,3 +308,26 @@ def merge_alignments(fwd, rev):
         alignment.append([left, right])
         alignment.sort(key=lambda x: (x[0], x[1]))
     return ' '.join(['-'.join([str(link[0]), str(link[1])]) for link in alignment])
+
+def proxy_null_aligner_eval(proxy, translations, lowercasing=False):
+    """
+    compute the quality of a null evaluator applying in cascade
+    unsymmetrizzation and symmetrizzation of a known alignment
+    """
+    tokenizer_1 = NltkTokenizer(language=proxy.site.language_id, lowercasing=lowercasing)
+    tokenizer_2 = NltkTokenizer(language=proxy.language_id, lowercasing=lowercasing)
+    aer_total = 0.0
+    n_evaluated = 0
+    for translation in translations:
+        alignment = translation.alignment
+        if not alignment:
+            continue
+        source_text = translation.segment.text
+        target_text = translation.text
+        srclen = len(tokenize(source_text, tokenizer=tokenizer_1))
+        trglen = len(tokenize(target_text, tokenizer=tokenizer_2))
+        fwd, rev = split_alignment(alignment)
+        alignment = symmetrize_alignments(srclen, trglen, fwd, rev)
+        aer_total += aer(alignment, translation.alignment)
+        n_evaluated += 1
+    return aer_total/n_evaluated

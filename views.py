@@ -1443,7 +1443,7 @@ def segment_view(request, segment_id):
     return render(request, 'segment_view.html', var_dict)
 
 @staff_member_required
-def translation_view(request, translation_id):
+def translation_align(request, translation_id):
     alignment = ''
     compute_alignment = False
 
@@ -1466,10 +1466,10 @@ def translation_view(request, translation_id):
     if post:
         print('post')
         if post.get('alignment', ''):
-            translation_view_form = TranslationViewForm(post)
+            translation_align_form = TranslationViewForm(post)
             print('alignment')
-            if translation_view_form.is_valid():
-                data = translation_view_form.cleaned_data
+            if translation_align_form.is_valid():
+                data = translation_align_form.cleaned_data
                 alignment = data['alignment']
                 print('alignment: ', alignment)
                 compute_alignment = data['compute_alignment']
@@ -1492,7 +1492,7 @@ def translation_view(request, translation_id):
     translation_context['alignment_type'] = alignment_type
     request.session['translation_context'] = translation_context
     if goto:
-        return HttpResponseRedirect('/translation/%d/' % translation.id)        
+        return HttpResponseRedirect('/translation_align/%d/' % translation.id)        
     n, first, last, previous, next = translation.get_navigation(order_by=order_by, alignment_type=alignment_type)
     var_dict['n'] = n
     var_dict['first'] = first
@@ -1500,10 +1500,13 @@ def translation_view(request, translation_id):
     var_dict['next'] = next
     var_dict['last'] = last
 
-    var_dict['translation_view_form'] = TranslationViewForm(initial={'compute_alignment': compute_alignment,})
+    var_dict['translation_align_form'] = TranslationViewForm(initial={'compute_alignment': compute_alignment,})
     if alignment:
         translation.alignment = alignment
-        translation.alignment_type = MANUAL
+        if post.get('save_draft_alignment'):
+            translation.alignment_type = MT
+        elif post.get('save_confirmed_alignment'):
+            translation.alignment_type = MANUAL
         translation.save()
     else:
         alignment = translation.alignment
@@ -1511,7 +1514,7 @@ def translation_view(request, translation_id):
     var_dict['alignment_type'] = translation.alignment_type==MANUAL and 'manual' or ''
     var_dict['can_edit'] = True
     var_dict['sequencer_form'] = TranslationSequencerForm(initial={'order_by': order_by, 'alignment_type': alignment_type})
-    return render(request, 'translation_view.html', var_dict)
+    return render(request, 'translation_align.html', var_dict)
 
 def string_edit(request, string_id=None, language_code='', proxy_slug=''):
     user = request.user

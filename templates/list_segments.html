@@ -97,7 +97,7 @@
 			    {% if target_translations %}
                     {% for translation in target_translations %}
 				  <tr>
-				  <td style="vertical-align:top;"><a href="/translation/{{ translation.id }}/" class="{{ target_language.code }}">{{ target_language.code }}</a></td>
+				  <td style="vertical-align:top;"><a href="/translation_align/{{ translation.id }}/" class="{{ target_language.code }}">{{ target_language.code }}</a></td>
 				  <td>
                         	<input type="hidden" name="translation-{{ translation.id }}" id="translation-{{ translation.id }}" value="{{ translation.id }}">
                         	<textarea class="form-control custom-control" name="text-{{ translation.id }}" id="text-{{ translation.id }}" style="width:100%">{{ translation.text }}</textarea>
@@ -132,7 +132,7 @@
               {% for other_language in other_languages %}
                 {% for translation in translations|lookup:other_language.code %}
 				  <tr>
-                		<td style="font-size: smaller; vertical-align:top;"><a href="/translation/{{ translation.id }}/"  class="{{ other_language.code }}">{{ other_language.code }}</a></td>
+                		<td style="font-size: smaller; vertical-align:top;"><a href="/translation_align/{{ translation.id }}/"  class="{{ other_language.code }}">{{ other_language.code }}</a></td>
 						<td style="font-size: smaller;">{{ translation.text }}</td>
 						<td></td>
 				  <tr>
