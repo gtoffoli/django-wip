@@ -66,7 +66,8 @@ class WipHttpProxy(HttpProxy):
 
     def dispatch(self, request, url, *args, **kwargs):
         self.url = url
-        self.host = request.META.get('HTTP_HOST', '')
+        self.forwarded_host = request.META.get('HTTP_X_FORWARDED_HOST', None)
+        self.host = self.forwarded_host or request.META.get('HTTP_HOST', '')
 
         self.online = False
         for proxy in Proxy.objects.all():
