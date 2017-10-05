@@ -59,12 +59,10 @@ class WipHttpProxy(HttpProxy):
         """ see __init__ method of DjangoDiazoMiddleware in module django_diazo.middleware """
         super(WipHttpProxy, self).__init__(*args,**kwargs)
         self.app = None
-        """ """
         self.theme_id = None
         self.diazo = None
         self.transform = None
         self.params = {}
-        """ """
 
     def dispatch(self, request, url, *args, **kwargs):
         self.url = url
@@ -281,7 +279,8 @@ class WipHttpProxy(HttpProxy):
     # def replace_links(self, response):
         """
         Rewrites unconditionally the links in the HTML
-        replacing the base url of the original site (if any) with the proxy prefix
+        removing the base url of the original site (if any) when in online mode
+        or replacing it with the proxy prefix
         """
         """
         content = response.content
@@ -289,7 +288,10 @@ class WipHttpProxy(HttpProxy):
         response.content = content
         return response
         """
-        self.content = self.content.replace(self.base_url, self.prefix)
+        if self.online:
+            self.content = self.content.replace(self.base_url, '')
+        else:
+            self.content = self.content.replace(self.base_url, self.prefix)
 
     # def rewrite_response(self, request, response):
     def rewrite_response(self, request):
