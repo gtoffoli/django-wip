@@ -288,6 +288,10 @@ class WipHttpProxy(HttpProxy):
         response.content = content
         return response
         """
+        try:
+            print ('replace_links - self.online:', self.online, ', self.base_url:', self.base_url, ', self.prefix:', self.prefix)
+        except:
+            pass
         if self.online:
             self.content = self.content.replace(self.base_url, '')
         else:
