@@ -290,6 +290,7 @@ class WipHttpProxy(HttpProxy):
         """
         try:
             print ('replace_links - self.online:', self.online, ', self.base_url:', self.base_url, ', self.prefix:', self.prefix)
+            print ('replace_links - self.host:', self.host, ', self.proxy.host:', self.proxy.host)
         except:
             pass
         if self.online:
