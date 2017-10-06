@@ -890,6 +890,10 @@ class Proxy(models.Model):
                     if M>max_tokens or abs(M-L)>max_fertility:
                         continue
                     target_text = ' '.join(target_tokens)
+                    try:
+                        print(n_translations, len(target_tokens), ' + '.join(target_tokens))
+                    except:
+                        pass
                 if parallel_format == PARALLEL_FORMAT_XLIFF:
                     pass
                 elif parallel_format == PARALLEL_FORMAT_TEXT:
@@ -915,11 +919,14 @@ class Proxy(models.Model):
     def make_bitext(self, lowercasing=False, use_invariant=False, tokenizer=None, max_tokens=1000, max_fertility=1000):
         site = self.site
         target_language = self.language
+        source_tokenizer = NltkTokenizer(site.language_id, lowercasing=lowercasing)
+        target_tokenizer = NltkTokenizer(self.language_id, lowercasing=lowercasing)
         segments = Segment.objects.filter(site=site)
         bitext = []
         for segment in segments:
             segment_text = segment.text
-            source_tokens = tokenize(segment_text, tokenizer=tokenizer, lowercasing=lowercasing)
+            # source_tokens = tokenize(segment_text, tokenizer=tokenizer, lowercasing=lowercasing)
+            source_tokens = tokenize(segment_text, tokenizer=source_tokenizer)
             L = len(source_tokens)
             if L > max_tokens:
                 continue
@@ -931,16 +938,19 @@ class Proxy(models.Model):
                 translations = Translation.objects.filter(segment=segment, language=target_language)
                 for translation in translations:
                     translation_text = translation.text
-                    target_tokens = tokenize(translation_text, tokenizer=tokenizer, lowercasing=lowercasing)
+                    # target_tokens = tokenize(translation_text, tokenizer=tokenizer, lowercasing=lowercasing)
+                    target_tokens = tokenize(translation_text, tokenizer=target_tokenizer)
                     M = len(target_tokens)
                     if M>max_tokens or abs(M-L)>max_fertility:
                         continue
                     bitext.append(AlignedSent(source_tokens, target_tokens))
         return bitext
 
-    def get_train_aligner(self, bitext=None, ibm_model=2, train=False, iterations=5, tokenizer=None, lowercasing=False, use_invariant=False, max_tokens=1000, max_fertility=1000):
+    # def get_train_aligner(self, bitext=None, ibm_model=2, train=False, iterations=5, tokenizer=None, lowercasing=False, use_invariant=False, max_tokens=1000, max_fertility=1000):
+    def get_train_aligner(self, bitext=None, ibm_model=2, train=False, iterations=5, lowercasing=False, use_invariant=False, max_tokens=1000, max_fertility=1000):
         if not bitext:
-            bitext = self.make_bitext(lowercasing=lowercasing, tokenizer=tokenizer, use_invariant=use_invariant, max_tokens=max_tokens, max_fertility=max_fertility)
+            # bitext = self.make_bitext(lowercasing=lowercasing, tokenizer=tokenizer, use_invariant=use_invariant, max_tokens=max_tokens, max_fertility=max_fertility)
+            bitext = self.make_bitext(lowercasing=lowercasing, use_invariant=use_invariant, max_tokens=max_tokens, max_fertility=max_fertility)
         site = self.site
         aligner_name = 'align_%s_%s%s.pickle' % (site.slug, site.language_id, self.language_id)
         aligner_path = os.path.join(settings.CACHE_ROOT, aligner_name)
@@ -972,24 +982,25 @@ class Proxy(models.Model):
                     translation.alignment = ''
                     translation.save() 
 
-    def align_translations(self, aligner=None, bitext=None, ibm_model=2, iterations=5, tokenizer=None, lowercasing=False, evaluate=False):
+    def align_translations(self, aligner=None, bitext=None, ibm_model=2, iterations=5, lowercasing=False, evaluate=False):
         if not evaluate:
             self.clear_alignments()
-        if not tokenizer:
-            tokenizer = NltkTokenizer(lowercasing=lowercasing)
+        source_tokenizer = NltkTokenizer(self.site.language_id, lowercasing=lowercasing)
+        target_tokenizer = NltkTokenizer(self.language_id, lowercasing=lowercasing)
         if not aligner:
-            aligner = self.get_train_aligner(bitext=bitext, ibm_model=ibm_model, train=True, iterations=iterations, tokenizer=tokenizer, lowercasing=lowercasing)
+            # aligner = self.get_train_aligner(bitext=bitext, ibm_model=ibm_model, train=True, iterations=iterations, tokenizer=tokenizer, lowercasing=lowercasing)
+            aligner = self.get_train_aligner(bitext=bitext, ibm_model=ibm_model, train=True, iterations=iterations, lowercasing=lowercasing)
         target_language = self.language
         if evaluate:
             aer_total = 0.0
             n_evaluated = 0
         segments = Segment.objects.filter(site=self.site)
         for segment in segments:
-            source_tokens = tokenize(segment.text, tokenizer=tokenizer)
+            source_tokens = tokenize(segment.text, tokenizer=source_tokenizer)
             translations = Translation.objects.filter(segment=segment, language=target_language)
             for translation in translations:
                 if evaluate or not translation.alignment_type==MANUAL:
-                    target_tokens = tokenize(translation.text, tokenizer=tokenizer)
+                    target_tokens = tokenize(translation.text, tokenizer=target_tokenizer)
                     alignment = best_alignment(aligner, source_tokens, target_tokens)
                     """
                     translation.alignment = ' '.join(['%s-%s' % (str(couple[0]), couple[1] is not None and str(couple[1]) or '') for couple in alignment])
@@ -2373,10 +2384,10 @@ class Translation(models.Model):
         return n, first, last, previous, next
 
     def make_json(self):
-        lowercasing = True
-        tokenizer = NltkTokenizer(lowercasing=lowercasing)
-        source_tokens = tokenize(self.segment.text, tokenizer=tokenizer, lowercasing=lowercasing)
-        target_tokens = tokenize(self.text, tokenizer=tokenizer, lowercasing=lowercasing)
+        source_tokenizer = NltkTokenizer(language=self.segment.language_id, lowercasing=False)
+        target_tokenizer = NltkTokenizer(language=self.language_id, lowercasing=False)
+        source_tokens = tokenize(self.segment.text, tokenizer=source_tokenizer)
+        target_tokens = tokenize(self.text, tokenizer=target_tokenizer)
         cells = []
         x = 10
         i = 0

@@ -28,7 +28,6 @@ else:
     import StringIO
 
 def tokenize(text, lowercasing=False, tokenizer=None):
-    # return re.split("[ |\']*", text)
     if tokenizer:
         return tokenizer.tokenize(text)
     if lowercasing:

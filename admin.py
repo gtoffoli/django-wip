@@ -296,8 +296,8 @@ class SegmentAdmin(admin.ModelAdmin):
 
 class TranslationAdmin(admin.ModelAdmin):
     list_display = ['id', 'segment_link', 'language', 'text', 'translation_type', 'alignment_type', 'alignment', 'user_role']
-    list_filter = ['language']
-    search_fields = ['text',]
+    list_filter = ['language', 'alignment_type',]
+    search_fields = ['text', 'alignment',]
 
     def segment_link(self, obj):
         segment = obj.segment
