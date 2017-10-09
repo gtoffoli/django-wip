@@ -62,7 +62,8 @@ from .settings import RESOURCES_ROOT, BLOCK_TAGS, BLOCKS_EXCLUDE_BY_XPATH, SEPAR
 DEFAULT_USER = 1
 from .utils import element_tostring, text_from_html, strings_from_html, elements_from_element, replace_element_content, element_signature
 from .utils import normalize_string, replace_segment, string_checksum, text_to_list # , non_invariant_words
-import wip.srx_segmenter
+# import wip.srx_segmenter
+import wip.srx_segmenter as srx_segmenter
 
 MYMEMORY = 1
 MATECAT = 2
@@ -864,8 +865,8 @@ class Proxy(models.Model):
             text = rx.sub(one_xlat, text)
         return text
 
-    # def export_translations(self, outfile_1, outfile_2=None, parallel_format=PARALLEL_FORMAT_NONE, tokenizer_1=None, tokenizer_2=None, lowercasing=False, max_tokens=1000, max_fertility=1000):
-    def export_translations(self, outfile_1, outfile_2=None, outfile_3=None, parallel_format=PARALLEL_FORMAT_NONE, tokenizer_1=None, tokenizer_2=None, lowercasing=False, max_tokens=1000, max_fertility=1000, known_links_fwd=None, known_links_rev=None):
+    # def export_translations(self, outfile_1, outfile_2=None, outfile_3=None, parallel_format=PARALLEL_FORMAT_NONE, tokenizer_1=None, tokenizer_2=None, lowercasing=False, max_tokens=1000, max_fertility=1000, known_links_fwd=None, known_links_rev=None):
+    def export_translations(self, outfile_1, outfile_2=None, outfile_3=None, parallel_format=PARALLEL_FORMAT_NONE, tokenizer_1=None, tokenizer_2=None, lowercasing=False, max_tokens=1000, max_fertility=1000, known_links_fwd=None, known_links_rev=None, evaluate=False):
         segments = Segment.objects.filter(site=self.site, is_invariant=False)
         if parallel_format == PARALLEL_FORMAT_XLIFF:
             pass
@@ -904,7 +905,10 @@ class Proxy(models.Model):
                     if known_links_fwd and known_links_rev:
                         fwd = rev = ''
                         if translation.alignment and translation.alignment_type==MANUAL:
-                            fwd, rev = split_alignment(translation.alignment)
+                            if evaluate and n_translations % 2 == 0:
+                                fwd, rev = split_alignment(translation.alignment)
+                            else:
+                                fwd = rev = ''
                         known_links_fwd.write('%s\n' % fwd)
                         known_links_rev.write('%s\n' % rev)
                 if outfile_3:
@@ -994,6 +998,7 @@ class Proxy(models.Model):
         if evaluate:
             aer_total = 0.0
             n_evaluated = 0
+        n_translations = 0
         segments = Segment.objects.filter(site=self.site)
         for segment in segments:
             source_tokens = tokenize(segment.text, tokenizer=source_tokenizer)
@@ -1017,8 +1022,11 @@ class Proxy(models.Model):
                         translation.alignment = alignment
                         translation.alignment_type = MT
                         translation.save()
+                n_translations += 1
         if evaluate and n_evaluated:
-            print ('evaluation: ', aer_total/n_evaluated)
+            evaluation = aer_total/n_evaluated
+            print ('evaluation: ', evaluation)
+            return evaluation
     
     def eflomal_align_translations(self, lowercasing=False, max_tokens=1000, max_fertility=100, symmetrize=True, evaluate=False, verbose=False):
         if not evaluate:
@@ -1039,6 +1047,7 @@ class Proxy(models.Model):
         if evaluate:
             aer_total = 0.0
             n_evaluated = 0
+        n_translations = 0
         for line in alignment_file:
             translation_id = int(translation_ids.readline().replace('\n', ''))
             translation = Translation.objects.get(id=translation_id)
@@ -1056,16 +1065,20 @@ class Proxy(models.Model):
                     print ('--- fixed and computed alignment for translation # %d' % translation.id)
                     print (translation.alignment)
                     print (alignment)
-                    aer_total += aer(alignment, translation.alignment)
-                    n_evaluated += 1
+                    if n_translations % 2 == 1:
+                        aer_total += aer(alignment, translation.alignment)
+                        n_evaluated += 1
             else:
                 if not translation.alignment_type==MANUAL:
                     translation.alignment = alignment
                     translation.alignment_type = MT
                     translation.save()
+            n_translations += 1
         alignment_file.close()
         if evaluate and n_evaluated:
-            print ('evaluation: ', aer_total/n_evaluated)
+            evaluation = aer_total/n_evaluated
+            print ('evaluation: ', evaluation)
+            return evaluation
 
     def get_translations(self, translation_type=ANY):
         translations = Translation.objects.filter(segment__site=self.site, language=self.language)

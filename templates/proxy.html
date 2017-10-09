@@ -86,7 +86,8 @@
    		<span><input type="submit" name="export_translations" value="Export translations" title="Export translations" class="mR30 btn btn-default btn-sm"></span>	
    		<span class="mR10">{{ manage_form.aligner }}
    		                   <input type="submit" name="align_translations" value="Align translations" title="Align translations" class="btn btn-default btn-sm">
-   		                   <input type="submit" name="evaluate_aligner" value="Evaluate aligner" title="Evaluate aligner" class="btn btn-default btn-sm"></span>
+   		                   <input type="submit" name="evaluate_aligner" value="Evaluate aligner" title="Evaluate aligner" class="btn btn-default btn-sm">
+      					   {% if evaluation %}{{ evaluation }}{% endif %}</span>
   		<span><input type="submit" name="download_words_distribution" value="Download words distribution" title="Download words distributions" class="btn btn-default btn-sm"></span>
       </div>
       {% if page_count %}

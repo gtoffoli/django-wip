@@ -85,13 +85,12 @@ def strings_from_block(block, tree=None, exclude_xpaths=[]):
     if block_children:
         text_list = []
         text = block.text
-        # if text: text = text.strip()
         if text: text = split_strip(text)
         if text:
-            text = unicode(text)
+            # text = unicode(text)
             text_list.append(text)
         for child in children:
-            if child.tag  in settings.TO_DROP_TAGS:
+            if child.tag in settings.TO_DROP_TAGS:
                 continue
             if exclude_xpaths:
                 # NO [1] element index in xpath address !!!
@@ -104,39 +103,55 @@ def strings_from_block(block, tree=None, exclude_xpaths=[]):
                     yield u' '.join(text_list)
                 text_list = []
                 for el in strings_from_block(child, tree=tree, exclude_xpaths=exclude_xpaths):
-                    # if el: el = el.strip()
                     if el: el = split_strip(el)
                     if el:
                         yield el
                 if child.tail:
-                    # text = child.tail.strip()
                     text = split_strip(child.tail)
                     if text:
-                        text = unicode(text)
+                        # text = unicode(text)
                         text_list.append(text)
             else:
                 text = child.text_content()
-                # if text: text = text.strip()
                 if text: text = split_strip(text)
                 if text:
-                    text = unicode(text)
+                    # text = unicode(text)
                     text_list.append(text)
         if text_list:
             yield u' '.join(text_list)
     else:
         content = block.text_content()
-        # if content: content = content.strip()
         if content: content = split_strip(content)
         if content:
-            content = unicode(content)
-            # print 'strings_from_block - 7: ', type(content)
             yield content
     tail = block.tail
-    # if tail: tail = tail.strip()
     if tail: tail = split_strip(tail)
     if tail:
-        tail = unicode(tail)
+        # tail = unicode(tail)
         yield tail
+
+def strings_from_block(block, tree=None, exclude_xpaths=[]):
+    children = block.getchildren()
+    if children:
+        yield block.text
+        for child in children:
+            if child.tag in settings.TO_DROP_TAGS:
+                continue
+            if exclude_xpaths:
+                # NO [1] element index in xpath address !!!
+                xpath = tree.getpath(child).replace('[1]','')
+                if xpath in exclude_xpaths:
+                    continue
+            if child.tag in settings.TO_DROP_TAGS:
+                continue
+            for el in strings_from_block(child, tree=tree, exclude_xpaths=exclude_xpaths):
+                yield el
+    else:
+        content = block.text_content()
+        yield content
+    if block.tag in settings.BLOCK_TAGS:
+        yield '\n'
+    yield block.tail
 
 def strings_from_html(string, fragment=False, exclude_xpaths=[], exclude_tx=False):
     # print 'strings_from_html - 1: ', type(string)
@@ -166,11 +181,25 @@ def strings_from_html(string, fragment=False, exclude_xpaths=[], exclude_tx=Fals
         els = body.findall('.//span[@tx]')
         # print 'exclude_tx: ', len(els)
         for el in els:
-            el.getparent().remove(el) 
+            el.getparent().remove(el)
+    """
     for s in strings_from_block(body, tree=tree, exclude_xpaths=exclude_xpaths):
         if s:
             # print 'strings_from_html - 3: ', type(s)
             yield s
+    """
+    ls = []
+    for s in strings_from_block(body, tree=tree, exclude_xpaths=exclude_xpaths):
+        if s:
+            if s == '\n':
+                if ls:
+                    yield ' '.join(ls)
+                ls = []
+            s = split_strip(s)
+            if s:
+                ls.append(s)
+    if ls:
+        yield ' '.join(ls)
 
 def elements_from_element(element):
     """ returns the in block and, recursively, the child blocks, when

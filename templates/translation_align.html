@@ -89,8 +89,9 @@ th, td { text-align: left; vertical-align: top; }
 
 	{{ translation_align_form.alignment }}
 	
-	<div><input type="submit" name="save_draft_alignment" class="btn btn-default btn-sm" onclick="document.getElementById('id_alignment').value=get_alignment(); this.form.submit();" value="Save draft alignment">
-  &nbsp; <input type="submit" name="save_confirmed_alignment" class="btn btn-default btn-sm" onclick="document.getElementById('id_alignment').value=get_alignment(); this.form.submit();" value="Save confirmed alignment"></div>
+	<div><input type="submit" name="save_draft_alignment" class="btn btn-sm" onclick="document.getElementById('id_alignment').value='-'; this.form.submit();" value="Clear links">
+  &nbsp; <input type="submit" name="save_draft_alignment" class="btn btn-default btn-sm" onclick="document.getElementById('id_alignment').value=get_alignment(); this.form.submit();" value="Save draft alignment">
+  &nbsp; <input type="submit" name="save_confirmed_alignment" class="btn btn-sm" onclick="document.getElementById('id_alignment').value=get_alignment(); this.form.submit();" value="Save confirmed alignment"></div>
  
     <div><label>Compute alignment</label> {{ translation_align_form.compute_alignment }}</div>
 	</fieldset>

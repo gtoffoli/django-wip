@@ -189,8 +189,8 @@ def proxy_symmetrize_alignments(proxy, base_path=None):
 if (sys.version_info > (3, 0)):
     import eflomal
     
-    # def proxy_eflomal_align(proxy, base_path='\wip3\sandbox', lowercasing=True, max_tokens=6, max_fertility=1):
-    def proxy_eflomal_align(proxy, base_path=None, lowercasing=False, max_tokens=1000, max_fertility=100, translation_ids=None, use_know_links=False):
+    # def proxy_eflomal_align(proxy, base_path=None, lowercasing=False, max_tokens=1000, max_fertility=100, translation_ids=None, use_know_links=False):
+    def proxy_eflomal_align(proxy, base_path=None, lowercasing=False, max_tokens=1000, max_fertility=100, translation_ids=None, use_know_links=False, evaluate=False):
         if not base_path:
             base_path = os.path.join(settings.BASE_DIR, 'sandbox') 
         proxy_code = '%s_%s' % (proxy.site.slug, proxy.language_id)
@@ -204,7 +204,8 @@ if (sys.version_info > (3, 0)):
         if use_know_links:
             known_links_fwd = open(known_links_filename_fwd, 'w')
             known_links_rev = open(known_links_filename_rev, 'w')
-            proxy.export_translations(tokenized_1, outfile_2=tokenized_2, outfile_3=translation_ids, tokenizer_1=tokenizer_1, tokenizer_2=tokenizer_2, lowercasing=lowercasing, max_tokens=max_tokens, max_fertility=max_fertility, known_links_fwd=known_links_fwd, known_links_rev=known_links_rev)
+            # proxy.export_translations(tokenized_1, outfile_2=tokenized_2, outfile_3=translation_ids, tokenizer_1=tokenizer_1, tokenizer_2=tokenizer_2, lowercasing=lowercasing, max_tokens=max_tokens, max_fertility=max_fertility, known_links_fwd=known_links_fwd, known_links_rev=known_links_rev)
+            proxy.export_translations(tokenized_1, outfile_2=tokenized_2, outfile_3=translation_ids, tokenizer_1=tokenizer_1, tokenizer_2=tokenizer_2, lowercasing=lowercasing, max_tokens=max_tokens, max_fertility=max_fertility, known_links_fwd=known_links_fwd, known_links_rev=known_links_rev, evaluate=evaluate)
             known_links_fwd.close()
             known_links_rev.close()
         else:

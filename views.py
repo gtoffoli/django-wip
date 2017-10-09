@@ -581,7 +581,10 @@ def proxy(request, proxy_slug):
                 """
                 aligner = int(data['aligner'])
                 if aligner == 1: # eflomal
-                    proxy.eflomal_align_translations(evaluate=evaluate_aligner)
+                    # proxy.eflomal_align_translations(evaluate=evaluate_aligner)
+                    evaluation = proxy.eflomal_align_translations(evaluate=evaluate_aligner)
+                    if evaluate_aligner:
+                        var_dict['evaluation'] = evaluation
                 elif aligner == 2: # NLTK IBM models
                     proxy.align_translations(ibm_model=2, iterations=5, evaluate=evaluate_aligner)                
             elif download_words_distribution:
@@ -1502,6 +1505,8 @@ def translation_align(request, translation_id):
 
     var_dict['translation_align_form'] = TranslationViewForm(initial={'compute_alignment': compute_alignment,})
     if alignment:
+        if alignment=='-':
+            alignment = ''
         translation.alignment = alignment
         if post.get('save_draft_alignment'):
             translation.alignment_type = MT
