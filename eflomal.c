@@ -362,12 +362,13 @@ resample:;
         int aa_jm1 = -1;
         for (size_t j=0; j<target_length; j++) {
 
+        	link_t fixed_link = NULL_LINK;
             if (fixed_links != NULL) {
-            	link_t fixed_link = fixed_links[j];
-            	if (fixed_link != NULL_LINK) {
+                fixed_link = fixed_links[j];
+                if (fixed_link != NULL_LINK) {
                     assert (fixed_link < source_sentence->length);
-            	    continue;
-            	}
+                    // continue;
+                }
             }
 
             const token f = target_tokens[j];
@@ -565,6 +566,10 @@ resample:;
                 // index beyond the sentence (== source_length)
                 new_i = (old_i == NULL_LINK)? source_length : old_i;
             }
+
+            if (fixed_link != NULL_LINK)
+				new_i = fixed_link;
+
             token new_e;
             if (new_i == source_length) {
                 new_e = 0;

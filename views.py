@@ -921,7 +921,8 @@ def get_or_add_segment(request, text, language, site, is_fragment=False):
     if segments:
         segment = segments[0]
     else:
-        segment = Segment(text=text, language=language, site=site, is_fragment=is_fragment, user=request.user)
+        # segment = Segment(text=text, language=language, site=site, is_fragment=is_fragment, user=request.user)
+        segment = Segment(text=text, language=language, site=site, is_fragment=is_fragment)        
         segment.save()
     return segment
 

@@ -98,15 +98,15 @@
 <afterbreak>[a-z]</afterbreak>
 </rule>
 <rule break="no">
-<beforebreak>[\.!?…]+</beforebreak>
+<beforebreak>[\.;!?…]+</beforebreak>
 <afterbreak>\)</afterbreak>
 </rule>
 <rule break="yes">
-<beforebreak>[\.!?…]+</beforebreak>
+<beforebreak>[\.;!?…]+</beforebreak>
 <afterbreak></afterbreak>
 </rule>
 <rule break="yes">
-<beforebreak>[\.!?…]+</beforebreak>
+<beforebreak>[\.;!?…]+</beforebreak>
 <afterbreak>\p{Lu}[^\p{Lu}]</afterbreak>
 </rule>
 <rule break="yes">
