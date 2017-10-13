@@ -84,12 +84,23 @@
    		<a href="/import_xliff/{{ proxy.slug }}/" title="import XLIFF translations" class="mR30 btn btn-default btn-sm">{% trans "import XLIFF translations"|capfirst %}</a>
 		{{ manage_form.parallel_format }}
    		<span><input type="submit" name="export_translations" value="Export translations" title="Export translations" class="mR30 btn btn-default btn-sm"></span>	
-   		<span class="mR10">{{ manage_form.aligner }}
-   		                   <input type="submit" name="align_translations" value="Align translations" title="Align translations" class="btn btn-default btn-sm">
-   		                   <input type="submit" name="evaluate_aligner" value="Evaluate aligner" title="Evaluate aligner" class="btn btn-default btn-sm">
-      					   {% if evaluation %}{{ evaluation }}{% endif %}</span>
   		<span><input type="submit" name="download_words_distribution" value="Download words distribution" title="Download words distributions" class="btn btn-default btn-sm"></span>
       </div>
+      <div class="form-group">
+   		<span class="mR30">
+			{{ manage_form.aligner }} &nbsp;
+			{{ manage_form.use_known_links }} Use known links
+			<input type="submit" name="align_translations" value="Align translations" title="Align translations" class="btn btn-default btn-sm">
+        </span><span class="mR30">
+			{{ manage_form.test_set_module }} Test set generation &nbsp;
+			<input type="submit" name="evaluate_aligner" value="Evaluate aligner" title="Evaluate aligner" class="btn btn-default btn-sm">
+			{% if evaluation %}{{ evaluation }}{% endif %}
+        </span><span class="mR30">
+			{{ manage_form.verbose }} Verbose &nbsp; 
+			{{ manage_form.debug }} Debug
+	    </span>
+      </div>
+
       {% if page_count %}
         <div class="form-group"><span class="mR30"><input type="submit" name="cache_pages" value="Cache translated pages" title="cache translated pages" class="btn btn-default btn-sm"></span>{{ manage_form.delete_pages_confirmation }} Yes, I want to delete all translated pages <input type="submit" name="delete_pages" value="Delete translated pages" title="delete translated pages" class="btn btn-default btn-sm"></div>
       {% endif %}

@@ -580,9 +580,13 @@ def proxy(request, proxy_slug):
                         translation.save()
                 """
                 aligner = int(data['aligner'])
+                use_known_links = data['use_known_links']
+                test_set_module = int(data['test_set_module'])
+                verbose = data['verbose']
+                debug = data['debug']
                 if aligner == 1: # eflomal
                     # proxy.eflomal_align_translations(evaluate=evaluate_aligner)
-                    evaluation = proxy.eflomal_align_translations(evaluate=evaluate_aligner)
+                    evaluation = proxy.eflomal_align_translations(evaluate=evaluate_aligner, use_know_links=use_known_links, test_set_module=test_set_module, verbose=verbose, debug=debug)
                     if evaluate_aligner:
                         var_dict['evaluation'] = evaluation
                 elif aligner == 2: # NLTK IBM models
@@ -602,6 +606,8 @@ def proxy(request, proxy_slug):
                 print ('propagate_up')
                 n_new, n_updated, n_no_updated = proxy.propagate_up_block_updates()
                 messages.add_message(request, messages.INFO, 'Up propagation: %d new, %d updated, %d not updated blocks' % (n_new, n_updated, n_no_updated))
+    else:
+        form = ProxyManageForm(initial={ 'use_known_links': True, 'test_set_module': 2, 'verbose': False, 'debug': False })
     webpages = Webpage.objects.filter(site=site).order_by('id')
     var_dict['page_count'] = page_count = webpages.count()
     var_dict['first_page'] = webpages and webpages[0] or None
@@ -624,7 +630,7 @@ def proxy(request, proxy_slug):
     var_dict['left_blocks_count'] = blocks_total - blocks_invariant - translated_blocks_count - partially_blocks_count
     var_dict['blocks_ready'] = blocks_ready = proxy.blocks_ready()
     var_dict['ready_count'] = len(blocks_ready)
-    var_dict['manage_form'] = ProxyManageForm()
+    var_dict['manage_form'] = form # ProxyManageForm()
     # return render_to_response('proxy.html', var_dict, context_instance=RequestContext(request))
     return render(request, 'proxy.html', var_dict)
 

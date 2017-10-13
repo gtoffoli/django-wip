@@ -866,8 +866,8 @@ class Proxy(models.Model):
         return text
 
     # def export_translations(self, outfile_1, outfile_2=None, outfile_3=None, parallel_format=PARALLEL_FORMAT_NONE, tokenizer_1=None, tokenizer_2=None, lowercasing=False, max_tokens=1000, max_fertility=1000, known_links_fwd=None, known_links_rev=None):
-    def export_translations(self, outfile_1, outfile_2=None, outfile_3=None, parallel_format=PARALLEL_FORMAT_NONE, tokenizer_1=None, tokenizer_2=None, lowercasing=False, max_tokens=1000, max_fertility=1000, known_links_fwd=None, known_links_rev=None, evaluate=False):
-        segments = Segment.objects.filter(site=self.site, is_invariant=False)
+    def export_translations(self, outfile_1, outfile_2=None, outfile_3=None, parallel_format=PARALLEL_FORMAT_NONE, tokenizer_1=None, tokenizer_2=None, lowercasing=False, max_tokens=1000, max_fertility=1000, known_links_fwd=None, known_links_rev=None, evaluate=False, test_set_module=2, verbose=False):
+        segments = Segment.objects.filter(site=self.site, is_invariant=False).order_by('id')
         if parallel_format == PARALLEL_FORMAT_XLIFF:
             pass
         if known_links_fwd and known_links_rev:
@@ -882,7 +882,7 @@ class Proxy(models.Model):
                 if L > max_tokens:
                     continue
                 source_text = ' '.join(source_tokens)
-            translations = Translation.objects.filter(segment=segment, language=self.language)
+            translations = Translation.objects.filter(segment=segment, language=self.language).order_by('id')
             for translation in translations:
                 target_text = translation.text
                 if tokenizer_2:
@@ -891,10 +891,11 @@ class Proxy(models.Model):
                     if M>max_tokens or abs(M-L)>max_fertility:
                         continue
                     target_text = ' '.join(target_tokens)
-                    try:
-                        print(n_translations, len(target_tokens), ' + '.join(target_tokens))
-                    except:
-                        pass
+                    if verbose:
+                        try:
+                            print(n_translations, len(target_tokens), ' + '.join(target_tokens))
+                        except:
+                            pass
                 if parallel_format == PARALLEL_FORMAT_XLIFF:
                     pass
                 elif parallel_format == PARALLEL_FORMAT_TEXT:
@@ -905,7 +906,8 @@ class Proxy(models.Model):
                     if known_links_fwd and known_links_rev:
                         fwd = rev = ''
                         if translation.alignment and translation.alignment_type==MANUAL:
-                            if evaluate and n_translations % 2 == 0:
+                            # if evaluate and n_translations % 2 == 0:
+                            if evaluate and n_translations % test_set_module != 0:
                                 fwd, rev = split_alignment(translation.alignment)
                             else:
                                 fwd = rev = ''
@@ -986,7 +988,7 @@ class Proxy(models.Model):
                     translation.alignment = ''
                     translation.save() 
 
-    def align_translations(self, aligner=None, bitext=None, ibm_model=2, iterations=5, lowercasing=False, evaluate=False):
+    def align_translations(self, aligner=None, bitext=None, ibm_model=2, iterations=5, lowercasing=False, evaluate=False, verbose=False):
         if not evaluate:
             self.clear_alignments()
         source_tokenizer = NltkTokenizer(self.site.language_id, lowercasing=lowercasing)
@@ -999,10 +1001,10 @@ class Proxy(models.Model):
             aer_total = 0.0
             n_evaluated = 0
         n_translations = 0
-        segments = Segment.objects.filter(site=self.site)
+        segments = Segment.objects.filter(site=self.site).order_by('id')
         for segment in segments:
             source_tokens = tokenize(segment.text, tokenizer=source_tokenizer)
-            translations = Translation.objects.filter(segment=segment, language=target_language)
+            translations = Translation.objects.filter(segment=segment, language=target_language).order_by('id')
             for translation in translations:
                 if evaluate or not translation.alignment_type==MANUAL:
                     target_tokens = tokenize(translation.text, tokenizer=target_tokenizer)
@@ -1025,17 +1027,18 @@ class Proxy(models.Model):
                 n_translations += 1
         if evaluate and n_evaluated:
             evaluation = aer_total/n_evaluated
-            print ('evaluation: ', evaluation)
+            if verbose:
+                print ('evaluation: ', evaluation)
             return evaluation
     
-    def eflomal_align_translations(self, lowercasing=False, max_tokens=1000, max_fertility=100, symmetrize=True, evaluate=False, verbose=False):
+    def eflomal_align_translations(self, lowercasing=False, max_tokens=1000, max_fertility=100, symmetrize=True, use_know_links=True, test_set_module=2, evaluate=False, verbose=False, debug=False):
         if not evaluate:
             self.clear_alignments()
         proxy_code = '%s_%s' % (self.site.slug, self.language_id)
         base_path = os.path.join(settings.BASE_DIR, 'sandbox')
         translation_ids = StringIO()
         # proxy_eflomal_align(self, base_path=base_path, lowercasing=lowercasing, max_tokens=max_tokens, max_fertility=max_fertility, translation_ids=translation_ids)
-        proxy_eflomal_align(self, base_path=base_path, lowercasing=lowercasing, max_tokens=max_tokens, max_fertility=max_fertility, translation_ids=translation_ids, use_know_links=True, evaluate=evaluate)
+        proxy_eflomal_align(self, base_path=base_path, lowercasing=lowercasing, max_tokens=max_tokens, max_fertility=max_fertility, translation_ids=translation_ids, use_know_links=use_know_links, evaluate=evaluate, test_set_module=test_set_module, verbose=verbose, debug=debug)
         if symmetrize:
             proxy_symmetrize_alignments(self)
             links_sym_filename = os.path.join(base_path, '%s_links_sym.txt' % proxy_code)
@@ -1062,10 +1065,12 @@ class Proxy(models.Model):
                 print (alignment)
             if evaluate:
                 if translation.alignment_type==MANUAL:
-                    print ('--- fixed and computed alignment for translation # %d' % translation.id)
-                    print (translation.alignment)
-                    print (alignment)
-                    if n_translations % 2 == 1:
+                    if verbose:
+                        print ('--- fixed and computed alignment for translation # %d' % translation.id)
+                        print (translation.alignment)
+                        print (alignment)
+                    # if n_translations % 2 == 1:
+                    if n_translations % test_set_module == 0:
                         aer_total += aer(alignment, translation.alignment)
                         n_evaluated += 1
             else:
@@ -1077,7 +1082,8 @@ class Proxy(models.Model):
         alignment_file.close()
         if evaluate and n_evaluated:
             evaluation = aer_total/n_evaluated
-            print ('evaluation: ', evaluation)
+            if verbose:
+                print ('evaluation: ', evaluation)
             return evaluation
 
     def get_translations(self, translation_type=ANY):

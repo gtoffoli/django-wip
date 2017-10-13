@@ -28,6 +28,11 @@ ALIGNER_CHOICES = (
     (2, _("nltk"))
 )
 
+ALIGNMENT_TEST_SET_CHOICES = (
+    (2, _("1 out of 2")),
+    (4, _("1 out of 4"))
+)
+
 class SiteManageForm(forms.Form):
     clear_pages = forms.BooleanField(required=False, label='Clear pages')
     clear_blocks = forms.BooleanField(required=False, label='Clear blocks')
@@ -43,6 +48,10 @@ class ProxyManageForm(forms.Form):
     file = forms.FileField(required=False, label='Select a file to upload')
     parallel_format = forms.ChoiceField(choices=PARALLEL_SENTENCES_FORMAT_CHOICES, label="Format", widget=forms.Select(attrs={ 'style': 'width: auto; height: 2em;',}))
     aligner = forms.ChoiceField(choices=ALIGNER_CHOICES, label="Aligner", widget=forms.Select(attrs={ 'style': 'width: auto; height: 2em;',}))
+    use_known_links = forms.BooleanField(required=False, label='Use known links')
+    test_set_module = forms.ChoiceField(choices=ALIGNMENT_TEST_SET_CHOICES, label="Test set generation module", widget=forms.Select(attrs={ 'style': 'width: auto; height: 2em;',}))
+    verbose = forms.BooleanField(required=False, label='Verbose')
+    debug = forms.BooleanField(required=False, label='Debug')
 
 class PageEditForm(forms.Form):
     no_translate = forms.BooleanField(required=False, label='No translate')
