@@ -267,6 +267,7 @@ def site(request, site_slug):
         discovery = post.get('discover', '')
         site_crawl = post.get('site_crawl', '')
         extract_blocks = post.get('extract_blocks', '')
+        purge_blocks = post.get('purge_blocks', '')
         refetch_pages = post.get('refetch_pages', '')
         extract_segments = post.get('extract_segments', '')
         download_segments = post.get('download_segments', '')
@@ -288,6 +289,8 @@ def site(request, site_slug):
                     Webpage.objects.filter(site=site).delete()
                 task_id = crawl_site.delay(site.id)
                 print ('site_crawl : ', site.name, 'task id: ', task_id)
+            elif purge_blocks:
+                site.purge_blocks(verbose=True)
             elif extract_blocks:
                 clear_blocks = data['clear_blocks']
                 if clear_blocks:

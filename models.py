@@ -386,6 +386,15 @@ class Site(models.Model):
             print (site_id, webpage_id, page_version_id)
         return updated
 
+    def purge_blocks(self, verbose=False):
+        """ for all pages, delete all but last BlockInPage for each xpath """
+        webpages = Webpage.objects.filter(site=self)
+        n_purged = 0
+        for webpage in webpages:
+            n_purged += webpage.purge_blocks(verbose=False)
+        if verbose:
+            print('purged %d old blocks' % n_purged)
+
     def refetch_pages(self, skip_deny_path=True, extract_blocks=True, extract_segments=False, dry=False, verbose=False):
         """ fetch known pages; for each, if content has changed, save the version and re-extract blocks """
         webpages = Webpage.objects.filter(site=self)
@@ -1314,7 +1323,7 @@ class Webpage(models.Model):
             if done:
                 break
             for el in elements_from_element(top_el):
-                if el.tag in BLOCK_TAGS:
+                if el.tag in BLOCK_TAGS and el.tag != 'br':
                     save_failed = False
                     n_1 += 1
                     # NO [1] element index in xpath address !!!
@@ -1341,13 +1350,14 @@ class Webpage(models.Model):
                         except:
                             print ('--- save error in page ---', self.id)
                             save_failed = True
-                    # blocks_in_page = BlockInPage.objects.filter(block=block, webpage=self)
-                    blocks_in_page = BlockInPage.objects.filter(block=block, xpath=el_xpath, webpage=self)
-                    if not blocks_in_page and not save_failed:
+                    this_block_in_page = BlockInPage.objects.filter(block=block, xpath=el_xpath, webpage=self).count()
+                    if not this_block_in_page and not save_failed:
+                        if blocks: # purge BIPs for this xpath if BIP with new block is being created
+                            blocks_in_page = BlockInPage.objects.filter(xpath=el_xpath, webpage=self)
+                            blocks_in_page.delete()
                         n_3 += 1
-                        # blocks_in_page = BlockInPage(block=block, webpage=self)
-                        blocks_in_page = BlockInPage(block=block, xpath=el_xpath, webpage=self)
-                        blocks_in_page.save()
+                        block_in_page = BlockInPage(block=block, xpath=el_xpath, webpage=self)
+                        block_in_page.save()
                     if xpath and el_xpath==xpath:
                         done = True
                         break
@@ -1367,6 +1377,7 @@ class Webpage(models.Model):
             previous_xpath = xpath
         if verbose:
             print('purged %d old blocks' % n_purged)
+        return n_purged
 
     def create_blocks_dag(self, verbose=False):
         # BlockEdge.objects.all().delete()
