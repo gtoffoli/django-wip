@@ -61,8 +61,8 @@ function apply_translation (target_code, id_from, id_to) {
   <table class="table table-responsive table-bordered table-striped mB5">
     <thead>
       <tr>
-    	<th>{% trans "site"|capfirst %}</th>
-    	<th>{% trans "block or site language"|capfirst %}</th>
+    	<th>{% trans "project"|capfirst %}</th>
+    	<th>{% trans "block or project language"|capfirst %}</th>
     	<th>{% trans "block id"|capfirst %}</th>
     	<th>Checksum</th>
     	<th>{% trans "Date"|capfirst %}/{% trans "time"|capfirst %}</th>
@@ -80,8 +80,8 @@ function apply_translation (target_code, id_from, id_to) {
   </table>
 
 {% comment %}
-    <div><label>Site</label> <a href="/site/{{ site.slug }}/">{{ site.name }}</a></div>
-    <div><label>Block or site language</label> {{ language }}
+    <div><label>Project</label> <a href="/site/{{ site.slug }}/">{{ site.name }}</a></div>
+    <div><label>Block or project language</label> {{ language }}
     <div><label>Block id</label> {{ page_block.id }}</div>
     <div><label>Checksum</label> {{ page_block.checksum }}</div>
     <div><label>Time</label> {{ page_block.time|date:"SHORT_DATETIME_FORMAT" }}</div>

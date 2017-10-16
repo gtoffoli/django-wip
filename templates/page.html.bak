@@ -25,7 +25,7 @@ th, td { text-align: left; vertical-align: top; }
 {% block content-page %}
 <blockquote>{{ site.url }}{{ webpage.path }}</blockquote>
 {% comment %}
-    <div><label>Site</label> <a href="/site/{{ site.slug }}/" style="font-size: larger;">{{ site.name }}</a></div>
+    <div><label>Project</label> <a href="/site/{{ site.slug }}/" style="font-size: larger;">{{ site.name }}</a></div>
     <div><label>Page id</label> {{ webpage.id }} &nbsp;
 		 <label>Encoding</label> {{ webpage.encoding }}</div>
     <div><label>Page URL</label> <a href="{{ site.url }}{{ webpage.path }}">{{ site.url }}{{ webpage.path }}</a> &nbsp;
@@ -37,7 +37,7 @@ th, td { text-align: left; vertical-align: top; }
   <table class="table table-responsive table-bordered table-striped">
     <thead>
       <tr>
-      	<th>{% trans "site"|capfirst %}</th>
+      	<th>{% trans "project"|capfirst %}</th>
       	<th>{% trans "page id"|capfirst %}</th>
       	<th>{% trans "encoding"|capfirst %}</th>
       	<th>{% trans "page URL"|capfirst %}</th>

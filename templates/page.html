@@ -25,7 +25,7 @@ th, td { text-align: left; vertical-align: top; }
 {% block content-page %}
 <blockquote>{{ site.url }}{{ webpage.path }}</blockquote>
 {% comment %}
-    <div><label>Site</label> <a href="/site/{{ site.slug }}/" style="font-size: larger;">{{ site.name }}</a></div>
+    <div><label>Project</label> <a href="/site/{{ site.slug }}/" style="font-size: larger;">{{ site.name }}</a></div>
     <div><label>Page id</label> {{ webpage.id }} &nbsp;
 		 <label>Encoding</label> {{ webpage.encoding }}</div>
     <div><label>Page URL</label> <a href="{{ site.url }}{{ webpage.path }}">{{ site.url }}{{ webpage.path }}</a> &nbsp;
@@ -37,7 +37,7 @@ th, td { text-align: left; vertical-align: top; }
   <table class="table table-responsive table-bordered table-striped">
     <thead>
       <tr>
-      	<th>{% trans "site"|capfirst %}</th>
+      	<th>{% trans "project"|capfirst %}</th>
       	<th>{% trans "page id"|capfirst %}</th>
       	<th>{% trans "encoding"|capfirst %}</th>
       	<th>{% trans "page URL"|capfirst %}</th>
@@ -52,7 +52,7 @@ th, td { text-align: left; vertical-align: top; }
     		<td>{{ webpage.encoding }}</td>
     		<td><a href="{{ site.url }}{{ webpage.path }}">{{ site.url }}{{ webpage.path }}</a></td>
     		<td><a href="/{{ site.path_prefix }}{{ webpage.path }}">/{{ site.path_prefix }}{{ webpage.path }}</a></td>
-    		<td>{% if block_count %}{{ block_count }}{% else %}<a href="/page/{{ webpage.id }}/extract_blocks/">{% trans "extract blocks"|capfirst %}</a>{% endif %}</td>
+    		<td>{% if block_count %}<a href="/page/{{ webpage.id }}/blocks/">{{ block_count }}</a>{% else %}<a href="/page/{{ webpage.id }}/extract_blocks/">{% trans "extract blocks"|capfirst %}</a>{% endif %}</td>
     	</tr>
     </tbody>
   </table>
@@ -61,7 +61,11 @@ th, td { text-align: left; vertical-align: top; }
 		
 <form class="mTB40" action="/page/{{ webpage.id }}/" method="post">{% csrf_token %}
     <div class="form-group">
-		 <label>Invariant</label> {{ edit_form.no_translate }} &nbsp; <input type="submit" name="save_page" value="Save" class="btn btn-default btn-sm">
+		 <span class="mR30"><label>Invariant</label> {{ edit_form.no_translate }} &nbsp;
+							<input type="submit" name="save_page" value="Save" class="btn btn-default btn-sm"></span>
+		 <span class="mR30"><input type="submit" name="fetch_page" value="Re-fetch page" class="btn btn-default btn-sm"></span>
+		 <span class="mR30"><input type="submit" name="purge_blocks" value="Purge blocks" class="btn btn-default btn-sm"></span>
+		 <span class="mR30"><input type="submit" name="extract_blocks" value="Extract blocks" class="btn btn-default btn-sm"></span>
 	  </div>
 
     <h4>{% trans "navigation"|capfirst %}</h4>

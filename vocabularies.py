@@ -83,7 +83,7 @@ class ApprovalStatusAdmin(VocabularyEntryAdmin):
 
 class Language(CodedEntry):
     """
-    Enumerate languages referred by Websites, Proxies and ...
+    Enumerate languages referred by Projects, Proxies and ...
     """
     class Meta:
         verbose_name = _('language')

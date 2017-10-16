@@ -29,6 +29,7 @@ ALIGNER_CHOICES = (
 )
 
 ALIGNMENT_TEST_SET_CHOICES = (
+    (0, _("all")),
     (2, _("1 out of 2")),
     (4, _("1 out of 4"))
 )
@@ -40,6 +41,7 @@ class SiteManageForm(forms.Form):
     # file = forms.FileField(required=False, label='Select a file to upload', widget=forms.FileInput(attrs={'class': 'btn btn-sm'}))
     file = forms.FileField(required=False, label='Select a file to upload')
     delete_confirmation = forms.BooleanField(required=False, label='Delete confirmation')
+    verbose = forms.BooleanField(required=False, label='Verbose')
 
 class ProxyManageForm(forms.Form):
     delete_pages_confirmation = forms.BooleanField(required=False, label='Delete pages confirmation')
@@ -53,7 +55,7 @@ class ProxyManageForm(forms.Form):
     verbose = forms.BooleanField(required=False, label='Verbose')
     debug = forms.BooleanField(required=False, label='Debug')
 
-class PageEditForm(forms.Form):
+class PageManageForm(forms.Form):
     no_translate = forms.BooleanField(required=False, label='No translate')
 
 class PageSequencerForm(forms.Form):

@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load staticfiles i18n %}
 
-{% block head_title %}{% trans "pages of site"|capfirst %}: {{ site.name }} {% trans "including block" %} {{ page_block.id }}{% endblock %}
+{% block head_title %}{% trans "pages of project"|capfirst %}: {{ site.name }} {% trans "including block" %} {{ page_block.id }}{% endblock %}
 
 {% comment %}
 {% block extra_head %}
@@ -12,7 +12,7 @@
 {% endblock %}
 {% endcomment %}
 
-{% block title-page %}<small>{% trans "pages of site"|capfirst %}: <a href="/site/{{ site.slug }}/">{{ site.name }}</a> {% trans "including block" %} <a href="/block/{{ page_block.id }}/">{{ page_block.id }}</a></small>{% endblock %}
+{% block title-page %}<small>{% trans "pages of project"|capfirst %}: <a href="/site/{{ site.slug }}/">{{ site.name }}</a> {% trans "including block" %} <a href="/block/{{ page_block.id }}/">{{ page_block.id }}</a></small>{% endblock %}
 
 {% block body_id %}block_pages{% endblock %}
 

@@ -184,8 +184,8 @@ class Site(models.Model):
         return Proxy.objects.filter(site=self).order_by('language__code')
 
     class Meta:
-        verbose_name = _('original website')
-        verbose_name_plural = _('original websites')
+        verbose_name = _('project')
+        verbose_name_plural = _('projects')
 
     def make_segmenter(self, verbose=False):
             srx_filepath = os.path.join(RESOURCES_ROOT, self.language.code, 'segment.srx')
@@ -311,7 +311,8 @@ class Site(models.Model):
             if should_skip:
                 continue
             l_out.append(l)
-        return string_checksum('\n'.join(l_out))
+        # return string_checksum('\n'.join(l_out))
+        return string_checksum('\n'.join(l_out).encode())
 
     # def fetch_page(self, path, webpage=None, extract_blocks=True, extract_segments=False, diff=False, dry=False, verbose=False):
     def fetch_page(self, path, webpage=None, extract_blocks=True, extract_block=None, extract_segments=False, diff=False, dry=False, verbose=False):
@@ -324,9 +325,11 @@ class Site(models.Model):
         time_1 = time.time()
         try:
             response = urllib2.urlopen(request)
-        except (urllib2.HTTPError, e):
+        # except (urllib2.HTTPError, e):
+        except Exception as e:
             if verbose:
-                print (page_url, ': error code = ', e.code, e.msg)
+                # print (page_url, ': error code = ', e.code, e.msg)
+                print (page_url, ': error = ', e)
             if webpage:
                 webpage.last_unfound = timezone.now()
             return -1
@@ -338,11 +341,8 @@ class Site(models.Model):
         if webpage:
             webpage.last_checked = timezone.now()
             webpage.last_checked_response_code = response_code
-        """
-        if not response_code == 200:
-            return site_id, response_code, 0, path
-        """
-        body = response.read()
+        # body = response.read()
+        body = response.read().decode()
         size = len(body)
         checksum = self.page_checksum(body)
         if not webpage:
@@ -907,10 +907,8 @@ class Proxy(models.Model):
                         fwd = rev = ''
                         if translation.alignment and translation.alignment_type==MANUAL:
                             # if evaluate and n_translations % 2 == 0:
-                            if evaluate and n_translations % test_set_module != 0:
+                            if not evaluate or test_set_module == 0 or n_translations % test_set_module != 0:
                                 fwd, rev = split_alignment(translation.alignment)
-                            else:
-                                fwd = rev = ''
                         known_links_fwd.write('%s\n' % fwd)
                         known_links_rev.write('%s\n' % rev)
                 if outfile_3:
@@ -1070,7 +1068,7 @@ class Proxy(models.Model):
                         print (translation.alignment)
                         print (alignment)
                     # if n_translations % 2 == 1:
-                    if n_translations % test_set_module == 0:
+                    if test_set_module == 0 or n_translations % test_set_module == 0:
                         aer_total += aer(alignment, translation.alignment)
                         n_evaluated += 1
             else:
@@ -1154,6 +1152,12 @@ class Webpage(models.Model):
         response = urllib2.urlopen(request)
         body = response.read()
         return body
+
+    def fetch(self, extract_blocks=True, extract_segments=False, dry=False, verbose=False):
+        """ fetch known page; if content has changed, save the version and re-extract blocks """
+        path = self.path
+        updated = self.site.fetch_page(path, webpage=self, extract_blocks=extract_blocks, extract_segments=extract_segments, dry=dry, verbose=verbose)
+        return updated
 
     def get_last_version(self):
         versions = PageVersion.objects.filter(webpage=self).order_by('-time')
@@ -1349,6 +1353,20 @@ class Webpage(models.Model):
                         break
         # print (self.path, n_1, n_2, n_3)
         return n_1, n_2, n_3
+
+    def purge_blocks(self, verbose=False):
+        """ delete all but last BlockInPage for each xpath """
+        blocks_in_page = list(BlockInPage.objects.filter(webpage=self).order_by('xpath', '-time'))
+        n_purged = 0
+        previous_xpath = None
+        for bip in blocks_in_page:
+            xpath = bip.xpath
+            if xpath == previous_xpath:
+                bip.delete()
+                n_purged +=1
+            previous_xpath = xpath
+        if verbose:
+            print('purged %d old blocks' % n_purged)
 
     def create_blocks_dag(self, verbose=False):
         # BlockEdge.objects.all().delete()

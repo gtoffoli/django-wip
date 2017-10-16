@@ -18,12 +18,14 @@ except ImportError:
 if (sys.version_info > (3, 0)):
     from io import StringIO
     from html.entities import entitydefs as htmlentitydefs
+    from html.entities import name2codepoint
 
     def unichr(n):
         return chr(n)
 else:
     import StringIO
     import htmlentitydefs
+    from htmlentitydefs import name2codepoint
 
 import re, regex
 
@@ -323,7 +325,8 @@ def element_signature(element):
         tag = el.tag
         if type(tag) is str:
             tags.append(tag)
-    return string_checksum('.'.join(tags) + '_' + element.text_content())
+    # return string_checksum('.'.join(tags) + '_' + element.text_content())
+    return string_checksum(('.'.join(tags) + '_' + element.text_content()).encode())
 
 def guess_block_language(block):
     strings = strings_from_html(block.body, fragment=True)
@@ -398,7 +401,8 @@ def unescape(text):
         else:
             # named entity
             try:
-                text = unichr(htmlentitydefs.name2codepoint[text[1:-1]])
+                # text = unichr(htmlentitydefs.name2codepoint[text[1:-1]])
+                text = unichr(name2codepoint[text[1:-1]])
             except KeyError:
                 pass
         return text # leave as is

@@ -64,7 +64,7 @@ from .models import OWNER, MANAGER, LINGUIST, REVISOR, TRANSLATOR, GUEST
 from .models import TM, MT, MANUAL
 from .models import PARALLEL_FORMAT_NONE, PARALLEL_FORMAT_XLIFF, PARALLEL_FORMAT_TEXT
 from .forms import DiscoverForm
-from .forms import SiteManageForm, ProxyManageForm, PageEditForm, PageSequencerForm, BlockEditForm, BlockSequencerForm
+from .forms import SiteManageForm, ProxyManageForm, PageManageForm, PageSequencerForm, BlockEditForm, BlockSequencerForm
 from .forms import SegmentSequencerForm, SegmentTranslationForm, TranslationViewForm, TranslationSequencerForm
 from .forms import StringSequencerForm, StringEditForm, StringsTranslationsForm, StringTranslationForm, TranslationServiceForm, FilterPagesForm
 from .forms import UserRoleEditForm, ListSegmentsForm, ImportXliffForm
@@ -278,6 +278,7 @@ def site(request, site_slug):
         form = SiteManageForm(post, request.FILES)
         if form.is_valid():
             data = form.cleaned_data
+            verbose = data['verbose']
             if discovery:
                 # return discovery_settings(request, site=site)
                 return discover(request, site=site)
@@ -322,7 +323,7 @@ def site(request, site_slug):
                     else:
                         print ('extract_blocks: error on page ', webpage.id)
             elif refetch_pages:
-                n_pages, n_updates, n_unfound = site.refetch_pages()
+                n_pages, n_updates, n_unfound = site.refetch_pages(verbose=verbose)
                 messages.add_message(request, messages.INFO, 'Requested %d pages: %d updated, %d unfound' % (n_pages, n_updates, n_unfound))
             elif extract_segments or download_segments:
                 segmenter = site.make_segmenter()
@@ -742,17 +743,27 @@ def page(request, page_id):
     var_dict['scans'] = PageVersion.objects.filter(webpage=webpage).order_by('-time')
     PageSequencerForm.base_fields['translation_languages'].queryset = Language.objects.filter(code__in=proxy_codes)
     save_page = apply_filter = goto = '' 
+    fetch_page = purge_blocks = extract_blocks = ''
     post = request.POST
     if post:
         save_page = post.get('save_page', '')
+        fetch_page = post.get('fetch_page', '')
+        purge_blocks = post.get('purge_blocks', '')
+        extract_blocks = post.get('extract_blocks', '')
         apply_filter = post.get('apply_filter', '')
-        if not (save_page or apply_filter):
-            for key in post.keys():
-                if key.startswith('goto-'):
-                    goto = int(key.split('-')[1])
-                    webpage = get_object_or_404(Webpage, pk=goto)
-        if save_page:
-            form = PageEditForm(post)
+        # if not (save_page or fetch_page or apply_filter):
+        for key in post.keys():
+            if key.startswith('goto-'):
+                goto = int(key.split('-')[1])
+                webpage = get_object_or_404(Webpage, pk=goto)
+        if fetch_page:
+            webpage.fetch(verbose=True)
+        elif purge_blocks:
+            webpage.purge_blocks(verbose=True)
+        elif extract_blocks:
+            webpage.extract_blocks(verbose=True)
+        elif save_page:
+            form = PageManageForm(post)
             if form.is_valid():
                 data = form.cleaned_data
                 no_translate = data['no_translate']
@@ -768,7 +779,8 @@ def page(request, page_id):
                 translation_codes = [l.code for l in translation_languages]
                 translation_age = data['translation_age']
                 list_blocks = data['list_blocks']
-    if not post or save_page:
+    # if not post or save_page:
+    if not post or not (apply_filter or goto):
         translation_state = None
         translation_codes = []
         if not post and first_page:
@@ -803,7 +815,7 @@ def page(request, page_id):
     var_dict['site'] = site
     if save_page or goto:
         return HttpResponseRedirect('/page/%d/' % webpage.id)        
-    var_dict['edit_form'] = PageEditForm(initial={'no_translate': webpage.no_translate,})
+    var_dict['edit_form'] = PageManageForm(initial={'no_translate': webpage.no_translate,})
     var_dict['sequencer_form'] = PageSequencerForm(initial={'page_age': page_age, 'translation_state': translation_state, 'translation_languages': translation_languages, 'translation_age': translation_age, 'list_blocks': list_blocks, })
     blocks, total, invariant, proxy_list = webpage.blocks_summary()
     # print total, invariant, proxy_list
@@ -821,9 +833,9 @@ def page_blocks(request, page_id):
     var_dict['webpage'] = webpage = get_object_or_404(Webpage, pk=page_id)
     var_dict['site'] = site = webpage.site
     # qs = webpage.blocks.all()
-    qs = BlockInPage.objects.filter(webpage=webpage).order_by('xpath', 'time')
+    qs = BlockInPage.objects.filter(webpage=webpage).order_by('xpath', '-time')
     var_dict['block_count'] = qs.count()
-    paginator = Paginator(qs, settings.PAGE_SIZE)
+    paginator = Paginator(qs, settings.PAGE_BIG_SIZE)
     page = request.GET.get('page', 1)
     try:
         page_blocks = paginator.page(page)
@@ -835,9 +847,9 @@ def page_blocks(request, page_id):
         # If page is out of range (e.g. 9999), deliver last page of results.
         page = paginator.num_pages
         page_blocks = paginator.page(paginator.num_pages)
-    var_dict['page_size'] = settings.PAGE_SIZE
+    var_dict['page_size'] = settings.PAGE_BIG_SIZE
     var_dict['page'] = page = int(page)
-    var_dict['offset'] = (page-1) * settings.PAGE_SIZE
+    var_dict['offset'] = (page-1) * settings.PAGE_BIG_SIZE
     var_dict['before'] = steps_before(page)
     var_dict['after'] = steps_after(page, paginator.num_pages)
     var_dict['page_blocks'] = page_blocks

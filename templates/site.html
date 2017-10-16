@@ -14,11 +14,11 @@
 {% endcomment %}
 {% endblock %}
 
-{% block head_title %}Site: {{ site.name }}{% endblock %}
+{% block head_title %}Project: {{ site.name }}{% endblock %}
 
-{% block body_id %}site{% endblock %}
+{% block body_id %}project{% endblock %}
 
-{% block title-page %}Site: {{ site.name }}
+{% block title-page %}Project: {{ site.name }}
 	{% if can_manage %}&nbsp;<a href="{% url "admin:wip_site_change" site.id %}">&nbsp;<img src="{% static "admin/img/icon-changelink.svg" %}">&nbsp;</a>{% endif %}
 {% endblock %}
 
@@ -94,6 +94,7 @@
 		<input type="submit" name="site_crawl" value="{% if page_count %}Re-crawl{% else %}Crawl{% endif %}" title="scan pages" class="btn btn-default btn-sm"></span>
 		{% if page_count %}<span class="mR30"><input type="submit" name="refetch_pages" value="Re-fetch pages" title="re-fetch" class="btn btn-default btn-sm"></span>{% endif %}
 		<input type="submit" name="archive_pages" value="Archive pages" class="btn btn-default btn-sm">
+		&nbsp; {{ manage_form.verbose }} Verbose 
 	</div>
 	{% if page_count %}
 	<div class="form-group">

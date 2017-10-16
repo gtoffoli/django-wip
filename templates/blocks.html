@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load staticfiles i18n %}
 
-{% block head_title %}{% trans "blocks of site"|capfirst %}: {{ site.name }}{% endblock %}
+{% block head_title %}{% trans "blocks of project"|capfirst %}: {{ site.name }}{% endblock %}
 
 {% block extra_head %}
 {% comment %}
@@ -15,20 +15,11 @@
 
 {% block body_id %}blocks{% endblock %}
 
-{% block title-page %}{% trans "blocks of site"|capfirst %}: <a href="/site/{{ site.slug }}/">{{ site.name }}</a>{% endblock %}
+{% block title-page %}{% trans "blocks of project"|capfirst %}: <a href="/site/{{ site.slug }}/">{{ site.name }}</a>{% endblock %}
 
 {% block content-page %}
   {% if block_count %}
     <p>{% trans "page blocks found"|capfirst %}: {{ block_count }}</p>
-{% comment %}
-	<div class="pagination">
-    <span class="step-links">
-    	{% for p in before %}<a href="?page={{ p }}">{% if forloop.first %}<i class="fa fa-fast-backward"></i> {% else %}{{ p }}{% endif %}</a>&nbsp;{% endfor %}
-        &nbsp;<i class="fa fa-circle" style="font-size: 0.5em;"></i> page {{ site_blocks.number }} of {{ site_blocks.paginator.num_pages }} <i class="fa fa-circle" style="font-size: 0.5em;"></i>&nbsp;
-    	{% for p in after %}&nbsp;<a href="?page={{ p }}">{% if forloop.last %} <i class="fa fa-fast-forward"></i> {% else %} {{ p }} {% endif %}</a></a>{% endfor %}
-    </span>
-	</div>
-{% endcomment %}
 
     {% if site_blocks.paginator.num_pages > 1 %}
       <div class="text-right">
