@@ -47,6 +47,7 @@
           <th class="text-center" colspan='{{ proxies.count|add:"1" }}'>{% trans "proxies"|capfirst %}</th>
           <th>{% trans "page path"|capfirst %}</th>
           <th class="text-center">{% trans "blocks"|capfirst %}</th>
+          <th class="text-center">{% trans "in use"|capfirst %}</th>
           {% for proxy in proxies %}<th class="text-center">{{ proxy.language.code }}</th>{% endfor %}
           <th>{% trans "last checked"|capfirst %}</th>{% comment %}<th>xPath of main content region</th>{% endcomment %}
         </tr>
@@ -67,6 +68,7 @@
           {% endfor %}
           <td><a href="/page/{{ site_page.id }}/">{{ site_page.path }}</a></td>
           <td class="text-center"><a href="/page/{{ site_page.id }}/blocks/">{{ site_page.blocks.all.count }}</a></td>
+    	  <td class="text-center">{{ site_page.get_blocks_in_use.count }}</td>
           {% for language, blocks_count in site_page.get_translated_blocks_count %}
             <td class="text-center">{% if blocks_count %} {{ blocks_count }} {% endif %}</td>
           {% endfor %}

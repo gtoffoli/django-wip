@@ -59,11 +59,21 @@ class WebpageAdmin(admin.ModelAdmin):
 
 class PageVersionAdmin(admin.ModelAdmin):
     list_filter = ['webpage__site__name',]
-    list_display = ['id', 'site', 'webpage', 'time', 'response_code', 'size', 'checksum',]
-    list_display_links = ('id', 'webpage',)
+    list_display = ['id', 'site', 'webpage_link', 'time', 'response_code', 'size', 'checksum',]
+    list_display_links = ('id',)
+    search_fields = ['webpage__id', 'webpage__path', 'body',]
 
     def site(self, obj):
         return obj.webpage.site.name
+
+    def webpage_link(self, obj):
+        webpage = obj.webpage
+        label = '%d %s' % (webpage.id, webpage.path)
+        url = '/admin/wip/webpage/%d/' % webpage.id
+        link = '<a href="%s">%s</a>' % (url, label)
+        return link
+    webpage_link.short_description = 'webpage'
+    webpage_link.allow_tags = True
 
 class StringAdmin(admin.ModelAdmin):
     fields = ['string_type', 'language', 'text', 'site', 'path', 'invariant', 'reliability', 'user']
@@ -126,7 +136,8 @@ class BlockAdmin(admin.ModelAdmin):
     list_filter = ('site', 'webpages',)
     list_display = ['id', 'site', 'block_link', 'translations_list', 'pages_count', 'time',] # , 'checksum'
     list_display_links = ('block_link',)
-    search_fields = ['site', 'path',]
+    # search_fields = ['site', 'path',]
+    search_fields = ['body',]
     form = BlockForm
 
     def block_link(self, obj):

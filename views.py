@@ -125,6 +125,7 @@ def home(request):
         site_dict['page_versions'] = PageVersion.objects.filter(webpage__site=site)
         site_dict['translated_versions'] = TranslatedVersion.objects.filter(webpage__site=site)
         site_dict['source_blocks'] = Block.objects.filter(site=site)
+        site_dict['blocks_in_use'] = site.get_blocks_in_use()
         site_dict['translated_blocks'] = TranslatedBlock.objects.filter(block__site=site)
         proxies = site.get_proxies()
         site_dict['proxies'] = proxies
@@ -290,7 +291,7 @@ def site(request, site_slug):
                 task_id = crawl_site.delay(site.id)
                 print ('site_crawl : ', site.name, 'task id: ', task_id)
             elif purge_blocks:
-                site.purge_blocks(verbose=True)
+                site.purge_bips(verbose=False)
             elif extract_blocks:
                 clear_blocks = data['clear_blocks']
                 if clear_blocks:
@@ -320,7 +321,9 @@ def site(request, site_slug):
                         continue
                     # try:
                     if True:
-                        n_1, n_2, n_3 = webpage.extract_blocks()
+                        # n_1, n_2, n_3 = webpage.extract_blocks()
+                        extracted_blocks = webpage.extract_blocks()
+                        webpage.purge_bips(current_blocks=extracted_blocks)
                         webpage.create_blocks_dag()
                     # except:
                     else:
@@ -483,6 +486,7 @@ def site(request, site_slug):
     var_dict['first_page'] = webpages and webpages[0] or None
     blocks = Block.objects.filter(site=site).order_by('id')
     var_dict['block_count'] = block_count = blocks.count()
+    var_dict['blocks_in_use'] = site.get_blocks_in_use()
     var_dict['first_block'] = blocks and blocks[0] or None
     pages, pages_total, pages_invariant, pages_proxy_list = site.pages_summary()
     var_dict['pages_total'] = pages_total
@@ -762,7 +766,9 @@ def page(request, page_id):
         if fetch_page:
             webpage.fetch(verbose=True)
         elif purge_blocks:
-            webpage.purge_blocks(verbose=True)
+            extracted_blocks = webpage.extract_blocks(dry=True, verbose=True)
+            print ('extracted bocks:', len(extracted_blocks))
+            webpage.purge_bips(current_blocks=extracted_blocks, verbose=True)
         elif extract_blocks:
             webpage.extract_blocks(verbose=True)
         elif save_page:
@@ -826,6 +832,7 @@ def page(request, page_id):
     var_dict['list_blocks'] = list_blocks
     var_dict['total'] = total
     var_dict['block_count'] = total
+    var_dict['blocks_in_use'] = webpage.get_blocks_in_use()
     var_dict['invariant'] = invariant
     var_dict['proxy_list'] = proxy_list
     # return render_to_response('page.html', var_dict, context_instance=RequestContext(request))
@@ -835,7 +842,6 @@ def page_blocks(request, page_id):
     var_dict = {}
     var_dict['webpage'] = webpage = get_object_or_404(Webpage, pk=page_id)
     var_dict['site'] = site = webpage.site
-    # qs = webpage.blocks.all()
     qs = BlockInPage.objects.filter(webpage=webpage).order_by('xpath', '-time')
     var_dict['block_count'] = qs.count()
     paginator = Paginator(qs, settings.PAGE_BIG_SIZE)
@@ -1202,7 +1208,8 @@ def block_translate(request, block_id, target_code):
     source_segments = []
     source_strings = []
     source_translations = []
-    site_invariants = text_to_list(proxy.site.invariant_words)
+    # site_invariants = text_to_list(proxy.site.invariant_words)
+    site_invariants = text_to_list(block.site.invariant_words)
     for segment in segments:
         if not segment:
             continue

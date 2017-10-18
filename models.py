@@ -249,19 +249,13 @@ class Site(models.Model):
         return pages, total, invariant, proxy_list
 
     def blocks_summary(self):
-        site_code = self.language_id
-        # blocks = Block.objects.filter(block_in_page__webpage__site=self).order_by('xpath', 'checksum', '-time')
         blocks = Block.objects.filter(block_in_page__webpage__site=self).order_by('checksum', '-time')
         last_ids = []
-        # xpath = ''
         checksum = '' 
         for block in blocks:
-            # if not (block.xpath==xpath and block.checksum==checksum):
             if not (block.checksum==checksum):
-                # xpath = block.xpath
                 checksum = block.checksum
                 last_ids.append(block.id)
-        # blocks = Block.objects.prefetch_related('source_block').filter(id__in=last_ids).order_by('xpath')
         blocks = Block.objects.prefetch_related('source_block').filter(id__in=last_ids).order_by('-time')
         proxy_codes = [proxy.language_id for proxy in Proxy.objects.filter(site=self)]
         proxy_list = [[code, {'already': 0, 'partially': 0, 'translated': 0, 'revised': 0}] for code in proxy_codes]
@@ -294,6 +288,9 @@ class Site(models.Model):
             t_dict['left'] = left
             proxy_list.append([language, t_dict])
         return blocks, total, invariant, proxy_list
+
+    def get_blocks_in_use(self):
+        return Block.objects.filter(block_in_page__webpage__site=self).distinct()
 
     def page_checksum(self, body):
         if not self.slug == 'scuolemigranti':
@@ -360,11 +357,13 @@ class Site(models.Model):
             if verbose:
                 print ('size: ', page_version.size, '->', size)
                 print ('checksum: ', page_version.checksum, '->', checksum)
+            """
             if diff:
                 l_1 = page_version.body.splitlines()
                 l_2 = body.splitlines()
                 l_diff = difflib.Differ().compare(l_1, l_2)
-                # print ('\n'.join(l_diff))
+                print ('\n'.join(l_diff))
+            """
         # if not dry and (not page_version or size != page_version.size or checksum != page_version.checksum):
         if extract_block or (not dry and (not page_version or checksum != page_version.checksum)):
             page_version = PageVersion(webpage=webpage, delay=delay, response_code=response_code, size=size, checksum=checksum, body=body)
@@ -373,25 +372,23 @@ class Site(models.Model):
             if extract_block:
                 webpage.extract_blocks(xpath=extract_block, verbose=verbose)
             elif extract_blocks:
-                """
+                extracted_blocks = webpage.extract_blocks(verbose=verbose)
                 if verbose:
-                    print 'extract_blocks: ', webpage.extract_blocks()
-                """
-                n_1, n_2, n_3 = webpage.extract_blocks(verbose=verbose)
-                if verbose:
-                    print ('extract_blocks: ', n_1, n_2, n_3)
+                    # print ('blocks extracted: %d, new: %d, new in page: %d' % (len(extracted_blocks), n_2, n_3))
+                    print ('blocks extracted:', len(extracted_blocks))
+                webpage.purge_bips(current_blocks=extracted_blocks, verbose=verbose)
                 webpage.create_blocks_dag()
         if verbose:
             page_version_id = page_version and page_version.id or 0
             print (site_id, webpage_id, page_version_id)
         return updated
 
-    def purge_blocks(self, verbose=False):
+    def purge_bips(self, verbose=False):
         """ for all pages, delete all but last BlockInPage for each xpath """
         webpages = Webpage.objects.filter(site=self)
         n_purged = 0
         for webpage in webpages:
-            n_purged += webpage.purge_blocks(verbose=False)
+            n_purged += webpage.purge_bips(verbose=False)
         if verbose:
             print('purged %d old blocks' % n_purged)
 
@@ -1147,6 +1144,13 @@ class Webpage(models.Model):
         last = page_versions and page_versions[0] or None
         return last and last.get_region()
 
+    def get_blocks_in_use(self, sort=False):
+        if sort:
+            bips = BlockInPage.objects.filter(webpage=self).order_by('xpath')
+        else:
+            bips = Block.objects.filter(block_in_page__webpage=self).distinct()
+        return bips
+
     def get_translated_blocks_count(self):
         proxies = Proxy.objects.filter(site=self.site).order_by('language__code')   
         languages = [proxy.language for proxy in proxies]
@@ -1246,23 +1250,18 @@ class Webpage(models.Model):
     def blocks_summary(self):
         site = self.site
         site_code = site.language_id
-        # blocks = Block.objects.filter(block_in_page__webpage=self).order_by('xpath', '-time')
         blocks = Block.objects.filter(block_in_page__webpage=self).order_by('checksum', '-time')
         last_ids = []
-        """
-        xpath = ''
-        for block in blocks:
-            if not block.xpath == xpath:
-                xpath = block.xpath
-                last_ids.append(block.id)
-        blocks = Block.objects.prefetch_related('source_block').filter(id__in=last_ids).order_by('xpath')
-        """
         checksum = ''
+        body = ''
         for block in blocks:
+            """ this (new: 171018) filter is too restrictive ?
+            if not (block.checksum==checksum and block.body==body):
+            """
             if not block.checksum == checksum:
                 checksum = block.checksum
+                body = block.body
                 last_ids.append(block.id)
-        # blocks = Block.objects.prefetch_related('source_block').filter(id__in=last_ids).order_by('xpath')
         blocks = Block.objects.prefetch_related('source_block').filter(id__in=last_ids).order_by('-time')
         proxy_codes = [proxy.language_id for proxy in Proxy.objects.filter(site=self.site)]
         proxy_list = [[code, {'already': 0, 'partially': 0, 'translated': 0, 'revised': 0}] for code in proxy_codes]
@@ -1296,15 +1295,14 @@ class Webpage(models.Model):
             proxy_list.append([language, t_dict])
         return blocks, total, invariant, proxy_list
 
-    # def extract_blocks(self):
-    def extract_blocks(self, xpath=None, verbose=False):
+    def extract_blocks(self, dry=False, xpath=None, verbose=False):
         """ if xpath is specified, extract only one block """
         site = self.site
         versions = PageVersion.objects.filter(webpage=self).order_by('-time')
         if verbose:
             print ('versions: ', versions)
         if not versions:
-            return None
+            return [], 0, 0
         last_version = versions[0]
         html_string = last_version.body
         # http://stackoverflow.com/questions/1084741/regexp-to-strip-html-comments
@@ -1316,60 +1314,75 @@ class Webpage(models.Model):
         top_els = doc.getchildren()
         if verbose:
             print ('top_els: ', top_els)
-        el_block_dict = {}
         n_1 = n_2 = n_3 = 0
         done = False
+        current_blocks = []
         for top_el in top_els:
             if done:
                 break
             for el in elements_from_element(top_el):
                 if el.tag in BLOCK_TAGS and el.tag != 'br':
-                    save_failed = False
-                    n_1 += 1
-                    # NO [1] element index in xpath address !!!
-                    # el_xpath = tree.getpath(el)
+                    # save_failed = False
+                    n_1 += 1 # number of block elements
+                    """ NO [1] element index in xpath address !!!
+                    el_xpath = tree.getpath(el)
+                    """
                     el_xpath = tree.getpath(el).replace('[1]','')
-                    if verbose:
+                    if False: # verbose:
                         print (xpath, el_xpath)
                     if xpath and not el_xpath==xpath:
                         continue
-                    # checksum = block_checksum(el)
                     checksum = element_signature(el)
-                    # blocks = Block.objects.filter(site=site, xpath=el_xpath, checksum=checksum).order_by('-time')
-                    blocks = Block.objects.filter(site=site, checksum=checksum).order_by('-time')
-                    if blocks:
-                        block = blocks[0]
+                    string = etree.tostring(el)
+                    matching_blocks = Block.objects.filter(site=site, checksum=checksum).order_by('-time')
+                    if matching_blocks:
+                        block = matching_blocks[0]
                     else:
-                        string = etree.tostring(el)
-                        # string = element_tostring(el)
-                        # block = Block(site=site, xpath=el_xpath, checksum=checksum, body=string)
                         block = Block(site=site, checksum=checksum, body=string)
-                        try:
+                        if not dry:
                             block.save()
-                            n_2 += 1
+                            n_2 += 1 # number of new saved blocks
+                        """
                         except:
                             print ('--- save error in page ---', self.id)
                             save_failed = True
-                    this_block_in_page = BlockInPage.objects.filter(block=block, xpath=el_xpath, webpage=self).count()
-                    if not this_block_in_page and not save_failed:
-                        if blocks: # purge BIPs for this xpath if BIP with new block is being created
-                            blocks_in_page = BlockInPage.objects.filter(xpath=el_xpath, webpage=self)
-                            blocks_in_page.delete()
-                        n_3 += 1
-                        block_in_page = BlockInPage(block=block, xpath=el_xpath, webpage=self)
-                        block_in_page.save()
+                        """
+                    block.xpath = el_xpath # xpath volatile value only for local use !!!
+                    current_blocks.append(block)
+                    if not dry:
+                        this_block_in_page = BlockInPage.objects.filter(block=block, xpath=el_xpath, webpage=self).count()
+                        if not this_block_in_page: # save_failed:
+                            if matching_blocks: # purge BIPs for this xpath if BIP with new block is being created
+                                blocks_in_page = BlockInPage.objects.filter(xpath=el_xpath, webpage=self)
+                                blocks_in_page.delete()
+                            n_3 += 1 # number of new blocks in page
+                            block_in_page = BlockInPage(block=block, xpath=el_xpath, webpage=self)
+                            block_in_page.save()
                     if xpath and el_xpath==xpath:
                         done = True
                         break
-        # print (self.path, n_1, n_2, n_3)
-        return n_1, n_2, n_3
+        # return n_1, n_2, n_3
+        return current_blocks # , n_2, n_3
 
-    def purge_blocks(self, verbose=False):
-        """ delete all but last BlockInPage for each xpath """
-        blocks_in_page = list(BlockInPage.objects.filter(webpage=self).order_by('xpath', '-time'))
+    # BIP = block in page
+    def purge_bips(self, current_blocks=None, verbose=False):
+        """ delete BIPs not maching any current page block
+            current_blocks include a volatile xpath attribute !!!
+        """
+        if current_blocks:
+            blocks_dict = {}
+            for block in current_blocks:
+                blocks_dict[block.checksum] = block.xpath
+            bips = BlockInPage.objects.filter(webpage=self)
+            for bip in bips:
+                xpath = blocks_dict.get(bip.block.checksum, None)
+                if not (xpath and bip.xpath == xpath):
+                    bip.delete()
+        """ delete all but last BIP for each xpath """
+        bips = list(BlockInPage.objects.filter(webpage=self).order_by('xpath', '-time'))
         n_purged = 0
         previous_xpath = None
-        for bip in blocks_in_page:
+        for bip in bips:
             xpath = bip.xpath
             if xpath == previous_xpath:
                 bip.delete()
@@ -1391,15 +1404,14 @@ class Webpage(models.Model):
             block = bip.block
             xpath = bip.xpath
             for j in range(i, -1, -1):
-                # if xpath.startswith(xpaths[j]):
-                if xpath.startswith(xpaths[j]) and not xpath==xpaths[j]:
+                # if xpath.startswith(xpaths[j]) and not xpath==xpaths[j]:
+                if xpath.startswith(xpaths[j]) and (len(xpath.split('/')) > len(xpaths[j].split('/'))):
                     parent = blocks[j]
                     m += 1
                     if not BlockEdge.objects.filter(parent=parent, child=block):
                         try:
                             parent.add_child(block)
                             n += 1
-                            # print (xpaths[j], xpath)
                         except:
                             print ('create_blocks_dag error:', xpaths[j], xpath)
                     break
@@ -1420,7 +1432,7 @@ class PageVersion(models.Model):
     webpage = models.ForeignKey(Webpage)
     time = CreationDateTimeField()
     delay = models.IntegerField(default=0)
-    response_code = models.IntegerField()
+    response_code = models.IntegerField('Code')
     size = models.IntegerField()
     checksum = models.CharField(max_length=32, blank=True, null=True)
     body = models.TextField(blank=True, null=True)
@@ -1654,7 +1666,6 @@ class String(models.Model):
         # return previous, next
         return n, first, last, previous, next
 
-# class Block(models.Model):
 class Block(node_factory('BlockEdge')):
     site = models.ForeignKey(Site)
     xpath = models.CharField(max_length=200, blank=True, default='')
@@ -1692,6 +1703,13 @@ class Block(node_factory('BlockEdge')):
 
     def get_language(self):
         return self.language or self.site.language or Language.objects.get(code='it')
+
+    def get_level(self):
+        parents = self.parents()
+        if parents:
+            return 1 + parents[0].get_level()
+        else:
+            return 0
 
     def get_children(self):
         if not self.children.exists():

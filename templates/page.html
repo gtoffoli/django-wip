@@ -43,6 +43,7 @@ th, td { text-align: left; vertical-align: top; }
       	<th>{% trans "page URL"|capfirst %}</th>
       	<th>{% trans "null proxy"|capfirst %}</th>
       	<th>{% trans "blocks"|capfirst %}</th>
+      	<th>{% trans "in use"|capfirst %}</th>
       </tr>
     </thead>
     <tbody>
@@ -53,6 +54,7 @@ th, td { text-align: left; vertical-align: top; }
     		<td><a href="{{ site.url }}{{ webpage.path }}">{{ site.url }}{{ webpage.path }}</a></td>
     		<td><a href="/{{ site.path_prefix }}{{ webpage.path }}">/{{ site.path_prefix }}{{ webpage.path }}</a></td>
     		<td>{% if block_count %}<a href="/page/{{ webpage.id }}/blocks/">{{ block_count }}</a>{% else %}<a href="/page/{{ webpage.id }}/extract_blocks/">{% trans "extract blocks"|capfirst %}</a>{% endif %}</td>
+    		<td>{{ blocks_in_use.count }}</td>
     	</tr>
     </tbody>
   </table>
