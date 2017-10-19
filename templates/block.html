@@ -8,6 +8,20 @@
 h4 { margin: 0; padding: 0; }
 form { margin: 0; padding: 0; }
 table { margin: 0; padding: 0; }
+fieldset {
+    border: 1px groove #ddd !important;
+    padding: 0 1.4em 1.4em 1.4em !important;
+    margin: 0 0 1.0em 0 !important;
+    -webkit-box-shadow:  0px 0px 0px 0px #000;
+            box-shadow:  0px 0px 0px 0px #000;
+}
+legend {
+    width: inherit; /* Or auto */
+    padding: 0 10px; /* To give a bit of padding on the left and right */
+    border-bottom:none;
+    font-size: small;
+    font-style: italic;
+}
 label { font-size: small; }
 .rounded-box { border-radius: 10px;  border: 2px solid;  padding: 10px; margin: 5px 0; }
 .it { border-color: green; }
@@ -17,20 +31,18 @@ label { font-size: small; }
 
 {% block body_id %}block{% endblock %}
 
-{% block title-page %}{% trans "page block"|capfirst %}{% endblock %}
+{% block title-page %}{% trans "page block"|capfirst %} &nbsp; <small><i>{{ page_block.get_label }}</i></small>{% endblock %}
 
 {% block content-page %}
-<blockquote>{{ page_block.get_label }}</blockquote>
-
  <table class="table table-responsive table-bordered table-striped mB5">
     <thead>
       <tr>
     	<th>{% trans "project"|capfirst %}</th>
-    	<th>{% trans "block or project language"|capfirst %}</th>
+    	<th>{% trans "language"|capfirst %}</th>
     	<th>{% trans "block id"|capfirst %}</th>
     	<th>Checksum</th>
     	<th>{% trans "Date"|capfirst %}/{% trans "time"|capfirst %}</th>
-    	<th>Translate</th>
+    	{% if not page_block.no_translate %}<th>Translate</th>{% endif %}
       </tr>
     </thead>
     <tbody>
@@ -40,8 +52,7 @@ label { font-size: small; }
       	<td>{{ page_block.id }}</td>
       	<td>{{ page_block.checksum }}</td>
       	<td>{{ page_block.time|date:"SHORT_DATETIME_FORMAT" }}</td>
-      	<td><ul class="list-inline">{% for language in target_languages %}<li><a class="btn btn-default btn-sm" href="/block/{{ page_block.id }}/translate/{{ language.code }}/">to {{ language }}</a>{% endfor %}</div>
-
+      	{% if not page_block.no_translate %}<td><ul class="list-inline">{% for language in target_languages %}<li><a class="btn btn-default btn-sm" href="/block/{{ page_block.id }}/translate/{{ language.code }}/">to {{ language }}</a></li>{% endfor %}</ul></td>{% endif %}
       </tr>
     </tbody>
   </table>
@@ -49,46 +60,50 @@ label { font-size: small; }
 {% if user.is_superuser %}
    	<form class="mTB40" action="/block/{{ page_block.id }}/" method="post" style="margin: 0; padding: 0;">{% csrf_token %}
 
-    <h4>{% trans "properties"|capfirst %}<span style="font-size: medium;">
+	<fieldset>
+		<legend>Properties</legend>
 		<span class="mR10"><label>Block language</label> {{ edit_form.language }}</span><span class="mR10"><label>Invariant</label> {{ edit_form.no_translate }}</span>
 		<input type="submit" name="save_block" value="Save properties" class="btn btn-default btn-sm">
-	</span></h4>
+	</fieldset>
  
-    <h4>{% trans "navigation"|capfirst %}<span style="font-size: medium;">
+	<fieldset>
+		<legend>Navigation - {{ n }} blocks found:
 		{% if previous %}<span class="mR10"><input type="submit" name="goto-{{ previous.id }}" class="btn btn-default btn-sm" value="Previous"></span>{% endif %}
 		{% if next %}<input type="submit" name="goto-{{ next.id }}" class="btn btn-default btn-sm" value="Next">{% endif %}
-    </span></h4>
+		</legend>
 
-    <div class="form group">
-    <table class="table table-responsive">
+    <table>
     	<thead>
-    	<tr>{% for field in sequencer_form.visible_fields %}<th style="padding-bottom:0; border-bottom-width:0">{{ field.label_tag }}</th>{% endfor %}</tr>
+    	<tr>{% for field in sequencer_form.visible_fields %}<th style="padding-bottom:0; border-bottom-width:0">{{ field.label_tag }} &nbsp;</th>{% endfor %}</tr>
    	</thead>
    	<tbody><tr>
-		<td style="border-top-width:0">{{ sequencer_form.webpage }}</td>
+		<td style="vertical-align:top;">{{ sequencer_form.project_site }}</td>
+		<td style="vertical-align:top;">{{ sequencer_form.webpage }}</td>
 		{% comment %}<td style="border-top-width:0">{{ sequencer_form.block_age }}</td>{% endcomment %}
-		<td style="border-top-width:0">{{ sequencer_form.translation_state }}</td>
-		<td style="border-top-width:0">{{ sequencer_form.translation_languages }}</td>
+		<td style="vertical-align:top;">{{ sequencer_form.translation_state }}</td>
+		<td style="vertical-align:top;">{{ sequencer_form.translation_languages }}</td>
 		{% comment %}<td style="border-top-width:0">{{ sequencer_form.translation_age }}</td>{% endcomment %}
-		<td style="border-top-width:0">{{ sequencer_form.source_text_filter }}</td>
+		<td style="vertical-align:top;">{{ sequencer_form.source_text_filter }}</td>
 		{% comment %}<td>{{ sequencer_form.list_pages }}</td>{% endcomment %}
 	</tr></tbody></table>
-    </div>  
+	</fieldset>
 	</form>
 {% endif %}
 
-    <h4>HTML fragment</h4>
+	<fieldset>
+		<legend>Content and translations</legend>
 	<div class="rounded-box {{ page_block.get_language.code }}">{{ page_block.body|safe }}</div>
 
 	{% with language_translations=page_block.get_last_translations %}
  	{% if language_translations %}
  	{% for language_code, translations in language_translations %}
- 		{% if translations %}<h4>Last translations</h4>
+ 		{% if translations %}
 		<div class="rounded-box {{ language_code }}">{{ translations.0.body|safe }}</div>
  		{% endif %}
 	{% endfor %}
 	{% endif %}
 	{% endwith %}
+	</fieldset>
 	
  	{% if pages and list_pages %}
 	    <h4 style="margin-top:30px">{% trans "pages including this block"|capfirst %}</h4>

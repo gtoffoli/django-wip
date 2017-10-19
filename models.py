@@ -1309,6 +1309,9 @@ class Webpage(models.Model):
         html_string = re.sub("(<!--(.*?)-->)", "", html_string, flags=re.MULTILINE)
         # html_string = unicode_entities(html_string)
         html_string = normalize_string(html_string)
+        html_string = html_string.replace('encoding="utf-8"', '')
+        if not html_string:
+            return []
         doc = html.document_fromstring(html_string)
         tree = doc.getroottree()
         top_els = doc.getchildren()
@@ -1742,11 +1745,13 @@ class Block(node_factory('BlockEdge')):
         return previous, next
 
     # alternative version of get_previous_next
-    def get_navigation(self, webpage=None, translation_state='', translation_codes=[], source_text_filter='', order_by='id'):
+    def get_navigation(self, site=None, webpage=None, translation_state='', translation_codes=[], source_text_filter='', order_by='id'):
         target_code = len(translation_codes)==1 and translation_codes[0] or None
         qs = Block.objects.filter(site=self.site)
         if webpage:
-            qs = qs.filter(block_in_page__webpage=webpage)
+            qs = qs.filter(block_in_page__webpage=webpage).distinct()
+        elif site:
+            qs = qs.filter(block_in_page__webpage__site=site).distinct()
         if translation_state == INVARIANT: # block is language independent
             qs = qs.filter(no_translate=True)
         elif translation_state == ALREADY: # block is already in target language
@@ -1781,7 +1786,7 @@ class Block(node_factory('BlockEdge')):
         qs_after = qs_after.order_by(order_by)
         previous = qs_before.count() and qs_before[0] or None
         next = qs_after.count() and qs_after[0] or None
-        return previous, next
+        return qs.count(), previous, next
 
     def clone(self, language):
         return TranslatedBlock(block=self, language=language, body=self.body)

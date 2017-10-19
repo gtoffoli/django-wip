@@ -8,6 +8,20 @@
 h4 { margin: 0; padding: 0; }
 form { margin: 0; padding: 0; }
 table { margin: 0; padding: 0;}
+fieldset {
+    border: 1px groove #ddd !important;
+    padding: 0 1.4em 1.4em 1.4em !important;
+    margin: 0 0 1.0em 0 !important;
+    -webkit-box-shadow:  0px 0px 0px 0px #000;
+            box-shadow:  0px 0px 0px 0px #000;
+}
+legend {
+    width: inherit; /* Or auto */
+    padding: 0 10px; /* To give a bit of padding on the left and right */
+    border-bottom:none;
+    font-size: small;
+    font-style: italic;
+}
 label { font-size: small; }
 .rounded-box {  border-radius: 10px;  border: 2px solid;  padding: 10px; }
 .it { border: 1px solid; border-color: green; margin: 1px; }
@@ -54,18 +68,18 @@ function apply_translation (target_code, id_from, id_to) {
 
 {% block body_id %}block_translate{% endblock %}
 
-{% block title-page %}{% trans "translate block"|capfirst %}{% endblock %}
+{% block title-page %}{% trans "block to"|capfirst %} {{ target_language }}&nbsp; <small><i>{{ page_block.get_label }}</i></small>{% endblock %}
 
 {% block content-page %}
-<blockquote>{{ page_block.get_label }}</blockquote>
   <table class="table table-responsive table-bordered table-striped mB5">
     <thead>
       <tr>
     	<th>{% trans "project"|capfirst %}</th>
-    	<th>{% trans "block or project language"|capfirst %}</th>
+    	<th>{% trans "language"|capfirst %}</th>
     	<th>{% trans "block id"|capfirst %}</th>
     	<th>Checksum</th>
     	<th>{% trans "Date"|capfirst %}/{% trans "time"|capfirst %}</th>
+    	<th>Other translations</th>
       </tr>
     </thead>
     <tbody>
@@ -75,46 +89,46 @@ function apply_translation (target_code, id_from, id_to) {
       	<td>{{ page_block.id }}</td>
       	<td>{{ page_block.checksum }}</td>
       	<td>{{ page_block.time|date:"SHORT_DATETIME_FORMAT" }}</td>
+      	<td><ul class="list-inline">{% for language in other_languages %}<li><a class="btn btn-default btn-sm" href="/block/{{ page_block.id }}/translate/{{ language.code }}/">to {{ language }}</a>{% endfor %}</div>
       </tr>
     </tbody>
   </table>
-
-{% comment %}
-    <div><label>Project</label> <a href="/site/{{ site.slug }}/">{{ site.name }}</a></div>
-    <div><label>Block or project language</label> {{ language }}
-    <div><label>Block id</label> {{ page_block.id }}</div>
-    <div><label>Checksum</label> {{ page_block.checksum }}</div>
-    <div><label>Time</label> {{ page_block.time|date:"SHORT_DATETIME_FORMAT" }}</div>
-{% endcomment %}
 
 {% if user.is_superuser %}
 <form class="mTB40" action="/block/{{ page_block.id }}/translate/{{ target_code }}/" method="post" style="margin: 0; padding: 0;">{% csrf_token %}
 	<input type="hidden" id="segment" name="segment" value="">
 	<input type="hidden" id="string" name="string" value="">
 
-    <h4>{% trans "properties"|capfirst %}<span style="font-size: medium;">
+	<fieldset>
+		<legend>Properties</legend>
 		<label>Block language</label> {{ edit_form.language }} &nbsp;
 		<label>Invariant</label> {{ edit_form.no_translate }} &nbsp;&nbsp;
 		<input type="submit" name="save_block" value="Save properties" class="btn btn-default btn-sm">
 		{% if not extract_strings %}<input type="submit" name="extract" class="btn btn-default btn-sm" value="Extract strings">{% endif %}
-	</span></h4>
+	</fieldset>
 
-    <h4 style="margin: 0; padding: 0;">{% trans "navigation"|capfirst %}<span style="font-size: medium;">
+	<fieldset>
+		<legend>Navigation - {{ n }} blocks found:
    		<a class="btn btn-default btn-sm" href="/block/{{ page_block.id }}/">View</a>
 		{% if previous %}<input type="submit" name="goto-{{ previous.id }}" class="btn btn-sm" value="Previous">{% endif %}
 		{% if next %}<input type="submit" name="goto-{{ next.id }}" class="btn btn-sm" value="Next">{% endif %}
-    </span></h4>
+		</legend>
 
-    <table class="table"><thead>
-    	<tr>{% for field in sequencer_form.visible_fields %}<th style="padding-bottom:0; border-bottom-width:0">{{ field.label_tag }}</th>{% endfor %}</tr>
+    <table><thead>
+    	<tr>{% for field in sequencer_form.visible_fields %}<th style="padding-bottom:0; border-bottom-width:0;">{{ field.label_tag }} &nbsp;</th>{% endfor %}</tr>
    	</thead><tbody><tr>
-		<td style="border-top-width:0">{{ sequencer_form.webpage }}</td>
+		<td style="vertical-align:top;">{{ sequencer_form.project_site }}</td>
+		<td style="vertical-align:top;">{{ sequencer_form.webpage }}</td>
 		{% comment %}<td style="border-top-width:0">{{ sequencer_form.block_age }}</td>{% endcomment %}
-		<td style="border-top-width:0">{{ sequencer_form.translation_state }}</td>
-		<td style="border-top-width:0">{{ sequencer_form.translation_languages }}</td>
+		<td style="vertical-align:top;">{{ sequencer_form.translation_state }}</td>
+		<td style="vertical-align:top;">{{ sequencer_form.translation_languages }}</td>
 		{% comment %}<td style="border-top-width:0">{{ sequencer_form.translation_age }}</td>{% endcomment %}
-		<td style="border-top-width:0">{{ sequencer_form.source_text_filter }}</td>
+		<td style="vertical-align:top;">{{ sequencer_form.source_text_filter }}</td>
 	</tr></tbody></table>    	
+	</fieldset>
+
+	<fieldset>
+		<legend>Content and translations</legend>
 
 	<table class="table">
 	<thead>
@@ -165,6 +179,8 @@ function apply_translation (target_code, id_from, id_to) {
 	{% endif %}
 	</tbody>
 	</table>
+	</fieldset>
+
 </form>
 {% endif %}
 {% endblock %}

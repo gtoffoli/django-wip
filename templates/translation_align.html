@@ -60,7 +60,7 @@ th, td { text-align: left; vertical-align: top; }
 <form action="/translation_align/{{ translation.id }}/" id="sequencer_form" method="post">
 	{% csrf_token %}
 	<fieldset>
-		<legend>Navigation filters</legend>
+		<legend>Navigation</legend>
      <div>
 		{% comment %}<input type="submit" name="apply_filter" class="btn btn-sm" value="Apply filter below"> &nbsp;&nbsp;{% endcomment %}
 		{{ n }} translations found{% if n %}:{% endif %}

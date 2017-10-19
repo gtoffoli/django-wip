@@ -53,6 +53,7 @@
       <th>.. {% trans "translated" %}</th>
       <th>.. {% trans "partially" %}</th>
       <th>.. {% trans "others" %}</th>
+      <th>{% trans "in use" %}</th>
     </thead>
     <tbody>
       <td>{% if page_count %}<span class="mR10">{{ page_count }}</span><span class="mR10"><a href="/site/{{ site.slug }}/pages/" title="{% trans "list pages" %}"><i class="fa fa-th-list"></i></a></span><a href="/page/{{ first_page.id }}/" title="{% trans "browse all pages" %}"><i class="fa fa-caret-square-o-right"></i></a>{% else %}0{% endif %}</td>
@@ -63,6 +64,7 @@
       <td>{{ translated_blocks_count }}</td>
       <td>{{ partially_blocks_count }}</td>
       <td>{{ left_blocks_count }}</td>
+      <td>{{ blocks_in_use.count }}</td>
     </tbody>
   </table>
 

@@ -621,6 +621,7 @@ def proxy(request, proxy_slug):
     var_dict['first_page'] = webpages and webpages[0] or None
     blocks = Block.objects.filter(site=site).order_by('id')
     var_dict['block_count'] = block_count = blocks.count()
+    var_dict['blocks_in_use'] = site.get_blocks_in_use()
     var_dict['first_block'] = blocks and blocks[0] or None
     pages, pages_total, pages_invariant, pages_proxy_list = site.pages_summary()
     var_dict['pages_total'] = pages_total
@@ -1026,6 +1027,8 @@ def block(request, block_id):
             form = BlockSequencerForm(post)
             if form.is_valid():
                 data = form.cleaned_data
+                project_site = data['project_site']
+                project_site_id = project_site and project_site.id or ''
                 webpage_id = data['webpage']
                 block_age = '' # data['block_age']
                 translation_state = int(data['translation_state'])
@@ -1047,6 +1050,7 @@ def block(request, block_id):
         if sequencer_context:
             webpage_id = sequencer_context.get('webpage', None)
             block_age = sequencer_context.get('block_age', '')
+            project_site_id = sequencer_context.get('project_site_id', '')
             translation_state = translation_state or sequencer_context.get('translation_state', TO_BE_TRANSLATED)
             translation_codes = translation_codes or sequencer_context.get('translation_codes', [])
             translation_age = sequencer_context.get('translation_age', '')
@@ -1056,6 +1060,7 @@ def block(request, block_id):
         else:
             webpage_id = None
             block_age = ''
+            project_site_id = ''
             translation_state = TO_BE_TRANSLATED
             translation_codes = [proxy.language.code for proxy in block.site.get_proxies()]
             translation_age = ''
@@ -1066,6 +1071,7 @@ def block(request, block_id):
     sequencer_context = {}
     sequencer_context['webpage'] = webpage_id
     sequencer_context['block_age'] = block_age
+    sequencer_context['project_site_id'] = project_site_id
     sequencer_context['translation_state'] = translation_state
     sequencer_context['translation_codes'] = translation_codes
     sequencer_context['translation_age'] = translation_age
@@ -1075,7 +1081,8 @@ def block(request, block_id):
     var_dict = {}
     var_dict['page_block'] = block
     webpage = webpage_id and Webpage.objects.get(pk=webpage_id) or None
-    previous, next = block.get_navigation(webpage=webpage, translation_state=translation_state, translation_codes=translation_codes, source_text_filter=source_text_filter)
+    n, previous, next = block.get_navigation(site=project_site_id, webpage=webpage, translation_state=translation_state, translation_codes=translation_codes, source_text_filter=source_text_filter)
+    var_dict['n'] = n
     var_dict['previous'] = previous
     var_dict['next'] = next
     var_dict['site'] = site = block.site
@@ -1086,7 +1093,7 @@ def block(request, block_id):
     if save_block or goto:
         return HttpResponseRedirect('/block/%d/' % block.id)        
     var_dict['edit_form'] = BlockEditForm(initial={'language': block.language, 'no_translate': block.no_translate,})
-    var_dict['sequencer_form'] = BlockSequencerForm(initial={'webpage': webpage_id, 'block_age': block_age, 'translation_state': translation_state, 'translation_languages': translation_languages, 'translation_age': translation_age, 'source_text_filter': source_text_filter, 'list_pages': list_pages, })
+    var_dict['sequencer_form'] = BlockSequencerForm(initial={'project_site': project_site_id, 'webpage': webpage_id, 'block_age': block_age, 'translation_state': translation_state, 'translation_languages': translation_languages, 'translation_age': translation_age, 'source_text_filter': source_text_filter, 'list_pages': list_pages, })
     # return render_to_response('block.html', var_dict, context_instance=RequestContext(request))
     return render(request, 'block.html', var_dict)
 
@@ -1156,6 +1163,8 @@ def block_translate(request, block_id, target_code):
             form = BlockSequencerForm(post)
             if form.is_valid():
                 data = form.cleaned_data
+                project_site = data['project_site']
+                project_site_id = project_site and project_site.id or ''
                 webpage_id = data['webpage']
                 block_age = '' # data['block_age']
                 translation_state = int(data['translation_state'])
@@ -1179,6 +1188,7 @@ def block_translate(request, block_id, target_code):
     if (not post) or save_block or create or modify or extract or segment or string:
         sequencer_context = request.session.get('sequencer_context', {})
         if sequencer_context:
+            project_site_id = sequencer_context.get('project_site_id', None)
             webpage_id = sequencer_context.get('webpage', None)
             block_age = sequencer_context['block_age']
             translation_state = sequencer_context.get('translation_state', TO_BE_TRANSLATED)
@@ -1190,6 +1200,7 @@ def block_translate(request, block_id, target_code):
         else:
             webpage_id = ''
             block_age = ''
+            project_site_id = ''
             translation_state = TO_BE_TRANSLATED
             translation_codes = [proxy.language.code for proxy in block.site.get_proxies()]
             translation_age = ''
@@ -1199,6 +1210,7 @@ def block_translate(request, block_id, target_code):
     sequencer_context = {}
     sequencer_context['webpage'] = webpage_id
     sequencer_context['block_age'] = block_age
+    sequencer_context['project_site_id'] = project_site_id
     sequencer_context['translation_state'] = translation_state
     sequencer_context['translation_codes'] = translation_codes
     sequencer_context['translation_age'] = translation_age
@@ -1244,17 +1256,21 @@ def block_translate(request, block_id, target_code):
     var_dict = {}
     var_dict['page_block'] = block
     webpage = webpage_id and Webpage.objects.get(pk=webpage_id) or None
-    previous, next = block.get_navigation(webpage=webpage, translation_state=translation_state, translation_codes=translation_codes, source_text_filter=source_text_filter)
+    n, previous, next = block.get_navigation(site=project_site_id, webpage=webpage, translation_state=translation_state, translation_codes=translation_codes, source_text_filter=source_text_filter)
+    var_dict['n'] = n
     var_dict['previous'] = previous
     var_dict['next'] = next
     var_dict['site'] = site = block.site
     var_dict['language'] = block.language or site.language
     var_dict['target_language'] = target_language
     var_dict['target_code'] = target_code
+    other_codes = proxy_codes
+    other_codes.remove(target_code) 
+    var_dict['other_languages'] = Language.objects.filter(code__in=other_codes).order_by('code')
     if save_block or goto:
         return HttpResponseRedirect('/block/%d/translate/%s/' % (block.id, target_code) )       
     var_dict['edit_form'] = BlockEditForm(initial={'language': block.language, 'no_translate': block.no_translate,})
-    var_dict['sequencer_form'] = BlockSequencerForm(initial={'webpage': webpage_id, 'block_age': block_age, 'translation_state': translation_state, 'translation_languages': translation_languages, 'translation_age': translation_age, 'source_text_filter': source_text_filter,})
+    var_dict['sequencer_form'] = BlockSequencerForm(initial={'project_site': project_site_id, 'webpage': webpage_id, 'block_age': block_age, 'translation_state': translation_state, 'translation_languages': translation_languages, 'translation_age': translation_age, 'source_text_filter': source_text_filter,})
     var_dict['source_segments'] = source_segments
     var_dict['translated_block'] = translated_block
     # return render_to_response('block_translate.html', var_dict, context_instance=RequestContext(request))
