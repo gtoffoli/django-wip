@@ -38,7 +38,8 @@ from lxml import html, etree
 from guess_language.guess_language import guessLanguage
 import urllib
 # import unirest
-import wip.srx_segmenter
+# import wip.srx_segmenter
+import wip.srx_segmenter as srx_segmenter
 
 # from wip.settings import BLOCK_TAGS, TO_DROP_TAGS
 from django.conf import settings

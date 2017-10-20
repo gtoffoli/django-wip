@@ -8,11 +8,13 @@
 import sys
 if (sys.version_info > (3, 0)):
     from urllib import parse as urlparse
+    import urllib.request as urllib2
 else:
     import urlparse
+    import urllib2
 
 import time
-import urllib2, json
+import json
 import re
 from collections import defaultdict
 
@@ -53,14 +55,14 @@ class WipDiscoverPipeline(object):
         self.exporter = JsonLinesItemExporter(self.output_file)
         self.exporter.start_exporting()
         """
-        print '--- spider_opened for scan %d, %s ---' % (spider.scan_id, spider.name)
+        print ('--- spider_opened for scan %d, %s ---' % (spider.scan_id, spider.name))
 
     def spider_closed(self, spider):
         """
         self.exporter.finish_exporting()
         self.output_file.close()
         """
-        print '--- spider_closed ---'
+        print ('--- spider_closed ---')
         scan = Scan.objects.get(pk=spider.scan_id)
         scan.terminated = True
         scan.save()
@@ -76,7 +78,8 @@ class WipDiscoverPipeline(object):
         spider.page_count += 1
         if not (scan.count_words or scan.count_segments):
             return item
-        body = item['body']
+        # body = item['body']
+        body = item['body'].decode()
         html_string = re.sub("(<!--(.*?)-->)", "", body, flags=re.MULTILINE)
         html_string = normalize_string(html_string)
         if not html_string:
@@ -120,7 +123,9 @@ class WipCrawlPipeline(object):
     def process_item(self, item, spider):
         site = Site.objects.get(pk=item['site_id'])
         for content in settings.PAGES_EXCLUDE_BY_CONTENT.get(site.slug, []):
-            if item['body'].count(content):
+            # if item['body'].count(content):
+            body = item['body'].decode()
+            if body.count(content):
                 return item
         path = urlparse.urlparse(item['url']).path
         pages = Webpage.objects.filter(site=site, path=path)
@@ -133,12 +138,14 @@ class WipCrawlPipeline(object):
         page.last_checked = timezone.now()
         page.last_checked_response_code = item['status']
         page.save()
-        checksum = site.page_checksum(item['body'])
+        # checksum = site.page_checksum(item['body'])
+        checksum = site.page_checksum(body)
         fetched_pages = PageVersion.objects.filter(webpage=page).order_by('-time')
         last = fetched_pages and fetched_pages[0] or None
         # if not last:
         if not last or checksum!=last.checksum:
-            body = item['encoding'].count('text/') and item['body'] or ''
+            # body = item['encoding'].count('text/') and item['body'] or ''
+            body = item['encoding'].count('text/') and body or ''
             fetched = PageVersion(webpage=page, response_code=item['status'], size=item['size'], checksum=checksum, body=body)
             fetched.save()
         return item
