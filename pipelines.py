@@ -86,14 +86,16 @@ class WipDiscoverPipeline(object):
             return item
         tokens_dict = defaultdict(int)
         segments_dict = defaultdict(int)
-        for s in strings_from_html(html_string):
+        for string in strings_from_html(html_string):
+            if string and string[0]=='{' and string[-1]=='}':
+                continue
             if scan.count_words:
-                tokens = tokenizer.tokenize(s)
+                tokens = tokenizer.tokenize(string)
                 for token in tokens:
                     if not is_invariant_word(token):
                         tokens_dict[token] += 1
             if scan.count_segments:
-                segments = segments_from_string(s, segmenter)
+                segments = segments_from_string(string, segmenter)
                 for segment in segments:
                     segments_dict[segment] += 1
         if scan.count_words:

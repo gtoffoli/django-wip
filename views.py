@@ -2735,6 +2735,7 @@ def scan_words(request, scan_id):
     else:
         wordcounts = wordcounts.order_by('-count')
         sorted_by = 'by frequency'
+    wordcounts = [wordcount for wordcount in wordcounts if len(wordcount.word)>1 and not re.sub('[\'\.\,\+\-\/\%\:\°]', '', wordcount.word).isdigit()]
     if output == 'csv':
         data = u'\r\n'.join(['%d\t%s' % (wordcount.count, wordcount.word) for wordcount in wordcounts])
         response = HttpResponse(data, content_type='application/octet-stream')
@@ -2762,6 +2763,7 @@ def scan_segments(request, scan_id):
         sorted_by = 'sorted alphabetically'
     else:
         segmentcounts = segmentcounts.order_by('-count')
+        sorted_by = 'by frequency'
     if output == 'csv':
         data = u'\r\n'.join(['%d\t%s' % (segmentcount.count, segmentcount.segment) for segmentcount in segmentcounts])
         response = HttpResponse(data, content_type='application/octet-stream')
@@ -2769,11 +2771,8 @@ def scan_segments(request, scan_id):
         response['Content-Disposition'] = 'attachment; filename="%s"' % filename
         return response
     lines = []
-    if output == 'csv':
-        pass
-        sorted_by = 'by frequency'
     for segmentcount in segmentcounts:
-        line = {"count": segmentcount.count, "word": segmentcount.segment}
+        line = {"count": segmentcount.count, "segment": segmentcount.segment}
         lines.append(line)
     data_dict = {}
     data_dict['scan'] = scan

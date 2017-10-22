@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% load staticfiles i18n %}
+
+{% block head_title %}{% trans "scan"|capfirst %} {{ scan.get_label }}{% endblock %}
+
+{% block extra_head %}
+<style>
+table { border-spacing: 10px 0; border-collapse: separate; }
+th, td { text-align: left; vertical-align: top; }
+</style>
+{% endblock %}
+
+{% block title-page %}{% trans "scan"|capfirst %} <a href="/scan/{{ scan.pk }}/">{{ scan.get_label }}</a>{% endblock %}
+
+{% block content-page %}
+
+<h4>Segments {{ sorted_by }}</h4>
+
+<table>
+<thead><th style="text-align: right;">#</th><th>count</th><th>segment</th></thead>
+<tbody>
+{% for line in lines %}
+	<tr>
+		<td style="text-align: right;">{{ forloop.counter }}</td>
+		<td style="text-align: right;">{{ line.count }}</td>
+		<td>{{ line.segment }}</td>
+	</tr>
+{% endfor %}
+</tbody>
+</table>
+
+{% endblock %}

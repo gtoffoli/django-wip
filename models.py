@@ -1494,8 +1494,8 @@ class PageVersion(models.Model):
         """
         segments = []
         for string in list(strings_from_html(html_string, fragment=False, exclude_xpaths=exclude_xpaths)):
-            # string = string.replace(u"\u2018", "'").replace(u"\u2019", "'").replace(' - ', ' – ')
-            # print 'string: ', type(string)
+            if string and string[0]=='{' and string[-1]=='}':
+                continue
             segments.extend(segments_from_string(string, site, segmenter, exclude_TM_invariants=exclude_TM_invariants))
         return segments
 
@@ -2073,6 +2073,8 @@ def get_segments(body, site, segmenter, fragment=True, exclude_tx=True, exclude_
     segments = []
     if html_string:
         for string in list(strings_from_html(html_string, fragment=fragment, exclude_tx=exclude_tx, exclude_xpaths=exclude_xpaths)):
+            if string and string[0]=='{' and string[-1]=='}':
+                continue
             segments.extend(segments_from_string(string, site, segmenter))
     return segments
 
