@@ -123,8 +123,6 @@ struct text_alignment {
 double seconds(void) {
 #ifndef WINDOWS
     struct timespec ts;
-	struct { long tv_sec; long tv_nsec; } ts;
-	ts.tv_sec = 0; ts.tv_nsec = 0;
     clock_gettime(CLOCK_REALTIME, &ts);
 #else
 	timespec ts;
@@ -913,7 +911,7 @@ struct fixed_sentence_alignment *fixed_alignment_read(int reverse, FILE *file, l
 	if (fgets(line, MAX_CHARS, file) != NULL) {
         if (strlen(line) > 1) {
         	if (! quiet) {
-                fprintf(stderr, "Reading alignment # %i\n", sent+1);
+                fprintf(stderr, "Reading alignment # %i\n", (int)sent+1);
 			    fprintf(stderr, "%s", line);
         	}
 			for (link_t i=0; i<n_target_tokens; i++) {
@@ -957,7 +955,6 @@ struct fixed_sentence_alignment *fixed_alignment_read(int reverse, FILE *file, l
 // other lines contain sentence level links of known (possibly partial) alignments.
 // File lines are in the same number and order of couple of files of a tokenized bi-text.
 struct fixed_sentence_alignments* fixed_alignments_read(int reverse, const struct text *source, const struct text *target, const char *fixed_alignments_filename, int quiet) {
-    // fprintf(stderr, "Reading fixed alignments\n");
 
     size_t n_sentences = source->n_sentences;
     struct sentence **source_sentences = source->sentences;
@@ -992,7 +989,7 @@ struct fixed_sentence_alignments* fixed_alignments_read(int reverse, const struc
 	assert (n_alignments == n_sentences);
 	fixed_sentence_alignments->n_sentences = n_sentences;
 	if (! quiet)
-        fprintf(stderr, "Reading %i fixed alignments, each of max %i links, from %s\n", n_sentences, max_links, fixed_alignments_filename);
+        fprintf(stderr, "Reading %i fixed alignments, each of max %i links, from %s\n", n_alignments, max_links, fixed_alignments_filename);
 
     if ((fixed_sentence_alignments->sentence_alignments = malloc(n_sentences*sizeof(struct fixed_sentence_alignment*)))
             == NULL)
