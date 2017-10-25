@@ -1052,7 +1052,11 @@ class Proxy(models.Model):
         else:
             all_filename = os.path.join(base_path, '%s_all.txt' % proxy_code)
             alignment_file = open(all_filename, 'r', encoding="utf-8")
+        if verbose:
+            print ('proxy_eflomal_align 2')
         translation_ids.seek(0)
+        if verbose:
+            print ('proxy_eflomal_align 3')
         if evaluate:
             aer_total = 0.0
             n_evaluated = 0
@@ -1086,6 +1090,8 @@ class Proxy(models.Model):
                     translation.save()
             n_translations += 1
         alignment_file.close()
+        if verbose:
+            print ('proxy_eflomal_align 4', evaluate, n_evaluated)
         if evaluate and n_evaluated:
             evaluation = aer_total/n_evaluated
             if verbose:
