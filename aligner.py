@@ -149,7 +149,9 @@ def symmetrize_alignments(srclen, trglen, e2f, f2e):
     symmetrize forward and reverse alignments using the NLTK grow_diag_final_and algorithm
     """
     alignment = grow_diag_final_and(srclen, trglen, e2f, f2e)
+    print ('symmetrize_alignments 1')
     alignment = sorted(alignment, key=lambda x: (x[0], x[1]))
+    print ('symmetrize_alignments 2')
     return ' '.join(['-'.join([str(link[0]), str(link[1])]) for link in alignment])
 
 def proxy_symmetrize_alignments(proxy, base_path=None, verbose=False):
