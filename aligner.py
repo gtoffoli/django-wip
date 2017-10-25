@@ -181,10 +181,10 @@ def proxy_symmetrize_alignments(proxy, base_path=None, verbose=False):
         e2f = file_fwd.readline().strip()
         f2e = file_rev.readline().strip()
         if verbose:
-            print ('proxy_symmetrize_alignments 31', n_source_sents, e2f, f2e)
+            print ('proxy_symmetrize_alignments 31', n_source_sents, srclen, trglen, e2f, '+', f2e)
         alignment = symmetrize_alignments(srclen, trglen, e2f, f2e)
         if verbose:
-            print ('proxy_symmetrize_alignments 32', n_source_sents, alignment)
+            print ('proxy_symmetrize_alignments 32', n_source_sents, srclen, trglen, alignment)
         file_sym.write('%s\n' % alignment)
     if verbose:
         print ('proxy_symmetrize_alignments 4')
