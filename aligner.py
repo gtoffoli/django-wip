@@ -255,6 +255,8 @@ if (sys.version_info > (3, 0)):
         score_file.close()
         file_fwd.close()
         file_rev.close()
+        if verbose:
+            print ('proxy_eflomal_align returns')
 
 def split_alignment(alignment):
     """

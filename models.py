@@ -1043,6 +1043,8 @@ class Proxy(models.Model):
         translation_ids = StringIO()
         # proxy_eflomal_align(self, base_path=base_path, lowercasing=lowercasing, max_tokens=max_tokens, max_fertility=max_fertility, translation_ids=translation_ids)
         proxy_eflomal_align(self, base_path=base_path, lowercasing=lowercasing, max_tokens=max_tokens, max_fertility=max_fertility, translation_ids=translation_ids, use_know_links=use_know_links, evaluate=evaluate, test_set_module=test_set_module, verbose=verbose, debug=debug)
+        if verbose:
+            print ('proxy_eflomal_align returned')
         if symmetrize:
             proxy_symmetrize_alignments(self)
             links_sym_filename = os.path.join(base_path, '%s_links_sym.txt' % proxy_code)
