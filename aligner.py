@@ -169,17 +169,17 @@ def proxy_symmetrize_alignments(proxy, base_path=None, verbose=False):
     file_rev = open(links_filename_rev, 'r')
     file_sym = open(links_sym_filename, 'w')
 
-    n_source_sents, n_source_words = list(map(int, source_file.readline().split()))
-    n_target_sents, n_target_words = list(map(int, target_file.readline().split()))
+    n_source_sents, n_source_words = list(map(int, source_file.readline().strip().split()))
+    n_target_sents, n_target_words = list(map(int, target_file.readline().strip().split()))
     assert (n_source_sents == n_target_sents)
     if verbose:
         print ('proxy_symmetrize_alignments 2', n_source_sents)
     while n_source_sents:
         n_source_sents -= 1
-        srclen = len(list(map(int, source_file.readline().split())))
-        trglen = len(list(map(int, target_file.readline().split())))
-        e2f = file_fwd.readline()
-        f2e = file_rev.readline()
+        srclen = len(list(map(int, source_file.readline().strip().split())))
+        trglen = len(list(map(int, target_file.readline().strip().split())))
+        e2f = file_fwd.readline().strip()
+        f2e = file_rev.readline().strip()
         if verbose:
             print ('proxy_symmetrize_alignments 31', n_source_sents, e2f, f2e)
         alignment = symmetrize_alignments(srclen, trglen, e2f, f2e)
