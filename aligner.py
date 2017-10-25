@@ -152,9 +152,11 @@ def symmetrize_alignments(srclen, trglen, e2f, f2e):
     alignment = sorted(alignment, key=lambda x: (x[0], x[1]))
     return ' '.join(['-'.join([str(link[0]), str(link[1])]) for link in alignment])
 
-def proxy_symmetrize_alignments(proxy, base_path=None):
+def proxy_symmetrize_alignments(proxy, base_path=None, verbose=False):
     if not base_path:
         base_path = os.path.join(settings.BASE_DIR, 'sandbox') 
+    if verbose:
+        print ('proxy_symmetrize_alignments 1', base_path)
     proxy_code = '%s_%s' % (proxy.site.slug, proxy.language_id)
     source_filename = os.path.join(base_path, '%s_source.txt' % proxy_code)
     target_filename = os.path.join(base_path, '%s_target.txt' % proxy_code)
@@ -170,6 +172,8 @@ def proxy_symmetrize_alignments(proxy, base_path=None):
     n_source_sents, n_source_words = list(map(int, source_file.readline().split()))
     n_target_sents, n_target_words = list(map(int, target_file.readline().split()))
     assert (n_source_sents == n_target_sents)
+    if verbose:
+        print ('proxy_symmetrize_alignments 2', n_source_sents)
     while n_source_sents:
         n_source_sents -= 1
         srclen = len(list(map(int, source_file.readline().split())))
@@ -178,12 +182,16 @@ def proxy_symmetrize_alignments(proxy, base_path=None):
         f2e = file_rev.readline()
         alignment = symmetrize_alignments(srclen, trglen, e2f, f2e)
         file_sym.write('%s\n' % alignment)
+    if verbose:
+        print ('proxy_symmetrize_alignments 3')
     
     source_file.close()
     target_file.close()
     file_fwd.close()
     file_rev.close()
     file_sym.close()        
+    if verbose:
+        print ('proxy_symmetrize_alignments returns')
 
 if (sys.version_info > (3, 0)):
     import eflomal
