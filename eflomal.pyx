@@ -158,4 +158,5 @@ def align(
     if scores_filename: args.extend(['-x', scores_filename])
     if not quiet: sys.stderr.write(' '.join(args) + '\n')
     if use_gdb: args = ['gdb', '-ex=run', '--args'] + args
-    subprocess.run(args)
+    status = subprocess.call(args)
+    return status

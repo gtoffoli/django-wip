@@ -232,9 +232,11 @@ if (sys.version_info > (3, 0)):
         if verbose:
             print (known_links_filename_fwd, known_links_filename_rev)
         if use_know_links:
-            eflomal.align(source_filename, target_filename, scores_filename=scores_filename, links_filename_fwd=links_filename_fwd, links_filename_rev=links_filename_rev, statistics_filename=statistics_filename, quiet=not verbose, use_gdb=debug, fixed_links_filename_fwd=known_links_filename_fwd, fixed_links_filename_rev=known_links_filename_rev)
+            status = eflomal.align(source_filename, target_filename, scores_filename=scores_filename, links_filename_fwd=links_filename_fwd, links_filename_rev=links_filename_rev, statistics_filename=statistics_filename, quiet=not verbose, use_gdb=debug, fixed_links_filename_fwd=known_links_filename_fwd, fixed_links_filename_rev=known_links_filename_rev)
         else:
-            eflomal.align(source_filename, target_filename, scores_filename=scores_filename, links_filename_fwd=links_filename_fwd, links_filename_rev=links_filename_rev, statistics_filename=statistics_filename, quiet=not verbose, use_gdb=debug)
+            status = eflomal.align(source_filename, target_filename, scores_filename=scores_filename, links_filename_fwd=links_filename_fwd, links_filename_rev=links_filename_rev, statistics_filename=statistics_filename, quiet=not verbose, use_gdb=debug)
+        if verbose:
+            print ('eflomal terminated with status', status)
         all_file =  open(all_filename, 'w', encoding="utf-8")
         score_file = open(scores_filename, 'r')
         file_fwd = open(links_filename_fwd, 'r')
