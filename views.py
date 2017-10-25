@@ -514,7 +514,7 @@ def proxy(request, proxy_slug):
     var_dict['word_count'] = len(words_distribution)
     post = request.POST
     if post:
-        print ('request.POST: ', post)
+        # print ('request.POST: ', post)
         delete_pages = post.get('delete_pages', '')
         delete_blocks = post.get('delete_blocks', '')
         delete_proxy = post.get('delete_proxy', '')
@@ -611,7 +611,7 @@ def proxy(request, proxy_slug):
                 n_ready, n_translated, n_partially = proxy.apply_translation_memory()
                 messages.add_message(request, messages.INFO, 'TM applied to %d blocks: %d fully translated, %d partially translated.' % (n_ready, n_translated, n_partially))
             elif propagate_up:
-                print ('propagate_up')
+                # print ('propagate_up')
                 n_new, n_updated, n_no_updated = proxy.propagate_up_block_updates()
                 messages.add_message(request, messages.INFO, 'Up propagation: %d new, %d updated, %d not updated blocks' % (n_new, n_updated, n_no_updated))
     else:
@@ -661,7 +661,7 @@ def import_xliff(request, proxy_slug):
             file_name = xliff_file.name
             file_size = xliff_file.size
             charset = xliff_file.charset
-            print (file_name, file_size, charset)
+            # print (file_name, file_size, charset)
             msg = 'XLIFF file: %s - size: %d' % (file_name, file_size)
             user_role = data['user_role']
             status = proxy.import_translations(xliff_file, request=request, user_role=user_role)
@@ -768,7 +768,7 @@ def page(request, page_id):
             webpage.fetch(verbose=True)
         elif purge_blocks:
             extracted_blocks = webpage.extract_blocks(dry=True, verbose=True)
-            print ('extracted bocks:', len(extracted_blocks))
+            # print ('extracted bocks:', len(extracted_blocks))
             webpage.purge_bips(current_blocks=extracted_blocks, verbose=True)
         elif extract_blocks:
             webpage.extract_blocks(verbose=True)
@@ -1329,7 +1329,7 @@ def block_pages(request, block_id):
 def string_view(request, string_id):
     if not request.user.is_superuser:
         return empty_page(request);
-    print (string_id)
+    # print (string_id)
     var_dict = {}
     var_dict['string'] = string = get_object_or_404(String, pk=string_id)
     var_dict['string_type'] = STRING_TYPE_DICT[string.string_type]
@@ -1377,7 +1377,7 @@ def string_view(request, string_id):
         form = StringSequencerForm(post)
         if form.is_valid():
             data = form.cleaned_data
-            print ('data: ', data)
+            # print ('data: ', data)
             string_types = data['string_types']
             """
             project_site = data['project_site']
@@ -1468,7 +1468,7 @@ def segment_view(request, segment_id):
             show_similar = data['show_similar']
         else:
             print ('error', form.errors)
-    print ('project_site: ', project_site)
+    # print ('project_site: ', project_site)
     segment_context['translation_state'] = translation_state
     segment_context['translation_codes'] = translation_codes
     segment_context['project_site'] = project_site_id
@@ -1512,14 +1512,14 @@ def translation_align(request, translation_id):
     apply_filter = goto = '' 
     post = request.POST
     if post:
-        print('post')
+        # print('post')
         if post.get('alignment', ''):
             translation_align_form = TranslationViewForm(post)
-            print('alignment')
+            # print('alignment')
             if translation_align_form.is_valid():
                 data = translation_align_form.cleaned_data
                 alignment = data['alignment']
-                print('alignment: ', alignment)
+                # print('alignment: ', alignment)
                 compute_alignment = data['compute_alignment']
         else:
             apply_filter = post.get('apply_filter', '')
@@ -1690,7 +1690,7 @@ def string_translate(request, string_id, target_code):
             translation_form = StringTranslationForm(request.POST)
             if translation_form.is_valid():
                 data = translation_form.cleaned_data
-                print (data)
+                # print (data)
                 translation = data['translation']
                 site = data['translation_site']
                 translation_subjects = data['translation_subjects']
@@ -1818,7 +1818,7 @@ def segment_translate(request, segment_id, target_code):
             translation_form = SegmentTranslationForm(request.POST)
             if translation_form.is_valid():
                 data = translation_form.cleaned_data
-                print (data)
+                # print (data)
                 translation_text = data['translation']
                 translationt = get_or_add_translation(request, segment, translation_text, target_language)
             else:
@@ -2019,7 +2019,7 @@ def strings_translations(request, proxy_slug=None, state=None):
         form = StringsTranslationsForm(post)
         if post.get('delete-segment', ''):
             selection = post.getlist('selection')
-            print ('delete-segment', selection)
+            # print ('delete-segment', selection)
             for string_id in selection:
                 string = String.objects.get(pk=int(string_id))
                 txu = string.txu
@@ -2031,7 +2031,7 @@ def strings_translations(request, proxy_slug=None, state=None):
                     string.delete()
         elif post.get('delete-translation', ''):
             selection = post.getlist('selection')
-            print ('delete-translation', selection)
+            # print ('delete-translation', selection)
             for string_id in selection:
                 string = String.objects.get(pk=int(string_id))
                 txu = string.txu
@@ -2041,7 +2041,7 @@ def strings_translations(request, proxy_slug=None, state=None):
                         string.delete()
         elif post.get('make-invariant', ''):
             selection = post.getlist('selection')
-            print ('make-invariant', selection)
+            # print ('make-invariant', selection)
             for string_id in selection:
                 string = String.objects.get(pk=int(string_id))
                 txu = string.txu
@@ -2054,17 +2054,17 @@ def strings_translations(request, proxy_slug=None, state=None):
                     txu.delete()
         elif post.get('toggle-invariant', ''):
             selection = post.getlist('selection')
-            print ('toggle-invariant', selection)
+            # print ('toggle-invariant', selection)
             for string_id in selection:
                 string = String.objects.get(pk=int(string_id))
                 if string.invariant:
                     string.invariant = False
                     string.save()
-                    print ('True-> False')
+                    # print ('True-> False')
                 elif not string.txu:
                     string.invariant = True
                     string.save()
-                    print ('False-> True')
+                    # print ('False-> True')
         elif form.is_valid():
             data = form.cleaned_data
             tm_edit_context['translation_state'] = translation_state = int(data['translation_state'])
@@ -2337,7 +2337,7 @@ def proxy_string_translations(request, proxy_slug=None, state=None):
         form = StringsTranslationsForm(post)
         if post.get('delete-segment', ''):
             selection = post.getlist('selection')
-            print ('delete-segment', selection)
+            # print ('delete-segment', selection)
             for string_id in selection:
                 string = String.objects.get(pk=int(string_id))
                 txu = string.txu
@@ -2349,7 +2349,7 @@ def proxy_string_translations(request, proxy_slug=None, state=None):
                     string.delete()
         elif post.get('delete-translation', ''):
             selection = post.getlist('selection')
-            print ('delete-translation', selection)
+            # print ('delete-translation', selection)
             for string_id in selection:
                 string = String.objects.get(pk=int(string_id))
                 txu = string.txu
@@ -2359,7 +2359,7 @@ def proxy_string_translations(request, proxy_slug=None, state=None):
                         string.delete()
         elif post.get('make-invariant', ''):
             selection = post.getlist('selection')
-            print ('make-invariant', selection)
+            # print ('make-invariant', selection)
             for string_id in selection:
                 string = String.objects.get(pk=int(string_id))
                 txu = string.txu
@@ -2372,17 +2372,17 @@ def proxy_string_translations(request, proxy_slug=None, state=None):
                     txu.delete()
         elif post.get('toggle-invariant', ''):
             selection = post.getlist('selection')
-            print ('toggle-invariant', selection)
+            # print ('toggle-invariant', selection)
             for string_id in selection:
                 string = String.objects.get(pk=int(string_id))
                 if string.invariant:
                     string.invariant = False
                     string.save()
-                    print ('True-> False')
+                    # print ('True-> False')
                 elif not string.txu:
                     string.invariant = True
                     string.save()
-                    print ('False-> True')
+                    # print ('False-> True')
         elif form.is_valid():
             data = form.cleaned_data
             tm_edit_context['translation_state'] = translation_state = int(data['translation_state'])
@@ -2463,25 +2463,25 @@ def add_translated_string(request):
         source_language = Language.objects.get(name=source_language)
         reliability = 5
         if (txu_id == 0):
-            print ('txu non esiste')
+            # print ('txu non esiste')
             target_txu = Txu(provider=site_name, user=request.user)
             target_txu.save()
             target_txu_id = target_txu.id
-            print (target_txu_id)
+            # print (target_txu_id)
             string = String.objects.filter(pk=source_id).update(txu=target_txu.id)
             string_new = String(text=translation, language=target_language, txu=target_txu, site=None, reliability=reliability, invariant=False)
             string_new.save()
             translated_new_id = string_new.id
-            print (translated_new_id)
+            # print (translated_new_id)
             return JsonResponse({"data": "add-txt-string","txu_id": target_txu_id,"translated_id": translated_new_id,})
         else:
             string = String.objects.filter(pk=translated_id)
             if string:
-                print ('txu esiste update stringa')
+                # print ('txu esiste update stringa')
                 string.update(text=translation)
                 return JsonResponse({"data": "modify-string",})
             else:
-                print ('txu esiste nuova stringa')
+                # print ('txu esiste nuova stringa')
                 string_new = String(txu_id=txu_id, language=target_language, site=None, text=translation, reliability=reliability, invariant=False)
                 string_new.save()
                 translated_new_id = string_new.id
@@ -2521,7 +2521,7 @@ def delete_translated_string(request):
         source_id = int(form.get('source_id'))
         translated_id = int(form.get('translated_id'))
         txu_id = int(form.get('txu_id'))
-        print (source_id)
+        # print (source_id)
         return JsonResponse({"data": "delete-string",})
     return empty_page(request);
     
@@ -2672,7 +2672,7 @@ def user_scans(request, username=None):
         post = request.POST
         if post.get('delete-scan', ''):
             selection = post.getlist('selection')
-            print ('delete-scan', selection)
+            # print ('delete-scan', selection)
             for scan_id in selection:
                 scan = Scan.objects.get(pk=int(scan_id))
                 scan.delete()
