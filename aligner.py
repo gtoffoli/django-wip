@@ -149,16 +149,12 @@ def symmetrize_alignments(srclen, trglen, e2f, f2e):
     symmetrize forward and reverse alignments using the NLTK grow_diag_final_and algorithm
     """
     alignment = grow_diag_final_and(srclen, trglen, e2f, f2e)
-    print ('symmetrize_alignments 1')
     alignment = sorted(alignment, key=lambda x: (x[0], x[1]))
-    print ('symmetrize_alignments 2')
     return ' '.join(['-'.join([str(link[0]), str(link[1])]) for link in alignment])
 
-def proxy_symmetrize_alignments(proxy, base_path=None, verbose=False):
+def proxy_symmetrize_alignments(proxy, base_path=None):
     if not base_path:
         base_path = os.path.join(settings.BASE_DIR, 'sandbox') 
-    if verbose:
-        print ('proxy_symmetrize_alignments 1', base_path)
     proxy_code = '%s_%s' % (proxy.site.slug, proxy.language_id)
     source_filename = os.path.join(base_path, '%s_source.txt' % proxy_code)
     target_filename = os.path.join(base_path, '%s_target.txt' % proxy_code)
@@ -170,34 +166,22 @@ def proxy_symmetrize_alignments(proxy, base_path=None, verbose=False):
     file_fwd = open(links_filename_fwd, 'r')
     file_rev = open(links_filename_rev, 'r')
     file_sym = open(links_sym_filename, 'w')
-
     n_source_sents, n_source_words = list(map(int, source_file.readline().strip().split()))
     n_target_sents, n_target_words = list(map(int, target_file.readline().strip().split()))
     assert (n_source_sents == n_target_sents)
-    if verbose:
-        print ('proxy_symmetrize_alignments 2', n_source_sents)
     while n_source_sents:
         n_source_sents -= 1
         srclen = len(list(map(int, source_file.readline().strip().split())))
         trglen = len(list(map(int, target_file.readline().strip().split())))
         e2f = file_fwd.readline().strip()
         f2e = file_rev.readline().strip()
-        if verbose:
-            print ('proxy_symmetrize_alignments 31', n_source_sents, srclen, trglen, e2f, '+', f2e)
         alignment = symmetrize_alignments(srclen, trglen, e2f, f2e)
-        if verbose:
-            print ('proxy_symmetrize_alignments 32', n_source_sents, srclen, trglen, alignment)
         file_sym.write('%s\n' % alignment)
-    if verbose:
-        print ('proxy_symmetrize_alignments 4')
-    
     source_file.close()
     target_file.close()
     file_fwd.close()
     file_rev.close()
     file_sym.close()        
-    if verbose:
-        print ('proxy_symmetrize_alignments returns')
 
 if (sys.version_info > (3, 0)):
     import eflomal
@@ -269,8 +253,6 @@ if (sys.version_info > (3, 0)):
         score_file.close()
         file_fwd.close()
         file_rev.close()
-        if verbose:
-            print ('proxy_eflomal_align returns')
 
 def split_alignment(alignment):
     """

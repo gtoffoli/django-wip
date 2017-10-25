@@ -1046,7 +1046,7 @@ class Proxy(models.Model):
         if verbose:
             print ('proxy_eflomal_align returned')
         if symmetrize:
-            proxy_symmetrize_alignments(self, verbose=verbose)
+            proxy_symmetrize_alignments(self)
             links_sym_filename = os.path.join(base_path, '%s_links_sym.txt' % proxy_code)
             alignment_file = open(links_sym_filename, 'r')
         else:
