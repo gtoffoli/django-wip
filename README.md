@@ -2,7 +2,7 @@
 
 **FairVillage - Website Internationalisation Platform**
 
-*FairVillage WIP* (WIP = Website Internationalisation Platform) is an Editorial Desk for the Internationalisation (i18n) of websites; it has been developed inside [*FairVillage*](http://fiadopt-project.eu/2015/10/startup-spotlight-fairvillage/), a sub-project of the *FI-Adopt* valorization project of the *FI-WARE* EU Programme.
+*FairVillage WIP* (WIP = Website Internationalisation Platform) is an Editorial Desk for the Internationalisation (i18n) of websites; it has been developed inside *FairVillage*, a sub-project of the *FI-Adopt* valorization project of the *FI-WARE* EU Programme.
 
 WIP is an original application of the *Translation Proxy* concept: an approach to the translation of a web site that operates
 from outside, by intercepting the request for a web page and serving to the user a page containing translated content. In the translation proxy approach, contents aren't translated at sight, as with GoogleTranslate; rather, fragments of the web page are replaced in real-time with translations that have been prepared offline and revised in context. Obviously, some caching can be applied to improve performance.
