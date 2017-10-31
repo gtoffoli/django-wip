@@ -37,6 +37,7 @@ from namedentities import unicode_entities
 from lxml import html, etree
 from guess_language.guess_language import guessLanguage
 import urllib
+from difflib import Differ, HtmlDiff
 # import unirest
 # import wip.srx_segmenter
 import wip.srx_segmenter as srx_segmenter
@@ -79,11 +80,11 @@ def text_from_html(string):
 def split_strip(s):
     return " ".join(s.split())
 
+"""
 # http://stackoverflow.com/questions/4624062/get-all-text-inside-a-tag-in-lxml
 # http://stackoverflow.com/questions/4770191/lxml-etree-element-text-doesnt-return-the-entire-text-from-an-element
 # http://stackoverflow.com/questions/26304626/lxml-how-to-get-xpath-of-htmlelement
 def strings_from_block(block, tree=None, exclude_xpaths=[]):
-    children = block.getchildren()
     block_children = [child for child in children if child.tag in settings.BLOCK_TAGS]
     if block_children:
         text_list = []
@@ -132,8 +133,11 @@ def strings_from_block(block, tree=None, exclude_xpaths=[]):
     if tail:
         # tail = unicode(tail)
         yield tail
+"""
 
 def strings_from_block(block, tree=None, exclude_xpaths=[]):
+    children = block.getchildren()
+    print (len(children))
     children = block.getchildren()
     if children:
         yield block.text
@@ -157,7 +161,6 @@ def strings_from_block(block, tree=None, exclude_xpaths=[]):
     yield block.tail
 
 def strings_from_html(string, fragment=False, exclude_xpaths=[], exclude_tx=False):
-    # print 'strings_from_html - 1: ', type(string)
     try:
         doc = html.fromstring(string)
     except:
@@ -173,8 +176,8 @@ def strings_from_html(string, fragment=False, exclude_xpaths=[], exclude_tx=Fals
     else:
         tree = doc.getroottree()
         body = doc.find('body')
-        # print 'strings_from_html - 2: ', type(body)
-    if not body:
+    # if not body:
+    if body is None:
         return
     for tag in settings.TO_DROP_TAGS:
         els = body.findall(tag)
@@ -547,3 +550,40 @@ def get_celery_worker_stats():
     except ImportError as e:
         d = { ERROR_KEY: str(e)}
     return d
+
+diff_style = """
+    <style type="text/css">
+        table.diff {all:none; font-family:Courier; font-size:x-small; border:medium;}
+        .diff_header {background-color:#e0e0e0}
+        td.diff_header {text-align:right}
+        .diff_next {background-color:#c0c0c0}
+        .diff_add {background-color:#aaffaa}
+        .diff_chg {background-color:#ffff77}
+        .diff_sub {background-color:#ffaaaa}
+    </style>
+"""
+
+def string_diff(old, new, html=False, wrap=None):
+    old_lines = old.split('\n')
+    new_lines = new.split('\n')
+    if html:
+        differ = HtmlDiff(wrapcolumn=wrap)
+        if html == 'table':
+            diff = differ.make_table(old_lines, new_lines)
+        else:
+            diff = differ.make_file(old_lines, new_lines)
+    else:
+        differ = Differ()
+        diff_lines = differ.compare(old_lines, new_lines)
+        diff = '\n'.join(diff_lines)
+    return diff
+
+def pageversion_diff(old_version, new_version, html=False, wrap=None, diff_file=None):
+    diff = string_diff(old_version.body, new_version.body, html=html, wrap=wrap)
+    if diff_file:
+        if html == 'table':
+            diff = diff_style + diff
+        diff_file.write(diff)
+    else:
+        return diff
+

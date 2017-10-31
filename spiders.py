@@ -28,6 +28,20 @@ class WipCrawlItem(scrapy.Item):
 class WipCrawlSpider(CrawlSpider):
     custom_settings = {'ITEM_PIPELINES': {'wip.pipelines.WipCrawlPipeline': 300}}
 
+    # see https://github.com/scrapy/scrapy/issues/1762
+    @classmethod
+    def from_crawler(cls, crawler, *args, **kwargs):
+        spider = super(WipCrawlSpider, cls).from_crawler(crawler, *args, **kwargs)
+        crawler.signals.connect(spider.spider_opened, signals.spider_opened)
+        crawler.signals.connect(spider.spider_closed, signals.spider_closed)
+        return spider
+
+    def spider_opened(self):
+        print ('--- spider_opened ---')
+
+    def spider_closed(self):
+        print ('--- spider_closed ---')
+
     def parse_item(self, response):
         print (response.headers)
         item = WipCrawlItem()

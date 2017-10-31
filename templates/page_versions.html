@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% load staticfiles i18n %}
+
+{% block head_title %}{% trans "versions of page"|capfirst %}: {{ site.name }}, {% trans "page" %} {{ webpage.path }}{% endblock %}
+
+{% block extra_head %}
+<style type="text/css">
+    table.diff {all:none; font-family:Courier; font-size:smaller; border:medium;}
+    .diff_header {background-color:#e0e0e0}
+    td.diff_header {text-align:right}
+    .diff_next {background-color:#c0c0c0}
+    .diff_add {background-color:#aaffaa}
+    .diff_chg {background-color:#ffff77}
+    .diff_sub {background-color:#ffaaaa}
+</style>
+{% endblock %}
+
+{% block title-page %}<small>{% trans "versions of page"|capfirst %}: <a href="/site/{{ site.slug }}/">{{ site.name }}</a>, {% trans "page" %} <a href="/page/{{ webpage.id }}/">{{ webpage.path }}</a></small>{% endblock %}
+
+{% block content-page %}
+	<p>{% trans "cached versions of this page"|capfirst %}: {{ version_count }}</p>
+
+    <table class="table table-responsive table-bordered table-striped mB5">
+      <thead>
+      	<tr>
+      	  <th class="text-right">#</th>
+          <th class="text-right">Id</th>
+          <th class="text-center">{% trans "date"|capfirst %}</th>
+          <th class="text-center">{% trans "chars"|capfirst %}</th>
+          <th class="text-center">{% trans "checksum"|capfirst %}</th>
+          <td class="text-center">{% if diff %}<a href="/page/{{ webpage.id }}/versions/">{% trans "clear" %}</a>{% endif %}</td>
+        </tr>
+      </thead>
+      <tbody>
+	    {% for version in versions %}
+	      <tr>
+          	  <td class="text-right">{{forloop.counter}}</td>
+		      <td class="text-right">{{ version.id }}</td>
+		      <td class="text-center">{{ version.time|date:"SHORT_DATETIME_FORMAT" }}</td>
+		      <td class="text-center">{{ version.body|length }}</td>
+		      <td>{{ version.checksum }}</td>
+		      <td class="text-center">{% if not forloop.last %}<a href="/page/{{ webpage.id }}/versions/?version={{forloop.counter}}">{% trans "diff" %}</a>{% endif %}</td>
+          </tr>
+	    {% endfor %}
+      </tbody>
+    </table>
+
+	{% if diff %}
+	<p>{% trans "diff of version"|capfirst %}{{ version }} {{ version|add:"1" }}</p>
+	{{ diff|safe }}
+	{% endif %}
+
+{% endblock %}

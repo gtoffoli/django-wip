@@ -49,6 +49,7 @@ urlpatterns = [
     url(r"^site/(?P<site_slug>[\w-]+)/$", views.site, name="site"),
     url(r"^site/(?P<site_slug>[\w-]+)/pages/$", views.site_pages, name="site_pages"),
     url(r"^site/(?P<site_slug>[\w-]+)/blocks/$", views.site_blocks, name="site_blocks"),
+    url(r"^page/(?P<page_id>[\d]+)/versions/$", views.page_versions, name="page_versions"),
     url(r"^page/(?P<page_id>[\d]+)/blocks/$", views.page_blocks, name="page_blocks"),
     url(r"^page/(?P<page_id>[\d]+)/extract_blocks/$", views.page_extract_blocks, name="page_extract_blocks"),
     url(r"^page/(?P<page_id>[\d]+)/cache_translation/(?P<language_code>[\w-]+)/$", views.page_cache_translation, name="page_cache_translation"),

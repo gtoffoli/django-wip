@@ -50,6 +50,7 @@
           <th class="text-center">{% trans "in use"|capfirst %}</th>
           {% for proxy in proxies %}<th class="text-center">{{ proxy.language.code }}</th>{% endfor %}
           <th>{% trans "last checked"|capfirst %}</th>{% comment %}<th>xPath of main content region</th>{% endcomment %}
+          <th class="text-center">#v</th>
         </tr>
       </thead>
       <tbody>
@@ -73,6 +74,9 @@
             <td class="text-center">{% if blocks_count %} {{ blocks_count }} {% endif %}</td>
           {% endfor %}
           <td>{{ site_page.last_checked|date:"SHORT_DATETIME_FORMAT" }} </td>
+          {% with version_count=site_page.get_versions.count %}
+          <td class="text-center">{% if version_count > 1 %}<a href="/page/{{ site_page.id }}/versions/">{{ version_count }}</a>{% else %}{{ version_count }}{% endif %}</td>
+          {% endwith %}
         </tr>
       {% endfor %}
       </tbody>

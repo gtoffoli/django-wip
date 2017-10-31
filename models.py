@@ -325,7 +325,6 @@ class Site(models.Model):
         # except (urllib2.HTTPError, e):
         except Exception as e:
             if verbose:
-                # print (page_url, ': error code = ', e.code, e.msg)
                 print (page_url, ': error = ', e)
             if webpage:
                 webpage.last_unfound = timezone.now()
@@ -374,7 +373,6 @@ class Site(models.Model):
             elif extract_blocks:
                 extracted_blocks = webpage.extract_blocks(verbose=verbose)
                 if verbose:
-                    # print ('blocks extracted: %d, new: %d, new in page: %d' % (len(extracted_blocks), n_2, n_3))
                     print ('blocks extracted:', len(extracted_blocks))
                 webpage.purge_bips(current_blocks=extracted_blocks, verbose=verbose)
                 webpage.create_blocks_dag()
@@ -669,6 +667,7 @@ class Proxy(models.Model):
                 logger.info('block: %d no segments' % block.id)
                 continue # ???
             segments.sort(key=lambda x: len(x), reverse=True)
+            # print (segments)
             for segment in segments:
                 words = segment.split()
                 if not non_invariant_words(words, site_invariants=site_invariants):
@@ -703,11 +702,12 @@ class Proxy(models.Model):
                 if translations:
                     translation = translations[0]
                     """ add here some test on reliability """
-                    translated_segment = translations.text
+                    translated_segment = translation.text
                 else:
                     translated = False
                     if not segment.startswith('Home'):
-                        logger.info('block: %d , n_matches: %d ,  segment: -%s-' % (block.id, n_matches, repr(segment)))
+                        # logger.info('block: %d , n_matches: %d ,  segment: -%s-' % (block.id, n_matches, repr(segment)))
+                        logger.info('block: %d , segment: -%s-' % (block.id, repr(segment)))
                 """ > vecchio: rivedere ?
                 elif len(words) == 1:
                     # matches = String.objects.filter(text__istartswith=segment, txu__string__language_id__in=target_codes).distinct()
@@ -1123,13 +1123,13 @@ class Webpage(models.Model):
     site = models.ForeignKey(Site)
     path = models.CharField(max_length=200)
     language = models.ForeignKey(Language, null=True, blank=True, help_text="Possibly overrides the site language")
-    no_translate = models.BooleanField('Do not translate', default=False)
+    no_translate = models.BooleanField('NoTr', default=False) # 'Do not translate'
     created = CreationDateTimeField()
     # referer = models.ForeignKey('self', related_name='page_referer', blank=True, null=True)
     encoding = models.CharField(max_length=200, blank=True, null=True)
     last_modified = ModificationDateTimeField()
     last_checked = models.DateTimeField(null=True, help_text="Last time the page fetched with success")
-    last_checked_response_code = models.IntegerField('Response code')
+    last_checked_response_code = models.IntegerField('Code') # 'Response code'
     last_unfound = models.DateTimeField(null=True, help_text="Last time the page wasn't found")
     blocks = models.ManyToManyField('Block', through='BlockInPage', related_name='page', blank=True, verbose_name='blocks')
 
@@ -1180,8 +1180,11 @@ class Webpage(models.Model):
         updated = self.site.fetch_page(path, webpage=self, extract_blocks=extract_blocks, extract_segments=extract_segments, dry=dry, verbose=verbose)
         return updated
 
+    def get_versions(self):
+        return PageVersion.objects.filter(webpage=self).order_by('-time')
+
     def get_last_version(self):
-        versions = PageVersion.objects.filter(webpage=self).order_by('-time')
+        versions = self.get_versions()
         return versions and versions[0] or None
 
     def get_translation(self, language_code, use_cache=True, cache=False):
@@ -1310,7 +1313,7 @@ class Webpage(models.Model):
         if verbose:
             print ('versions: ', versions)
         if not versions:
-            return [], 0, 0
+            return [] # , 0, 0
         last_version = versions[0]
         html_string = last_version.body
         # http://stackoverflow.com/questions/1084741/regexp-to-strip-html-comments
@@ -1877,7 +1880,8 @@ class Block(node_factory('BlockEdge')):
         site_invariants = text_to_list(self.site.invariant_words)
         invariant = True
         for segment in segments:
-            if not type(segment) == unicode:
+            # if not type(segment) == unicode:
+            if not type(segment) == str:
                 # print (self.id, segment)
                 return False
             if not non_invariant_words(segment.split(), site_invariants=site_invariants):
@@ -2079,10 +2083,12 @@ def get_segments(body, site, segmenter, fragment=True, exclude_tx=True, exclude_
     return filtered
     """
     segments = []
+    # print (html_string, 'fragment =', fragment, 'exclude_tx =', exclude_tx, 'exclude_xpaths =', exclude_xpaths)
     if html_string:
         for string in list(strings_from_html(html_string, fragment=fragment, exclude_tx=exclude_tx, exclude_xpaths=exclude_xpaths)):
             if string and string[0]=='{' and string[-1]=='}':
                 continue
+            # print (string)
             segments.extend(segments_from_string(string, site, segmenter))
     return segments
 

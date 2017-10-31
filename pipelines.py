@@ -122,11 +122,18 @@ class WipCrawlPipeline(object):
     def from_crawler(cls, crawler):
         return cls()
 
+    def spider_opened(self, spider):
+        print ('--- spider_opened ---')
+
+    def spider_closed(self, spider):
+        print ('--- spider_closed ---')
+
     def process_item(self, item, spider):
         site = Site.objects.get(pk=item['site_id'])
+        body = item['body'].decode()
+        encoding = item['encoding'].decode()
         for content in settings.PAGES_EXCLUDE_BY_CONTENT.get(site.slug, []):
             # if item['body'].count(content):
-            body = item['body'].decode()
             if body.count(content):
                 return item
         path = urlparse.urlparse(item['url']).path
@@ -136,7 +143,8 @@ class WipCrawlPipeline(object):
         else:
             page = Webpage(site=site, path=path)
             page.path = path
-            page.encoding = item['encoding']
+            # page.encoding = item['encoding']
+            page.encoding = encoding
         page.last_checked = timezone.now()
         page.last_checked_response_code = item['status']
         page.save()
@@ -147,7 +155,7 @@ class WipCrawlPipeline(object):
         # if not last:
         if not last or checksum!=last.checksum:
             # body = item['encoding'].count('text/') and item['body'] or ''
-            body = item['encoding'].count('text/') and body or ''
+            body = encoding.count('text/') and body or ''
             fetched = PageVersion(webpage=page, response_code=item['status'], size=item['size'], checksum=checksum, body=body)
             fetched.save()
         return item

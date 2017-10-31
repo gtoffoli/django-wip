@@ -34,31 +34,39 @@ class ProxyAdmin(admin.ModelAdmin):
         return obj.enable_live_translation
 
 class WebpageAdmin(admin.ModelAdmin):
-    list_filter = ('site', 'blocks')
-    list_display = ['id', 'site', 'path', 'encoding', 'blocks_count', 'last_checked', 'last_checked_response_code',]
+    list_filter = ('site',)
+    list_display = ['id', 'site', 'path', 'no_translate', 'blocks_count', 'versions_count', 'last_checked', 'last_checked_response_code',]
     list_display_links = ('path',)
 
     def get_queryset(self, request):
         self.request = request
         qs = super(WebpageAdmin, self).get_queryset(request)
         qs = qs.annotate(blockscount=models.Count('blocks'))
-        # qs = qs.order_by('-blockscount')
         return qs
 
-    def blocks_count(self, obj):
-        site_id = int(self.request.GET.get('site__id__exact',0))
-        url = '/admin/wip/block/?webpages__id__exact=%d' % obj.id
-        if site_id:
-            url += '&site__id__exact=%d' % site_id
+    def versions_count(self, obj):
+        url = '/admin/wip/pageversion/?webpage__id__exact=%d' % obj.id
         label = '%d' % (obj.blocks.all().count())
+        label = '%d' % PageVersion.objects.filter(webpage=obj).count()
         link = '<a href="%s">%s</a>' % (url, label)
         return link
+    versions_count.short_description = 'Versions'
+    versions_count.allow_tags = True
+
+    def blocks_count(self, obj):
+        label = obj.get_blocks_in_use().count()
+        # return label
+        url = '/admin/wip/blockinpage/?webpage__id__exact=%d' % obj.id
+        link = '<a href="%s">%s</a>' % (url, label)
+        return link
+        """
+        """
     blocks_count.admin_order_field = 'blockscount'
     blocks_count.short_description = 'Blocks'
     blocks_count.allow_tags = True
 
 class PageVersionAdmin(admin.ModelAdmin):
-    list_filter = ['webpage__site__name',]
+    # list_filter = ['webpage__site__name',]
     list_display = ['id', 'site', 'webpage_link', 'time', 'response_code', 'size', 'checksum',]
     list_display_links = ('id',)
     search_fields = ['webpage__id', 'webpage__path', 'body',]
@@ -133,7 +141,7 @@ class BlockForm(forms.ModelForm):
         }
 
 class BlockAdmin(admin.ModelAdmin):
-    list_filter = ('site', 'webpages',)
+    list_filter = ('site',)
     list_display = ['id', 'site', 'block_link', 'translations_list', 'pages_count', 'time',] # , 'checksum'
     list_display_links = ('block_link',)
     # search_fields = ['site', 'path',]
@@ -202,14 +210,13 @@ class BlockEdgeAdmin(admin.ModelAdmin):
 
 class BlockInPageAdmin(admin.ModelAdmin):
     list_filter = ['block__site',]
-    # list_display = ['id', 'page_link', 'block_link',]
     list_display = ['id', 'page_link', 'block_link', 'xpath', 'time']
+    list_per_page = 500
     search_fields = ['xpath',]
 
     def block_link(self, obj):
         block = obj.block
         url = '/admin/wip/block/%d/' % block.id
-        # label = '%s' % (block.xpath)
         label = '%s' % block.get_label()
         link = '<a href="%s">%s</a>' % (url, label)
         return link

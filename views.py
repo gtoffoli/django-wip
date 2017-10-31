@@ -74,6 +74,7 @@ from settings import PAGE_SIZE, PAGE_STEPS
 from settings import DATA_ROOT, RESOURCES_ROOT, tagger_filename, BLOCK_TAGS, QUOTES, SEPARATORS, STRIPPED, DEFAULT_STRIPPED, EMPTY_WORDS, PAGES_EXCLUDE_BY_CONTENT
 """
 from .utils import strings_from_html, elements_from_element, block_checksum, ask_mymemory, text_to_list # , non_invariant_words
+from .utils import pageversion_diff, diff_style
 from  wip import srx_segmenter
 from .aligner import tokenize, best_alignment #, get_train_aligner
 
@@ -288,7 +289,9 @@ def site(request, site_slug):
                 clear_pages = data['clear_pages']
                 if clear_pages:
                     Webpage.objects.filter(site=site).delete()
-                task_id = crawl_site.delay(site.id)
+                # task_id = crawl_site.delay(site.id)
+                run_worker_process()
+                task_id = crawl_site_task.delay(site.id)
                 print ('site_crawl : ', site.name, 'task id: ', task_id)
             elif purge_blocks:
                 site.purge_bips(verbose=False)
@@ -839,6 +842,19 @@ def page(request, page_id):
     # return render_to_response('page.html', var_dict, context_instance=RequestContext(request))
     return render(request, 'page.html', var_dict)
 
+def page_versions(request, page_id):
+    var_dict = {}
+    var_dict['webpage'] = webpage = get_object_or_404(Webpage, pk=page_id)
+    var_dict['site'] = webpage.site
+    var_dict['versions'] = versions = PageVersion.objects.filter(webpage=webpage).order_by('-time')
+    var_dict['version_count'] = version_count = versions.count()
+    version = request.GET.get('version', '')
+    if version_count >= 2 and version:
+        version = int(version)-1
+        var_dict['diff'] = pageversion_diff(versions[version], versions[version+1], html='table', wrap=80);
+        var_dict['diff_style'] = diff_style
+    return render(request, 'page_versions.html', var_dict)
+
 def page_blocks(request, page_id):
     var_dict = {}
     var_dict['webpage'] = webpage = get_object_or_404(Webpage, pk=page_id)
@@ -942,16 +958,17 @@ def get_or_add_string(request, text, language, site=None, string_type=UNKNOWN, a
             string = String(text=text, language=language, site=site)
     return is_model_instance, string
 
-def get_or_add_segment(request, text, language, site, is_fragment=False):
+# def get_or_add_segment(request, text, language, site, is_fragment=False):
+def get_or_add_segment(request, text, language, site, add=False, is_fragment=False):
     if isinstance(language, str):
         language = Language.objects.get(code=language)
     segments = Segment.objects.filter(text=text, language=language, site=site)
     if segments:
         segment = segments[0]
     else:
-        # segment = Segment(text=text, language=language, site=site, is_fragment=is_fragment, user=request.user)
         segment = Segment(text=text, language=language, site=site, is_fragment=is_fragment)        
-        segment.save()
+        if add:
+            segment.save()
     return segment
 
 def get_or_add_translation(request, segment, text, language, translation_type=MANUAL, user_role=None):
@@ -1114,6 +1131,7 @@ def block_translate(request, block_id, target_code):
     else:
         segments = block.block_get_segments(None)
     segments = [segment.strip() for segment in segments]
+    # print (segments)
     extract_strings = False
     post = request.POST
     if post:
@@ -1220,7 +1238,6 @@ def block_translate(request, block_id, target_code):
     source_segments = []
     source_strings = []
     source_translations = []
-    # site_invariants = text_to_list(proxy.site.invariant_words)
     site_invariants = text_to_list(block.site.invariant_words)
     for segment in segments:
         if not segment:
@@ -1229,30 +1246,22 @@ def block_translate(request, block_id, target_code):
             continue
         if source_language == target_language:
             continue
-        """ RIVEDERE?
-        is_model_instance, segment_string = get_or_add_string(request, segment, source_language, add=extract or extract_strings)
-        print 'segment_string: ', segment_string
-        if is_model_instance:
-        """
-        segment_string = get_or_add_segment(request, segment, source_language, block.site)
-        if True:
-            """ NON CANCELLARE
-            like_strings = find_like_strings(segment_string, max_strings=5)
-            """
-            like_strings = []
+        segment_string = get_or_add_segment(request, segment, source_language, block.site, add=False)
+        if segment_string:
+            like_strings = find_like_segments(segment_string, max_segments=5)
+            # print (segment_string, like_strings)
             source_strings.append(like_strings)
             # translations = String.objects.filter(txu=segment_string.txu, language_id=target_code)
             translations = Translation.objects.filter(segment=segment_string, language=target_language)
             source_translations.append(translations)
-        """
         else:
             segment_string.id = 0
             source_strings.append([])
             source_translations.append([])
         source_segments.append(segment_string)
-        """
     source_segments = zip(source_segments, source_strings, source_translations)
-    # print 'source_segments: ',  source_segments
+    source_segments = list(source_segments)
+    # print ('source_segments: ', source_segments)
     var_dict = {}
     var_dict['page_block'] = block
     webpage = webpage_id and Webpage.objects.get(pk=webpage_id) or None
@@ -1863,7 +1872,7 @@ def raw_tokens(text, language_code):
     raw_tokens = []
     for token in tokens:
         # token = token.strip(STRIPPED[language_code])
-        token = token.strip(DEFAULT_settings.DEFAULT_STRIPPED)
+        token = token.strip(settings.DEFAULT_STRIPPED)
         if not token:
             continue
         raw_tokens.append(token)
@@ -2950,12 +2959,15 @@ def site_crawl_by_slug(request, site_slug):
         """
         crawl_site.apply_async(args=(site.id,))
         """
-        task_id = crawl_site.delay(site.id)
+        # task_id = crawl_site.delay(site.id)
+        run_worker_process()
+        task_id = crawl_site_task.delay(site.id)
         print ('task id: ', task_id)
     return HttpResponseRedirect('/site/%s/' % site_slug)
 
 @app.task()
-def crawl_site(site_pk):
+# def crawl_site(site_pk):
+def crawl_site_task(site_pk):
     logger = get_task_logger(__name__)
     logger.info('Crawling site {0}'.format(site_pk))
     return site_crawl(site_pk)
