@@ -85,6 +85,7 @@ def split_strip(s):
 # http://stackoverflow.com/questions/4770191/lxml-etree-element-text-doesnt-return-the-entire-text-from-an-element
 # http://stackoverflow.com/questions/26304626/lxml-how-to-get-xpath-of-htmlelement
 def strings_from_block(block, tree=None, exclude_xpaths=[]):
+    children = block.getchildren()
     block_children = [child for child in children if child.tag in settings.BLOCK_TAGS]
     if block_children:
         text_list = []
@@ -137,7 +138,6 @@ def strings_from_block(block, tree=None, exclude_xpaths=[]):
 
 def strings_from_block(block, tree=None, exclude_xpaths=[]):
     children = block.getchildren()
-    print (len(children))
     children = block.getchildren()
     if children:
         yield block.text
@@ -185,15 +185,8 @@ def strings_from_html(string, fragment=False, exclude_xpaths=[], exclude_tx=Fals
             el.getparent().remove(el)
     if exclude_tx:
         els = body.findall('.//span[@tx]')
-        # print 'exclude_tx: ', len(els)
         for el in els:
             el.getparent().remove(el)
-    """
-    for s in strings_from_block(body, tree=tree, exclude_xpaths=exclude_xpaths):
-        if s:
-            # print 'strings_from_html - 3: ', type(s)
-            yield s
-    """
     ls = []
     for s in strings_from_block(body, tree=tree, exclude_xpaths=exclude_xpaths):
         if s:
@@ -430,7 +423,7 @@ def normalize_string(s):
             pass
     return s
 
-def parse_xliff(filepath):
+def parse_xliff(filepath, verbose=False):
     tree = etree.iterparse(filepath)
     i = 0
     for action, elem in tree:
@@ -451,8 +444,9 @@ def parse_xliff(filepath):
                 target = mrk_text
         elif tag.endswith('trans-unit'):
             i += 1
-            print (i, source)
-            print (i, target)
+            if verbose:
+                print (i, source)
+                print (i, target)
 
 def text_to_list(text):
     if not text:
