@@ -1919,7 +1919,10 @@ class Block(node_factory('BlockEdge')):
             element = html.fromstring(self.body)
         if not webpage:
             blocks_in_page = BlockInPage.objects.filter(block=self, webpage__site=site)
-            block_in_page = sorted(blocks_in_page, cmp=lambda x,y: len(x.xpath) < len(y.xpath))[0]
+            # block_in_page = sorted(blocks_in_page, cmp=lambda x,y: len(x.xpath) < len(y.xpath))[0]
+            if not blocks_in_page.count():
+                return None, None
+            block_in_page = sorted(blocks_in_page, key=lambda x: len(x.xpath), reverse=True)[0]
             webpage = block_in_page.webpage
             xpath = block_in_page.xpath
         child_tags_dict_1 = {}
