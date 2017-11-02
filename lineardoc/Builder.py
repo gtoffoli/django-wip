@@ -35,6 +35,7 @@ class Builder:
         self.inlineAnnotationTagsUsed = 0
         self.doc = Doc(wrapperTag)
         self.textChunks = []
+        self.isBlockSegmentable = True
         self.parent = parent
 
     def createChildBuilder(self, wrapperTag):
@@ -51,7 +52,7 @@ class Builder:
             tag = self.blockTags.pop()
             assert tag['name'] == tagName
         except:
-            print 'Mismatched block tags: open=' + (tag and tag['name'] or '') + ', close=' + tagName
+            print ('Mismatched block tags: open=' + (tag and tag['name'] or '') + ', close=' + tagName)
         self.finishTextBlock()
         self.doc.addItem('close', tag)
         return tag
@@ -125,9 +126,9 @@ class Builder:
                 whitespace = None
                 break;
             else:
-                whitespace.append(textChunk)
+                whitespace.append(textChunk.text)
         if whitespaceOnly:
-            self.doc.addItem('blockspace', whitespace.join(''))
+            self.doc.addItem('blockspace', ''.join(whitespace))
         else:
             self.doc.addItem('textblock', TextBlock(self.textChunks))
         self.textChunks = []

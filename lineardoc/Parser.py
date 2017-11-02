@@ -39,7 +39,7 @@ blockTags = [
     'hr', 'button', 'canvas', 'center', 'col', 'colgroup', 'embed',
     'map', 'object', 'pre', 'progress', 'video',
     # non-annotation inline tags
-    'img', 'br'
+    'img', 'br', 'figure-inline'
 ]
 blockTags_dict = dict([(tagName, True,) for tagName in blockTags])
 

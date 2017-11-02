@@ -66,7 +66,7 @@ class Doc:
                 nextId += 1
                 return nextId
             else:
-                print 'Unknown ID type: ' + item_type
+                print ('Unknown ID type: ' + item_type)
                 raise
 
             for item in self.items:
@@ -116,6 +116,7 @@ class Doc:
                 tag = item
                 html.append(getOpenTagHtml(tag))
             elif item_type == 'close':
+                tag = item
                 html.append(getCloseTagHtml(tag))
             elif item_type == 'blockspace':
                 space = item
@@ -125,7 +126,7 @@ class Doc:
                 # textblock html list may be quite long, so concatenate now
                 html.append(textblock.getHtml())
             else:
-                print('Unknown item type at ' + item_type )
+                print ('Unknown item type at ' + item_type )
                 raise
                 
         if self.wrapperTag:
@@ -170,7 +171,7 @@ class Doc:
                 dump.extend(textBlock.dumpXmlArray(pad + '  '))
                 dump.append(pad + '</cxtextblock>')
             else:
-                print('Unknown item type at ' + item_type )
+                print ('Unknown item type at ' + item_type )
                 raise
 
         if self.wrapperTag:
@@ -191,7 +192,7 @@ class Doc:
             textblock = item['item']
             segments.append(textblock.getHtml())
 
-    """ added by Giovanni Toffoli to get a LinearDov representation like in
+    """ added by Giovanni Toffoli to get a printable LinearDoc representation like in
         https://www.mediawiki.org/wiki/Content_translation/Product_Definition/LinearDoc """
     def dump(self):
         lines = []
@@ -213,5 +214,5 @@ class Doc:
                     lines.append(line)
             else:
                 line = '%s, %s' % (item_type, str(item['item']))
-            lines.append(line)
+                lines.append(line)
         return '\n'.join(lines)
