@@ -10,7 +10,7 @@ form { margin: 0; padding: 0; }
 table { margin: 0; padding: 0;}
 fieldset {
     border: 1px groove #ddd !important;
-    padding: 0 1.4em 1.4em 1.4em !important;
+    padding: 0 1.0em 1.0em 1.0em !important;
     margin: 0 0 1.0em 0 !important;
     -webkit-box-shadow:  0px 0px 0px 0px #000;
             box-shadow:  0px 0px 0px 0px #000;
@@ -68,7 +68,7 @@ function apply_translation (target_code, id_from, id_to) {
 
 {% block body_id %}block_translate{% endblock %}
 
-{% block title-page %}{% trans "block to"|capfirst %} {{ target_language }}&nbsp; <small><i>{{ page_block.get_label }}</i></small>{% endblock %}
+{% block title-page %}{% trans "block to"|capfirst %} <span class="{{ target_language.code }}">{{ target_language }}</span>&nbsp; <small><i>{{ page_block.get_label }}</i></small>{% endblock %}
 
 {% block content-page %}
   <table class="table table-responsive table-bordered table-striped mB5">
@@ -145,9 +145,9 @@ function apply_translation (target_code, id_from, id_to) {
 		<table class="table"><tbody>
 		{% for segment, strings, translations in source_segments %}
 		<tr><td style="vertical-align: top; border-top-color:transparent;"><code>{{forloop.counter|rjust:"3"}}</code> {% if segment.id %}<span  id="str-{{ forloop.counter }}" style="font-weight: bold;">{{ segment.text }}</span> &nbsp;
-			 	<button type="submit" onclick="translate_string('str-{{ forloop.counter }}'); return false;" class="fa fa-language" style="background-color: white; color: blue; border: none;" title="translate this string" />
+			 	<button type="submit" onclick="translate_string('str-{{ forloop.counter }}'); return false;" class="fa fa-language" style="background-color: white; color: blue; border: none;" title="translate this segment" />
 				{% else %}<span id="seg-{{ forloop.counter }}">{{ segment }}</span> &nbsp;
-				<button type="submit" onclick="make_string('seg-{{ forloop.counter }}'); return false;" class="fa fa-caret-square-o-up" style="background-color: transparent; color: #006BB1; border: none;" title="extract this string" />
+				<button type="submit" onclick="make_string('seg-{{ forloop.counter }}'); return false;" class="fa fa-caret-square-o-up" style="background-color: transparent; color: #006BB1; border: none;" title="extract this segment" />
 				{% endif %}</td></tr>
 		{% for t in translations %}
 		<tr><td><span id="tra-{{ forloop.parentloop.counter }}-{{ forloop.counter }}" class="{{ target_code }}">{{ t.text }}</span>

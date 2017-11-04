@@ -6,7 +6,7 @@
 <style>
 fieldset {
     border: 1px groove #ddd !important;
-    padding: 0 1.4em 1.4em 1.4em !important;
+    padding: 0 1.0em 1.0em 1.0em !important;
     margin: 0 0 1.0em 0 !important;
     -webkit-box-shadow:  0px 0px 0px 0px #000;
             box-shadow:  0px 0px 0px 0px #000;
@@ -23,10 +23,16 @@ pre { display: inline;  padding: 0; }
 pre code { display: inline; }
 tr.odd { background: LightGray; }
 tr.even { background: white; }
+{% comment %}
 .it { color: LimeGreen; }
 .en { color: #FF0088; }
 .es { color: OrangeRed; }
 .fr { color: blue; }   
+{% endcomment %}
+.it { border: 1px solid; border-color: green; margin: 1px; }
+.en { border: 2px solid; border-color: red; margin: 1px; }
+.es { border: 2px solid; border-color: yellow; margin: 1px; }
+.fr { border: 1px solid; border-color: blue; margin: 1px; }
 th, td { text-align: left; vertical-align: top; }
 </style>
 <script>
@@ -49,31 +55,34 @@ function capFirst(id) {
 
 {% block head_title %}Translate segment: {{ segment.text }}{% endblock %}
 
-{% block title-page %}<span style="color: black; font-size: smaller;">Translate segment: </span> <span class="{{ source_language.code }}" style="font-size: smaller;">{{ segment.text|truncatechars:64 }}</span>{% endblock %}
+{% block title-page %}{% trans "segment to"|capfirst %} <span class="{{ target_language.code }}">{{ target_language }}</span>&nbsp; <small><i>{{ segment.text|truncatechars:64 }}</i></small>{% endblock %}
 
 {% block content-page %}
-<form action="/segment_translate/{{ segment.id }}/{{ target_code }}/" method="post">
-	{% csrf_token %}
-    <div>
-    <label>id</label><a href="/segment/{{ segment.id }}/" class="{{ source_language.code }}">{{ segment.id }}</a> &nbsp;
-    <label>source</label><span class="{{ source_language.code }}">{{ source_language.name }}</span> &nbsp;
-    {% if segment.site %}<label>site</label>{{ segment.site.name }} &nbsp;{% endif %}
-    {% if segment.is_invariant %}<label>invariant</label>True &nbsp;{% endif %}
-	</div>
-    <div><label>text</label>{{ segment.text }}</div>
+  <table class="table table-responsive table-bordered table-striped mB5">
+    <thead><tr>
+    	<th width="15%">{% trans "project"|capfirst %}</th>
+    	<th width="5%">{% trans "id"|capfirst %}</th>
+    	<th>{% trans "text"|capfirst %}</th>
+      </tr></thead>
+    <tbody><tr>
+      	<td><nobr><span class="mR10">{{ segment.site.name }} ({{ source_language }})</span> <a href="/site/{{ segment.site.slug }}/"><i class="fa fa-th-large" aria-hidden="true"></i></a></nobr></td>
+      	<td>{{ segment.id }}</td>
+      	<td>{{ segment.text }}</td>
+      </tr></tbody>
+  </table>
 
 {% if translations %}
 	<fieldset>
 		<legend>Translations in internal memory</legend>
     <table style="width: 100%">
     <tbody>
-	<tr><th>target</th><th>t-type</th><th>by</th><th style="text-align: left">text</th></tr>
+	<tr><th>target</th><th>type</th><th>by</th><th style="text-align: left">text</th></tr>
 	{% for l in other_languages %}{% for t in translations|lookup:l.code %}{% with ur=t.user_role %}
     <tr>
     	<td><a  class="{{ l.code }}" href="/translation_align/{{ t.id }}">{{ l }}</a></td>
     	<td>{{ TRANSLATION_TYPE_DICT|lookup:t.translation_type }}</td>
     	<td>{% if ur %}{{ ROLE_DICT|lookup:ur.role_type }}-{{ ur.level }}: {{ ur.user.get_full_name }}{% endif %}</td>
-    	<td>{{ t.text }}<a onclick="addText(this.parentNode, 'id_translation')"><span class="fa fa-copy" style="font-size: 1.0em; padding-left: 1.0em;" title="append this translation to your translation"></span></a></td>
+    	<td>{{ t.text }}<a onclick="addText(this.parentNode, 'id_translation')"><span class="fa fa-copy" style="font-size: 1.0em; padding-left: 1.0em;" title="append this text to your translation"></span></a></td>
    	</tr>
 	{% endwith %}{% endfor %}{% endfor %}
 	</tbody>
@@ -82,20 +91,30 @@ function capFirst(id) {
 {% endif %}
 
 {% if user.is_superuser %}
-    <table style="width: 100%">
-    <tbody>
-    <tr><td colspan=4 class="{{ target_language.code }}"><b><i>Add {{ target_language }} translation</i></b></td></tr>
-    <tr><td colspan=4 style="width: 100%">{{ translation_form.translation.errors }}{{ translation_form.translation }}</td></tr>
+<form action="/segment_translate/{{ segment.id }}/{{ target_code }}/" method="post">
+	{% csrf_token %}
+	<fieldset>
+		<legend><i>Add <span class="{{ target_language.code }}">{{ target_language }}</span> translation</i></legend>
 
-	<tr><td colspan=2><div><b><i>External services</i></b></div>
-			<div>{{ translation_service_form.translation_services }}</div>
-			<div><input type="submit" name="ask_service" value="Ask service" class="btn btn-sm" /></div>
-		</td></tr>
-	<tr><td colspan=4><input type="submit" name="save-{{ target_language.code }}" value="Save {{ target_language.name }} translation" class="btn btn-sm" /></td></tr>
-    <tr><td colspan=4 style="width: 100%"><hr></td></tr>
-{% endif %}
+		<div>{{ translation_form.translation.errors }}{{ translation_form.translation }}</div>
+		<div><input type="submit" name="save-{{ target_language.code }}" value="Save {{ target_language.name }} translation" class="btn btn-sm" /></div>
+	</fieldset>
+</form>
+
+<form action="/segment_translate/{{ segment.id }}/{{ target_code }}/" method="post">
+	{% csrf_token %}
+	<fieldset>
+		<legend><i>External services</i></legend>
+
+		<div>{{ translation_service_form.translation_services }}</div>
+		<div><input type="submit" name="ask_service" value="Ask service" class="btn btn-sm" /></div>
+	</fieldset>
 
 	{% if external_translations %}
+	<fieldset>
+		<legend><i>Translations by {{ translation_service }}</i></legend>
+    <table style="width: 100%">
+    <tbody>
     <tr><td colspan=4 style="padding-top: 0.5em; padding-bottom: 0.5em; font-size: large; font-weight: bold;">Translations by {{ translation_service }}</td></tr>
 	<tr><th>segment</th><th>entry id</th><th>quality</th><th style="text-align: left">translation</th></tr>
 	{% for t in external_translations %}
@@ -106,10 +125,19 @@ function capFirst(id) {
     	<td class="{{ target_language.code }}">{{ t.translation }}<a onclick="addText(this.parentNode, 'id_translation')"><span class="fa fa-copy" style="font-size: 1.0em; padding-left: 1.0em;" title="append this translation to your translation"></span></a></td>
    	</tr>
 	{% endfor %}
+	</tbody>
+	</table>
+	</fieldset>
     {% endif %}
 
 	{% if similar_segments %}
+	<fieldset>
+		<legend><i>{{ target_language }} translations of similar segments</i></legend>
+    <table style="width: 100%">
+    <tbody>
+{% comment %}
     <tr><td colspan=4 style="padding-top: 0.5em; padding-bottom: 0.5em; font-size: large; font-weight: bold;">{{ target_language }} translations of similar segments</td></tr>
+{% endcomment %}
 	<tr><th></th><th style="text-align: left">translation</th></tr>
 {% comment %}
 	{% for score, s, lltt in similar_strings %}{% for l, tt in lltt %}{% for t in tt %}
@@ -131,6 +159,9 @@ function capFirst(id) {
 
 	</tbody>
 	</table>
+	</fieldset>
+</form>
+{% endif %}
 
 {% comment %}
 	<h4 style="margin-top: 1.0em; margin-bottom: 0;"><strong>Navigation filters</strong></h4>
@@ -148,5 +179,4 @@ function capFirst(id) {
 		<td style="text-align: center;">{{ sequencer_form.show_similar }}</td>
 	</tr></tbody></table>    	
 {% endcomment %}
-</form>
 {% endblock %}

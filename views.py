@@ -1198,11 +1198,10 @@ def block_translate(request, block_id, target_code):
         elif segment:
             #is_model_instance, segment_string = get_or_add_string(request, segment, source_language, site=block.site, string_type=SEGMENT, add=True)
             segment_string = get_or_add_segment(request, segment, source_language, block.site)
-        """ CHE SIGNIFICA? RIVEDERE
         elif string:
-            is_model_instance, segment_string = get_or_add_string(request, string, source_language, site=block.site, add=True)
-            return HttpResponseRedirect('/string_translate/%d/%s/' % (segment_string.id, proxy_codes[0]))
-        """
+            # is_model_instance, segment_string = get_or_add_string(request, string, source_language, site=block.site, add=True)
+            segment_string = get_or_add_segment(request, string, source_language, site=block.site, add=True)
+            return HttpResponseRedirect('/segment_translate/%d/%s/' % (segment_string.id, proxy_codes[0]))
     if (not post) or save_block or create or modify or extract or segment or string:
         sequencer_context = request.session.get('sequencer_context', {})
         if sequencer_context:

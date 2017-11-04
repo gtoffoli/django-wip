@@ -2,23 +2,14 @@
 
 import os
 import sys
-"""
-import codecs
-sys.stdout = codecs.getwriter('utf8')(sys.stdout)
-sys.stderr = codecs.getwriter('utf8')(sys.stderr)
-"""
 
-"""
-import StringIO
-try:
-    from cStringIO import StringIO as BytesIO
-except ImportError:
-    from io import BytesIO
-"""
+import urllib
 if (sys.version_info > (3, 0)):
     from io import StringIO
     from html.entities import entitydefs as htmlentitydefs
     from html.entities import name2codepoint
+    import urllib.parse
+    from urllib.parse import urlencode 
 
     def unichr(n):
         return chr(n)
@@ -26,9 +17,9 @@ else:
     import StringIO
     import htmlentitydefs
     from htmlentitydefs import name2codepoint
+    from urllib import urlencode 
 
 import re, regex
-
 # from scrapy.utils.misc import md5sum
 import hashlib
 
@@ -36,7 +27,8 @@ import hashlib
 from namedentities import unicode_entities
 from lxml import html, etree
 from guess_language.guess_language import guessLanguage
-import urllib
+import requests
+import json
 from difflib import Differ, HtmlDiff
 # import unirest
 # import wip.srx_segmenter
@@ -334,21 +326,20 @@ def guess_block_language(block):
             return code
     return '?'
 
-translated_key = 'fbcc885cdb0971380e33'
-def ask_mymemory(string, langpair):
+def ask_mymemory(string, langpair, use_key=False):
     baseurl = "https://translated-mymemory---translation-memory.p.mashape.com/api/get?"
-    querydict = { 'key': translated_key, 'langpair': langpair, 'mt': 1, 'of': 'json', 'q': string, }
-    headers={"X-Mashape-Key": "vBhqkjRytAmsh3COr4xRHcX2whEcp1mm26TjsnMw7ZFZSK6XIU", "Accept": "application/json"}
-    """
-    querystring = urllib.urlencode(querydict)
-    r = unirest.get(baseurl+querystring, headers=headers)
-    code = r.code
-    body = r.body
-    status = body.get('responseStatus', 'no status')
-    """
-    code = body = status = None # ricodificare tutto con urllib o urllib2
+    querydict = { 'langpair': langpair, 'mt': 1, 'of': 'json', 'q': string, }
+    if use_key:
+        querydict['key'] = settings.TRANSLATED_KEY
+    querystring = urlencode(querydict)
+    url = baseurl + querystring
+    headers={"X-Mashape-Key": settings.MASHAPE_KEY, "Accept": "application/json"}
+    response = requests.get(url, headers=headers)
+    status = response.status_code
+    translatedText = ''
     translations = []
     if status == 200:
+        body = json.loads(response.content.decode())
         details = body.get('responseDetails', 'no details')
         data = body.get('responseData', {})
         translatedText = data.get('translatedText', '')
