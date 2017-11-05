@@ -1201,7 +1201,8 @@ def block_translate(request, block_id, target_code):
         elif string:
             # is_model_instance, segment_string = get_or_add_string(request, string, source_language, site=block.site, add=True)
             segment_string = get_or_add_segment(request, string, source_language, site=block.site, add=True)
-            return HttpResponseRedirect('/segment_translate/%d/%s/' % (segment_string.id, proxy_codes[0]))
+            # return HttpResponseRedirect('/segment_translate/%d/%s/' % (segment_string.id, proxy_codes[0]))
+            return HttpResponseRedirect('/segment_translate/%d/%s/' % (segment_string.id, target_code))
     if (not post) or save_block or create or modify or extract or segment or string:
         sequencer_context = request.session.get('sequencer_context', {})
         if sequencer_context:
@@ -1433,7 +1434,8 @@ def segment_view(request, segment_id):
     var_dict = {}
     var_dict['segment'] = segment = get_object_or_404(Segment, pk=segment_id)
     var_dict['source_language'] = source_language = segment.language
-    var_dict['other_languages'] = other_languages = source_language.get_other_languages()
+    # var_dict['other_languages'] = other_languages = source_language.get_other_languages()
+    var_dict['other_languages'] = other_languages = segment.site.get_proxy_languages()
 
     SegmentSequencerForm.base_fields['translation_languages'].queryset = other_languages
     segment_context = request.session.get('segment_context', {})
@@ -1773,9 +1775,14 @@ def segment_translate(request, segment_id, target_code):
     var_dict['source_language'] = source_language = segment.language
     var_dict['target_code'] = target_code
     var_dict['target_language'] = target_language = Language.objects.get(code=target_code)
+    """
     var_dict['other_languages'] = source_language.get_other_languages()
     translation_codes = [target_code]
     translation_languages = Language.objects.filter(code=target_code)
+    """
+    var_dict['other_languages'] = other_languages = segment.site.get_proxy_languages()
+    translation_languages= other_languages
+    translation_codes = [l.code for l in translation_languages]
 
     SegmentSequencerForm.base_fields['translation_languages'].queryset = translation_languages
 

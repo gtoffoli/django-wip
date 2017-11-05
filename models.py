@@ -135,7 +135,8 @@ PARALLEL_FORMAT_TEXT = 2
 class Site(models.Model):
     name = models.CharField(max_length=100)
     slug = AutoSlugField(unique=True, populate_from='name', editable=True)
-    language = models.ForeignKey(Language, null=True)
+    # language = models.ForeignKey(Language, null=True)
+    language = models.ForeignKey(Language, null=True, related_name='language_site')
     path_prefix = models.CharField(max_length=20, default='')
     url = models.CharField(max_length=100)
     allowed_domains = models.TextField()
@@ -182,6 +183,9 @@ class Site(models.Model):
 
     def get_proxies(self):
         return Proxy.objects.filter(site=self).order_by('language__code')
+
+    def get_proxy_languages(self):
+        return Language.objects.filter(language_proxy__site=self)
 
     class Meta:
         verbose_name = _('project')
@@ -484,7 +488,8 @@ class Proxy(models.Model):
     name = models.CharField(max_length=100)
     slug = AutoSlugField(unique=True, populate_from='name', editable=True)
     site = models.ForeignKey(Site)
-    language = models.ForeignKey(Language)
+    # language = models.ForeignKey(Language)
+    language = models.ForeignKey(Language, related_name='language_proxy')
     host = models.CharField(max_length=100)
     base_path = models.CharField(max_length=100)
     enable_live_translation = models.BooleanField(default=False)
@@ -1718,6 +1723,9 @@ class Block(node_factory('BlockEdge')):
     def get_language(self):
         return self.language or self.site.language or Language.objects.get(code='it')
 
+    def bips(self):
+        return BlockInPage.objects.filter(block=self).distinct().count()
+
     def get_level(self):
         parents = self.parents()
         if parents:
@@ -2363,6 +2371,7 @@ class Segment(models.Model):
         return Translation.objects.filter(segment=self, language=target_language).order_by('-translation_type', 'user_role__role_type', 'user_role__level')
 
     def get_navigation(self, site=None, translation_state='', translation_languages=[], order_by=TEXT_ASC):
+        id = self.id
         text = self.text
         created = self.created
         qs = Segment.objects.filter(language=self.language)

@@ -23,38 +23,42 @@ pre { display: inline;  padding: 0; }
 pre code { display: inline; }
 tr.odd { background: LightGray; }
 tr.even { background: white; }
+{% comment %}
 .it { color: LimeGreen; }
 .en { color: #FF0088; }
 .es { color: OrangeRed; }
 .fr { color: blue; }   
+{% endcomment %}
+.it { border: 1px solid; border-color: green; margin: 1px; }
+.en { border: 2px solid; border-color: red; margin: 1px; }
+.es { border: 2px solid; border-color: yellow; margin: 1px; }
+.fr { border: 1px solid; border-color: blue; margin: 1px; }
 th, td { text-align: left; vertical-align: top; }
 </style>
 {% endblock %}
 
 {% block head_title %}Segment: {{ segment.text }}{% endblock %}
 
-{% block title-page %}
-<span style="color: black; font-size: smaller;">Segment: </span>
-<span class="{{ source_language.code }}" style="font-size: smaller;">{{ segment.text|truncatechars:64 }}</span>
-{% comment %}<a href="/segment_edit/{{ segment.id }}/" title="{% trans "show edit view" %}"><i class="fa fa-edit font07em c-white"></i></a>{% endcomment %}
-{% endblock %}
+{% block title-page %}{% trans "segment"|capfirst %}: <small><i>{{ segment.text|truncatechars:64 }}</i></small>{% endblock %}
 
 {% block content-page %}
 <form action="/segment/{{ segment.id }}/" method="post">
 	{% csrf_token %}
 
-    <div>
-    <label>id</label>{{ segment.id }} &nbsp;
-    <label>source</label><span class="{{ source_language.code }}">{{ source_language.name }}</span> &nbsp;
-    {% if segment.site %}<label>site</label>{{ segment.site.name }} &nbsp;{% endif %}
-    {% if segment.is_invariant %}<label>invariant</label>True &nbsp;{% endif %}
-	</div>
-    <div><label>text</label>{{ segment.text }}</div>
-	{% if not segment.is_invariant %}
-   	<div>{% for l in other_languages %}
-   	<a class="btn btn-sm" href="/segment_translate/{{ segment.id }}/{{ l.code }}/">Translate to <span class="{{ l.code }}">{{ l }}</span></a>&nbsp;&nbsp;
-   	{% endfor %}</div>
-   	{% endif %}
+  <table class="table table-responsive table-bordered table-striped mB5">
+    <thead><tr>
+    	<th width="15%">{% trans "project"|capfirst %}</th>
+    	<th width="5%">{% trans "id"|capfirst %}</th>
+    	<th>{% trans "text"|capfirst %}</th>
+    	{% if not segment.is_invariant %}<th width="20%">{% trans "translate"|capfirst %}</th>{% endif %}
+      </tr></thead>
+    <tbody><tr>
+      	<td><nobr><span class="mR10">{{ segment.site.name }} ({{ source_language }})</span> <a href="/site/{{ segment.site.slug }}/"><i class="fa fa-th-large" aria-hidden="true"></i></a></nobr></td>
+      	<td>{{ segment.id }}</td>
+      	<td>{{ segment.text }}</td>
+      	{% if not segment.is_invariant %}<td><ul class="list-inline">{% for l in other_languages %}<li><a class="btn btn-default btn-sm" href="/segment_translate/{{ segment.id }}/{{ l.code }}/">to {{ l }}</a>{% endfor %}</div>{% endif %}
+      </tr></tbody>
+  </table>
 
 {% if translations %}
 	<fieldset>
@@ -91,13 +95,11 @@ th, td { text-align: left; vertical-align: top; }
 {% endif %}
 
 	<fieldset>
-		<legend>Navigation filters</legend>
-     <div>
-		{% comment %}<input type="submit" name="apply_filter" class="btn btn-sm" value="Apply filter below"> &nbsp;&nbsp;{% endcomment %}
+		<legend>Navigation -
 		{{ n }} segments found{% if n %}:{% endif %}
 		{% if previous %}<input type="submit" name="goto-{{ previous.id }}" class="btn btn-sm" value="Previous">{% endif %}
 		{% if next %}<input type="submit" name="goto-{{ next.id }}" class="btn btn-sm" value="Next">{% endif %}
-    </div>
+		</legend>
     <table><thead>
     	<tr>{% for field in sequencer_form.visible_fields %}<th>{{ field.label_tag }}</th>{% endfor %}</tr>
    	</thead><tbody><tr>

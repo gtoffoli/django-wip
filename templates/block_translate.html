@@ -79,6 +79,7 @@ function apply_translation (target_code, id_from, id_to) {
     	<th>{% trans "block id"|capfirst %}</th>
     	<th>Checksum</th>
     	<th>{% trans "Date"|capfirst %}/{% trans "time"|capfirst %}</th>
+    	<th>{% trans "in use"|capfirst %}</th>
     	<th>Other translations</th>
       </tr>
     </thead>
@@ -89,7 +90,8 @@ function apply_translation (target_code, id_from, id_to) {
       	<td>{{ page_block.id }}</td>
       	<td>{{ page_block.checksum }}</td>
       	<td>{{ page_block.time|date:"SHORT_DATETIME_FORMAT" }}</td>
-      	<td><ul class="list-inline">{% for language in other_languages %}<li><a class="btn btn-default btn-sm" href="/block/{{ page_block.id }}/translate/{{ language.code }}/">to {{ language }}</a>{% endfor %}</div>
+      	<td>{% if page_block.bips %}{% trans "yes"|capfirst %}{% endif %}</td>
+      	<td><ul class="list-inline">{% for l in other_languages %}<li><a class="btn btn-default btn-sm" href="/block/{{ page_block.id }}/translate/{{ l.code }}/">to {{ l }}</a>{% endfor %}</div>
       </tr>
     </tbody>
   </table>
