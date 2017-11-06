@@ -59,7 +59,7 @@ from .models import segments_from_string, non_invariant_words
 from .models import STRING_TYPE_DICT, UNKNOWN, SEGMENT #, TERM, FRAGMENT
 from .models import TEXT_ASC # , ID_ASC, DATETIME_DESC, DATETIME_ASC
 from .models import ANY, TO_BE_TRANSLATED, TRANSLATED, PARTIALLY, INVARIANT, ALREADY
-from .models import ROLE_DICT, TRANSLATION_TYPE_DICT, TRANSLATION_SERVICE_DICT, MYMEMORY
+from .models import ROLE_DICT, TRANSLATION_TYPE_DICT, TRANSLATION_SERVICE_DICT, GOOGLE, MYMEMORY
 from .models import OWNER, MANAGER, LINGUIST, REVISOR, TRANSLATOR, GUEST
 from .models import TM, MT, MANUAL
 from .models import PARALLEL_FORMAT_NONE, PARALLEL_FORMAT_XLIFF, PARALLEL_FORMAT_TEXT
@@ -73,7 +73,7 @@ from .session import get_language, set_language, get_site, set_site, get_userrol
 from settings import PAGE_SIZE, PAGE_STEPS
 from settings import DATA_ROOT, RESOURCES_ROOT, tagger_filename, BLOCK_TAGS, QUOTES, SEPARATORS, STRIPPED, DEFAULT_STRIPPED, EMPTY_WORDS, PAGES_EXCLUDE_BY_CONTENT
 """
-from .utils import strings_from_html, elements_from_element, block_checksum, ask_mymemory, text_to_list # , non_invariant_words
+from .utils import strings_from_html, elements_from_element, block_checksum, ask_mymemory, ask_gt, text_to_list # , non_invariant_words
 from .utils import pageversion_diff, diff_style
 from  wip import srx_segmenter
 from .aligner import tokenize, best_alignment #, get_train_aligner
@@ -1821,11 +1821,23 @@ def segment_translate(request, segment_id, target_code):
             if translation_service_form.is_valid():
                 data = translation_service_form.cleaned_data
                 translation_services = data['translation_services']
+                external_translations = []
+                if str(GOOGLE) in translation_services:
+                    response = ask_gt(segment.text, target_code)
+                    if response.get('detectedSourceLanguage', '').startswith(source_language.code):
+                        external_translations = [{ 'segment': response.get('input', ''), 'translation': response.get('translatedText', ''), 'service': TRANSLATION_SERVICE_DICT[GOOGLE] }]
                 if str(MYMEMORY) in translation_services:
                     langpair = '%s|%s' % (source_language.code, target_code)
+                    """
                     status, translatedText, external_translations = ask_mymemory(segment.text, langpair)
                     var_dict['external_translations'] = external_translations
                     var_dict['translation_service'] = TRANSLATION_SERVICE_DICT[MYMEMORY]
+                    """
+                    status, translatedText, mymemory_translations = ask_mymemory(segment.text, langpair)
+                    for external_translation in mymemory_translations:
+                        external_translation['service'] = TRANSLATION_SERVICE_DICT[MYMEMORY]
+                        external_translations.append(external_translation)
+                var_dict['external_translations'] = external_translations
             else:
                 print ('error', translation_service_form.errors)
             translation_form = SegmentTranslationForm()

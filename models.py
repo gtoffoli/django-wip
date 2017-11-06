@@ -69,9 +69,9 @@ MYMEMORY = 1
 MATECAT = 2
 GOOGLE = 3
 TRANSLATION_SERVICE_CHOICES = (
-    (MYMEMORY, _('MyMemory')),
-    (MATECAT, _('Matecat')),
     (GOOGLE, _('GoogleTranslate')),
+    (MYMEMORY, _('MyMemory')),
+    # (MATECAT, _('Matecat')),
 )
 TRANSLATION_SERVICE_DICT = dict(TRANSLATION_SERVICE_CHOICES)
 

@@ -114,16 +114,25 @@ function capFirst(id) {
 
 	{% if external_translations %}
 	<fieldset>
-		<legend><i>Translations by {{ translation_service }}</i></legend>
+		<legend><i>Translations by web services</i></legend>
     <table style="width: 100%">
     <tbody>
-    <tr><td colspan=4 style="padding-top: 0.5em; padding-bottom: 0.5em; font-size: large; font-weight: bold;">Translations by {{ translation_service }}</td></tr>
-	<tr><th>segment</th><th>entry id</th><th>quality</th><th style="text-align: left">translation</th></tr>
+	{% comment %}
+    <tr><td colspan=4 style="padding-top: 0.5em; padding-bottom: 0.5em; font-size: large; font-weight: bold;">Translations by web services</td></tr>
+	{% endcomment %}
+	<tr><th>service</th>
+		<th>segment</th>
+		{% comment %}<th>entry id</th><th>quality</th>{% endcomment %}
+		<th style="text-align: left">translation</th>
+	</tr>
 	{% for t in external_translations %}
     <tr class="{% cycle 'odd' 'even' %}">
+    	<td>{{ t.service }}</td>
     	<td class="{{ source_language.code }}">{{ t.segment }}</td>
+		{% comment %}
     	<td style="text-align: left">{{ t.entry_id }}</td>
     	<td style="text-align: center">{{ t.quality }}</td>
+		{% endcomment %}
     	<td class="{{ target_language.code }}">{{ t.translation }}<a onclick="addText(this.parentNode, 'id_translation')"><span class="fa fa-copy" style="font-size: 1.0em; padding-left: 1.0em;" title="append this translation to your translation"></span></a></td>
    	</tr>
 	{% endfor %}

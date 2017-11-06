@@ -29,6 +29,7 @@ from lxml import html, etree
 from guess_language.guess_language import guessLanguage
 import requests
 import json
+from google.cloud import translate
 from difflib import Differ, HtmlDiff
 # import unirest
 # import wip.srx_segmenter
@@ -358,6 +359,11 @@ def ask_mymemory(string, langpair, use_key=False):
             translation['entry_id'] = 'Matecat-%s' % match.get('id', '')
             translations.append(translation)
     return status, translatedText, translations
+
+def ask_gt(text, target_code):
+    os.environ.setdefault("GOOGLE_APPLICATION_CREDENTIALS", settings.GOOGLE_APPLICATION_CREDENTIALS)
+    client = translate.Client()
+    return client.translate(text, target_language=target_code)    
 
 # http://stackoverflow.com/questions/8898294/convert-utf-8-with-bom-to-utf-8-with-no-bom-in-python
 def remove_bom(filepath):
