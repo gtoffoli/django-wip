@@ -65,7 +65,7 @@ from .models import TM, MT, MANUAL
 from .models import PARALLEL_FORMAT_NONE, PARALLEL_FORMAT_XLIFF, PARALLEL_FORMAT_TEXT
 from .forms import DiscoverForm
 from .forms import SiteManageForm, ProxyManageForm, PageManageForm, PageSequencerForm, BlockEditForm, BlockSequencerForm
-from .forms import SegmentSequencerForm, SegmentTranslationForm, TranslationViewForm, TranslationSequencerForm
+from .forms import SegmentSequencerForm, SegmentEditForm, SegmentTranslationForm, TranslationViewForm, TranslationSequencerForm
 from .forms import StringSequencerForm, StringEditForm, StringsTranslationsForm, StringTranslationForm, TranslationServiceForm, FilterPagesForm
 from .forms import UserRoleEditForm, ListSegmentsForm, ImportXliffForm
 from .session import get_language, set_language, get_site, set_site, get_userrole, set_userrole
@@ -1770,6 +1770,53 @@ def string_translate(request, string_id, target_code):
     var_dict['translation_service_form'] = translation_service_form
     # return render_to_response('string_translate.html', var_dict, context_instance=RequestContext(request))
     return render(request, 'string_translate.html', var_dict)
+
+def segment_edit(request, segment_id=None, language_code='', proxy_slug=''):
+    user = request.user
+    if not user.is_superuser:
+        return empty_page(request)
+    var_dict = {}
+    segment = segment_id and get_object_or_404(Segment, pk=segment_id) or None
+    proxy = proxy_slug and get_object_or_404(Proxy, slug=proxy_slug) or None
+    post = request.POST
+    # print 'post: ', post
+    if post:
+        if post.get('cancel', ''):
+            if segment_id:
+                return HttpResponseRedirect('/segment/%s/' % segment_id)
+            elif proxy_slug:
+                return HttpResponseRedirect('/proxy/%s/translations/' % proxy_slug)
+        elif post.get('save', '') or post.get('continue', ''):
+            if segment:
+                segment_edit_form = SegmentEditForm(post, instance=segment)
+            else:
+                segment_edit_form = SegmentEditForm(post)
+            if segment_edit_form.is_valid():
+                segment = segment_edit_form.save()
+                if post.get('save', ''):
+                    return HttpResponseRedirect('/segment/%d/' % segment.id)
+    else:
+        if segment:
+            segment_edit_form = SegmentEditForm(instance=segment)
+        else:
+            if proxy_slug:
+                proxy = get_object_or_404(Proxy, slug=proxy_slug)
+                site = proxy.site
+                language = site.language
+            elif language_code:
+                site = None
+                language = get_object_or_404(Language, code=language_code)
+            else:
+                site = None
+                language = None
+            text = ''
+            user = request.user           
+            segment_edit_form = SegmentEditForm(initial={'site': site, 'text': text })
+    var_dict['segment'] = segment
+    var_dict['proxy'] = proxy
+    var_dict['translations'] = segment and segment.get_translations() or []
+    var_dict['segment_edit_form'] = segment_edit_form
+    return render(request, 'segment_edit.html', var_dict)
 
 def segment_translate(request, segment_id, target_code):
     if not request.user.is_superuser:

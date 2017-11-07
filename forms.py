@@ -6,7 +6,7 @@ Created on 08/feb/2016
 from django import forms
 from django.utils.translation import ugettext_lazy as _, string_concat
 from django.contrib.auth.models import User
-from .models import Site, String
+from .models import Site, Segment, String
 from .models import UserRole
 from .models import STRING_TYPE_CHOICES, STRING_SORT_CHOICES, STRING_TRANSLATION_STATE_CHOICES, TRANSLATION_STATE_CHOICES, TRANSLATION_SERVICE_CHOICES
 from .models import ROLE_TYPE_CHOICES
@@ -119,6 +119,18 @@ class StringTranslationForm(forms.Form):
     translation_subjects = forms.ModelMultipleChoiceField(required=False, queryset=Subject.objects.exclude(name='').exclude(name__isnull=True).order_by('code'), widget=forms.SelectMultiple(attrs={'size': 3,}))
     same_txu = forms.BooleanField(required=False, label='Add to same TU')
     show_similar = forms.BooleanField(required=False, label='Show similar', widget=forms.CheckboxInput(attrs={'onchange': 'javascript: this.form.submit()',}))
+
+class SegmentEditForm(forms.ModelForm):
+    class Meta:
+        model = Segment
+        exclude = ('comment', 'is_comment_settled',)
+
+    id = forms.CharField(required = False, widget=forms.HiddenInput())
+    site = forms.ModelChoiceField(required=False, label="Site", queryset=Site.objects.all(), widget=forms.Select(attrs={'style':'height: 24px;',}))
+    language = forms.ModelChoiceField(label="Language", queryset=Language.objects.all(), widget=forms.Select(attrs={'style':'height: 24px;',}))
+    is_fragment = forms.BooleanField(required=False, label='Fragment')
+    is_invariant = forms.BooleanField(required=False, label='Invariant')
+    text = forms.CharField(required=True, widget=forms.Textarea(attrs={'style': 'width: 100%; height: 60px;'}))
 
 class SegmentTranslationForm(forms.Form):
     translation = forms.CharField(required=True, widget=forms.Textarea(attrs={'style': 'width: 100%; height: 60px;'}))

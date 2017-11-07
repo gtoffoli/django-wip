@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% load staticfiles i18n %}
+
+{% block extra_head %}
+<style>
+label { display: inline; font-weight: bold; margin-right: 1.0em; padding: 0.2em 0em; }
+pre { display: inline;  padding: 0; }
+pre code { display: inline; }
+tr.odd { background: LightGray; }
+tr.even { background: white; }
+.it { border: 1px solid; border-color: green; margin: 1px; }
+.en { border: 2px solid; border-color: red; margin: 1px; }
+.es { border: 2px solid; border-color: yellow; margin: 1px; }
+.fr { border: 1px solid; border-color: blue; margin: 1px; }
+th, td { text-align: left; vertical-align: top; }
+</style>
+{% endblock %}
+
+{% block head_title %}Edit segment: {{ segment.text|truncatechars:64 }}{% endblock %}
+
+{% block title-page %}<span style="color: black; font-size: smaller;">Edit segment: </span> <span class="{{ segment.language.code }}" style="font-size: smaller;">{{ segment.text|truncatechars:64 }}</span>{% endblock %}
+
+{% block content-page %}
+{% if proxy and not segment %}
+<form action="/segment_add_by_proxy/{{ proxy.slug }}/" method="post">
+{% else %}
+<form action="/segment_edit/{% if segment %}{{ segment.id }}/{% endif %}" method="post">
+{% endif %}
+	{% csrf_token %}
+
+{% if segment %}
+<div><label>Id</label> {{ segment.id }}</div>
+{% endif %}
+{% comment %}{{ segment_edit_form.as_p }}
+{% endcomment %}
+{{ segment_edit_form.id}}
+<div><label>{{ segment_edit_form.language.label_tag }}</label> {{ segment_edit_form.language }}</div>
+<div><label>{{ segment_edit_form.site.label_tag }}</label> {{ segment_edit_form.site }}</div>
+<div><label>{{ segment_edit_form.is_invariant.label_tag }}</label> {{ segment_edit_form.is_invariant }}</div>
+<div><label>{{ segment_edit_form.is_fragment.label_tag }}</label> {{ segment_edit_form.is_fragment }}</div>
+<div><label>{{ segment_edit_form.text.label_tag }}</label> {{ segment_edit_form.text }}</div>
+<div>
+	<input type="submit" name="save" class="btn btn-sm" value="Save"> &nbsp;&nbsp;
+	<input type="submit" name="continue" class="btn btn-sm" value="Save and continue"> &nbsp;&nbsp;
+	<input type="submit" name="cancel" class="btn btn-sm" value="Cancel"> &nbsp;&nbsp;
+</div>
+
+</form>
+{% endblock %}
