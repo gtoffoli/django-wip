@@ -36,8 +36,7 @@ def url_to_proxy(url):
                 return proxies[0], path
     return None, ''
 
-@csrf_exempt
-@requires_csrf_token
+# @csrf_exempt
 def send_fragment(request):
     """
     url: tells us from where the request was sent
@@ -70,9 +69,9 @@ def send_fragment(request):
     else:
         data = { 'status': 'ko' }
     return HttpResponse(json.dumps(data), content_type='application/json')
+send_fragment.csrf_exempt = True
 
-@csrf_exempt
-@requires_csrf_token
+# @csrf_exempt
 def send_block(request):
     """
     url: tells us from where the request was sent
@@ -102,9 +101,9 @@ def send_block(request):
     else:
         data = { 'status': 'ko' }
     return HttpResponse(json.dumps(data), content_type='application/json')
+send_block.csrf_exempt = True
 
-@csrf_exempt
-@requires_csrf_token
+# @csrf_exempt
 def find_block(request):
     """
     url: tells us from where the request was sent
@@ -139,3 +138,4 @@ def find_block(request):
                 data['block'] = block.id
                 data['status'] = 'ok'
     return HttpResponse(json.dumps(data), content_type='application/json')
+find_block.csrf_exempt = True
