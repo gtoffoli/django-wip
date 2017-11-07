@@ -9,7 +9,7 @@ else:
 import json
 
 from django.http import HttpResponse, HttpResponseBadRequest
-from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.csrf import csrf_exempt, requires_csrf_token
 from .models import Proxy, Site, Webpage, BlockInPage
 
 def dummy(url, xpath):
@@ -37,6 +37,7 @@ def url_to_proxy(url):
     return None, ''
 
 @csrf_exempt
+@requires_csrf_token
 def send_fragment(request):
     """
     url: tells us from where the request was sent
@@ -71,6 +72,7 @@ def send_fragment(request):
     return HttpResponse(json.dumps(data), content_type='application/json')
 
 @csrf_exempt
+@requires_csrf_token
 def send_block(request):
     """
     url: tells us from where the request was sent
@@ -102,6 +104,7 @@ def send_block(request):
     return HttpResponse(json.dumps(data), content_type='application/json')
 
 @csrf_exempt
+@requires_csrf_token
 def find_block(request):
     """
     url: tells us from where the request was sent
