@@ -147,10 +147,11 @@ def get_or_set_user_role(request, site=None, source_language=None, target_langua
         qs = UserRole.objects.filter(user=request.user)
         if site:
             qs = qs.filter(site=site)
-        if source_language:
-            qs = qs.filter(source_language=source_language)
-        if target_language:
-            qs = qs.filter(target_language=target_language)
+        else:
+            if source_language:
+                qs = qs.filter(source_language=source_language)
+            if target_language:
+                qs = qs.filter(target_language=target_language)
         qs = qs.order_by('role_type')
         user_role = qs[0]
         set_userrole(request, user_role.id)
@@ -975,8 +976,11 @@ def get_or_add_translation(request, segment, text, language, translation_type=MA
     if isinstance(language, str):
         language = Language.objects.get(code=language)
     if not user_role:
+        """
         user_role_id = get_userrole(request)
         user_role = UserRole.objects.get(pk=user_role_id)
+        """
+        user_role = get_or_set_user_role(request, site=segment.site, source_language=segment.language, target_language=language)
     translations = Translation.objects.filter(segment=segment, text=text, language=language)
     if translations:
         translation = translations[0]
@@ -1847,7 +1851,7 @@ def segment_translate(request, segment_id, target_code):
                 data = translation_form.cleaned_data
                 # print (data)
                 translation_text = data['translation']
-                translationt = get_or_add_translation(request, segment, translation_text, target_language)
+                translation = get_or_add_translation(request, segment, translation_text, target_language)
             else:
                 print ('error', translation_form.errors)
                 # return render_to_response('segment_translate.html', {'translation_form': translation_form,}, context_instance=RequestContext(request))
@@ -2307,6 +2311,7 @@ def add_update_translation(request):
         translation_id = int(form.get('translation_id', 0))
         target_text = form.get('target_text')
         segment = Segment.objects.get(pk=segment_id)
+        """
         user_role_id = get_userrole(request)
         if user_role_id:
             user_role = UserRole.objects.get(pk=user_role_id)
@@ -2322,6 +2327,9 @@ def add_update_translation(request):
                 if not ur.site or (ur.site.id == site_id):
                     user_role = ur
                     break
+        """
+        target_language = Language.objects.get(code=target_code)
+        user_role = get_or_set_user_role(request, site=segment.site, source_language=segment.language, target_language=target_language)
         if not user_role:
             pass # eccezione
         if translation_id:
@@ -2526,10 +2534,13 @@ def add_segment_translation(request):
         site_name = form.get('site_name')
         target_language = Language.objects.get(name=target_language)
         source_language = Language.objects.get(name=source_language)
+        segment = Segment.objects.filter(pk=source_id)
+        """
         user_role = get_userrole(request)
         if not user_role:
             user_role = UserRole.objects.filter(user=request.user, source_language=source_language, target_language=target_language).order_by('role_type')[0]
-        segment = Segment.objects.filter(pk=source_id)
+        """
+        user_role = get_or_set_user_role(request, site=segment.site, source_language=source_language, target_language=target_language)
         try:
             translation = Translation.objects.get(segment=segment, language=target_language)
         except:

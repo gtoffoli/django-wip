@@ -241,6 +241,7 @@ class WipHttpProxy(HttpProxy):
         else:
             proxy = Proxy.objects.get(pk=self.proxy_id)
             site = proxy.site
+        path = urlparse.urlparse(self.url).path
         transformed = False
         if request.GET or request.POST:
             """
@@ -248,7 +249,7 @@ class WipHttpProxy(HttpProxy):
             """
             self.content, transformed = proxy.translate_page_content(self.content)
         else:
-            path = urlparse.urlparse(self.url).path
+            # path = urlparse.urlparse(self.url).path
             # print ('translate_response: ', path)
             # print ('enable_live_translation: ', proxy.enable_live_translation)
             webpages = Webpage.objects.filter(site=site, path=path).order_by('-created')
