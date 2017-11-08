@@ -9,7 +9,8 @@ else:
 import json
 
 from django.http import HttpResponse, HttpResponseBadRequest
-from django.views.decorators.csrf import csrf_exempt, requires_csrf_token
+from django.views.decorators.csrf import csrf_exempt
+from django.contrib.auth.decorators import login_required
 from .models import Proxy, Site, Webpage, BlockInPage
 
 def dummy(url, xpath):
@@ -36,6 +37,7 @@ def url_to_proxy(url):
                 return proxies[0], path
     return None, ''
 
+@login_required
 @csrf_exempt
 def send_fragment(request):
     """
@@ -70,6 +72,7 @@ def send_fragment(request):
         data = { 'status': 'ko' }
     return HttpResponse(json.dumps(data), content_type='application/json')
 
+@login_required
 @csrf_exempt
 def send_block(request):
     """
@@ -101,6 +104,7 @@ def send_block(request):
         data = { 'status': 'ko' }
     return HttpResponse(json.dumps(data), content_type='application/json')
 
+@login_required
 @csrf_exempt
 def find_block(request):
     """

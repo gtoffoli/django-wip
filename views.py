@@ -194,6 +194,7 @@ def role_detail(request, role_id):
     # return render_to_response('role_detail.html', var_dict, context_instance=RequestContext(request))
     return render(request, 'role_detail.html', var_dict)
 
+@staff_member_required
 def role_edit(request, role_id=None):
     user_role = None
     if role_id:
@@ -1580,6 +1581,7 @@ def translation_align(request, translation_id):
     var_dict['sequencer_form'] = TranslationSequencerForm(initial={'order_by': order_by, 'alignment_type': alignment_type})
     return render(request, 'translation_align.html', var_dict)
 
+@staff_member_required
 def string_edit(request, string_id=None, language_code='', proxy_slug=''):
     user = request.user
     if not user.is_superuser:
@@ -1771,6 +1773,7 @@ def string_translate(request, string_id, target_code):
     # return render_to_response('string_translate.html', var_dict, context_instance=RequestContext(request))
     return render(request, 'string_translate.html', var_dict)
 
+@staff_member_required
 def segment_edit(request, segment_id=None, language_code='', proxy_slug=''):
     user = request.user
     if not user.is_superuser:
