@@ -42,8 +42,6 @@ th, td { text-align: left; vertical-align: top; }
 {% block title-page %}{% trans "segment"|capfirst %}: <small><i>{{ segment.text|truncatechars:64 }}</i></small>{% endblock %}
 
 {% block content-page %}
-<form action="/segment/{{ segment.id }}/" method="post">
-	{% csrf_token %}
 
   <table class="table table-responsive table-bordered table-striped mB5">
     <thead><tr>
@@ -60,9 +58,29 @@ th, td { text-align: left; vertical-align: top; }
       </tr></tbody>
   </table>
 
+<form action="/segment/{{ segment.id }}/" method="post">
+	{% csrf_token %}
+	<fieldset>
+		<legend>Navigation -
+		{{ n }} segments found{% if n %}:{% endif %}
+		{% if previous %}<input type="submit" name="goto-{{ previous.id }}" class="btn btn-sm" value="Previous">{% endif %}
+		{% if next %}<input type="submit" name="goto-{{ next.id }}" class="btn btn-sm" value="Next">{% endif %}
+		</legend>
+    <table><thead>
+    	<tr>{% for field in sequencer_form.visible_fields %}<th>{{ field.label_tag }}</th>{% endfor %}</tr>
+   	</thead><tbody><tr>
+		<td>{{ sequencer_form.project_site }}</td>
+		<td>{{ sequencer_form.translation_state }}</td>
+		<td>{{ sequencer_form.translation_languages }}</td>
+		<td>{{ sequencer_form.order_by }}</td>
+		<td style="text-align: center;">{{ sequencer_form.show_similar }}</td>
+	</tr></tbody></table>    	
+	</fieldset>
+</form>
+
 {% if translations %}
 	<fieldset>
-		<legend>Translations</legend>
+		<legend>Translations in internal memory</legend>
     <table style="width: 100%">
     <tbody>
 	<tr><th>target</th><th>t-type</th><th>by</th><th style="text-align: left">text</th></tr>
@@ -93,23 +111,4 @@ th, td { text-align: left; vertical-align: top; }
 	</table>
 	</fieldset>
 {% endif %}
-
-	<fieldset>
-		<legend>Navigation -
-		{{ n }} segments found{% if n %}:{% endif %}
-		{% if previous %}<input type="submit" name="goto-{{ previous.id }}" class="btn btn-sm" value="Previous">{% endif %}
-		{% if next %}<input type="submit" name="goto-{{ next.id }}" class="btn btn-sm" value="Next">{% endif %}
-		</legend>
-    <table><thead>
-    	<tr>{% for field in sequencer_form.visible_fields %}<th>{{ field.label_tag }}</th>{% endfor %}</tr>
-   	</thead><tbody><tr>
-		<td>{{ sequencer_form.project_site }}</td>
-		<td>{{ sequencer_form.translation_state }}</td>
-		<td>{{ sequencer_form.translation_languages }}</td>
-		<td>{{ sequencer_form.order_by }}</td>
-		<td style="text-align: center;">{{ sequencer_form.show_similar }}</td>
-	</tr></tbody></table>    	
-	</fieldset>
-
-</form>
 {% endblock %}

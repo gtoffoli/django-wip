@@ -73,6 +73,29 @@ function capFirst(id) {
       </tr></tbody>
   </table>
 
+<form action="/segment_translate/{{ segment.id }}/{{ target_code }}/" method="post">
+	{% csrf_token %}
+
+	<fieldset>
+		<legend>Navigation -
+		{{ n }} segments found{% if n %}:{% endif %}
+   		<a class="btn btn-default btn-sm" href="/segment/{{ segment.id }}/">View</a>
+		{% if previous %}<input type="submit" name="goto-{{ previous.id }}" class="btn btn-sm" value="Previous">{% endif %}
+		{% if next %}<input type="submit" name="goto-{{ next.id }}" class="btn btn-sm" value="Next">{% endif %}
+		</legend>
+
+    <table><thead>
+    	<tr>{% for field in sequencer_form.visible_fields %}<th>{{ field.label_tag }}</th>{% endfor %}</tr>
+   	</thead><tbody><tr>
+		<td>{{ sequencer_form.project_site }}</td>
+		<td>{{ sequencer_form.translation_state }}</td>
+		<td>{{ sequencer_form.translation_languages }}</td>
+		<td>{{ sequencer_form.order_by }}</td>
+		<td style="text-align: center;">{{ sequencer_form.show_similar }}</td>
+	</tr></tbody></table>    	
+	</fieldset>
+</form>
+
 {% if translations %}
 	<fieldset>
 		<legend>Translations in internal memory</legend>
@@ -105,6 +128,7 @@ function capFirst(id) {
 
 <form action="/segment_translate/{{ segment.id }}/{{ target_code }}/" method="post">
 	{% csrf_token %}
+
 	<fieldset>
 		<legend><i>External services</i></legend>
 
@@ -140,6 +164,7 @@ function capFirst(id) {
 	</table>
 	</fieldset>
     {% endif %}
+</form>
 
 	{% if similar_segments %}
 	<fieldset>
@@ -171,26 +196,6 @@ function capFirst(id) {
 	</tbody>
 	</table>
 	</fieldset>
-</form>
 {% endif %}
-
-	<fieldset>
-		<legend>Navigation -
-		{{ n }} segments found{% if n %}:{% endif %}
-   		<a class="btn btn-default btn-sm" href="/segment/{{ segment.id }}/">View</a>
-		{% if previous %}<input type="submit" name="goto-{{ previous.id }}" class="btn btn-sm" value="Previous">{% endif %}
-		{% if next %}<input type="submit" name="goto-{{ next.id }}" class="btn btn-sm" value="Next">{% endif %}
-		</legend>
-
-    <table><thead>
-    	<tr>{% for field in sequencer_form.visible_fields %}<th>{{ field.label_tag }}</th>{% endfor %}</tr>
-   	</thead><tbody><tr>
-		<td>{{ sequencer_form.project_site }}</td>
-		<td>{{ sequencer_form.translation_state }}</td>
-		<td>{{ sequencer_form.translation_languages }}</td>
-		<td>{{ sequencer_form.order_by }}</td>
-		<td style="text-align: center;">{{ sequencer_form.show_similar }}</td>
-	</tr></tbody></table>    	
-	</fieldset>
 
 {% endblock %}
