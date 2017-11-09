@@ -247,7 +247,7 @@ def test_segmenter(site, s, verbose=False):
 # from http://www.jeffsidea.com/2016/06/using-scrapy-from-a-script-or-celery-task/
 from scrapy.spiders import Spider
 from scrapy.settings import Settings
-from scrapyscript import Job, Processor
+# from scrapyscript import Job, Processor
 
 class PythonSpider(Spider):
     name = 'myspider'
@@ -261,7 +261,7 @@ class PythonSpider(Spider):
             mantra = None
         return {'title': title,
                 'mantra': mantra}
-
+"""
 def jeffs_run():
     spider = PythonSpider()
     
@@ -274,7 +274,7 @@ def jeffs_run():
                       payload={'mantra': 'Simple is better than complex.'})  # availabe in spider as self.payload
     
     Processor(settings=settings).run([basicjob, jobwithdata])
-
+"""
 def migrate_segments():
     admin = User.objects.get(username='admin')
     # for s in String.objects.filter(language_id='it', string_type__in=[SEGMENT, FRAGMENT]).exclude(site=None):
