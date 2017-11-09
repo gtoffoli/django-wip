@@ -352,14 +352,14 @@ def proxy_unsymmetrize_alignment(proxy, alignment_type=MANUAL):
 def fix_segment_translations(site, target):
     """ add to segments translations derived by those of similar segments
         ending by '.' or ';' or ':', possibly preceded by a space """
-    segments = Segment.objects.filter(site=site, language=site.language, is_invariant=False).exclude(segment_translation__language=target)
+    segments = Segment.objects.filter(site=site, language=site.language, is_invariant=False).exclude(segment_translation__language=target).distinct()
     i = j = 0
     for segment in segments:
         text = segment.text
         l1 = len(segment.text)
         if l1 > 10:
             pk = segment.pk
-            likes = Segment.objects.filter(site=site, language=site.language, is_invariant=False, segment_translation__language=target, text__istartswith=text[:-3]).exclude(id=pk)
+            likes = Segment.objects.filter(site=site, language=site.language, is_invariant=False, segment_translation__language=target, text__istartswith=text[:-3]).exclude(id=pk).distinct()
             if not likes:
                 continue
             i += 1
