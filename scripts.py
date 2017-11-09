@@ -348,3 +348,31 @@ def proxy_unsymmetrize_alignment(proxy, alignment_type=MANUAL):
                 out_file.write('%s\n' % rev)
                 out_file.write('%s\n' % both)
     out_file.close()
+
+def fix_segment_translations(site, target):
+    """ add to segments translations derived by those of similar segments
+        ending by '.' or ';' or ':', possibly preceded by a space """
+    segments = Segment.objects.filter(site=site, language=site.language, is_invariant=False).exclude(segment_translation__language=target)
+    i = j = 0
+    for segment in segments:
+        text = segment.text
+        l1 = len(segment.text)
+        if l1 > 10:
+            pk = segment.pk
+            likes = Segment.objects.filter(site=site, language=site.language, is_invariant=False, segment_translation__language=target, text__istartswith=text[:-3]).exclude(id=pk)
+            if not likes:
+                continue
+            i += 1
+            for like in likes:
+                l2 = len(like.text)
+                if (l1>l2) and (l1-l2 <= 2):
+                    diff = text[l2:].strip()
+                    if len(diff)==1 and diff in ['.',';',':']:
+                        translation = Translation.objects.filter(segment=like, language=target).order_by('-timestamp')[0]
+                        translation.id = None
+                        translation.segment = segment
+                        translation.text = translation.text+diff
+                        translation.save()
+                        j += 1
+    return (j, 'translations added')
+
