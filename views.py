@@ -2217,7 +2217,8 @@ def strings_translations(request, proxy_slug=None, state=None):
     # return render_to_response('strings_translations.html', var_dict, context_instance=RequestContext(request))
     return render(request, 'strings_translations.html', var_dict)
 
-def list_segments(request, proxy_slug=None, state=None):
+# def list_segments(request, proxy_slug=None, state=None):
+def list_segments(request, state=None):
     """
     list translations from source language (code) to target language (code)
     """
@@ -2226,6 +2227,7 @@ def list_segments(request, proxy_slug=None, state=None):
     # PAGE_SIZE = 100
     tm_edit_context = request.session.get('tm_edit_context', {})
     translation_state = state or tm_edit_context.get('translation_state', 0)
+    """
     proxy = proxy_slug and Proxy.objects.get(slug=proxy_slug) or None
     if proxy:
         project_site = proxy.site
@@ -2245,6 +2247,26 @@ def list_segments(request, proxy_slug=None, state=None):
             proxies = Proxy.objects.filter(site=project_site, language=target_language)
             if proxies:
                 proxy = proxies[0]
+    """
+    id = request.GET.get('id', None)
+    segment = id and Segment.objects.get(pk=id) or None
+    project_site = segment and segment.site or None
+    if not project_site:
+        project_site_id = tm_edit_context.get('project_site', None)
+        project_site = project_site_id and Site.objects.get(pk=project_site_id) or None
+    if project_site:
+        project_site_id = project_site.id
+        source_language = project_site.language
+    else:
+        source_language = None
+    if source_language:
+        source_language_code = source_language.code
+    else:
+        source_language_code = tm_edit_context.get('source_language', None)
+        source_language = source_language_code and Language.objects.get(code=source_language_code) or None
+    target_language_code = tm_edit_context.get('target_language', None)
+    target_language = target_language_code and Language.objects.get(code=target_language_code) or None
+
     source_text_filter = tm_edit_context.get('source_text_filter', '')
     target_text_filter = tm_edit_context.get('target_text_filter', '')
     show_other_targets = tm_edit_context.get('show_other_targets', False)
@@ -2297,9 +2319,11 @@ def list_segments(request, proxy_slug=None, state=None):
             tm_edit_context['show_other_targets'] = show_other_targets = data['show_other_targets']
             tm_edit_context['show_alignments'] = show_alignments = data['show_alignments']
             request.session['tm_edit_context'] = tm_edit_context
+            """
             if project_site and target_language:
                 proxies = Proxy.objects.filter(site=project_site, language=target_language)
                 proxy = proxies and proxies[0] or None
+            """
             if post.get('add-segment', '') and project_site and source_language and source_text_filter:
                 segment, created = Segment.objects.get_or_create(site=project_site, language=source_language, text=source_text_filter)
     else:
@@ -2313,7 +2337,7 @@ def list_segments(request, proxy_slug=None, state=None):
         translated = None
 
     var_dict = {}
-    var_dict['proxy'] = proxy
+    # var_dict['proxy'] = proxy
     var_dict['site'] = project_site_id and Site.objects.get(pk=project_site_id) or None
     var_dict['state'] = translation_state
     var_dict['source_language'] = source_language
@@ -2333,8 +2357,13 @@ def list_segments(request, proxy_slug=None, state=None):
     qs = qs.order_by('text')
     segment_count = qs.count()
     var_dict['segment_count'] = segment_count
+    if id:
+        index = qs.filter(text__lt=segment.text).count()
+        page = index/settings.PAGE_SIZE + 1
+        print ('index, page =', index, page)
+    else:
+        page = request.GET.get('page', 1)
     paginator = Paginator(qs, settings.PAGE_SIZE)
-    page = request.GET.get('page', 1)
     try:
         segments = paginator.page(page)
     except PageNotAnInteger:
@@ -2354,6 +2383,22 @@ def list_segments(request, proxy_slug=None, state=None):
     var_dict['list_segments_form'] = form
     # return render_to_response('list_segments.html', var_dict, context_instance=RequestContext(request))
     return render(request, 'list_segments.html', var_dict)
+
+def list_segments_by_proxy(request, proxy_slug):
+    proxy = get_object_or_404(Proxy, slug=proxy_slug)
+    tm_edit_context = request.session.get('tm_edit_context', {})
+    tm_edit_context['project_site'] = proxy.site.id
+    tm_edit_context['target_language'] = proxy.language.code
+    request.session['tm_edit_context'] = tm_edit_context
+    return HttpResponseRedirect('/list_segments/')    
+
+def list_segments_by_id(request, segment_id):
+    segment = get_object_or_404(Segment, pk=segment_id)
+    # return list_segments(request, site=segment.site, id=segment_id)
+    tm_edit_context = request.session.get('tm_edit_context', {})
+    tm_edit_context['project_site'] = segment.site.id
+    request.session['tm_edit_context'] = tm_edit_context
+    return HttpResponseRedirect('/list_segments/?id='+segment_id)    
 
 def add_update_translation(request):
     if request.is_ajax() and request.method == 'POST':

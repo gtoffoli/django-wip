@@ -39,7 +39,9 @@ th, td { text-align: left; vertical-align: top; }
 
 {% block head_title %}Segment: {{ segment.text }}{% endblock %}
 
-{% block title-page %}{% trans "segment"|capfirst %}: <small><i>{{ segment.text|truncatechars:64 }}</i></small>{% endblock %}
+{% block title-page %}{% trans "segment"|capfirst %}: <small><i>{{ segment.text|truncatechars:64 }}</i></small>
+	<a href="/segment_edit/{{ segment.id }}/" title="{% trans "show edit view" %}"> &nbsp; <small><i class="fa fa-edit font07em c-white"></i></small></a>
+{% endblock %}
 
 {% block content-page %}
 
@@ -52,7 +54,8 @@ th, td { text-align: left; vertical-align: top; }
       </tr></thead>
     <tbody><tr>
       	<td><nobr><span class="mR10">{{ segment.site.name }} ({{ source_language }})</span> <a href="/site/{{ segment.site.slug }}/"><i class="fa fa-th-large" aria-hidden="true"></i></a></nobr></td>
-      	<td><a href="/segment_edit/{{ segment.id }}/">{{ segment.id }}</a></td>
+      	<td><nobr><a href="/list_segments/{{ segment.id }}/" title="{% trans "view in list page" %}"><small>{{ segment.id }}</small>
+      		<i class="fa fa-th-list"></i></a></nobr></td>
       	<td>{{ segment.text }}</td>
       	{% if not segment.is_invariant %}<td><ul class="list-inline">{% for l in other_languages %}<li><a class="btn btn-default btn-sm" href="/segment_translate/{{ segment.id }}/{{ l.code }}/">to {{ l }}</a>{% endfor %}</div>{% endif %}
       </tr></tbody>
