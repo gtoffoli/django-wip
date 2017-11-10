@@ -1777,7 +1777,9 @@ class Block(node_factory('BlockEdge')):
             qs = qs.filter(language_id=target_code)
         elif translation_state == TRANSLATED:
             if translation_codes:
-                qs = qs.filter(source_block__language_id__in=translation_codes)
+                # qs = qs.filter(source_block__language_id__in=translation_codes)
+                for code in translation_codes:
+                    qs = qs.filter(source_block__language_id=code)
             else:
                 qs = qs.filter(source_block__isnull=False) # at least 1
         elif translation_state == TO_BE_TRANSLATED:

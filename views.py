@@ -1091,6 +1091,7 @@ def block(request, block_id):
         webpage_id = request.GET.get('webpage', webpage_id)
         translation_languages = translation_codes and Language.objects.filter(code__in=translation_codes) or []
     sequencer_context = {}
+    sequencer_context['block'] = block.id
     sequencer_context['webpage'] = webpage_id
     sequencer_context['block_age'] = block_age
     sequencer_context['project_site_id'] = project_site_id
@@ -1232,6 +1233,7 @@ def block_translate(request, block_id, target_code):
         webpage_id = request.GET.get('webpage', webpage_id)
         translation_languages = translation_codes and Language.objects.filter(code__in=translation_codes) or []
     sequencer_context = {}
+    sequencer_context['block'] = block.id
     sequencer_context['webpage'] = webpage_id
     sequencer_context['block_age'] = block_age
     sequencer_context['project_site_id'] = project_site_id
@@ -1940,6 +1942,8 @@ def segment_translate(request, segment_id, target_code):
     var_dict['translation_service_form'] = translation_service_form
     var_dict['TRANSLATION_TYPE_DICT'] = TRANSLATION_TYPE_DICT
     var_dict['ROLE_DICT'] = ROLE_DICT
+    sequencer_context = request.session.get('sequencer_context', {})
+    var_dict['block_id'] = sequencer_context.get('block', None)
     # return render_to_response('segment_translate.html', var_dict, context_instance=RequestContext(request))
     return render(request, 'segment_translate.html', var_dict)
 
