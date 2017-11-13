@@ -5,59 +5,43 @@
 
 from .Utils import cloneOpenTag, getOpenTagHtml, getCloseTagHtml
 
-"""
- * An HTML document in linear representation.
- *
- * The document is a list of items, where each items is
- * - a block open tag (e.g. <p>); or
- * - a block close tag (e.g. </p>); or
- * - a TextBlock of annotated inline text; or
- * - "block whitespace" (a run of whitespace separating two block boundaries)
- *
- * Some types of HTML structure get normalized away. In particular:
- *
- * 1. Identical adjacent annotation tags are merged
- * 2. Inline annotations across block boundaries are split
- * 3. Annotations on block whitespace are stripped (except spans with 'data-mw')
- *
- * N.B. 2 can change semantics, e.g. identical adjacent links != single link
-"""
 class Doc:
+    """
+    An HTML document in linear representation.
+    The document is a list of items, where each items is
+    - a block open tag (e.g. <p>); or
+    - a block close tag (e.g. </p>); or
+    - a TextBlock of annotated inline text; or
+    - "block whitespace" (a run of whitespace separating two block boundaries)
+    Some types of HTML structure get normalized away. In particular:
+    1. Identical adjacent annotation tags are merged
+    2. Inline annotations across block boundaries are split
+    3. Annotations on block whitespace are stripped (except spans with 'data-mw')
+    N.B. 2 can change semantics, e.g. identical adjacent links != single link
+    """
 
     def __init__(self, wrapperTag):
         self.items = []
         self.wrapperTag = wrapperTag
 
-    """
-     * Clone the Doc, modifying as we go
-     * @param {Function} callback The function to modify a node
-     * @return {Doc} clone with modifications
-    """
     def clone(self, callback):
+        """ Clone the Doc, modifying as we go """
         newDoc = Doc(self.wrapperTag)
         for item in self.items:
             newItem = callback(item)
             newDoc.addItem(newItem.type, newItem.item)
         return newDoc
 
-    """
-     * Add an item to the document
-     * @param {string} type Type of item: open|close|blockspace|textblock
-     * @param {Object|string|TextBlock} item Open/close tag, space or text block
-    """
     def addItem(self, item_type, item):
+        """ Add an item to the document """
         self.items.append({
             'type': item_type,
             'item': item
         })
         return self
 
-    """
-     * Segment the document into sentences
-     * @param {Function} getBoundaries Function taking plaintext, returning offset array
-     * @return {Doc} Segmented version of document TODO: warning: *shallow copied*.
-    """
     def segment(self, getBoundaries):
+        """ Segment the document into sentences """
         newDoc = Doc()
         nextId = 0
 
@@ -84,22 +68,16 @@ class Doc:
                     textBlock = item['item']
                     newDoc.addItem(
                         'textblock',
-                        textBlock.segment(getBoundaries, getNextId)
+                        textBlock.canSegment and textBlock.segment(getBoundaries, getNextId) or textBlock
                     )
         return newDoc
 
-    """
-     * Dump an XML version of the linear representation, for debugging
-     * @return {string} XML version of the linear representation
-    """
     def dumpXml(self):
+        """ Dump an XML version of the linear representation, for debugging """
         return '\n'.join(self.dumpXmlArray(''))
 
-    """
-     * Dump the document in HTML format
-     * @return {string} HTML document
-    """
     def getHtml(self):
+        """ Dump the document in HTML format """
         html = []
 
         if self.wrapperTag:
@@ -134,11 +112,8 @@ class Doc:
 
         return ''.join(html)
 
-    """
-     * Dump an XML Array version of the linear representation, for debugging
-     * @return {string[]} Array that will concatenate to an XML string representation
-    """
     def dumpXmlArray(self, pad):
+        """ Dump an XML Array version of the linear representation, for debugging """
         dump = []
 
         if self.wrapperTag:
@@ -179,11 +154,8 @@ class Doc:
 
         return dump
 
-    """
-     * Extract the text segments from the document
-     * @return {string[]} balanced html fragments, one per segment
-    """
     def getSegments(self):
+        """ Extract the text segments from the document """
         segments = []
 
         for item in self.items:
@@ -193,9 +165,9 @@ class Doc:
             segments.append(textblock.getHtml())
         return segments
 
-    """ added by Giovanni Toffoli to get a printable LinearDoc representation like in
-        https://www.mediawiki.org/wiki/Content_translation/Product_Definition/LinearDoc """
     def dump(self):
+        """ added by Giovanni Toffoli to get a printable LinearDoc representation like in
+            https://www.mediawiki.org/wiki/Content_translation/Product_Definition/LinearDoc """
         lines = []
         for item in self.items:
             item_type = item['type']
@@ -218,8 +190,8 @@ class Doc:
                 lines.append(line)
         return '\n'.join(lines)
 
-    """ added by Giovanni Toffoli """
     def getText(self):
+        """ added by Giovanni Toffoli """
         text_chunks = []
         for item in self.items:
             item_type = item['type']

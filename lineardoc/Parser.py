@@ -3,18 +3,6 @@
 # converted from Parser.js in the LinearDoc javascript library of the Wikimedia Content translation project
 # https://github.com/wikimedia/mediawiki-services-cxserver/blob/master/lineardoc/Parser.js
 
-"""
-'use strict';
-
-var SAXParser = require( 'sax' ).SAXParser,
-    Builder = require( './Builder.js' ),
-    Utils = require( './Utils.js' ),
-    util = require( 'util' ),
-    blockTags;
-
-util.inherits( Parser, SAXParser );
-"""
-
 blockTags = [
     'html', 'head', 'body', 'script',
     # head tags
@@ -44,22 +32,23 @@ blockTags = [
 blockTags_dict = dict([(tagName, True,) for tagName in blockTags])
 
 from xml.sax import parseString, ContentHandler
+from .Contextualizer import Contextualizer
 from .Builder import Builder
 from .Utils import isSegment, isReference, isInlineEmptyTag
 
 class LineardocSAXHandler(ContentHandler):
 
-    def __init__(self, builder, options):
+    def __init__(self, builder, options, contextualizer):
         ContentHandler.__init__(self)
         self.builder = builder
         self.options = options
+        self.contextualizer = contextualizer
 
-    # def init(self):
     def startDocument(self):
         pass
 
-    # def onopentag(self, tag):
     def startElement(self, tagName, attrs):
+        """ see funcion onopentag in Javascript version """
         attributes = {}
         for name in attrs.getNames():
             attributes[name] = attrs.getValue(name)
@@ -76,14 +65,17 @@ class LineardocSAXHandler(ContentHandler):
             # Start a reference: create a child builder, and move into it
             self.builder = self.builder.createChildBuilder(tag)
         elif isInlineEmptyTag(tagName):
-            self.builder.addInlineContent(tag)
+            self.builder.addInlineContent(tag, self.contextualizer.canSegment())
         elif self.isInlineAnnotationTag(tagName):
             self.builder.pushInlineAnnotationTag(tag)
         else:
             self.builder.pushBlockTag(tag)
+        self.contextualizer.onOpenTag(tag)
  
     # def onclosetag(self, tagName):
     def endElement(self, tagName):
+        """ see funcion onclosetag in Javascript version """
+        self.contextualizer.onCloseTag()
         isAnn = self.isInlineAnnotationTag(tagName)
         if isInlineEmptyTag(tagName):
             return
@@ -106,24 +98,21 @@ class LineardocSAXHandler(ContentHandler):
             # throw new Error( 'Unexpected close tag: ' + tagName );
             raise
 
-    # def ontext(self, text):
     def characters(self, text):
-        self.builder.addTextChunk(text)
+        """ see funcion ontext in Javascript version """
+        self.builder.addTextChunk(text, self.contextualizer.canSegment())
 
-    """
-    /**
-     * Determine whether a tag is an inline annotation
-     * @param {string[]} tagArray Array of tags in lowercase.
-     * @return {boolean} Whether the tag is an inline annotation
-     */
-    """
     def isInlineAnnotationTag(self, tagName):
+        """ Determine whether a tag is an inline annotation """
         return not blockTags_dict.get(tagName, False)
 
 def Parse(html):
-    builder = Builder(None, None)
+    """ Parse an html text and generate a Lineardoc """
+    parent = None
+    wrapperTag = None
+    builder = Builder(parent, wrapperTag)
     options = {}
-    handler = LineardocSAXHandler(builder, options)
+    contextualizer = Contextualizer()
+    handler = LineardocSAXHandler(builder, options, contextualizer)
     parseString(html, handler)
     return builder.doc
-

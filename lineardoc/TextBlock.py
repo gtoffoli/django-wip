@@ -3,63 +3,34 @@
 # converted from the LinearDoc javascript library of the Wikimedia Content translation project
 # https://github.com/wikimedia/mediawiki-services-cxserver/tree/master/lineardoc
 
+import re
 from .TextChunk import TextChunk
 from .Utils import esc, getOpenTagHtml, getCloseTagHtml, dumpTags
 
-"""
- * A block of annotated inline text
- *
- * @class
- *
- * @constructor
-"""
 class TextBlock:
-    def __init__(self, textChunks):
+    """ A block of annotated inline text """
+    def __init__(self, textChunks, canSegment):
         self.textChunks = textChunks
+        self.canSegment = canSegment
         self.offsets = []
         cursor = 0
         for textChunk in self.textChunks:                                                         
             offset = {
                 'start': cursor,
                 'length': len(textChunk.text),
-                'tags': textChunk.tags
-                }
+                'tags': textChunk.tags}
             self.offsets.append(offset)
             cursor += offset['length']
 
-    """
-    /**
-     * Get the start and length of each non-common annotation
-     *
-     * @return {Object[]}
-     * @return {number} [i].start {number} Position of each text chunk
-     * @return {number} [i].length {number} Length of each text chunk
-     */
-    TextBlock.prototype.getTagOffsets = function () {
-        var textBlock = this,
-            commonTags = this.getCommonTags();
-        return this.offsets.filter( function ( offset, i ) {
-            var textChunk = textBlock.textChunks[ i ];
-            return textChunk.tags.length > commonTags.length && textChunk.text.length > 0;
-        } );
-    };
-    """
     def getTagOffsets(self):
+        """ Get the start and length of each non-common annotation """
         commonTags_length = len(self.getCommonTags())
         offsets = self.offsets
-        filtered = [offsets[i] for i in range(offsets) if len(self.textChunks[i].tags) > commonTags_length and len(self.textChunks[i].text) > 0]
+        filtered = [offsets[i] for i in range(len(offsets)) if len(self.textChunks[i].tags) > commonTags_length and len(self.textChunks[i].text) > 0]
         return filtered
 
-    """
-    /**
-     * Get the (last) text chunk at a given char offset
-     *
-     * @method
-     * @param {number} charOffset The char offset of the TextChunk
-     * @return {TextChunk} The text chunk
-     */
-    """
     def getTextChunkAt(self, charOffset):
+        """ Get the (last) text chunk at a given char offset """
         i = 0
         for textChunk in self.textChunks[:-1]:
             if self.offsets[i+1].start > charOffset:
@@ -67,13 +38,8 @@ class TextBlock:
             i += 1
         return textChunk
 
-    """
-    /**
-     * Returns the list of SAX tags that apply to the whole text block
-     * @return {Object[]} List of common SAX tags
-     */
-    """
     def getCommonTags(self):
+        """ Returns the list of SAX tags that apply to the whole text block """
         textChunks = self.textChunks
         n_textChunks = len(textChunks)
         if n_textChunks == 0:
@@ -82,71 +48,51 @@ class TextBlock:
         for textChunk in textChunks:
             tags = textChunk.tags
             if len(tags) < len(commonTags):
-                del commonTags[:len(tags)]
+                commonTags = commonTags[:len(tags)]
             for j in range(len(commonTags)):
                 if commonTags[j].name != tags[j].name:
-                    del commonTags[:j]
+                    commonTags = commonTags[:j]
                     break
         return commonTags
 
-    """
-    /**
-     * Create a new TextBlock, applying our annotations to a translation
-     * @param {string} targetText Translated plain text
-     * @param {Object[]} rangeMappings Array of source-target range index mappings
-     * @return {TextBlock} Translated textblock with tags applied
-     */
-    """
     def translateTags(self, targetText, rangeMappings):
+        """ Create a new TextBlock, applying our annotations to a translation """
         # map of { offset: x, textChunks: [...] }
         emptyTextChunks = {}
-        emptyTextChunkOffsets = []
-        # list of { start: x, length: x, textChunk: x }
+        emptyTextChunkOffsets = [] # list of { start: x, length: x, textChunk: x }       
         textChunks = []
 
         def pushEmptyTextChunks(offset, chunks):
             for chunk in chunks:
-                textChunks.append({
-                    'start': offset,
-                    'length': 0,
-                    'textChunk': chunk
-                })
+                textChunks.append({ 'start': offset, 'length': 0, 'textChunk': chunk })
 
         # Create map of empty text chunks, by offset
         for i in range(len(self.textChunks)):
             textChunk = self.textChunks[i]
-            offset = self.offsets[i].start
+            offset = self.offsets[i]['start']
             if textChunk.text:
                 continue
             if not emptyTextChunks[offset]:
                 emptyTextChunks[offset] = []
-                emptyTextChunks[offset].append(textChunk)
+            emptyTextChunks[offset].append(textChunk)
         for offset in emptyTextChunks:
             emptyTextChunkOffsets.append(offset)
         emptyTextChunkOffsets.sort()
 
         for rangeMapping in rangeMappings:
             # Copy tags from source text start offset
-            sourceRangeStart = rangeMapping.source.start
-            sourceRangeEnd = sourceRangeStart + rangeMapping.source.length
-            targetRangeStart = rangeMapping.target.start
-            targetRangeEnd = targetRangeStart + rangeMapping.target.length
-            sourceTextChunk = self.getTextChunkAt(rangeMapping.source.start)
+            sourceRangeStart = rangeMapping['source']['start']
+            sourceRangeEnd = sourceRangeStart + rangeMapping['source']['length']
+            targetRangeStart = rangeMapping['target']['start']
+            targetRangeEnd = targetRangeStart + rangeMapping['target']['length']
+            sourceTextChunk = self.getTextChunkAt(rangeMapping['source']['start'])
             text = targetText[targetRangeStart : targetRangeEnd]
-            textChunks.append({
+            textChunks.append({ 
                 'start': targetRangeStart,
-                'length': rangeMapping.target.length,
-                'textChunk': TextChunk(
-                    text,
-                    sourceTextChunk.tags,
-                    sourceTextChunk.inlineContent
-                )
-            })
-
-            # Empty source text chunks will not be represented in the target plaintext
-            # (because they have no plaintext representation). Therefore we must clone each
-            # one manually into the target rich text.
-
+                'length': rangeMapping['target']['length'],
+                'textChunk': TextChunk( text, sourceTextChunk.tags, sourceTextChunk.inlineContent )})
+            # Empty source text chunks will not be represented in the target plaintext(because they have no 
+            # plaintext representation); therefore we must clone each one manually into the target rich text.
             # Iterate through all remaining emptyTextChunks
             j = 0
             while j < len(emptyTextChunkOffsets):
@@ -162,8 +108,7 @@ class TextBlock:
                 del emptyTextChunkOffsets[j]
 
         # Sort by start position
-        textChunks.sort(key = lambda x: x.start)
-
+        textChunks.sort(key = lambda x: x['start'])
         # Fill in any textChunk gaps using text with commonTags
         pos = 0
         commonTags = self.getCommonTags()
@@ -174,19 +119,15 @@ class TextBlock:
             if textChunk.start < pos:
                 # throw new Error( 'Overlappping chunks at pos=' + pos + ', textChunks=' + i + ' start=' + textChunk.start );
                 pass
-            elif textChunk.start > pos:
+            elif textChunk['start'] > pos:
                 # Unmapped chunk: insert plaintext and adjust offset
                 textChunks.insert(i, {
                     'start': pos,
                     'length': textChunk.start - pos,
-                    'textChunk': TextChunk(
-                        targetText[pos : textChunk.start],
-                        commonTags,
-                        None)
-                    })
+                    'textChunk': TextChunk( targetText[pos : textChunk.start], commonTags, None) })
                 i += 2
-                iLen +=1
-            pos = textChunk.start + len(textChunk)
+                iLen += 1
+            pos = textChunk['start'] + textChunk['length']
 
         # Get trailing text and trailing whitespace
         tail = targetText[pos:]
@@ -199,8 +140,7 @@ class TextBlock:
             textChunks.append({
                 'start': pos,
                 'length': tail.length,
-                'textChunk': TextChunk(tail, commonTags, None)
-            })
+                'textChunk': TextChunk(tail, commonTags, None)})
             pos += len(tail)
 
         # Copy any remaining textChunks that have no text
@@ -211,28 +151,17 @@ class TextBlock:
             textChunks.append( {
                 'start': pos,
                 'length': len(tailSpace),
-                'textChunk': TextChunk(tailSpace, commonTags, None)
-            })
+                'textChunk': TextChunk(tailSpace, commonTags, None) })
             pos += len(tail)
 
         return TextBlock([x.textChunk for x in textChunks])
 
-    """
-    /**
-     * Return plain text representation of the text block
-     * @return {string} Plain text representation
-     */
-    """
     def getPlainText(self):
+        """ Return plain text representation of the text block """
         return ''.join([textChunk.text for textChunk in self.textChunks])
 
-    """
-    /**
-     * Return HTML representation of the text block
-     * @return {string} Plain text representation
-     */
-    """
     def getHtml(self):
+        """ Return HTML representation of the text block """
         html = [] 
         # Start with no tags open
         oldTags = []
@@ -266,15 +195,8 @@ class TextBlock:
             html.append(getCloseTagHtml(tag))
         return ''.join(html)
 
-    """
-    /**
-     * Segment the text block into sentences
-     * @param {Function} getBoundaries Function taking plaintext, returning offset array
-     * @param {Function} getNextId Function taking 'segment'|'link', returning next ID
-     * @return {TextBlock} Segmented version, with added span tags
-     */
-    """
     def segment(self, getBoundaries, getNextId):
+        """ Segment the text block into sentences """
         allTextChunks = []
         currentTextChunks = []
   
@@ -284,12 +206,7 @@ class TextBlock:
             modifiedTextChunks = addCommonTag(
                 currentTextChunks, {
                     'name': 'span',
-                    'attributes': {
-                        'klass': 'cx-segment',
-                        'data-segmentid': getNextId('segment')
-                    }
-                }
-            )
+                    'attributes': { 'klass': 'cx-segment', 'data-segmentid': getNextId('segment')}})
             setLinkIdsInPlace(modifiedTextChunks, getNextId)
             allTextChunks.extend(modifiedTextChunks)
             currentTextChunks = []
@@ -310,16 +227,8 @@ class TextBlock:
                 if relOffset == 0:
                     flushChunks()
                 else:
-                    leftPart = TextChunk(
-                        textChunk.text[:relOffset],
-                        textChunk.tags[:],
-                        None
-                    )
-                    rightPart = TextChunk(
-                        textChunk.text[relOffset:],
-                        textChunk.tags[:],
-                        textChunk.inlineContent
-                    )
+                    leftPart = TextChunk(textChunk.text[:relOffset], textChunk.tags[:], None)
+                    rightPart = TextChunk(textChunk.text[relOffset:], textChunk.tags[:], textChunk.inlineContent)
                     currentTextChunks.append(leftPart)
                     offset += relOffset
                     flushChunks()
@@ -327,26 +236,15 @@ class TextBlock:
         flushChunks()
         return TextBlock(allTextChunks)
 
-    """
-    /**
-     * Dump an XML Array version of the linear representation, for debugging
-     *
-     * @method
-     * @param {string} pad Whitespace to indent XML elements
-     * @return {string[]} Array that will concatenate to an XML string representation
-     */
-    """
     def dumpXmlArray(self, pad):
+        """ Dump an XML Array version of the linear representation, for debugging """
         dump = []
         for chunk in self.textChunks:
             tagsDump = dumpTags(chunk.tags)
             tagsAttr = tagsDump and ' tags="' + tagsDump + '"' or ''
             if chunk.text:
                 dump.append(
-                    pad + '<cxtextchunk' + tagsAttr + '>' +
-                    esc(chunk.text).replace('\n', '&#10;') +
-                    '</cxtextchunk>'
-                )
+                    pad + '<cxtextchunk' + tagsAttr + '>' + esc(chunk.text).replace('\n', '&#10;') + '</cxtextchunk>')
             if chunk.inlineContent:
                 dump.append(pad + '<cxinlineelement' + tagsAttr + '>')
                 if chunk.inlineContent.dumpXmlArray:
