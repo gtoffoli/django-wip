@@ -130,4 +130,13 @@ label { font-size: small; }
     	</table>
 	{% endif %}
 
+	{% if lineardoc %}
+	<fieldset>
+		<legend>Lineardoc segments</legend>
+	<div>{{ lineardoc.getText }}</div>
+	<hr>
+	{% for s in lineardoc.getSegments %}<p>{{ s|safe }}</p>{% endfor %}
+	</fieldset>
+	{% endif %}
+
 {% endblock %}

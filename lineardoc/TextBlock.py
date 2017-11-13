@@ -254,7 +254,7 @@ class TextBlock:
             # Now add text and inline content
             html.append(esc(textChunk.text))
             if textChunk.inlineContent:
-                if textChunk.inlineContent.getHtml():
+                if hasattr(textChunk.inlineContent, 'getHtml'):
                     # a sub-doc
                     html.append(textChunk.inlineContent.getHtml())
                 else:

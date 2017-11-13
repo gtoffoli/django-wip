@@ -134,11 +134,13 @@ class TranslatedVersionAdmin(admin.ModelAdmin):
 class BlockForm(forms.ModelForm):
     class Meta:
         model = Block
-        exclude = ('created',)
+        exclude = ('xpath', 'created',)
+        """
         widgets = {
             'body' : TinyMCE(attrs={'style': 'width:500px;'}),
             'xpath' : forms.TextInput(attrs={'style': 'width:500px;'}),
         }
+        """
 
 class BlockAdmin(admin.ModelAdmin):
     list_filter = ('site',)

@@ -1118,6 +1118,8 @@ def block(request, block_id):
     var_dict['edit_form'] = BlockEditForm(initial={'language': block.language, 'no_translate': block.no_translate,})
     var_dict['sequencer_form'] = BlockSequencerForm(initial={'project_site': project_site_id, 'webpage': webpage_id, 'block_age': block_age, 'translation_state': translation_state, 'translation_languages': translation_languages, 'translation_age': translation_age, 'source_text_filter': source_text_filter, 'list_pages': list_pages, })
     # return render_to_response('block.html', var_dict, context_instance=RequestContext(request))
+    if request.GET.get('doc', ''):
+        var_dict['lineardoc'] = block.block_get_lineardoc()
     return render(request, 'block.html', var_dict)
 
 # def block_translate(request, block_id):
@@ -1582,6 +1584,8 @@ def translation_align(request, translation_id):
     var_dict['alignment_type'] = translation.alignment_type==MANUAL and 'manual' or ''
     var_dict['can_edit'] = True
     var_dict['sequencer_form'] = TranslationSequencerForm(initial={'order_by': order_by, 'alignment_type': alignment_type})
+    sequencer_context = request.session.get('sequencer_context', {})
+    var_dict['block_id'] = sequencer_context.get('block', None)
     return render(request, 'translation_align.html', var_dict)
 
 @staff_member_required

@@ -55,6 +55,7 @@ from django_diazo.models import Theme
 # from django_diazo.middleware import DjangoDiazoMiddleware
 from wip.wip_nltk.tokenizers import NltkTokenizer
 from wip.wip_sd.sd_algorithm import SDAlgorithm
+from wip.lineardoc.Parser import Parse as LineardocParse
 from .vocabularies import Language, Subject, ApprovalStatus
 from .aligner import tokenize, best_alignment, aer
 
@@ -641,7 +642,6 @@ class Proxy(models.Model):
         return status
 
     def apply_translation_memory(self):
-        # string_matcher = StringMatcher()
         site = self.site
         site_invariants = text_to_list(site.invariant_words)
         source_language = site.language
@@ -672,37 +672,17 @@ class Proxy(models.Model):
                 logger.info('block: %d no segments' % block.id)
                 continue # ???
             segments.sort(key=lambda x: len(x), reverse=True)
-            # print (segments)
             for segment in segments:
                 words = segment.split()
                 if not non_invariant_words(words, site_invariants=site_invariants):
                     ok_segments +=1
                     logger.info('block: %d invariant segment : %s' % (block.id, segment))
                     continue
-                """
-                if String.objects.filter(invariant=True, language_id=source_code, site=site, text=segment):
-                    ok_segments +=1
-                    logger.info('block: %d invariant string, segment : %s' % (block.id, segment))
-                    continue
-                """
                 if Segment.objects.filter(is_invariant=True, language=source_language, site=site, text=segment):
                     ok_segments +=1
                     logger.info('block: %d invariant string, segment : %s' % (block.id, segment))
                     continue
                 translated_segment = None
-                # matches = String.objects.filter(text__iexact=segment, txu__string__language_id__in=target_codes).distinct()
-                # matches = String.objects.filter(text=segment.upper(), txu__string__language_id=target_code).distinct().order_by('-reliability')
-                """
-                matches = String.objects.filter(text=segment, txu__string__language_id=target_code).distinct().order_by('-reliability')
-                n_matches = matches.count()
-                if n_matches:
-                    match = matches[0]
-                    matched = String.objects.filter(txu=match.txu, language_id=target_code)[0]
-                if n_matches == 1 or (n_matches and matched.reliability > 4):
-                    translations = String.objects.filter(language=target_language, txu=match.txu)
-                    if translations.count() == 1:
-                        translated_segment = translations[0].text
-                """
                 translations = Translation.objects.filter(language=target_language, segment__site=site, segment__language=source_language, segment__text=segment).distinct().order_by('-translation_type', 'user_role__role_type', 'user_role__level')
                 if translations:
                     translation = translations[0]
@@ -713,34 +693,6 @@ class Proxy(models.Model):
                     if not segment.startswith('Home'):
                         # logger.info('block: %d , n_matches: %d ,  segment: -%s-' % (block.id, n_matches, repr(segment)))
                         logger.info('block: %d , segment: -%s-' % (block.id, repr(segment)))
-                """ > vecchio: rivedere ?
-                elif len(words) == 1:
-                    # matches = String.objects.filter(text__istartswith=segment, txu__string__language_id__in=target_codes).distinct()
-                    matches = String.objects.filter(text__istartswith=segment, txu__string__language_id=target_code).distinct()
-                    matches_count = matches.count()
-                    if matches_count > 1:
-                        try: print 'segment: ', segment, ', matches_count: ', matches_count
-                        except: pass
-                        word_count_dict = defaultdict(int)
-                        for match in matches:
-                            if match.text.split()[0].lower() == segment.lower():
-                                translations = String.objects.filter(language=target_language, txu=match.txu)
-                                for translation in translations:
-                                    for word in translation.text.split():
-                                        if not word in empty_words:
-                                            word_count_dict[word.lower()] += 1
-                        if word_count_dict:
-                            word_count_list = sorted(word_count_dict.items(), key=lambda tup: tup[1], reverse=True)
-                            if len(word_count_list) > 1:
-                                # print 'word_count_list: ', list(word_count_dict)
-                                top_word_count = word_count_list[0]
-                                top_word = top_word_count[0]
-                                top_count = top_word_count[1]
-                                second_count = word_count_list[1][1]
-                                if top_count > second_count and top_count >= matches_count/2:
-                                    translated_segment = top_word
-                                    print 'fuzzy'
-                < """
                 if translated_segment:
                     if segment[0].isupper() and translated_segment[0].islower():
                         translated_segment = translated_segment[0].upper() + translated_segment[1:]
@@ -762,15 +714,6 @@ class Proxy(models.Model):
                             break
                     if replaced:
                         continue
-                    """  > vecchio: rivedere ?
-                    if len(segments)==1 and not block.children.exists():
-                        translated_element = html.fromstring(body)
-                        replace_element_content(translated_element, translated_segment, tag='span', attrs={'tx':'', 'fuzzy':'',})
-                        # body = html.tostring(translated_element)
-                        body = element_tostring(translated_element)
-                        n_substitutions += 1
-                        continue
-                    < """
                     replaced = replace_segment(body, segment)
                     if replaced:
                         body = replaced
@@ -1470,12 +1413,6 @@ class PageVersion(models.Model):
 
     def page_version_get_segments(self, segmenter=None, exclude_TM_invariants=True):
         if not segmenter:
-            """
-            srx_filepath = os.path.join(RESOURCES_ROOT, 'segment.srx')
-            srx_rules = srx_segmenter.parse(srx_filepath)
-            italian_rules = srx_rules['Italian']
-            segmenter = srx_segmenter.SrxSegmenter(italian_rules)
-            """
             segmenter = self.webpage.site.make_segmenter()
         re_parentheses = re.compile(r'\(([^)]+)\)')
 
@@ -1689,7 +1626,7 @@ class Block(node_factory('BlockEdge')):
     site = models.ForeignKey(Site)
     xpath = models.CharField(max_length=200, blank=True, default='')
     body = models.TextField(blank=True, null=True)
-    language = models.ForeignKey(Language, null=True)
+    language = models.ForeignKey(Language, null=True, blank=True)
     no_translate = models.BooleanField(default=False)
     checksum = models.CharField(max_length=32)
     time = CreationDateTimeField()
@@ -1874,14 +1811,13 @@ class Block(node_factory('BlockEdge')):
 
     def block_get_segments(self, segmenter):
         if not segmenter:
-            """
-            srx_filepath = os.path.join(RESOURCES_ROOT, 'segment.srx')
-            srx_rules = srx_segmenter.parse(srx_filepath)
-            italian_rules = srx_rules['Italian']
-            segmenter = srx_segmenter.SrxSegmenter(italian_rules)
-            """
             segmenter = self.site.make_segmenter()
         return get_segments(self.body, self.site, segmenter)
+
+    def block_get_lineardoc(self):
+        html = re.sub("(<!--(.*?)-->)", "", self.body, flags=re.MULTILINE)
+        html = normalize_string(html)
+        return LineardocParse(html)
 
     def apply_invariants(self, segmenter):
         if self.no_translate:
@@ -1892,11 +1828,9 @@ class Block(node_factory('BlockEdge')):
         for segment in segments:
             # if not type(segment) == unicode:
             if not type(segment) == str:
-                # print (self.id, segment)
                 return False
             if not non_invariant_words(segment.split(), site_invariants=site_invariants):
                 continue
-            # matches = String.objects.filter(site=self.site, text=segment, invariant=True)
             matches = Segment.objects.filter(site=self.site, text=segment, is_invariant=True)
             if not matches:
                 invariant = False
@@ -2059,12 +1993,6 @@ def translated_element(element, site, webpage=None, language=None, xpath='/html'
 
 def get_segments(body, site, segmenter, fragment=True, exclude_tx=True, exclude_xpaths=False):
     if not segmenter:
-        """
-        srx_filepath = os.path.join(RESOURCES_ROOT, 'segment.srx')
-        srx_rules = srx_segmenter.parse(srx_filepath)
-        italian_rules = srx_rules['Italian']
-        segmenter = srx_segmenter.SrxSegmenter(italian_rules)
-        """
         segmenter = site.make_segmenter()
     re_parentheses = re.compile(r'\(([^)]+)\)')
 

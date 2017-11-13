@@ -96,6 +96,9 @@ th, td { text-align: left; vertical-align: top; }
     <div><label>Compute alignment</label> {{ translation_align_form.compute_alignment }}</div>
 	</fieldset>
 </form>
+
+{% if block_id %}<div><i><a href="/block/{{ block_id }}/translate/{{ target_language.code }}/">Back to last block</a></i></div>{% endif %}
+
 {% endblock %}
 
 {% block extra_script %}

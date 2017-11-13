@@ -191,6 +191,7 @@ class Doc:
                 continue
             textblock = item['item']
             segments.append(textblock.getHtml())
+        return segments
 
     """ added by Giovanni Toffoli to get a printable LinearDoc representation like in
         https://www.mediawiki.org/wiki/Content_translation/Product_Definition/LinearDoc """
@@ -216,3 +217,13 @@ class Doc:
                 line = '%s, %s' % (item_type, str(item['item']))
                 lines.append(line)
         return '\n'.join(lines)
+
+    """ added by Giovanni Toffoli """
+    def getText(self):
+        text_chunks = []
+        for item in self.items:
+            item_type = item['type']
+            if item_type == 'textblock':
+                for chunk in item['item'].textChunks:
+                    text_chunks.append(chunk.text)
+        return ''.join(text_chunks)

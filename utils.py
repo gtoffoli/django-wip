@@ -74,61 +74,10 @@ def split_strip(s):
     return " ".join(s.split())
 
 """
-# http://stackoverflow.com/questions/4624062/get-all-text-inside-a-tag-in-lxml
-# http://stackoverflow.com/questions/4770191/lxml-etree-element-text-doesnt-return-the-entire-text-from-an-element
-# http://stackoverflow.com/questions/26304626/lxml-how-to-get-xpath-of-htmlelement
-def strings_from_block(block, tree=None, exclude_xpaths=[]):
-    children = block.getchildren()
-    block_children = [child for child in children if child.tag in settings.BLOCK_TAGS]
-    if block_children:
-        text_list = []
-        text = block.text
-        if text: text = split_strip(text)
-        if text:
-            # text = unicode(text)
-            text_list.append(text)
-        for child in children:
-            if child.tag in settings.TO_DROP_TAGS:
-                continue
-            if exclude_xpaths:
-                # NO [1] element index in xpath address !!!
-                # xpath = tree.getpath(child)
-                xpath = tree.getpath(child).replace('[1]','')
-                if xpath in exclude_xpaths:
-                    continue
-            if child.tag in settings.BLOCK_TAGS:
-                if text_list:
-                    yield u' '.join(text_list)
-                text_list = []
-                for el in strings_from_block(child, tree=tree, exclude_xpaths=exclude_xpaths):
-                    if el: el = split_strip(el)
-                    if el:
-                        yield el
-                if child.tail:
-                    text = split_strip(child.tail)
-                    if text:
-                        # text = unicode(text)
-                        text_list.append(text)
-            else:
-                text = child.text_content()
-                if text: text = split_strip(text)
-                if text:
-                    # text = unicode(text)
-                    text_list.append(text)
-        if text_list:
-            yield u' '.join(text_list)
-    else:
-        content = block.text_content()
-        if content: content = split_strip(content)
-        if content:
-            yield content
-    tail = block.tail
-    if tail: tail = split_strip(tail)
-    if tail:
-        # tail = unicode(tail)
-        yield tail
+http://stackoverflow.com/questions/4624062/get-all-text-inside-a-tag-in-lxml
+http://stackoverflow.com/questions/4770191/lxml-etree-element-text-doesnt-return-the-entire-text-from-an-element
+http://stackoverflow.com/questions/26304626/lxml-how-to-get-xpath-of-htmlelement
 """
-
 def strings_from_block(block, tree=None, exclude_xpaths=[]):
     children = block.getchildren()
     children = block.getchildren()

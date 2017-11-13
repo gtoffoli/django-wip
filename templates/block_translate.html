@@ -152,7 +152,8 @@ function apply_translation (target_code, id_from, id_to) {
 				{% endif %}</td></tr>
 		{% for t in translations %}
 		<tr><td><span id="tra-{{ forloop.parentloop.counter }}-{{ forloop.counter }}" class="{{ target_code }}">{{ t.text }}</span>
-				<a onclick="apply_translation('{{ target_code }}', 'str-{{ forloop.parentloop.counter }}', 'tra-{{ forloop.parentloop.counter }}-{{ forloop.counter }}'); return true;" class="fa fa-check" style="background-color: white; color: blue; border: none;" title="apply this translation" /></td></tr>
+				<a onclick="apply_translation('{{ target_code }}', 'str-{{ forloop.parentloop.counter }}', 'tra-{{ forloop.parentloop.counter }}-{{ forloop.counter }}'); return true;" class="fa fa-check" style="background-color: white; color: blue; border: none;" title="apply this translation" />
+				&nbsp; <a href="/translation_align/{{ t.id }}/" class="fa fa-arrows-h" style="background-color: white; color: blue; border: none;" title="align this translation" /></td></tr>
 		{% endfor %}
 		{% endfor %}
 		</tbody></table>

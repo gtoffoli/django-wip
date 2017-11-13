@@ -91,11 +91,11 @@ class Builder:
                 replace = False
             whitespace.append(textChunk.text)
         if (replace and
-            (tag['attributes']['data-mw'] or
-                tag['attributes']['data-parsoid'] or
+            (tag['attributes'].get('data-mw', '') or
+                tag['attributes'].get('data-parsoid', '') or
                 # Allow empty <a rel='mw:ExtLink'></a> because REST API v1 can output links with
                 # no link text (which then get a CSS generated content numbered reference).
-                (tag['name'] == 'a' and tag['attributes']['rel'] == 'mw:ExtLink')
+                (tag['name'] == 'a' and tag['attributes'].get('rel', '') == 'mw:ExtLink')
             )
         ):
             # truncate list and add data span as new sub-Doc.
@@ -133,6 +133,9 @@ class Builder:
             self.doc.addItem('textblock', TextBlock(self.textChunks))
         self.textChunks = []
 
+    def addInlineContent(self, content):
+        self.textChunks.append(TextChunk('', self.inlineAnnotationTags[:], content))
+        self.inlineAnnotationTagsUsed = len(self.inlineAnnotationTags)
 
 """
 function Builder( parent, wrapperTag ) {
@@ -236,12 +239,14 @@ Builder.prototype.addTextChunk = function ( text ) {
     this.inlineAnnotationTagsUsed = this.inlineAnnotationTags.length;
 };
 
+
 /**
  * Add content that doesn't need linearizing, to appear inline
  *
  * @method
  * @param {Object} content Sub-document or empty SAX tag
  */
+
 Builder.prototype.addInlineContent = function ( content ) {
     this.textChunks.push( new TextChunk( '', this.inlineAnnotationTags.slice(), content ) );
     this.inlineAnnotationTagsUsed = this.inlineAnnotationTags.length;
