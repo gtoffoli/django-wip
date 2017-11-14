@@ -1117,9 +1117,19 @@ def block(request, block_id):
         return HttpResponseRedirect('/block/%d/' % block.id)        
     var_dict['edit_form'] = BlockEditForm(initial={'language': block.language, 'no_translate': block.no_translate,})
     var_dict['sequencer_form'] = BlockSequencerForm(initial={'project_site': project_site_id, 'webpage': webpage_id, 'block_age': block_age, 'translation_state': translation_state, 'translation_languages': translation_languages, 'translation_age': translation_age, 'source_text_filter': source_text_filter, 'list_pages': list_pages, })
-    # return render_to_response('block.html', var_dict, context_instance=RequestContext(request))
     if request.GET.get('doc', ''):
         var_dict['lineardoc'] = block.block_get_lineardoc()
+        segments = block.apply_tm()
+        tokenizer = site.make_tokenizer()
+        var_dict['segments_tokens'] = [[s, tokenize(s, tokenizer=tokenizer)] for s in segments]
+        lineardoc_segments = block.apply_tm(use_lineardoc=True)
+        tokenizer = site.make_tokenizer(return_matches=True)
+        lineardoc_segments_tokens = []
+        for segment in lineardoc_segments:
+            matches = tokenize(segment, tokenizer=tokenizer)
+            tokens = [segment[m.span()[0]:m.span()[1]] for m in matches]
+            lineardoc_segments_tokens.append([segment, tokens])
+        var_dict['lineardoc_segments_tokens'] = lineardoc_segments_tokens
     return render(request, 'block.html', var_dict)
 
 # def block_translate(request, block_id):

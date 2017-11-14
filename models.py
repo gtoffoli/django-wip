@@ -201,7 +201,8 @@ class Site(models.Model):
                 if len(custom_rules_list) == 1:
                     beforebreak_text = '%s' % re.escape(custom_rules_list[0])
                 else:
-                    beforebreak_text = '(?%s)' % '|'.join([re.escape(item) for item in custom_rules_list])
+                    # beforebreak_text = '(?%s)' % '|'.join([re.escape(item) for item in custom_rules_list])
+                    beforebreak_text = '\\b(%s)' % '|'.join([re.escape(item) for item in custom_rules_list])
                 afterbreak_text = '\s'
                 # print (beforebreak_text, afterbreak_text)
                 non_breaks = current_rules['non_breaks']
@@ -221,8 +222,24 @@ class Site(models.Model):
                 current_rules['non_breaks'] = non_breaks    
             return srx_segmenter.SrxSegmenter(current_rules)
 
+    def make_tokenizer(self, return_matches=False):
+        """ create a tokenizer for the site language, with a list of custom regular expressions corresponding to
+            acronyms and abbreviations, being derived from the site configuration parameter used for segmentation """
+        custom_regexps = []
+        if self.srx_initials:
+            # custom_regexps = text_to_list(self.srx_initials)
+            for item in self.srx_initials.splitlines():
+                item = item.strip()
+                if not item:
+                    continue
+                item = item.replace('.', '\\.')
+                custom_regexps.append(item)
+                if item[0].islower():
+                    custom_regexps.append(item[0].upper() + item[1:])
+            print ('custom_regexps:', custom_regexps)
+        return NltkTokenizer(language=self.language.code, custom_regexps=custom_regexps, lowercasing=False, return_matches=return_matches)
+
     def pages_summary(self):
-        site_code = self.language_id
         pages = Webpage.objects.filter(site=self).order_by('path')
         proxy_codes = [proxy.language_id for proxy in Proxy.objects.filter(site=self)]
         proxy_list = [[code, {'partially': 0, 'translated': 0, 'revised': 0}] for code in proxy_codes]
@@ -463,7 +480,6 @@ class Site(models.Model):
         return len(self.get_segments(translation_state=ANY))
 
     def get_token_frequency(self, lowercasing=True):
-        # tokenizer = NltkTokenizer(lowercasing=lowercasing)
         tokenizer = NltkTokenizer(language=self.language_id, lowercasing=lowercasing)
         tokens_dict = defaultdict(int)
         segments = self.get_segments()
@@ -744,14 +760,12 @@ class Proxy(models.Model):
         return n_ready, n_translated, n_partially
 
     def translate_page_content(self, content):
-        # has_translation = True
         html_string = re.sub("(<!--(.*?)-->)", "", content, flags=re.MULTILINE)
         html_string = normalize_string(html_string)
         content_document = html.document_fromstring(html_string)
         translated_document, has_translation = translated_element(content_document, self.site, webpage=None, language=self.language, translate_live=self.enable_live_translation)
         if has_translation:
             content = element_tostring(translated_document)
-        # print ('translate_page_content: ', has_translation)
         return content, has_translation
 
     def propagate_up_block_updates(self):
@@ -1266,7 +1280,6 @@ class Webpage(models.Model):
         html_string = last_version.body
         # http://stackoverflow.com/questions/1084741/regexp-to-strip-html-comments
         html_string = re.sub("(<!--(.*?)-->)", "", html_string, flags=re.MULTILINE)
-        # html_string = unicode_entities(html_string)
         html_string = normalize_string(html_string)
         html_string = html_string.replace('encoding="utf-8"', '')
         if not html_string:
@@ -1414,37 +1427,10 @@ class PageVersion(models.Model):
     def page_version_get_segments(self, segmenter=None, exclude_TM_invariants=True):
         if not segmenter:
             segmenter = self.webpage.site.make_segmenter()
-        re_parentheses = re.compile(r'\(([^)]+)\)')
-
         site = self.webpage.site
         exclude_xpaths = BLOCKS_EXCLUDE_BY_XPATH.get(site.slug, [])
-        language = site.language
-        # print 'self.body: ', type(self.body)
         html_string = re.sub("(<!--(.*?)-->)", "", self.body, flags=re.MULTILINE)
-        # print 'html_string: ', type(html_string)
-        """
-        # stripped_chars = STRIPPED[language.code]
-        separators = SEPARATORS[language.code]
-        strings = []
-        for string in list(strings_from_html(html_string, fragment=False, exclude_xpaths=exclude_xpaths)):
-            string = string.replace(u"\u2018", "'").replace(u"\u2019", "'").replace(' - ', ' – ')
-            if string.count('window') and string.count('document'):
-                continue
-            if string.count('flickr'):
-                continue
-            # string = string.strip(stripped_chars)
-            string = string.strip()
-            if not string:
-                continue
-            for char in separators:
-                if char in string:
-                    continue
-            found = get_strings(string, language, site=site)
-            if found and found[0].invariant:
-                continue
-            strings.extend(segmenter.extract(string)[0])
-        return strings
-        """
+        html_string = normalize_string(html_string)
         segments = []
         for string in list(strings_from_html(html_string, fragment=False, exclude_xpaths=exclude_xpaths)):
             if string and string[0]=='{' and string[-1]=='}':
@@ -1817,7 +1803,24 @@ class Block(node_factory('BlockEdge')):
     def block_get_lineardoc(self):
         html = re.sub("(<!--(.*?)-->)", "", self.body, flags=re.MULTILINE)
         html = normalize_string(html)
+        # html = re.sub("(<wbr(\b?)/>)", "", html)
         return LineardocParse(html)
+
+    def apply_tm(self, target_language=None, segmenter=None, use_lineardoc=False):
+        site = self.site
+        if not segmenter:
+            segmenter = site.make_segmenter()
+        if use_lineardoc:
+            lineardoc = self.block_get_lineardoc()
+            print (lineardoc.dump())
+            plaintext = lineardoc.getText()
+            text_lines = plaintext.split('\n')
+            segments = []
+            for line in text_lines:
+                segments.extend(segments_from_string(line, site, segmenter))
+        else:
+            segments = get_segments(self.body, site, segmenter)
+        return segments
 
     def apply_invariants(self, segmenter):
         if self.no_translate:
@@ -1994,43 +1997,15 @@ def translated_element(element, site, webpage=None, language=None, xpath='/html'
 def get_segments(body, site, segmenter, fragment=True, exclude_tx=True, exclude_xpaths=False):
     if not segmenter:
         segmenter = site.make_segmenter()
-    re_parentheses = re.compile(r'\(([^)]+)\)')
-
-    # exclude_xpaths = BLOCKS_EXCLUDE_BY_XPATH.get(site.slug, [])
-    language = site.language
-    stripped_chars = STRIPPED[language.code]
-    separators = SEPARATORS[language.code]
-    strings = []
     html_string = re.sub("(<!--(.*?)-->)", "", body, flags=re.MULTILINE)
     html_string = normalize_string(html_string)
-    """
-    for string in list(strings_from_html(html_string, fragment=fragment, exclude_tx=exclude_tx, exclude_xpaths=exclude_xpaths)):
-        if string.count('window') and string.count('document'):
-            continue
-        if string.count('flickr'):
-            continue
-        found = get_strings(string, language, site=site)
-        if found and found[0].invariant:
-            continue
-        strings.extend(segmenter.extract(string)[0])
-    filtered = []
-    for string in strings:
-        # string = string.strip(stripped_chars)
-        string = string.strip()
-        # if not string:
-        if len(string) < 2:
-            continue
-        filtered.append(string)
-    return filtered
-    """
+    if not html_string:
+        return []
     segments = []
-    # print (html_string, 'fragment =', fragment, 'exclude_tx =', exclude_tx, 'exclude_xpaths =', exclude_xpaths)
-    if html_string:
-        for string in list(strings_from_html(html_string, fragment=fragment, exclude_tx=exclude_tx, exclude_xpaths=exclude_xpaths)):
-            if string and string[0]=='{' and string[-1]=='}':
-                continue
-            # print (string)
-            segments.extend(segments_from_string(string, site, segmenter))
+    for string in list(strings_from_html(html_string, fragment=fragment, exclude_tx=exclude_tx, exclude_xpaths=exclude_xpaths)):
+        if string and string[0]=='{' and string[-1]=='}':
+            continue
+        segments.extend(segments_from_string(string, site, segmenter))
     return segments
 
 # def can_strip(word, site_invariants=[]):

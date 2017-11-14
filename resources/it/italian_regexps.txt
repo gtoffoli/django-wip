@@ -9,6 +9,9 @@
 ## [^\s\{\}\[\]\(\)\"]*[0-9]+[^\s\{\}\[\]\(\)\"]*[^\s\.,\!\?\:\{\}\[\]\(\)\"]
 [^\s\{\}\[\]\(\)\"]*[0-9]+[^\s\{\}\[\]\(\)\"]*[^\s\.,;\!\?\:\{\}\[\]\(\)\"]
 
+# email addresses, possibly with spaces around the @ char
+[a-zA-Z0-9_\.\-]+\ ?@\ ?[a-zA-Z0-9\-]+\.[a-zA-Z0-9\-\.]+
+
 # Single letter acronyms (if one writes U.C.L.A, this will treat
 # U.C.L. as a token, and A as a separate token: here, we would need
 # some form of context sensitive matching...)

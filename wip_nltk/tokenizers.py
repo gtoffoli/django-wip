@@ -15,21 +15,18 @@ if (sys.version_info > (3, 0)):
 class NltkTokenizer(object):
     """An object representing a tokenizer wizard"""
 
-    def __init__(self, language=None, tokenizer=None, regexps=[], lowercasing=False, replacements=''):
-        """ set language """
-        """
-        language = language==u'it' and u'italian' or language
-        self.language = language or u'italian'
-        self.tokenizer = tokenizer or u'baroni'
-        """
+    # def __init__(self, language=None, tokenizer=None, regexps=[], lowercasing=False, replacements=''):
+    def __init__(self, language=None, tokenizer=None, regexps=[], custom_regexps=[], lowercasing=False, replacements='', return_matches=False):
         self.tokenizer = tokenizer
         if not language or language==u'it':
             self.language = 'italian'
             self.tokenizer = self.tokenizer or u'baroni'
         self.tokenizer = self.tokenizer or u'word'
         self.regexps = regexps
+        self.custom_regexps = custom_regexps
         self.lowercasing = lowercasing
         self.replacements = replacements
+        self.return_matches = return_matches
 
     def tokenize(self, text):
         """ tokenize """
@@ -62,11 +59,6 @@ class NltkTokenizer(object):
         if self.regexps:
             regexp_list = self.regexps
         else:
-            regexp_list = ["[a-zA-Z\xc0-\xff]+"]
-            """
-            this_dir, this_filename = os.path.split(__file__)
-            regexp_path = os.path.join(this_dir, 'data', '%s_regexps.txt' % self.language)
-            """
             regexp_path = os.path.join(settings.RESOURCES_ROOT, 'it', '%s_regexps.txt' % self.language)
             f = codecs.open(regexp_path, 'r', 'unicode_escape')
             regexp_list = []
@@ -75,19 +67,17 @@ class NltkTokenizer(object):
                 if line and not line.startswith('#'):
                     regexp_list.append(line)
             f.close()
+            if self.custom_regexps:
+                regexp_list = self.custom_regexps + regexp_list
         pattern = '|'.join(regexp_list)
         tokenizer = nltk.tokenize.regexp.RegexpTokenizer(pattern)
-        if isinstance(text, basestring):
-            tokens = tokenizer.tokenize(text)
-            # tokens = [token.replace(u'\u2019', u"'") for token in tokens if isinstance(token, basestring)]
+        if self.return_matches:
+            compiled_re = re.compile(pattern)
+            matches = compiled_re.finditer(text)
+            return matches
         else:
-            tokens = tokenizer.batch_tokenize(text)
-        return tokens
-        """
-        flags = re.UNICODE | re.MULTILINE | re.DOTALL
-        self._regexp = re.compile(pattern, flags)
-        return self._regexp.findall(text)
-        """
+            tokens = tokenizer.tokenize(text)
+            return tokens
 
     def apply_replacements(self, s, replacements):
         """ apply the replacements specified to text """

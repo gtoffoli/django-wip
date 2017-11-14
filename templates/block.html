@@ -125,17 +125,31 @@ label { font-size: small; }
 			<td><a href="/page/{{ page.id }}/">{{ page.path }}</a></td>
 			<td class="text-right"><a href="/page/{{ page.id }}/">{{ page.blocks.count }}</a></td>
 			<td>{{ page.last_checked|date:"SHORT_DATETIME_FORMAT" }}</td></tr>
-		{% endfor %}
+		  {% endfor %}
 	    </tbody>
     	</table>
 	{% endif %}
 
 	{% if lineardoc %}
 	<fieldset>
-		<legend>Lineardoc segments</legend>
+		<legend>Lineardoc to plaintext and to HTML</legend>
 	<div>{{ lineardoc.getText }}</div>
 	<hr>
 	{% for s in lineardoc.getSegments %}<p>{{ s|safe }}</p>{% endfor %}
+	</fieldset>
+
+	<fieldset>
+		<legend>Segments</legend>
+	<table width="100%"><thead><th width="50%">Using lxml.etree and lxml.html</th><th width="50%">Using Lineardoc and SAX</th></thead>
+	<tbody><tr>
+		<td>{% for s, tokens in segments_tokens %}<p>{{ s|length }} {{ s }}</p>
+				<ul>{% for t in tokens %}<li>{{ t }}</li>{% endfor %}</ul>
+		    {% endfor %}</td>
+		<td>{% for s, tokens in lineardoc_segments_tokens %}<p>{{ s|length }} {{ s }}</p>
+				<ul>{% for t in tokens %}<li>{{ t }}</li>{% endfor %}</ul>
+		    {% endfor %}</td>
+	</tr></tbody>
+	</table>
 	</fieldset>
 	{% endif %}
 
