@@ -20,7 +20,8 @@ class Doc:
     N.B. 2 can change semantics, e.g. identical adjacent links != single link
     """
 
-    def __init__(self, wrapperTag):
+    # def __init__(self, wrapperTag):
+    def __init__(self, wrapperTag=None):
         self.items = []
         self.wrapperTag = wrapperTag
 
@@ -43,33 +44,39 @@ class Doc:
     def segment(self, getBoundaries):
         """ Segment the document into sentences """
         newDoc = Doc()
-        nextId = 0
+        nextId = [0]
+        dummy = ''
 
         def getNextId(item_type):
+            """ see: 13.7 Lexical Scoping of inner/nested funcions, in
+                https://www.protechtraining.com/content/python_fundamentals_tutorial-functional_programming """
             if item_type in ('segment', 'link', 'block',):
-                nextId += 1
-                return nextId
+                nextId[0] += 1
+                return str(nextId[0]-1)
             else:
                 print ('Unknown ID type: ' + item_type)
                 raise
 
-            for item in self.items:
-                if item['type'] == 'open':
-                    tag = cloneOpenTag(item['item'])
-                    if tag.attributes.id:
-                        #Kept for restoring the old articles.
-                        tag.attributes['data-seqid'] = getNextId('block')
-                    else:
-                        tag.attributes.id = getNextId('block')
-                    newDoc.addItem(item['type'], tag)
-                elif item['type'] == 'textblock':
-                    newDoc.addItem(item['type'], item['item'])
+        i = 0
+        for item in self.items:
+            i += 1
+            print ('Doc.segment - item n.', i, item['type'])
+            if item['type'] == 'open':
+                tag = cloneOpenTag(item['item'])
+                if tag['attributes'].get('id', ''):
+                    pass # stuff relevant only for WikiMedia?
                 else:
-                    textBlock = item['item']
-                    newDoc.addItem(
-                        'textblock',
-                        textBlock.canSegment and textBlock.segment(getBoundaries, getNextId) or textBlock
-                    )
+                    tag['attributes']['id'] = getNextId('block')
+                newDoc.addItem(item['type'], tag)
+            elif not item['type'] == 'textblock':
+                newDoc.addItem(item['type'], item['item'])
+            else:
+                print ('Doc segment boundaries:', getBoundaries(self.getPlainText()))
+                textBlock = item['item']
+                newDoc.addItem(
+                    'textblock',
+                    textBlock.canSegment and textBlock.segment(getBoundaries, getNextId) or textBlock
+                )
         return newDoc
 
     def dumpXml(self):
@@ -172,6 +179,9 @@ class Doc:
         for item in self.items:
             item_type = item['type']
             if item_type == 'textblock':
+                textblock = item['item']
+                line = "{textblock: %d textChunks, canSegment=%s}" % (len(textblock.textChunks), str(textblock.canSegment))
+                lines.append(line)
                 for chunk in item['item'].textChunks:
                     tags = []
                     for tag_dict in chunk.tags:
@@ -190,12 +200,6 @@ class Doc:
                 lines.append(line)
         return '\n'.join(lines)
 
-    def getText(self):
-        """ added by Giovanni Toffoli """
-        text_chunks = []
-        for item in self.items:
-            item_type = item['type']
-            if item_type == 'textblock':
-                for chunk in item['item'].textChunks:
-                    text_chunks.append(chunk.text)
-        return ''.join(text_chunks)
+    def getPlainText(self):
+        """ added by Giovanni Toffoli - Return plain text representation of the Lineardoc """
+        return ''.join([item['item'].getPlainText() for item in self.items if item['type']=='textblock'])

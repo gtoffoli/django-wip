@@ -439,11 +439,11 @@ def segments_from_string(string, segmenter):
     segments = segmenter.extract(string)[0]
     filtered = []
     for s in segments:
-        """ REPLACE NON-BREAK SPACES """
+        # REPLACE NON-BREAK SPACES
         s = s.replace('\xc2\xa0', ' ')
         s = re_spaces.sub(' ', s)
         s = s.strip()
-        """ REMOVE PSEUDO-BULLETS """
+        # REMOVE PSEUDO-BULLETS
         if s.startswith(u'- ') or s.startswith(u'– '): s = s[2:]
         if s.endswith(u' -') or s.endswith(u' –'): s = s[:-3]
         s = s.strip()
@@ -454,11 +454,11 @@ def segments_from_string(string, segmenter):
         if re_eu_date.findall(s) or re_decimal_thousands_separators.findall(s) or regex.findall(r'\p{Sc}', s):
             filtered.append(s)
             continue
-        """ REMOVE RESIDUOUS SEGMENTS NON INCLUDING ANY LETTER """
+        # REMOVE RESIDUOUS SEGMENTS NON INCLUDING ANY LETTER
         if not re.search('[a-zA-Z]', s):
             continue
         if not s: continue
-        """ REMOVE SEGMENTS INCLUDING ONLY WORDS BELONGING TO INVARIANT CLASSES """
+        # REMOVE SEGMENTS INCLUDING ONLY WORDS BELONGING TO INVARIANT CLASSES
         words = re.split(" |\'", s)
         if len(words) > 1:
             while words and is_invariant_word(words[0]):

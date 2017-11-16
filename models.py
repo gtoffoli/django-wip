@@ -151,6 +151,10 @@ class Site(models.Model):
     invariant_words = models.TextField(verbose_name='Custom invariant words', blank=True, null=True, help_text="Custom invariant words" )
     themes = models.ManyToManyField(Theme, through='SiteTheme', related_name='site', blank=True, verbose_name='diazo themes')
 
+    def __init__(self, *args, **kwargs):
+        super(Site, self).__init__(*args, **kwargs)
+        self.segmenter = None
+
     def get_absolute_url(self):
         return '/site/%s/' % self.slug
 
@@ -193,34 +197,39 @@ class Site(models.Model):
         verbose_name_plural = _('projects')
 
     def make_segmenter(self, verbose=False):
-            srx_filepath = os.path.join(RESOURCES_ROOT, self.language.code, 'segment.srx')
-            srx_rules = srx_segmenter.parse(srx_filepath)
-            current_rules = srx_rules['Italian']
-            if self.srx_initials:
-                custom_rules_list = text_to_list(self.srx_initials)
-                if len(custom_rules_list) == 1:
-                    beforebreak_text = '%s' % re.escape(custom_rules_list[0])
-                else:
-                    # beforebreak_text = '(?%s)' % '|'.join([re.escape(item) for item in custom_rules_list])
-                    beforebreak_text = '\\b(%s)' % '|'.join([re.escape(item) for item in custom_rules_list])
-                afterbreak_text = '\s'
-                # print (beforebreak_text, afterbreak_text)
-                non_breaks = current_rules['non_breaks']
+        if self.segmenter:
+            print ('segmenter already exists')
+            return self.segmenter
+        srx_filepath = os.path.join(RESOURCES_ROOT, self.language.code, 'segment.srx')
+        srx_rules = srx_segmenter.parse(srx_filepath)
+        current_rules = srx_rules['Italian']
+        if self.srx_initials:
+            custom_rules_list = text_to_list(self.srx_initials)
+            if len(custom_rules_list) == 1:
+                beforebreak_text = '%s' % re.escape(custom_rules_list[0])
+            else:
+                # beforebreak_text = '(?%s)' % '|'.join([re.escape(item) for item in custom_rules_list])
+                beforebreak_text = '\\b(%s)' % '|'.join([re.escape(item) for item in custom_rules_list])
+            afterbreak_text = '\s'
+            # print (beforebreak_text, afterbreak_text)
+            non_breaks = current_rules['non_breaks']
+            non_breaks.append((beforebreak_text, afterbreak_text))
+            current_rules['non_breaks'] = non_breaks
+            if verbose:
+                for item in non_breaks:
+                    print (item)
+        if self.srx_rules:
+            non_breaks = current_rules['non_breaks']
+            custom_rules_list = text_to_list(self.srx_rules)
+            for item in custom_rules_list:
+                beforebreak_text, afterbreak_text = item.split(' ')
                 non_breaks.append((beforebreak_text, afterbreak_text))
-                current_rules['non_breaks'] = non_breaks
                 if verbose:
-                    for item in non_breaks:
-                        print (item)
-            if self.srx_rules:
-                non_breaks = current_rules['non_breaks']
-                custom_rules_list = text_to_list(self.srx_rules)
-                for item in custom_rules_list:
-                    beforebreak_text, afterbreak_text = item.split(' ')
-                    non_breaks.append((beforebreak_text, afterbreak_text))
-                    if verbose:
-                        print (beforebreak_text, afterbreak_text)
-                current_rules['non_breaks'] = non_breaks    
-            return srx_segmenter.SrxSegmenter(current_rules)
+                    print (beforebreak_text, afterbreak_text)
+            current_rules['non_breaks'] = non_breaks
+        # return srx_segmenter.SrxSegmenter(current_rules)
+        self.segmenter = srx_segmenter.SrxSegmenter(current_rules)
+        return self.segmenter
 
     def make_tokenizer(self, return_matches=False):
         """ create a tokenizer for the site language, with a list of custom regular expressions corresponding to
@@ -1806,21 +1815,83 @@ class Block(node_factory('BlockEdge')):
         # html = re.sub("(<wbr(\b?)/>)", "", html)
         return LineardocParse(html)
 
-    def apply_tm(self, target_language=None, segmenter=None, use_lineardoc=False):
+    def apply_tm(self, target_language=None, use_lineardoc=False, segmenter=None, tokenizer=None):
         site = self.site
+        source_language = site.language
+        body = self.body
         if not segmenter:
             segmenter = site.make_segmenter()
         if use_lineardoc:
             lineardoc = self.block_get_lineardoc()
             print (lineardoc.dump())
-            plaintext = lineardoc.getText()
-            text_lines = plaintext.split('\n')
-            segments = []
-            for line in text_lines:
-                segments.extend(segments_from_string(line, site, segmenter))
+            plaintext = lineardoc.getPlainText()
+            segments = segments_from_string(plaintext, site, segmenter)
+            def getBoundaries(text):
+                dummy, boundaries, dummy = segmenter.extract(text)
+                return boundaries
+            lineardoc_segmented = lineardoc.segment(getBoundaries)
+            print (lineardoc_segmented.dump())
+            return_matches = True
         else:
             segments = get_segments(self.body, site, segmenter)
-        return segments
+            return_matches = False
+        if not tokenizer:
+            tokenizer = site.make_tokenizer(return_matches=return_matches)
+        site_invariants = text_to_list(site.invariant_words)
+        segments_tokens = []
+        n_segments = len(segments)
+        n_invariants = 0
+        n_translated = 0
+        n_substitutions = 0
+        translated = True
+        for segment in segments:
+            if use_lineardoc:
+                matches = tokenizer.tokenize(segment)
+                tokens = [segment[m.span()[0]:m.span()[1]] for m in matches]
+            else:
+                tokens = tokenizer.tokenize(segment)
+            segments_tokens.append([segment, tokens])
+            non_invariant_tokens = [t for t in tokens if not is_invariant_word(t, site_invariants=site_invariants)]
+            if not non_invariant_tokens:
+                n_invariants += 1
+                continue
+            if Segment.objects.filter(is_invariant=True, language=source_language, site=site, text=segment):
+                n_invariants += 1
+                continue
+            translations = Translation.objects.filter(language=target_language, segment__site=site, segment__language=source_language, segment__text=segment).distinct().order_by('-translation_type', 'user_role__role_type', 'user_role__level')
+            if translations:
+                translated_segment = translations[0].text
+                n_translated += 1
+                if segment[0].isupper() and translated_segment[0].islower():
+                    translated_segment = translated_segment[0].upper() + translated_segment[1:]
+                if segment[-1] in ['.',';',':'] and translated_segment[-1]==segment[-1]:
+                    segment = segment[:-1]; translated_segment = translated_segment[:-1]
+                count = body.count(segment)
+                replaced = False
+                if count:
+                    l_body = len(body)
+                    for m in re.finditer(re.escape(segment), body):
+                        start = m.start()
+                        if start>0 and body[start-1] in BOTH_QUOTES:
+                            continue
+                        end = m.end()
+                        if end<(l_body-1) and body[end] in BOTH_QUOTES:
+                            continue          
+                        body = body[:start] + '<span tx auto>%s</span>' % translated_segment + body[end:]
+                        replaced = True
+                        n_substitutions += 1
+                        break
+                if replaced:
+                    n_translated +=1
+                    continue
+                replaced = replace_segment(body, segment)
+                if replaced:
+                    body = replaced
+                    n_substitutions += 1
+                    n_translated +=1
+                    continue
+                translated = False
+        return segments_tokens
 
     def apply_invariants(self, segmenter):
         if self.no_translate:
@@ -2024,16 +2095,20 @@ def non_invariant_words(words, site_invariants=[]):
 re_eu_date = re.compile(r'(0?[1-9]|[1-2][0-9]|3[0-1])(-|/|\.)(0?[1-9]|1[0-2])(-|/|\.)([0-9]{4})') # es: 10/7/1953, 21-12-2015
 re_decimal_thousands_separators = re.compile(r'[0-9](\.|\,)[0-9]')
 re_spaces = re.compile(r'\b[\b]+')
-def segments_from_string(string, site, segmenter, exclude_TM_invariants=True):
+def segments_from_string(string, site, segmenter, exclude_TM_invariants=True, include_boundaries=False):
     if string.count('window') and string.count('document'):
         return []
     if string.count('flickr'):
         return []
     site_invariants = text_to_list(site.invariant_words)
-    segments = segmenter.extract(string)[0]
-    # return segments
+    # segments = segmenter.extract(string)[0]
+    segments, boundaries, whitespaces = segmenter.extract(string)
     filtered = []
-    for s in segments:
+    filtered_boundaries = []
+    # for s in segments:
+    for i in range(len(segments)):
+        s = segments[i]
+        boundary = boundaries[i]
         """ REPLACE NON-BREAK SPACES """
         s = s.replace('\xc2\xa0', ' ')
         s = re_spaces.sub(' ', s)
@@ -2095,7 +2170,12 @@ def segments_from_string(string, site, segmenter, exclude_TM_invariants=True):
             if Segment.objects.filter(site=site, language=site.language, text=s, is_invariant=True).count():
                 continue
         filtered.append(s)
-    return filtered
+        filtered_boundaries.append(boundary)
+    print ('segments_from_string - boundaries, filtered_boundaries:', boundaries, filtered_boundaries)
+    if include_boundaries:
+        return filtered, boundaries
+    else:
+        return filtered
 
 class Scan(models.Model):
     name = models.CharField(max_length=20)

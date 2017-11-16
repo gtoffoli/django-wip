@@ -5,11 +5,11 @@
 
 import re
 from .TextChunk import TextChunk
-from .Utils import esc, getOpenTagHtml, getCloseTagHtml, dumpTags
+from .Utils import esc, getOpenTagHtml, getCloseTagHtml, dumpTags, getChunkBoundaryGroups, addCommonTag, setLinkIdsInPlace
 
 class TextBlock:
     """ A block of annotated inline text """
-    def __init__(self, textChunks, canSegment):
+    def __init__(self, textChunks, canSegment=True):
         self.textChunks = textChunks
         self.canSegment = canSegment
         self.offsets = []
@@ -160,6 +160,9 @@ class TextBlock:
         """ Return plain text representation of the text block """
         return ''.join([textChunk.text for textChunk in self.textChunks])
 
+    def __str__(self):
+        return self.getPlainText()
+
     def getHtml(self):
         """ Return HTML representation of the text block """
         html = [] 
@@ -209,19 +212,23 @@ class TextBlock:
                     'attributes': { 'klass': 'cx-segment', 'data-segmentid': getNextId('segment')}})
             setLinkIdsInPlace(modifiedTextChunks, getNextId)
             allTextChunks.extend(modifiedTextChunks)
-            currentTextChunks = []
+            print ('%d modified and %d all TextChunks' % (len(modifiedTextChunks), len(allTextChunks)))
+            # currentTextChunks = []
+            del currentTextChunks[:]
 
+        print ('Block segment boundaries:', getBoundaries(self.getPlainText()))
         # for each chunk, split at any boundaries that occur inside the chunk
         groups = getChunkBoundaryGroups(
             getBoundaries(self.getPlainText()),
             self.textChunks,
             lambda x: len(x.text)
         )
+        print ('groups:', groups)
         
         offset = 0
         for group in groups:
-            textChunk = group.chunk
-            boundaries = group.boundaries
+            textChunk = group['chunk']
+            boundaries = group['boundaries']
             for boundary in boundaries:
                 relOffset = boundary - offset
                 if relOffset == 0:
@@ -229,10 +236,13 @@ class TextBlock:
                 else:
                     leftPart = TextChunk(textChunk.text[:relOffset], textChunk.tags[:], None)
                     rightPart = TextChunk(textChunk.text[relOffset:], textChunk.tags[:], textChunk.inlineContent)
-                    currentTextChunks.append(leftPart)
-                    offset += relOffset
-                    flushChunks()
-                    textChunk = rightPart
+                currentTextChunks.append(leftPart)
+                offset += relOffset
+                flushChunks()
+                textChunk = rightPart
+            # Even if the textChunk is zero-width, it may have references
+            currentTextChunks.append(textChunk)
+            offset += len(textChunk.text)
         flushChunks()
         return TextBlock(allTextChunks)
 

@@ -3,6 +3,8 @@
 # converted from the LinearDoc javascript library of the Wikimedia Content translation project
 # https://github.com/wikimedia/mediawiki-services-cxserver/tree/master/lineardoc
 
+from .TextChunk import TextChunk
+
 def findAll(text, regex, callback):
     """ Find all matches of regex in text, calling callback with each match object
     text: The text to search

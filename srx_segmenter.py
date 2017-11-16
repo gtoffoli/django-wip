@@ -1,55 +1,33 @@
-"""Segment text with SRX.
-"""
-__version__ = '0.0.2'
+# -*- coding: utf-8 -*-
+
+""" Segment text with SRX: cannot remember where this code comes from! """
 
 import lxml.etree
-# import regex
 import re
 
-"""
-from typing import (
-    List,
-    Set,
-    Tuple,
-    Dict,
-    Optional
-)
-"""
-
 class SrxSegmenter:
-    """Handle segmentation with SRX regex format.
-    """
-    # def __init__(self, rule: Dict[str, List[Tuple[str, Optional[str]]]], source_text: str) -> None:
-    # def __init__(self, rule, source_text): # -> None:
-    def __init__(self, rule): # -> None:
-        # self.source_text = source_text
+    """ Handle segmentation with SRX regex format """
+    def __init__(self, rule):
         self.non_breaks = rule.get('non_breaks', [])
         self.breaks = rule.get('breaks', [])
 
-    # def _get_break_points(self, regexes: List[Tuple[str, str]]) -> Set[int]:
-    def _get_break_points(self, regexes): # -> Set[int]:
+    def _get_break_points(self, regexes):
         return set([
             match.span(1)[1]
             for before, after in regexes
-            # for match in regex.finditer('({})({})'.format(before, after), self.source_text)
-            # for match in re.finditer('({})({})'.format(before, after), self.source_text)
             for match in re.finditer(u'({})({})'.format(before, after), self.source_text)
         ])
 
-    def get_non_break_points(self): # -> Set[int]:
-        """Return segment non break points
-        """
+    def get_non_break_points(self):
+        """ Return segment non break points """
         return self._get_break_points(self.non_breaks)
 
-    def get_break_points(self): # -> Set[int]:
-        """Return segment break points
-        """
+    def get_break_points(self):
+        """ Return segment break points """
         return self._get_break_points(self.breaks)
 
-    # def extract(self): # -> Tuple[List[str], List[str]]:
-    def extract(self, source_text, verbose=False): # -> Tuple[List[str], List[str]]:
-        """Return segments and whitespaces.
-        """
+    def extract(self, source_text, verbose=False):
+        """ Return segments and whitespaces. """
         self.source_text = source_text
         non_break_points = self.get_non_break_points()
         candidate_break_points = self.get_break_points()
@@ -61,8 +39,9 @@ class SrxSegmenter:
             print ('break_points: ', candidate_break_points)
             print ('break_point: ', break_point)
 
-        segments = []  # type: List[str]
-        whitespaces = []  # type: List[str]
+        segments = []
+        boundaries = []
+        whitespaces = []
         previous_foot = ""
         for start, end in zip([0] + break_point, break_point + [len(source_text)]):
             segment_with_space = source_text[start:end]
@@ -74,19 +53,16 @@ class SrxSegmenter:
             head, segment, foot = segment_with_space.partition(candidate_segment)
 
             segments.append(segment)
+            boundaries.append(end)
             whitespaces.append('{}{}'.format(previous_foot, head))
             previous_foot = foot
         whitespaces.append(previous_foot)
 
-        return segments, whitespaces
+        # return segments, whitespaces
+        return segments, boundaries, whitespaces
 
-
-# def parse(srx_filepath: str) -> Dict[str, Dict[str, List[Tuple[str, Optional[str]]]]]:
-def parse(srx_filepath): # -> Dict[str, Dict[str, List[Tuple[str, Optional[str]]]]]:
-    """Parse SRX file and return it.
-    :param srx_filepath: is soruce SRX file.
-    :return: dict
-    """
+def parse(srx_filepath):
+    """ Parse SRX file and return it and return a dict """
     tree = lxml.etree.parse(srx_filepath)
     namespaces = {
         'ns': 'http://www.lisa.org/srx20'

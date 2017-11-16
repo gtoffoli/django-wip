@@ -13,3 +13,9 @@ class TextChunk:
         self.text = text
         self.tags = tags
         self.inlineContent = inlineContent
+
+    def __str__(self):
+        return self.text
+
+    def __repr__(self):
+        return self.text
