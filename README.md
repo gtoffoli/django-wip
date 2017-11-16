@@ -9,9 +9,17 @@ from outside, by intercepting the request for a web page and serving to the user
 
 Since the background work involved in setting up a proxy site of high quality is critical, WIP aims to support it at a high extent. Learning mechanisms and knowledge reuse are exploited to make the translation and revision tasks more and more productive and to minimize the maintenance-related tasks.
 
-On the server side, WIP integrates the Django web application framework and many Python libraries, such as [*NLTK*](https://github.com/nltk/nltk) and [*Scrapy*](https://github.com/scrapy/scrapy); it can also interface web services providing Translation Memories (TM), Machine Translation (MT) and access to large networks of linguistic resources. Currently we are experimenting also [*eflomal*](https://github.com/robertostling/eflomal), an advanced algorithm for word-level aligning of the source and the translated sentences.
+On the server side, WIP integrates the Django web application framework and many Python libraries, such as:
+[*NLTK*](https://github.com/nltk/nltk) and [*Scrapy*](https://github.com/scrapy/scrapy). On the client side, WIP builds on Javascript libraries, such as jQuery, and on the Chrome plugin technology.
 
-On the client side, WIP builds on Javascript libraries, such as jQuery, and on plugin technologies available for FireFox and Chrome.
+WIP can interface web services providing linguistic resources; for example:
+- Translation Memories (TM), like MyMemory, and
+- Machine Translation (MT) services, like GoogleTranslate
+
+Currently we are experimenting
+- [*Lineardoc*](https://github.com/wikimedia/mediawiki-services-cxserver/tree/master/lib/lineardoc), a library by MediaWiki for "translating HTML content using plain text supporting MT engine"; we have converted it from Javascript to Python 3
+- [*eflomal*](https://github.com/robertostling/eflomal), an advanced algorithm by Robert Östling for word-level aligning of the source and the translated sentences; we are trying to extend it to exploit human supervision.
+
 
 WIP includes a lot of algorithms and language resources that make it also an ideal tool for research and education in many language-related fields, such as text analysis, web mining, translation and language learning.
 
