@@ -254,7 +254,7 @@ if (sys.version_info > (3, 0)):
         file_fwd.close()
         file_rev.close()
 
-def split_alignment(alignment):
+def split_alignment(alignment, return_links=False):
     """
     alignment: a symmetric alignment, in pharaoh text format
     fwd: an asymmetric alignment keeping only links whose right element is unique
@@ -270,9 +270,13 @@ def split_alignment(alignment):
         left = int(left)
         right = int(right)
         links.append([left, right])
-        links.sort(key=lambda x: (x[0], x[1]))
+        # links.sort(key=lambda x: (x[0], x[1]))
         lefts.append(left)
         rights.append(right)
+    if return_links:
+        links.sort(key=lambda x: x[1])
+        return links
+    links.sort(key=lambda x: (x[0], x[1]))
     fwd = []
     for link in links:
         if rights.count(link[1]) > 1:

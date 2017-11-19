@@ -33,7 +33,7 @@ class TextBlock:
         """ Get the (last) text chunk at a given char offset """
         i = 0
         for textChunk in self.textChunks[:-1]:
-            if self.offsets[i+1].start > charOffset:
+            if self.offsets[i+1]['start'] > charOffset:
                 break
             i += 1
         return textChunk
@@ -50,7 +50,7 @@ class TextBlock:
             if len(tags) < len(commonTags):
                 commonTags = commonTags[:len(tags)]
             for j in range(len(commonTags)):
-                if commonTags[j].name != tags[j].name:
+                if commonTags[j]['name'] != tags[j]['name']:
                     commonTags = commonTags[:j]
                     break
         return commonTags
@@ -72,7 +72,7 @@ class TextBlock:
             offset = self.offsets[i]['start']
             if textChunk.text:
                 continue
-            if not emptyTextChunks[offset]:
+            if not emptyTextChunks.get(offset, None):
                 emptyTextChunks[offset] = []
             emptyTextChunks[offset].append(textChunk)
         for offset in emptyTextChunks:
@@ -84,12 +84,13 @@ class TextBlock:
             sourceRangeStart = rangeMapping['source']['start']
             sourceRangeEnd = sourceRangeStart + rangeMapping['source']['length']
             targetRangeStart = rangeMapping['target']['start']
-            targetRangeEnd = targetRangeStart + rangeMapping['target']['length']
+            targetRangeLength = rangeMapping['target']['length']
+            targetRangeEnd = targetRangeStart + targetRangeLength
             sourceTextChunk = self.getTextChunkAt(rangeMapping['source']['start'])
             text = targetText[targetRangeStart : targetRangeEnd]
             textChunks.append({ 
                 'start': targetRangeStart,
-                'length': rangeMapping['target']['length'],
+                'length': targetRangeLength,
                 'textChunk': TextChunk( text, sourceTextChunk.tags, sourceTextChunk.inlineContent )})
             # Empty source text chunks will not be represented in the target plaintext(because they have no 
             # plaintext representation); therefore we must clone each one manually into the target rich text.
@@ -104,7 +105,7 @@ class TextBlock:
                 # Push chunk into target text at the current point
                 pushEmptyTextChunks(targetRangeEnd, emptyTextChunks[offset])
                 # Remove chunk from remaining list
-                emptyTextChunks[offset] = None
+                del emptyTextChunks[offset]
                 del emptyTextChunkOffsets[j]
 
         # Sort by start position
@@ -116,30 +117,32 @@ class TextBlock:
         i = 0
         while i < iLen:
             textChunk = textChunks[i]
-            if textChunk.start < pos:
+            if textChunk['start'] < pos:
                 # throw new Error( 'Overlappping chunks at pos=' + pos + ', textChunks=' + i + ' start=' + textChunk.start );
-                pass
+                raise
             elif textChunk['start'] > pos:
                 # Unmapped chunk: insert plaintext and adjust offset
                 textChunks.insert(i, {
                     'start': pos,
-                    'length': textChunk.start - pos,
-                    'textChunk': TextChunk( targetText[pos : textChunk.start], commonTags, None) })
-                i += 2
+                    'length': textChunk['start']-pos,
+                    'textChunk': TextChunk(targetText[pos : textChunk['start']-pos], commonTags, None) })
+                i += 1
                 iLen += 1
             pos = textChunk['start'] + textChunk['length']
+            i += 1
 
         # Get trailing text and trailing whitespace
         tail = targetText[pos:]
         tailSpace = re.match('\s*$', tail)
         if tailSpace:
-            space_length = tailSpace.end - tailSpace.start
+            tailSpace = tail[tailSpace.start():tailSpace.end()]
+            space_length = len(tailSpace)
             tail = tail[:-space_length]
         if tail:
             # Append tail as text with commonTags
             textChunks.append({
                 'start': pos,
-                'length': tail.length,
+                'length': len(tail),
                 'textChunk': TextChunk(tail, commonTags, None)})
             pos += len(tail)
 
@@ -150,11 +153,12 @@ class TextBlock:
             # Append tailSpace as text with commonTags
             textChunks.append( {
                 'start': pos,
-                'length': len(tailSpace),
+                'length': space_length,
                 'textChunk': TextChunk(tailSpace, commonTags, None) })
             pos += len(tail)
+            # pos += space_length # the original code is wrong?
 
-        return TextBlock([x.textChunk for x in textChunks])
+        return TextBlock([x['textChunk'] for x in textChunks])
 
     def getPlainText(self):
         """ Return plain text representation of the text block """
@@ -236,10 +240,10 @@ class TextBlock:
                 else:
                     leftPart = TextChunk(textChunk.text[:relOffset], textChunk.tags[:], None)
                     rightPart = TextChunk(textChunk.text[relOffset:], textChunk.tags[:], textChunk.inlineContent)
-                currentTextChunks.append(leftPart)
-                offset += relOffset
-                flushChunks()
-                textChunk = rightPart
+                    currentTextChunks.append(leftPart)
+                    offset += relOffset
+                    flushChunks()
+                    textChunk = rightPart
             # Even if the textChunk is zero-width, it may have references
             currentTextChunks.append(textChunk)
             offset += len(textChunk.text)
