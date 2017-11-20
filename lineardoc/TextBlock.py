@@ -4,6 +4,7 @@
 # https://github.com/wikimedia/mediawiki-services-cxserver/tree/master/lineardoc
 
 import re
+from collections import defaultdict
 from .TextChunk import TextChunk
 from .Utils import esc, getOpenTagHtml, getCloseTagHtml, dumpTags, getChunkBoundaryGroups, addCommonTag, setLinkIdsInPlace
 
@@ -32,11 +33,18 @@ class TextBlock:
     def getTextChunkAt(self, charOffset):
         """ Get the (last) text chunk at a given char offset """
         i = 0
+        """
         for textChunk in self.textChunks[:-1]:
             if self.offsets[i+1]['start'] > charOffset:
                 break
             i += 1
         return textChunk
+        """
+        while i < len(self.textChunks)-1:
+            if self.offsets[i+1]['start'] > charOffset:
+                break
+            i += 1
+        return self.textChunks[i]
 
     def getCommonTags(self):
         """ Returns the list of SAX tags that apply to the whole text block """
@@ -58,7 +66,7 @@ class TextBlock:
     def translateTags(self, targetText, rangeMappings):
         """ Create a new TextBlock, applying our annotations to a translation """
         # map of { offset: x, textChunks: [...] }
-        emptyTextChunks = {}
+        emptyTextChunks = defaultdict(list)
         emptyTextChunkOffsets = [] # list of { start: x, length: x, textChunk: x }       
         textChunks = []
 
@@ -72,8 +80,6 @@ class TextBlock:
             offset = self.offsets[i]['start']
             if textChunk.text:
                 continue
-            if not emptyTextChunks.get(offset, None):
-                emptyTextChunks[offset] = []
             emptyTextChunks[offset].append(textChunk)
         for offset in emptyTextChunks:
             emptyTextChunkOffsets.append(offset)
@@ -91,7 +97,7 @@ class TextBlock:
             textChunks.append({ 
                 'start': targetRangeStart,
                 'length': targetRangeLength,
-                'textChunk': TextChunk( text, sourceTextChunk.tags, sourceTextChunk.inlineContent )})
+                'textChunk': TextChunk(text, sourceTextChunk.tags, sourceTextChunk.inlineContent)})
             # Empty source text chunks will not be represented in the target plaintext(because they have no 
             # plaintext representation); therefore we must clone each one manually into the target rich text.
             # Iterate through all remaining emptyTextChunks
@@ -105,8 +111,8 @@ class TextBlock:
                 # Push chunk into target text at the current point
                 pushEmptyTextChunks(targetRangeEnd, emptyTextChunks[offset])
                 # Remove chunk from remaining list
-                del emptyTextChunks[offset]
-                del emptyTextChunkOffsets[j]
+                del emptyTextChunks[offset] # remove from dict
+                del emptyTextChunkOffsets[j] # remove from list
 
         # Sort by start position
         textChunks.sort(key = lambda x: x['start'])
@@ -155,8 +161,7 @@ class TextBlock:
                 'start': pos,
                 'length': space_length,
                 'textChunk': TextChunk(tailSpace, commonTags, None) })
-            pos += len(tail)
-            # pos += space_length # the original code is wrong?
+            pos += len(tail) # has this any effect?
 
         return TextBlock([x['textChunk'] for x in textChunks])
 
@@ -217,7 +222,6 @@ class TextBlock:
             setLinkIdsInPlace(modifiedTextChunks, getNextId)
             allTextChunks.extend(modifiedTextChunks)
             print ('%d modified and %d all TextChunks' % (len(modifiedTextChunks), len(allTextChunks)))
-            # currentTextChunks = []
             del currentTextChunks[:]
 
         print ('Block segment boundaries:', getBoundaries(self.getPlainText()))
@@ -269,3 +273,71 @@ class TextBlock:
                     dump.append(pad + '  ' + '<' + chunk.inlineContent.name + '/>')
                 dump.append(pad + '</cxinlineelement>')
         return dump
+
+    def getSentences(self, getBoundaries):
+        """ added by Giovanni Toffoli
+            Segment the text block into sub-blocks delimited by sentence boundaries
+            (see the segment method and the function Utils.getChunkBoundaryGroups) """
+        boundaries = getBoundaries(self.getPlainText())
+        if not boundaries:
+            return self.textChunks
+        boundaries = boundaries[:]
+        boundaries.sort()
+        # add an extra boundary to avoid a test when incrementing boundaryPtr
+        boundaries.append(self.offsets[-1]['start']+self.offsets[-1]['length'])
+        boundaryPtr = 0
+        boundary = boundaries[boundaryPtr]
+
+        sentences = []
+        currentTextChunks = []
+
+        def flushChunks():
+            if not currentTextChunks:
+                return
+            sentences.append(TextBlock(currentTextChunks[:], canSegment=False))
+            del currentTextChunks[:]
+
+        offset = 0
+        for textChunk in self.textChunks:
+            while offset < boundary:
+                chunkLength = len(textChunk.text)
+                relOffset = boundary - offset
+                if relOffset >= chunkLength:
+                    currentTextChunks.append(textChunk)
+                    offset += chunkLength
+                    if offset == boundary:
+                        flushChunks()
+                        boundaryPtr += 1
+                        boundary = boundaries[boundaryPtr]
+                    break
+                else:
+                    leftPart = TextChunk(textChunk.text[:relOffset], textChunk.tags[:], None)
+                    rightPart = TextChunk(textChunk.text[relOffset:], textChunk.tags[:], textChunk.inlineContent)
+                    currentTextChunks.append(leftPart)
+                    offset += relOffset
+                    flushChunks()
+                    textChunk = rightPart
+                    boundaryPtr += 1
+                    boundary = boundaries[boundaryPtr]
+
+        flushChunks()
+        i = 0
+        for sentence in sentences:
+            chunks = sentence.textChunks
+            text = sentence.getPlainText()
+            print ('- sentence', i, len(chunks), len(text))
+            print ('  ', text)
+            j = 1
+            for chunk in chunks:
+                print ('  ', j, len(chunk.text), chunk.text)
+                j += 1
+            i += 1
+        return sentences
+
+def mergeSentences(sentences):
+    """ added by Giovanni Toffoli
+        Merge sub-blocks to a single block """
+    textChunks = []
+    for sentence in sentences:
+        textChunks.extend(sentence.textChunks)
+    return TextBlock(textChunks, canSegment=False)

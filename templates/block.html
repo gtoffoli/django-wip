@@ -133,7 +133,7 @@ label { font-size: small; }
 	{% if lineardoc %}
 	<fieldset>
 		<legend>Lineardoc to plaintext and to HTML</legend>
-	<div>{{ lineardoc.getText }}</div>
+	<div>{{ lineardoc.getPlainText }}</div>
 	<hr>
 	{% for s in lineardoc.getSegments %}<p>{{ s|safe }}</p>{% endfor %}
 	</fieldset>
@@ -142,14 +142,21 @@ label { font-size: small; }
 		<legend>Segments</legend>
 	<table width="100%"><thead><th width="50%">Using lxml.etree and lxml.html</th><th width="50%">Using Lineardoc and SAX</th></thead>
 	<tbody><tr>
-		<td>{% for s, tokens in segments_tokens %}<p>{{ s|length }} {{ s }}</p>
+		<td style="vertical-align:top">
+				{% for s, tokens in segments_tokens %}<p>{{ s|length }} {{ s }}</p>
 				<ul>{% for t in tokens %}<li>{{ t }}</li>{% endfor %}</ul>
 		    {% endfor %}</td>
-		<td>{% for s, tokens in lineardoc_segments_tokens %}<p>{{ s|length }} {{ s }}</p>
+		<td style="vertical-align:top">
+				{% for s, tokens in lineardoc_segments_tokens %}<p>{{ s|length }} {{ s }}</p>
 				<ul>{% for t in tokens %}<li>{{ t }}</li>{% endfor %}</ul>
 		    {% endfor %}</td>
 	</tr></tbody>
 	</table>
+	</fieldset>
+
+	<fieldset>
+		<legend>Translated</legend>
+	<div>{{ translated_body|safe }}</div>
 	</fieldset>
 	{% endif %}
 

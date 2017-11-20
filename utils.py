@@ -3,6 +3,7 @@
 import os
 import sys
 
+import string
 import urllib
 if (sys.version_info > (3, 0)):
     from io import StringIO
@@ -39,7 +40,8 @@ import wip.srx_segmenter as srx_segmenter
 from django.conf import settings
 
 def is_invariant_word(word):
-    return word.count('#') or word.count('@') or word.count('http') or word.replace(',', '.').isnumeric()
+    # return word.count('#') or word.count('@') or word.count('http') or word.replace(',', '.').isnumeric()
+    return word.count('#') or word.count('@') or word.count('http') or re.sub('[\.\,\-\/]', '', word).isnumeric() or (len(word)==1 and string.punctuation.count(word))
 
 def element_tostring(e):
     # return html.tostring(e, encoding='utf-8')

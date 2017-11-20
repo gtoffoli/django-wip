@@ -1120,7 +1120,9 @@ def block(request, block_id):
     if request.GET.get('doc', ''):
         var_dict['lineardoc'] = block.block_get_lineardoc()
         var_dict['segments_tokens'] = block.apply_tm(use_lineardoc=False)
-        var_dict['lineardoc_segments_tokens']  = block.apply_tm(use_lineardoc=True)
+        segments_tokens, translated_body = block.apply_tm(use_lineardoc=True)
+        var_dict['lineardoc_segments_tokens']  = segments_tokens
+        var_dict['translated_body']  = translated_body
     return render(request, 'block.html', var_dict)
 
 # def block_translate(request, block_id):

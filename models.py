@@ -56,6 +56,7 @@ from django_diazo.models import Theme
 from wip.wip_nltk.tokenizers import NltkTokenizer
 from wip.wip_sd.sd_algorithm import SDAlgorithm
 from wip.lineardoc.Parser import Parse as LineardocParse
+from wip.lineardoc.TextBlock import mergeSentences
 from .vocabularies import Language, Subject, ApprovalStatus
 from .aligner import tokenize, best_alignment, aer
 
@@ -63,6 +64,7 @@ from .settings import RESOURCES_ROOT, BLOCK_TAGS, BLOCKS_EXCLUDE_BY_XPATH, SEPAR
 DEFAULT_USER = 1
 from .utils import element_tostring, text_from_html, strings_from_html, elements_from_element, replace_element_content, element_signature
 from .utils import normalize_string, replace_segment, string_checksum, text_to_list # , non_invariant_words
+from .utils import is_invariant_word as is_base_invariant_word
 # import wip.srx_segmenter
 import wip.srx_segmenter as srx_segmenter
 
@@ -565,6 +567,11 @@ class Proxy(models.Model):
             if ready:
                 blocks.append(block)
         return blocks
+
+    def make_tokenizer(self, return_matches=False):
+        """ create a tokenizer for the proxy target language ...
+            possibly exploit knowledge related to the target language and/or the proxy itself """
+        return NltkTokenizer(language=self.language.code, lowercasing=False, return_matches=return_matches)
 
     """
     def import_translations(self, file, request=None):
@@ -1815,28 +1822,71 @@ class Block(node_factory('BlockEdge')):
         # html = re.sub("(<wbr(\b?)/>)", "", html)
         return LineardocParse(html)
 
-    def apply_tm(self, target_language=None, use_lineardoc=False, segmenter=None, tokenizer=None):
+    def make_rangeMappings(self, target_text, source_matches, target_matches, alignment):
+        links = split_alignment(alignment, return_links=True)
+        links.sort(key=lambda x: (x[1], x[0]))
+        lefts = [link[0] for link in links]
+        rights = [link[1] for link in links]
+        rangeMappings = []
+        previous_left = None
+        for link in links:
+            left = link[0]
+            right = link[1]
+            """
+            if lefts.count(left) > 1:
+                continue
+            """
+            if rights.count(right) > 1:
+                continue
+            target_match = target_matches[right]
+            targetRangeStart = target_match.span()[0]
+            targetRangeLength = target_match.span()[1] - targetRangeStart
+            target_range = { 'start': targetRangeStart, 'length': targetRangeLength}
+            if left == previous_left:
+                targetRangeLength += (targetRangeStart-rangeMappings[-1]['target']['start'])
+                rangeMappings[-1]['target']['length'] = targetRangeLength
+            else:
+                source_match = source_matches[left]
+                sourceRangeStart = source_match.span()[0]
+                sourceRangeLength = source_match.span()[1] - sourceRangeStart
+                source_range = { 'start': sourceRangeStart, 'length': sourceRangeLength }
+                rangeMapping = { 'source': source_range, 'target': target_range }
+                rangeMappings.append(rangeMapping)
+            previous_left = left
+        return rangeMappings
+
+    def apply_tm(self, proxy=None, target_language=None, use_lineardoc=False, segmenter=None, source_tokenizer=None, target_tokenizer=None):
+        target_language = target_language or Language.objects.get(code='en')
         site = self.site
         source_language = site.language
         body = self.body
         if not segmenter:
             segmenter = site.make_segmenter()
         if use_lineardoc:
+            range_mappings = []
             lineardoc = self.block_get_lineardoc()
-            print (lineardoc.dump())
-            plaintext = lineardoc.getPlainText()
-            segments = segments_from_string(plaintext, site, segmenter)
+            print ('--- apply_tm - lineardoc:', lineardoc.dump())
+            linearblock = lineardoc.getFirstBlock()
+            # plaintext = lineardoc.getPlainText()
+            plaintext = linearblock.getPlainText()
+            segments, boundaries = segments_from_string(plaintext, site, segmenter, include_boundaries=True)
             def getBoundaries(text):
-                dummy, boundaries, dummy = segmenter.extract(text)
+                segments, boundaries, whitespaces = segmenter.extract(text)
                 return boundaries
-            lineardoc_segmented = lineardoc.segment(getBoundaries)
-            print (lineardoc_segmented.dump())
+            linearsentences = linearblock.getSentences(getBoundaries)
+            linearblock_segmented = mergeSentences(linearsentences)
             return_matches = True
+            source_offset = target_offset = 0
         else:
             segments = get_segments(self.body, site, segmenter)
             return_matches = False
-        if not tokenizer:
-            tokenizer = site.make_tokenizer(return_matches=return_matches)
+        if not source_tokenizer:
+            source_tokenizer = site.make_tokenizer(return_matches=return_matches)
+        if not target_tokenizer:
+            if proxy: 
+                target_tokenizer = proxy.make_tokenizer(return_matches=return_matches)
+            else:
+                target_tokenizer = NltkTokenizer(source_language.code, lowercasing=False, return_matches=return_matches)
         site_invariants = text_to_list(site.invariant_words)
         segments_tokens = []
         n_segments = len(segments)
@@ -1844,30 +1894,48 @@ class Block(node_factory('BlockEdge')):
         n_translated = 0
         n_substitutions = 0
         translated = True
-        for segment in segments:
+        translated_sentences = []
+        for i_segment in range(len(segments)):
             if use_lineardoc:
-                matches = tokenizer.tokenize(segment)
-                tokens = [segment[m.span()[0]:m.span()[1]] for m in matches]
+                linearsentence = linearsentences[i_segment]
+                translated_sentence = None
+                segment = linearsentence.getPlainText().strip()
+                source_matches = list(source_tokenizer.tokenize(segment))
+                tokens = [segment[m.span()[0]:m.span()[1]] for m in source_matches]
             else:
-                tokens = tokenizer.tokenize(segment)
+                segment = segments[i_segment]
+                tokens = source_tokenizer.tokenize(segment)
+            print ('--- segment', i_segment, segment)
             segments_tokens.append([segment, tokens])
             non_invariant_tokens = [t for t in tokens if not is_invariant_word(t, site_invariants=site_invariants)]
+            print ('--- non invariant tokens', non_invariant_tokens)
             if not non_invariant_tokens:
                 n_invariants += 1
                 continue
             if Segment.objects.filter(is_invariant=True, language=source_language, site=site, text=segment):
                 n_invariants += 1
                 continue
-            translations = Translation.objects.filter(language=target_language, segment__site=site, segment__language=source_language, segment__text=segment).distinct().order_by('-translation_type', 'user_role__role_type', 'user_role__level')
+            # translations = Translation.objects.filter(language=target_language, segment__site=site, segment__language=source_language, segment__text=segment).distinct().order_by('-translation_type', 'user_role__role_type', 'user_role__level')
+            translations = Translation.objects.filter(language=target_language, segment__site=site, segment__text=segment).distinct().order_by('-translation_type', 'user_role__role_type', 'user_role__level')
+            print ('--- translations', translations.count())
             if translations:
-                translated_segment = translations[0].text
-                n_translated += 1
-                if segment[0].isupper() and translated_segment[0].islower():
-                    translated_segment = translated_segment[0].upper() + translated_segment[1:]
-                if segment[-1] in ['.',';',':'] and translated_segment[-1]==segment[-1]:
-                    segment = segment[:-1]; translated_segment = translated_segment[:-1]
-                count = body.count(segment)
+                translation = translations[0]
+                print ('--- translation', translation.text)
+                translated_segment = translation.text
+                alignment = translation.alignment
                 replaced = False
+                print ('--- test', use_lineardoc, alignment, translation.alignment_type)
+                n_translated += 1
+                if use_lineardoc and alignment and translation.alignment_type==MANUAL:
+                    target_matches = list(target_tokenizer.tokenize(translated_segment))
+                    range_mappings = self.make_rangeMappings(translated_segment, source_matches, target_matches, alignment)
+                    print ('--- range_mappings', range_mappings)
+                    translated_sentence = linearsentence.translateTags(translated_segment, range_mappings)
+                    print ('--- translated_sentence', translated_sentence.getPlainText())
+                    translated_sentences.append(translated_sentence)
+                    continue 
+                    # break 
+                count = body.count(segment)
                 if count:
                     l_body = len(body)
                     for m in re.finditer(re.escape(segment), body):
@@ -1884,14 +1952,15 @@ class Block(node_factory('BlockEdge')):
                 if replaced:
                     n_translated +=1
                     continue
-                replaced = replace_segment(body, segment)
-                if replaced:
-                    body = replaced
-                    n_substitutions += 1
-                    n_translated +=1
-                    continue
                 translated = False
-        return segments_tokens
+            if use_lineardoc and not translated_sentence:
+                translated_sentences.append(linearsentence)
+        if use_lineardoc:
+            translated_block = mergeSentences(translated_sentences)
+            body = translated_block.getHtml()
+            return segments_tokens, body
+        else:
+            return segments_tokens
 
     def apply_invariants(self, segmenter):
         if self.no_translate:
@@ -2082,8 +2151,8 @@ def get_segments(body, site, segmenter, fragment=True, exclude_tx=True, exclude_
 # def can_strip(word, site_invariants=[]):
 def is_invariant_word(word, site_invariants=[]):
     """ word belongs to invariant classes: web addresses, email addresses, numbers """
-    # return word.count('#') or word.count('@') or word.count('http') or word.replace(',', '.').isnumeric()
-    return word.count('#') or word.count('@') or word.count('http') or word.replace(',', '.').isnumeric() or word in site_invariants
+    # return word.count('#') or word.count('@') or word.count('http') or word.replace(',', '.').isnumeric() or word in site_invariants
+    return is_base_invariant_word(word) or word in site_invariants
 
 def non_invariant_words(words, site_invariants=[]):
     non_invariant = []
