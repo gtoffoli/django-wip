@@ -113,10 +113,6 @@
 <beforebreak>\s[a-zA-Z][\.!?…]\s</beforebreak>
 <afterbreak>\p{Lu}\p{Ll}</afterbreak>
 </rule>
-<rule break="yes">
-<beforebreak>\n</beforebreak>
-<afterbreak></afterbreak>
-</rule>
 </languagerule>
 
 </languagerules>

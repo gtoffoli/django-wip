@@ -1859,26 +1859,28 @@ class Block(node_factory('BlockEdge')):
         target_language = target_language or Language.objects.get(code='en')
         site = self.site
         source_language = site.language
-        body = self.body
         if not segmenter:
             segmenter = site.make_segmenter()
         if use_lineardoc:
             range_mappings = []
             lineardoc = self.block_get_lineardoc()
-            print ('--- apply_tm - lineardoc:', lineardoc.dump())
             linearblock = lineardoc.getFirstBlock()
-            # plaintext = lineardoc.getPlainText()
-            plaintext = linearblock.getPlainText()
-            segments, boundaries = segments_from_string(plaintext, site, segmenter, include_boundaries=True)
+            """
+            print ('--- apply_tm - linearblock:')
+            print (linearblock.dump())
+            """
             def getBoundaries(text):
                 segments, boundaries, whitespaces = segmenter.extract(text)
                 return boundaries
             linearsentences = linearblock.getSentences(getBoundaries)
-            linearblock_segmented = mergeSentences(linearsentences)
+            n_segments = len(linearsentences)
+            print ('--- apply_tm - linearblock sentences:')
+            for linearsentence in linearsentences: print (linearsentence.dump())
+            # linearblock_segmented = mergeSentences(linearsentences)
             return_matches = True
-            source_offset = target_offset = 0
         else:
             segments = get_segments(self.body, site, segmenter)
+            n_segments = len(segments)
             return_matches = False
         if not source_tokenizer:
             source_tokenizer = site.make_tokenizer(return_matches=return_matches)
@@ -1889,73 +1891,75 @@ class Block(node_factory('BlockEdge')):
                 target_tokenizer = NltkTokenizer(source_language.code, lowercasing=False, return_matches=return_matches)
         site_invariants = text_to_list(site.invariant_words)
         segments_tokens = []
-        n_segments = len(segments)
         n_invariants = 0
         n_translated = 0
         n_substitutions = 0
         translated = True
         translated_sentences = []
-        for i_segment in range(len(segments)):
+        for i_segment in range(n_segments):
+            translated_sentence = None
+            replaced = False
             if use_lineardoc:
                 linearsentence = linearsentences[i_segment]
-                translated_sentence = None
-                segment = linearsentence.getPlainText().strip()
+                segment = linearsentence.getPlainText() # .strip()
+                print ("'%s'" % segment)
                 source_matches = list(source_tokenizer.tokenize(segment))
                 tokens = [segment[m.span()[0]:m.span()[1]] for m in source_matches]
             else:
                 segment = segments[i_segment]
                 tokens = source_tokenizer.tokenize(segment)
-            print ('--- segment', i_segment, segment)
             segments_tokens.append([segment, tokens])
             non_invariant_tokens = [t for t in tokens if not is_invariant_word(t, site_invariants=site_invariants)]
-            print ('--- non invariant tokens', non_invariant_tokens)
-            if not non_invariant_tokens:
+            if not non_invariant_tokens or Segment.objects.filter(is_invariant=True, language=source_language, site=site, text=segment):
                 n_invariants += 1
-                continue
-            if Segment.objects.filter(is_invariant=True, language=source_language, site=site, text=segment):
-                n_invariants += 1
-                continue
-            # translations = Translation.objects.filter(language=target_language, segment__site=site, segment__language=source_language, segment__text=segment).distinct().order_by('-translation_type', 'user_role__role_type', 'user_role__level')
-            translations = Translation.objects.filter(language=target_language, segment__site=site, segment__text=segment).distinct().order_by('-translation_type', 'user_role__role_type', 'user_role__level')
-            print ('--- translations', translations.count())
-            if translations:
-                translation = translations[0]
-                print ('--- translation', translation.text)
-                translated_segment = translation.text
-                alignment = translation.alignment
-                replaced = False
-                print ('--- test', use_lineardoc, alignment, translation.alignment_type)
-                n_translated += 1
-                if use_lineardoc and alignment and translation.alignment_type==MANUAL:
-                    target_matches = list(target_tokenizer.tokenize(translated_segment))
-                    range_mappings = self.make_rangeMappings(translated_segment, source_matches, target_matches, alignment)
-                    print ('--- range_mappings', range_mappings)
-                    translated_sentence = linearsentence.translateTags(translated_segment, range_mappings)
-                    print ('--- translated_sentence', translated_sentence.getPlainText())
-                    translated_sentences.append(translated_sentence)
-                    continue 
-                    # break 
-                count = body.count(segment)
-                if count:
-                    l_body = len(body)
-                    for m in re.finditer(re.escape(segment), body):
-                        start = m.start()
-                        if start>0 and body[start-1] in BOTH_QUOTES:
-                            continue
-                        end = m.end()
-                        if end<(l_body-1) and body[end] in BOTH_QUOTES:
-                            continue          
-                        body = body[:start] + '<span tx auto>%s</span>' % translated_segment + body[end:]
+                print ('--- invariant_segment:', i_segment, '"'+segment+'"')
+                if use_lineardoc:
+                    translated_sentences.append(linearsentence)
+                replaced = True
+            else:
+                segment = segment.strip().replace('  ', ' ')
+                translations = Translation.objects.filter(language=target_language, segment__site=site, segment__text=segment).distinct().order_by('-translation_type', 'user_role__role_type', 'user_role__level')
+                print ('translations:', len(translations))
+                if translations:
+                    translation = translations[0]
+                    translated_segment = translation.text
+                    alignment = translation.alignment
+                    n_translated += 1
+                    if use_lineardoc and alignment and translation.alignment_type==MANUAL:
+                        target_matches = list(target_tokenizer.tokenize(translated_segment))
+                        range_mappings = self.make_rangeMappings(translated_segment, source_matches, target_matches, alignment)
+                        # print ('--- range_mappings', range_mappings)
+                        translated_sentence = linearsentence.translateTags(translated_segment, range_mappings)
+                        print ('--- translated_sentence', i_segment, translated_sentence.getPlainText())
+                        translated_sentences.append(translated_sentence)
                         replaced = True
-                        n_substitutions += 1
-                        break
-                if replaced:
-                    n_translated +=1
-                    continue
+                    """
+                    if not replaced:
+                        count = body.count(segment)
+                        if count:
+                            l_body = len(body)
+                            for m in re.finditer(re.escape(segment), body):
+                                start = m.start()
+                                if start>0 and body[start-1] in BOTH_QUOTES:
+                                    continue
+                                end = m.end()
+                                if end<(l_body-1) and body[end] in BOTH_QUOTES:
+                                    continue          
+                                body = body[:start] + '<span tx auto>%s</span>' % translated_segment + body[end:]
+                                replaced = True
+                                n_substitutions += 1
+                                break
+                    """
+                    if replaced:
+                        n_translated +=1
+                        continue
                 translated = False
-            if use_lineardoc and not translated_sentence:
+            if use_lineardoc and not replaced:
+                print ('--- original sentence:', i_segment, linearsentence)
                 translated_sentences.append(linearsentence)
         if use_lineardoc:
+            print ('--- apply_tm - translated sentences:')
+            for ts in translated_sentences: print (ts.dump())
             translated_block = mergeSentences(translated_sentences)
             body = translated_block.getHtml()
             return segments_tokens, body
@@ -2240,7 +2244,7 @@ def segments_from_string(string, site, segmenter, exclude_TM_invariants=True, in
                 continue
         filtered.append(s)
         filtered_boundaries.append(boundary)
-    print ('segments_from_string - boundaries, filtered_boundaries:', boundaries, filtered_boundaries)
+    # print ('segments_from_string - boundaries, filtered_boundaries:', boundaries, filtered_boundaries)
     if include_boundaries:
         return filtered, boundaries
     else:

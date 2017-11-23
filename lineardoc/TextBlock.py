@@ -115,7 +115,8 @@ class TextBlock:
                 del emptyTextChunkOffsets[j] # remove from list
 
         # Sort by start position
-        textChunks.sort(key = lambda x: x['start'])
+        # textChunks.sort(key = lambda x: x['start'])
+        textChunks.sort(key = lambda x: (x['start'], x['textChunk'].inlineContent and 1 or 0))
         # Fill in any textChunk gaps using text with commonTags
         pos = 0
         commonTags = self.getCommonTags()
@@ -131,7 +132,7 @@ class TextBlock:
                 textChunks.insert(i, {
                     'start': pos,
                     'length': textChunk['start']-pos,
-                    'textChunk': TextChunk(targetText[pos : textChunk['start']-pos], commonTags, None) })
+                    'textChunk': TextChunk(targetText[pos : textChunk['start']], commonTags, None) })
                 i += 1
                 iLen += 1
             pos = textChunk['start'] + textChunk['length']
@@ -221,17 +222,14 @@ class TextBlock:
                     'attributes': { 'klass': 'cx-segment', 'data-segmentid': getNextId('segment')}})
             setLinkIdsInPlace(modifiedTextChunks, getNextId)
             allTextChunks.extend(modifiedTextChunks)
-            print ('%d modified and %d all TextChunks' % (len(modifiedTextChunks), len(allTextChunks)))
             del currentTextChunks[:]
 
-        print ('Block segment boundaries:', getBoundaries(self.getPlainText()))
         # for each chunk, split at any boundaries that occur inside the chunk
         groups = getChunkBoundaryGroups(
             getBoundaries(self.getPlainText()),
             self.textChunks,
             lambda x: len(x.text)
         )
-        print ('groups:', groups)
         
         offset = 0
         for group in groups:
@@ -274,6 +272,30 @@ class TextBlock:
                 dump.append(pad + '</cxinlineelement>')
         return dump
 
+    def dump(self):
+        """ added by Giovanni Toffoli to get a printable Lineardoc representation like in
+            https://www.mediawiki.org/wiki/Content_translation/Product_Definition/LinearDoc """
+        chunks = self.textChunks
+        lines = []
+        line = "{textblock: %d textChunks, canSegment=%s}" % (len(chunks), str(self.canSegment))
+        lines.append(line)
+        for chunk in chunks:
+            tags = []
+            for tag_dict in chunk.tags:
+                tag = "'<%s" % tag_dict['name']
+                for attr_key, attr_value in tag_dict['attributes'].items():
+                    tag += ' %s="%s"' % (attr_key, attr_value)
+                tag += ">'"
+                tags.append(tag)
+            tags = ', '.join(tags)
+            inlineContent = chunk.inlineContent
+            if inlineContent:
+                line = "{tags:[%s], inlineContent: '%s'}" % (tags, chunk.inlineContent)
+            else:
+                line = "{text: %d '%s', tags:[%s]}" % (len(chunk.text), chunk.text, tags)
+            lines.append(line)
+        return '\n'.join(lines)
+
     def getSentences(self, getBoundaries):
         """ added by Giovanni Toffoli
             Segment the text block into sub-blocks delimited by sentence boundaries
@@ -298,17 +320,28 @@ class TextBlock:
             del currentTextChunks[:]
 
         offset = 0
-        for textChunk in self.textChunks:
-            while offset < boundary:
+        textChunks = self.textChunks
+        iLen = len(textChunks)
+        i = 0
+        while i < iLen:
+            print (i, offset, boundary)
+            textChunk = textChunks[i]
+            if not textChunk.text and not textChunk.inlineContent:
+                i += 1
+                continue
+            while offset < boundary or (offset == boundary and textChunk.inlineContent):
+                print (i*2)
                 chunkLength = len(textChunk.text)
                 relOffset = boundary - offset
-                if relOffset >= chunkLength:
+                if textChunk.inlineContent:
+                    currentTextChunks.append(textChunk)
+                    flushChunks()
+                    break
+                elif relOffset >= chunkLength:
                     currentTextChunks.append(textChunk)
                     offset += chunkLength
                     if offset == boundary:
                         flushChunks()
-                        boundaryPtr += 1
-                        boundary = boundaries[boundaryPtr]
                     break
                 else:
                     leftPart = TextChunk(textChunk.text[:relOffset], textChunk.tags[:], None)
@@ -319,19 +352,12 @@ class TextBlock:
                     textChunk = rightPart
                     boundaryPtr += 1
                     boundary = boundaries[boundaryPtr]
+            if offset == boundary and i < (iLen-1) and not textChunks[i+1].inlineContent:
+                boundaryPtr += 1
+                boundary = boundaries[boundaryPtr]
+            i += 1
 
         flushChunks()
-        i = 0
-        for sentence in sentences:
-            chunks = sentence.textChunks
-            text = sentence.getPlainText()
-            print ('- sentence', i, len(chunks), len(text))
-            print ('  ', text)
-            j = 1
-            for chunk in chunks:
-                print ('  ', j, len(chunk.text), chunk.text)
-                j += 1
-            i += 1
         return sentences
 
 def mergeSentences(sentences):

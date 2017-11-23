@@ -60,7 +60,6 @@ class Doc:
         i = 0
         for item in self.items:
             i += 1
-            print ('Doc.segment - item n.', i, item['type'])
             if item['type'] == 'open':
                 tag = cloneOpenTag(item['item'])
                 if tag['attributes'].get('id', ''):
@@ -71,7 +70,6 @@ class Doc:
             elif not item['type'] == 'textblock':
                 newDoc.addItem(item['type'], item['item'])
             else:
-                print ('Doc segment boundaries:', getBoundaries(self.getPlainText()))
                 textBlock = item['item']
                 newDoc.addItem(
                     'textblock',
@@ -173,28 +171,13 @@ class Doc:
         return segments
 
     def dump(self):
-        """ added by Giovanni Toffoli to get a printable LinearDoc representation like in
+        """ added by Giovanni Toffoli to get a printable Lineardoc representation like in
             https://www.mediawiki.org/wiki/Content_translation/Product_Definition/LinearDoc """
         lines = []
         for item in self.items:
             item_type = item['type']
             if item_type == 'textblock':
-                textblock = item['item']
-                line = "{textblock: %d textChunks, canSegment=%s}" % (len(textblock.textChunks), str(textblock.canSegment))
-                lines.append(line)
-                for chunk in item['item'].textChunks:
-                    tags = []
-                    for tag_dict in chunk.tags:
-                        tag = "'<%s" % tag_dict['name']
-                        for attr_key, attr_value in tag_dict['attributes'].items():
-                            tag += ' %s="%s"' % (attr_key, attr_value)
-                        tag += ">'"
-                        tags.append(tag)
-                    tags = ', '.join(tags)
-                    line = "{text:'%s', tags:[%s]}" % (chunk.text, tags)
-                    if chunk.inlineContent:
-                        pass
-                    lines.append(line)
+                lines.append(item['item'].dump())
             else:
                 line = '%s, %s' % (item_type, str(item['item']))
                 lines.append(line)
