@@ -158,3 +158,27 @@ def setLinkIdsInPlace(textChunks, getNextId):
             if tag['name']=='a' and tag['attributes'].get('href', '') and not tag['attributes'].get('data-linkid', ''):
                 tag['attributes']['class'] = 'cx-link'
                 tag['attributes']['data-linkid'] = getNextId('link')
+
+def sameTags(tags1, tags2):
+    """ added by Giovanni Toffoli
+        return True if lists tags1 and tags2 include the same tags in the same order """
+    nTags1 = len(tags1)
+    nTags2 = len(tags2)
+    if not nTags2 == nTags1:
+        return False
+    if not nTags1:
+        return True
+    for i in range(nTags1):
+        tag1 = tags1[i]
+        tag2 = tags2[i]
+        if not tag1['name'] == tag2['name']:
+            return False
+        attrs1 = tag1.get('attributes', {})
+        attrs2 = tag2.get('attributes', {})
+        if len(attrs1) != len(attrs2):
+            return False        
+        for key in attrs1.keys():
+            if attrs1[key] != attrs2.get(key, None):
+                return False
+
+    return True

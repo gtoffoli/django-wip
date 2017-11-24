@@ -100,7 +100,6 @@ class LineardocSAXHandler(ContentHandler):
 
     def characters(self, text):
         """ see funcion ontext in Javascript version """
-        text = text.replace('\n', '')
         self.builder.addTextChunk(text, self.contextualizer.canSegment())
 
     def isInlineAnnotationTag(self, tagName):

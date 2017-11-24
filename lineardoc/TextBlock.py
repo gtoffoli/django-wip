@@ -7,6 +7,7 @@ import re
 from collections import defaultdict
 from .TextChunk import TextChunk
 from .Utils import esc, getOpenTagHtml, getCloseTagHtml, dumpTags, getChunkBoundaryGroups, addCommonTag, setLinkIdsInPlace
+from .Utils import sameTags
 
 class TextBlock:
     """ A block of annotated inline text """
@@ -33,13 +34,6 @@ class TextBlock:
     def getTextChunkAt(self, charOffset):
         """ Get the (last) text chunk at a given char offset """
         i = 0
-        """
-        for textChunk in self.textChunks[:-1]:
-            if self.offsets[i+1]['start'] > charOffset:
-                break
-            i += 1
-        return textChunk
-        """
         while i < len(self.textChunks)-1:
             if self.offsets[i+1]['start'] > charOffset:
                 break
@@ -324,21 +318,31 @@ class TextBlock:
         iLen = len(textChunks)
         i = 0
         while i < iLen:
-            print (i, offset, boundary)
             textChunk = textChunks[i]
             if not textChunk.text and not textChunk.inlineContent:
                 i += 1
                 continue
-            while offset < boundary or (offset == boundary and textChunk.inlineContent):
-                print (i*2)
+            # while offset < boundary or (offset == boundary and textChunk.inlineContent):
+            while offset <= boundary:
                 chunkLength = len(textChunk.text)
                 relOffset = boundary - offset
                 if textChunk.inlineContent:
+                    flushChunks()
                     currentTextChunks.append(textChunk)
                     flushChunks()
                     break
                 elif relOffset >= chunkLength:
-                    currentTextChunks.append(textChunk)
+                    if textChunk.text == '\n':
+                        if i>0 and textChunks[i-1].inlineContent:
+                            offset += 1
+                            if offset == boundary:
+                                flushChunks()
+                            break
+                        else:
+                            space = TextChunk(' ', textChunk.tags[:], None)
+                            currentTextChunks.append(space)
+                    else:
+                        currentTextChunks.append(textChunk)
                     offset += chunkLength
                     if offset == boundary:
                         flushChunks()
@@ -352,13 +356,50 @@ class TextBlock:
                     textChunk = rightPart
                     boundaryPtr += 1
                     boundary = boundaries[boundaryPtr]
-            if offset == boundary and i < (iLen-1) and not textChunks[i+1].inlineContent:
+            # if offset == boundary and i < (iLen-1) and not textChunks[i+1].inlineContent:
+            if offset == boundary:
                 boundaryPtr += 1
                 boundary = boundaries[boundaryPtr]
             i += 1
 
         flushChunks()
         return sentences
+
+    def simplify(self):
+        """ added by Giovanni Toffoli
+            merge contiguous text chumks with same tags """
+
+        textChunks = self.textChunks
+        nChunks = len(textChunks)
+        chunks = []
+        currentText = ''
+        currentTags = []
+
+        def flushChunks():
+            if not currentText:
+                return
+            chunks.append(TextChunk(currentText, currentTags, None))
+
+        # for chunk in self.textChunks:
+        for i in range(nChunks):
+            chunk = textChunks[i]
+            if chunk.inlineContent:
+                flushChunks()
+                currentText = ''
+                chunks.append(chunk)
+            elif chunk.text == ' ' and i > 0 and i < (nChunks-1) and sameTags(textChunks[i+1].tags, currentTags):
+                currentText += ' '
+            else:
+                if sameTags(chunk.tags, currentTags):
+                    currentText += chunk.text
+                else:
+                    flushChunks()
+                    currentText = chunk.text
+                    currentTags = chunk.tags
+
+        flushChunks()
+        return TextBlock(chunks, canSegment=self.canSegment)
+
 
 def mergeSentences(sentences):
     """ added by Giovanni Toffoli

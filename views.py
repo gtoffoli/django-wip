@@ -1119,7 +1119,9 @@ def block(request, block_id):
     var_dict['sequencer_form'] = BlockSequencerForm(initial={'project_site': project_site_id, 'webpage': webpage_id, 'block_age': block_age, 'translation_state': translation_state, 'translation_languages': translation_languages, 'translation_age': translation_age, 'source_text_filter': source_text_filter, 'list_pages': list_pages, })
     if request.GET.get('doc', ''):
         var_dict['lineardoc'] = block.block_get_lineardoc()
+        """
         var_dict['segments_tokens'] = block.apply_tm(use_lineardoc=False)
+        """
         segments_tokens, translated_body = block.apply_tm(use_lineardoc=True)
         var_dict['lineardoc_segments_tokens']  = segments_tokens
         var_dict['translated_body']  = translated_body

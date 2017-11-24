@@ -138,9 +138,11 @@ label { font-size: small; }
 	{% for s in lineardoc.getSegments %}<p>{{ s|safe }}</p>{% endfor %}
 	</fieldset>
 
+{% comment %}
 	<fieldset>
 		<legend>Segments</legend>
-	<table width="100%"><thead><th width="50%">Using lxml.etree and lxml.html</th><th width="50%">Using Lineardoc and SAX</th></thead>
+	<table width="100%"><thead><th>Using lxml.etree and lxml.html</th>
+		<th width="50%">Using Lineardoc and SAX</th></thead>
 	<tbody><tr>
 		<td style="vertical-align:top">
 				{% for s, tokens in segments_tokens %}<p>{{ s|length }} {{ s }}</p>
@@ -153,6 +155,7 @@ label { font-size: small; }
 	</tr></tbody>
 	</table>
 	</fieldset>
+{% endcomment %}
 
 	<fieldset>
 		<legend>Translated</legend>

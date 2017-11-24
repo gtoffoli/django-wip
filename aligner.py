@@ -313,6 +313,26 @@ def merge_alignments(fwd, rev):
         alignment.sort(key=lambda x: (x[0], x[1]))
     return ' '.join(['-'.join([str(link[0]), str(link[1])]) for link in alignment])
 
+def normalized_alignment(alignment):
+    """ return an alignment whose target elements are contiguos, starting from 0,
+        with only a link (the first one) for each target element """ 
+    links = split_alignment(alignment, return_links=True)
+    target_dict = defaultdict(list)
+    for link in links:
+        target_dict[link[1]].append(link[0])
+    targets = sorted(target_dict.keys())
+    normalized = []
+    for i in range(len(targets)):
+        target = targets[i]
+        if not target == i:
+            return None
+        sources = target_dict[i]
+        if not sources:
+            return None
+        source = sorted(sources)[0]
+        normalized.append([source, target])
+    return ' '.join(['-'.join([str(link[0]), str(link[1])]) for link in normalized])   
+
 def proxy_null_aligner_eval(proxy, translations, lowercasing=False):
     """
     compute the quality of a null evaluator applying in cascade
