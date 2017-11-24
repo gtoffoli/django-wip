@@ -322,9 +322,9 @@ class TextBlock:
             if not textChunk.text and not textChunk.inlineContent:
                 i += 1
                 continue
-            # while offset < boundary or (offset == boundary and textChunk.inlineContent):
             while offset <= boundary:
-                chunkLength = len(textChunk.text)
+                text = textChunk.text
+                chunkLength = len(text)
                 relOffset = boundary - offset
                 if textChunk.inlineContent:
                     flushChunks()
@@ -332,7 +332,7 @@ class TextBlock:
                     flushChunks()
                     break
                 elif relOffset >= chunkLength:
-                    if textChunk.text == '\n':
+                    if text == '\n':
                         if i>0 and textChunks[i-1].inlineContent:
                             offset += 1
                             if offset == boundary:
@@ -342,6 +342,11 @@ class TextBlock:
                             space = TextChunk(' ', textChunk.tags[:], None)
                             currentTextChunks.append(space)
                     else:
+                        if not currentTextChunks and len(text) > 1 and text.startswith(' '):
+                            space = TextChunk(' ', textChunk.tags[:], None)
+                            currentTextChunks.append(space)
+                            flushChunks()
+                            textChunk.text = textChunk.text[1:]
                         currentTextChunks.append(textChunk)
                     offset += chunkLength
                     if offset == boundary:
@@ -356,7 +361,6 @@ class TextBlock:
                     textChunk = rightPart
                     boundaryPtr += 1
                     boundary = boundaries[boundaryPtr]
-            # if offset == boundary and i < (iLen-1) and not textChunks[i+1].inlineContent:
             if offset == boundary:
                 boundaryPtr += 1
                 boundary = boundaries[boundaryPtr]
@@ -367,7 +371,8 @@ class TextBlock:
 
     def simplify(self):
         """ added by Giovanni Toffoli
-            merge contiguous text chumks with same tags """
+            merge contiguous text chunks with the same tags;
+            spaces get tags from a couple of adjacent chunks with the same tags  """
 
         textChunks = self.textChunks
         nChunks = len(textChunks)

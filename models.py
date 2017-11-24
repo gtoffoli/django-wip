@@ -1873,10 +1873,8 @@ class Block(node_factory('BlockEdge')):
 
         linearsentences = linearblock.getSentences(getBoundaries)
         n_segments = len(linearsentences)
-        """
         print ('--- apply_tm - linearblock sentences:')
         for ls in linearsentences: print (ls.dump())
-        """
         return_matches = True
         if not source_tokenizer:
             source_tokenizer = site.make_tokenizer(return_matches=return_matches)
@@ -1967,6 +1965,8 @@ class Block(node_factory('BlockEdge')):
             translated_sentences.append(linearsentence)
             print ('--- original sentence:', i_segment, linearsentence)
             translated = False
+        print ('--- apply_tm - translated sentences:')
+        for ts in translated_sentences: print (ts.dump())
         translated_block = mergeSentences(translated_sentences)
         translated_block = translated_block.simplify()
         print ('--- apply_tm - translated block:\n', translated_block.dump())
