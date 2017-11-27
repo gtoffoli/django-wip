@@ -47,9 +47,9 @@ function apply_translation (target_code, id_from, id_to) {
 	segment = document.getElementById(id_from).textContent;
 	translation = document.getElementById(id_to).textContent;
 	textarea = document.getElementById(target_code);
-	// text = textarea.textContent;
 	text = textarea.value;
-	tx_open = '<span tx man>';
+	// tx_open = '<span tx man>';
+	tx_open = '<span tx="man">';
 	tx_close = '</span>';
 	// pos = text.toLowerCase().indexOf(segment);
 	pos = text.indexOf(segment);

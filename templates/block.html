@@ -138,11 +138,29 @@ label { font-size: small; }
 	{% for s in lineardoc.getSegments %}<p>{{ s|safe }}</p>{% endfor %}
 	</fieldset>
 
-{% comment %}
+	<fieldset>
+		<legend>Translated</legend>
+	<div>{{ translated_body|safe }}</div>
+	</fieldset>
+
+	<fieldset>
+		<legend>Sentences</legend>
+	<ol>
+	{% for s in linearsentences %}
+		<li>{{ s.isTranslated }} {{ s.getPlainText }}</li>
+	{% endfor %}
+	</ol>
+	</fieldset>
+
+	<fieldset>
+		<legend>Translated</legend>
+	<div>{{ translated_body|safe }}</div>
+	</fieldset>
+
+{% comment %}{% endcomment %}
 	<fieldset>
 		<legend>Segments</legend>
-	<table width="100%"><thead><th>Using lxml.etree and lxml.html</th>
-		<th width="50%">Using Lineardoc and SAX</th></thead>
+	<table width="100%">Using Lineardoc and SAX</th></thead>
 	<tbody><tr>
 		<td style="vertical-align:top">
 				{% for s, tokens in segments_tokens %}<p>{{ s|length }} {{ s }}</p>
@@ -154,12 +172,6 @@ label { font-size: small; }
 		    {% endfor %}</td>
 	</tr></tbody>
 	</table>
-	</fieldset>
-{% endcomment %}
-
-	<fieldset>
-		<legend>Translated</legend>
-	<div>{{ translated_body|safe }}</div>
 	</fieldset>
 	{% endif %}
 

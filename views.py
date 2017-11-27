@@ -1117,13 +1117,22 @@ def block(request, block_id):
         return HttpResponseRedirect('/block/%d/' % block.id)        
     var_dict['edit_form'] = BlockEditForm(initial={'language': block.language, 'no_translate': block.no_translate,})
     var_dict['sequencer_form'] = BlockSequencerForm(initial={'project_site': project_site_id, 'webpage': webpage_id, 'block_age': block_age, 'translation_state': translation_state, 'translation_languages': translation_languages, 'translation_age': translation_age, 'source_text_filter': source_text_filter, 'list_pages': list_pages, })
-    if request.GET.get('doc', ''):
+    if request.GET.get('dry', ''):
+        """
         var_dict['lineardoc'] = block.block_get_lineardoc()
-        """
         var_dict['segments_tokens'] = block.apply_tm(use_lineardoc=False)
-        """
         segments_tokens, translated_body = block.apply_tm(use_lineardoc=True)
-        var_dict['lineardoc_segments_tokens']  = segments_tokens
+        """
+        translated, n_invariants, n_substitutions, body, lineardoc, linearsentences, segments_tokens, n_translations, translated_sentences, translated_body = block.apply_tm(dry=True)
+        var_dict['translated']  = translated
+        var_dict['n_invariants']  = n_invariants
+        var_dict['n_substitutions']  = n_substitutions
+        var_dict['body']  = body
+        var_dict['lineardoc']  = lineardoc
+        var_dict['linearsentences']  = linearsentences
+        var_dict['segments_tokens']  = segments_tokens
+        var_dict['n_translations']  = n_translations
+        var_dict['translated_sentences']  = translated_sentences
         var_dict['translated_body']  = translated_body
     return render(request, 'block.html', var_dict)
 

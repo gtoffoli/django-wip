@@ -290,6 +290,12 @@ class TextBlock:
             lines.append(line)
         return '\n'.join(lines)
 
+    def hasCommonTag(self, name):
+        for tag in self.getCommonTags():
+            if tag['name'] == name:
+                return True
+        return False
+
     def getSentences(self, getBoundaries):
         """ added by Giovanni Toffoli
             Segment the text block into sub-blocks delimited by sentence boundaries

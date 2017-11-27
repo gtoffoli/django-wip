@@ -204,7 +204,8 @@ def replace_segment(html_text, segment, tx='auto'):
     # if text and not text.replace(segment, '', 1).strip(settings.DEFAULT_STRIPPED):
     if text and not text.replace(segment, '', 1).strip():
         element.text = ''
-        attrs={'tx':'', tx:''}
+        # attrs={'tx':'', tx:''}
+        attrs={'tx': tx }
         child = etree.Element('span', **attrs)
         element.insert(0, child)
         # return etree.tostring(element)

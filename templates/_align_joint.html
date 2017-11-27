@@ -83,14 +83,14 @@ function on_node_dragged(cellView, x, y) {
   // Find the first element below that is not a link nor the dragged element itself.
   var elementBelow = graph.get('cells').find(function(cell) {
     if (cell instanceof joint.dia.Link) return false; // Not interested in links.
-    if (cell.attr('nodetype') === 'source') return false; // Interested only to target nodes.
+    if (cell.attr('nodetype') === 'target') return false; // Interested only to source nodes.
     if (cell.getBBox().containsPoint(g.point(x, y))) return true;
     return false;
   });
 
   if (elementBelow) {
-    source_id = this_cell.id;
-    target_id = elementBelow.id;
+    target_id = this_cell.id;
+    source_id = elementBelow.id;
     graph.addCell(new joint.dia.Link({
       source: { id: source_id }, target: { id: target_id },
       attrs: {

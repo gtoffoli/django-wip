@@ -30,6 +30,7 @@ logger = logging.getLogger('wip')
 import os
 import json
 import time
+import copy
 import re, regex
 import difflib
 from collections import defaultdict
@@ -56,7 +57,7 @@ from django_diazo.models import Theme
 from wip.wip_nltk.tokenizers import NltkTokenizer
 from wip.wip_sd.sd_algorithm import SDAlgorithm
 from wip.lineardoc.Parser import Parse as LineardocParse
-from wip.lineardoc.TextBlock import mergeSentences
+from wip.lineardoc.TextBlock import TextBlock, mergeSentences
 from wip.lineardoc.Utils import addCommonTag
 from .vocabularies import Language, Subject, ApprovalStatus
 from .aligner import tokenize, best_alignment, aer
@@ -68,6 +69,10 @@ from .utils import normalize_string, replace_segment, string_checksum, text_to_l
 from .utils import is_invariant_word as is_base_invariant_word
 # import wip.srx_segmenter
 import wip.srx_segmenter as srx_segmenter
+
+def is_linearblock_translated(block):
+    return block.hasCommonTag('tx')
+TextBlock.isTranslated = is_linearblock_translated
 
 MYMEMORY = 1
 MATECAT = 2
@@ -741,7 +746,8 @@ class Proxy(models.Model):
                             end = m.end()
                             if end<(l_body-1) and body[end] in BOTH_QUOTES:
                                 continue          
-                            body = body[:start] + '<span tx auto>%s</span>' % translated_segment + body[end:]
+                            # body = body[:start] + '<span tx auto>%s</span>' % translated_segment + body[end:]
+                            body = body[:start] + '<span tx="auto">%s</span>' % translated_segment + body[end:]
                             replaced = True
                             n_substitutions += 1
                             break
@@ -1817,16 +1823,10 @@ class Block(node_factory('BlockEdge')):
             segmenter = self.site.make_segmenter()
         return get_segments(self.body, self.site, segmenter)
 
-    def block_get_lineardoc(self):
-        html = re.sub("(<!--(.*?)-->)", "", self.body, flags=re.MULTILINE)
-        html = normalize_string(html)
-        # html = re.sub("(<wbr(\b?)/>)", "", html)
-        return LineardocParse(html)
-
     def make_rangeMappings(self, target_text, source_matches, target_matches, alignment):
         links = split_alignment(alignment, return_links=True)
         links.sort(key=lambda x: (x[1], x[0]))
-        lefts = [link[0] for link in links]
+        # lefts = [link[0] for link in links]
         rights = [link[1] for link in links]
         rangeMappings = []
         previous_left = None
@@ -1856,14 +1856,22 @@ class Block(node_factory('BlockEdge')):
             previous_left = left
         return rangeMappings
 
-    def apply_tm(self, proxy=None, target_language=None, use_lineardoc=False, segmenter=None, source_tokenizer=None, target_tokenizer=None):
+    def apply_tm(self, body=None, proxy=None, target_language=None, use_lineardoc=False, segmenter=None, source_tokenizer=None, target_tokenizer=None, dry=False):
         target_language = target_language or Language.objects.get(code='en')
         site = self.site
         source_language = site.language
         if not segmenter:
             segmenter = site.make_segmenter()
         range_mappings = []
-        lineardoc = self.block_get_lineardoc()
+        if not body:
+            translated_block = self.get_last_translation(language=target_language)
+            if translated_block:
+                body = translated_block.body
+            else:
+                body = self.body
+        html = re.sub("(<!--(.*?)-->)", "", body, flags=re.MULTILINE)
+        html = normalize_string(html)
+        lineardoc = LineardocParse(html)
         linearblock = lineardoc.getFirstBlock()
         print ('--- apply_tm - linearblock:\n', linearblock.dump())
 
@@ -1886,7 +1894,7 @@ class Block(node_factory('BlockEdge')):
         site_invariants = text_to_list(site.invariant_words)
         segments_tokens = []
         n_invariants = 0
-        n_translated = 0
+        n_translations = 0
         n_substitutions = 0
         translated = True
         translated_sentences = []
@@ -1896,7 +1904,6 @@ class Block(node_factory('BlockEdge')):
                 pass
                 translated_sentence = None
             translated_sentence = None
-            replaced = False
             linearsentence = linearsentences[i_segment]
             segment = linearsentence.getPlainText() # .strip()
             segment = segment.strip().replace('  ', ' ')
@@ -1904,7 +1911,6 @@ class Block(node_factory('BlockEdge')):
             if not segment:
                 print ('--- empty:', i_segment, '"'+segment+'"')
                 translated_sentences.append(linearsentence)
-                replaced = True
                 continue
             print ('segment:', i_segment, '"'+segment+'"')
             source_matches = list(source_tokenizer.tokenize(segment))
@@ -1916,7 +1922,6 @@ class Block(node_factory('BlockEdge')):
                 n_invariants += 1
                 print ('--- invariant_segment:', i_segment, '"'+segment+'"')
                 translated_sentences.append(linearsentence)
-                replaced = True
                 continue
             # second, look for a translation
             translations = Translation.objects.filter(language=target_language, segment__site=site, segment__text=segment).distinct().order_by('-translation_type', 'user_role__role_type', 'user_role__level')
@@ -1928,25 +1933,28 @@ class Block(node_factory('BlockEdge')):
             translated_segment = translation.text
             # try a simple text substitution
             textChunks = linearsentence.textChunks
+            replaced = False
             for j in range(len(textChunks)):
                 textChunk = textChunks[j]
                 if len(textChunk.text) and textChunk.text==segment:
                     # linearsentence = linearsentence.replaceChunkText(j, translated_segment)
-                    linearsentence.textChunks[j].text = translated_segment
-                    linearsentence.textChunks = addCommonTag (
-                        linearsentence.textChunks, {
+                    translated_sentence = copy.deepcopy(linearsentence)
+                    translated_sentence.textChunks[j].text = translated_segment
+                    translated_sentence.textChunks = addCommonTag (
+                        translated_sentence.textChunks, {
                             'name': 'span',
-                            'attributes': { 'tx': '', 'auto': '' }})
-                    translated_sentences.append(linearsentence)
+                            'attributes': { 'tx': 'auto' }})
+                    translated_sentences.append(translated_sentence)
+                    n_substitutions += 1
+                    print ('--- simple substitution:', i_segment)
                     replaced = True
                     break
             if replaced:
-                print ('--- simple substitution:', i_segment)
                 continue
             # try with alignment and lineardoc
             alignment = translation.alignment 
             alignment = alignment and normalized_alignment(alignment)
-            n_translated += 1
+            n_translations += 1
             if alignment and translation.alignment_type==MANUAL:
                 target_matches = list(target_tokenizer.tokenize(translated_segment))
                 range_mappings = self.make_rangeMappings(translated_segment, source_matches, target_matches, alignment)
@@ -1955,10 +1963,10 @@ class Block(node_factory('BlockEdge')):
                 translated_sentence.textChunks = addCommonTag (
                     translated_sentence.textChunks, {
                         'name': 'span',
-                        'attributes': { 'tx': '', 'auto': '' }})
+                        'attributes': { 'tx': 'auto' }})
                 # print ('--- translated_sentence', i_segment, translated_sentence.getPlainText())
                 translated_sentences.append(translated_sentence)
-                replaced = True
+                n_substitutions += 1
                 print ('--- substitution using alignment:', i_segment)
                 continue
 
@@ -1970,8 +1978,11 @@ class Block(node_factory('BlockEdge')):
         translated_block = mergeSentences(translated_sentences)
         translated_block = translated_block.simplify()
         print ('--- apply_tm - translated block:\n', translated_block.dump())
-        body = translated_block.getHtml()
-        return segments_tokens, body
+        translated_body = translated_block.getHtml()
+        if dry:
+            return translated, n_invariants, n_substitutions, body, lineardoc, linearsentences, segments_tokens, n_translations, translated_sentences, translated_body
+        else:
+            return translated, n_invariants, n_substitutions
 
     def apply_invariants(self, segmenter):
         if self.no_translate:
@@ -2514,7 +2525,6 @@ class Translation(models.Model):
     alignment_type = models.IntegerField(choices=TRANSLATION_TYPE_CHOICES, default=0, verbose_name='alignment type')
     is_locked = models.BooleanField('locked', default=False)
     user_role = models.ForeignKey(UserRole, verbose_name='user role', blank=True, null=True)
-    # timestamp = ModificationDateTimeField()
     timestamp = models.DateTimeField()
 
     def get_navigation(self, order_by=TEXT_ASC, alignment_type=ANY):

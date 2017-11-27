@@ -15,7 +15,8 @@ from django.conf import settings
 from django.shortcuts import get_object_or_404
 from django.contrib.auth.models import User
 # from settings import DATA_ROOT, RESOURCES_ROOT, SITES_ROOT
-from .models import Site, Webpage, PageVersion, Block, String, Proxy, Txu, TxuSubject
+from .models import Site, Proxy, Webpage, PageVersion, Block, TranslatedBlock
+from .models import String, Txu, TxuSubject
 from .models import UserRole, Segment, Translation, SEGMENT, FRAGMENT
 from .models import OWNER, MANAGER, LINGUIST, REVISOR, TRANSLATOR, GUEST
 from .models import MANUAL
@@ -375,4 +376,22 @@ def fix_segment_translations(site, target):
                         translation.save()
                         j += 1
     return (j, 'translations added')
+
+def fix_translated_blocks():
+    translated_blocks = TranslatedBlock.objects.all()
+    n_auto = n_man = 0
+    for tb in translated_blocks:
+        body = tb.body
+        c_auto = body.count('tx auto')
+        if c_auto:
+            body = body.replace('tx auto', 'tx="auto"')
+            n_auto += c_auto
+        c_man = body.count('tx man')
+        if c_man:
+            body = body.replace('tx man', 'tx="man"')
+            n_man += c_man
+        if c_auto or c_man:
+            tb.body = body
+            tb.save()
+    return n_auto, n_man
 
