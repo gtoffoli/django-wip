@@ -613,7 +613,8 @@ def proxy(request, proxy_slug):
                 response['Content-Disposition'] = 'attachment; filename="%s"' % filename
                 return response
             elif apply_tm:
-                n_ready, n_translated, n_partially = proxy.apply_translation_memory()
+                # n_ready, n_translated, n_partially = proxy.apply_translation_memory()
+                n_ready, n_translated, n_partially = proxy.apply_tm()
                 messages.add_message(request, messages.INFO, 'TM applied to %d blocks: %d fully translated, %d partially translated.' % (n_ready, n_translated, n_partially))
             elif propagate_up:
                 # print ('propagate_up')
@@ -1123,8 +1124,8 @@ def block(request, block_id):
         var_dict['segments_tokens'] = block.apply_tm(use_lineardoc=False)
         segments_tokens, translated_body = block.apply_tm(use_lineardoc=True)
         """
-        translated, n_invariants, n_substitutions, body, lineardoc, linearsentences, segments_tokens, n_translations, translated_sentences, translated_body = block.apply_tm(dry=True)
-        var_dict['translated']  = translated
+        state, n_invariants, n_substitutions, body, lineardoc, linearsentences, segments_tokens, n_translations, translated_sentences, translated_body = block.apply_tm(dry=True)
+        var_dict['state']  = state
         var_dict['n_invariants']  = n_invariants
         var_dict['n_substitutions']  = n_substitutions
         var_dict['body']  = body

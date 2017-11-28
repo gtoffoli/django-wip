@@ -186,11 +186,3 @@ class Doc:
     def getPlainText(self):
         """ added by Giovanni Toffoli - Return plain text representation of the Lineardoc """
         return ''.join([item['item'].getPlainText() for item in self.items if item['type']=='textblock'])
-
-    def getFirstBlock(self):
-        """ added by Giovanni Toffoli """
-        for item in self.items:
-            if item['type'] == 'textblock':
-                return item['item']
-        return None
-

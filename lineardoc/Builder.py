@@ -113,7 +113,7 @@ class Builder:
         if not self.textChunks:
             return
         for textChunk in self.textChunks:
-            if textChunk.inlineContent or re.match('\S', textChunk.text):
+            if textChunk.inlineContent or re.search('\S', textChunk.text):
                 whitespaceOnly = False
                 whitespace = None
                 break;

@@ -56,9 +56,10 @@ from django_diazo.models import Theme
 # from django_diazo.middleware import DjangoDiazoMiddleware
 from wip.wip_nltk.tokenizers import NltkTokenizer
 from wip.wip_sd.sd_algorithm import SDAlgorithm
-from wip.lineardoc.Parser import Parse as LineardocParse
+from wip.lineardoc.Doc import Doc
+from wip.lineardoc.Parser import LineardocParse
 from wip.lineardoc.TextBlock import TextBlock, mergeSentences
-from wip.lineardoc.Utils import addCommonTag
+from wip.lineardoc.Utils import addCommonTag, getOpenTagHtml, getCloseTagHtml
 from .vocabularies import Language, Subject, ApprovalStatus
 from .aligner import tokenize, best_alignment, aer
 
@@ -71,7 +72,7 @@ from .utils import is_invariant_word as is_base_invariant_word
 import wip.srx_segmenter as srx_segmenter
 
 def is_linearblock_translated(block):
-    return block.hasCommonTag('tx')
+    return block.hasCommonTag('span', attrs=['tx'])
 TextBlock.isTranslated = is_linearblock_translated
 
 MYMEMORY = 1
@@ -780,6 +781,28 @@ class Proxy(models.Model):
                 n_partially += 1
                 translated_block.save()
                 logger.info('block: %d , new, PARTIALLY' % block.id)
+        return n_ready, n_translated, n_partially
+
+    def apply_tm(self):
+        site = self.site
+        blocks_ready = self.blocks_ready()
+        n_ready = len(blocks_ready)
+        n_translated = 0
+        n_partially = 0
+        if not n_ready:
+            return n_ready, n_translated, n_partially
+        target_language = self.language
+        segmenter = self.site.make_segmenter()
+        source_tokenizer = site.make_tokenizer(return_matches=True)
+        # target_tokenizer = self.make_tokenizer(return_matches=True)
+        target_tokenizer = source_tokenizer
+        for block in blocks_ready:
+            state, n_invariants, n_substitutions = \
+                block.apply_tm(target_language=target_language, segmenter=segmenter, source_tokenizer=source_tokenizer, target_tokenizer=target_tokenizer)
+            if state == TRANSLATED:
+                n_translated += 1
+            elif state == PARTIALLY:
+                n_partially += 1
         return n_ready, n_translated, n_partially
 
     def translate_page_content(self, content):
@@ -1856,12 +1879,13 @@ class Block(node_factory('BlockEdge')):
             previous_left = left
         return rangeMappings
 
-    def apply_tm(self, body=None, proxy=None, target_language=None, use_lineardoc=False, segmenter=None, source_tokenizer=None, target_tokenizer=None, dry=False):
+    def apply_tm(self, body=None, proxy=None, target_language=None, segmenter=None, source_tokenizer=None, target_tokenizer=None, dry=False):
         target_language = target_language or Language.objects.get(code='en')
         site = self.site
         source_language = site.language
         if not segmenter:
             segmenter = site.make_segmenter()
+        translated_block = None
         range_mappings = []
         if not body:
             translated_block = self.get_last_translation(language=target_language)
@@ -1872,8 +1896,20 @@ class Block(node_factory('BlockEdge')):
         html = re.sub("(<!--(.*?)-->)", "", body, flags=re.MULTILINE)
         html = normalize_string(html)
         lineardoc = LineardocParse(html)
-        linearblock = lineardoc.getFirstBlock()
-        print ('--- apply_tm - linearblock:\n', linearblock.dump())
+        print ('--- apply_tm:', len(lineardoc.items), 'blocks - wrapperTag:', lineardoc.wrapperTag)
+        print (lineardoc.items)
+        try:
+            assert (len(lineardoc.items) == 3)
+            assert (lineardoc.items[0].get('type', '') == 'open')
+            assert (lineardoc.items[1].get('type', '') == 'textblock')
+            assert (lineardoc.items[2].get('type', '') == 'close')
+        except:
+            return 0, 0, 0
+        opentag = lineardoc.items[0]['item']
+        linearblock = lineardoc.items[1]['item']
+        closetag = lineardoc.items[2]['item']
+        try: print ('--- apply_tm - linearblock:\n', linearblock.dump())
+        except: pass
 
         def getBoundaries(text):
             segments, boundaries, whitespaces = segmenter.extract(text)
@@ -1882,7 +1918,9 @@ class Block(node_factory('BlockEdge')):
         linearsentences = linearblock.getSentences(getBoundaries)
         n_segments = len(linearsentences)
         print ('--- apply_tm - linearblock sentences:')
-        for ls in linearsentences: print (ls.dump())
+        for ls in linearsentences: 
+            try: print (ls.dump())
+            except: pass
         return_matches = True
         if not source_tokenizer:
             source_tokenizer = site.make_tokenizer(return_matches=return_matches)
@@ -1912,7 +1950,8 @@ class Block(node_factory('BlockEdge')):
                 print ('--- empty:', i_segment, '"'+segment+'"')
                 translated_sentences.append(linearsentence)
                 continue
-            print ('segment:', i_segment, '"'+segment+'"')
+            try: print ('segment:', i_segment, '"'+segment+'"')
+            except: pass
             source_matches = list(source_tokenizer.tokenize(segment))
             tokens = [segment[m.span()[0]:m.span()[1]] for m in source_matches]
             segments_tokens.append([segment, tokens])
@@ -1920,7 +1959,8 @@ class Block(node_factory('BlockEdge')):
             non_invariant_tokens = [t for t in tokens if not is_invariant_word(t, site_invariants=site_invariants)]
             if not non_invariant_tokens or Segment.objects.filter(is_invariant=True, language=source_language, site=site, text=segment):
                 n_invariants += 1
-                print ('--- invariant_segment:', i_segment, '"'+segment+'"')
+                try: print ('--- invariant_segment:', i_segment, '"'+segment+'"')
+                except: pass
                 translated_sentences.append(linearsentence)
                 continue
             # second, look for a translation
@@ -1928,6 +1968,7 @@ class Block(node_factory('BlockEdge')):
             print ('# translations:', len(translations))
             if not translations:
                 translated_sentences.append(linearsentence)
+                translated = False
                 continue
             translation = translations[0]
             translated_segment = translation.text
@@ -1956,6 +1997,7 @@ class Block(node_factory('BlockEdge')):
             alignment = alignment and normalized_alignment(alignment)
             n_translations += 1
             if alignment and translation.alignment_type==MANUAL:
+                print (alignment, normalized_alignment(alignment))
                 target_matches = list(target_tokenizer.tokenize(translated_segment))
                 range_mappings = self.make_rangeMappings(translated_segment, source_matches, target_matches, alignment)
                 # print ('--- range_mappings', range_mappings)
@@ -1974,15 +2016,40 @@ class Block(node_factory('BlockEdge')):
             print ('--- original sentence:', i_segment, linearsentence)
             translated = False
         print ('--- apply_tm - translated sentences:')
-        for ts in translated_sentences: print (ts.dump())
-        translated_block = mergeSentences(translated_sentences)
-        translated_block = translated_block.simplify()
-        print ('--- apply_tm - translated block:\n', translated_block.dump())
-        translated_body = translated_block.getHtml()
+        for ts in translated_sentences:
+            try: print (ts.dump())
+            except: pass
+        translated_linearblock = mergeSentences(translated_sentences)
+        translated_linearblock = translated_linearblock.simplify()
+        try: print ('--- apply_tm - translated block:\n', translated_linearblock.dump())
+        except: pass
+        # translated_body = translated_linearblock.getHtml()
+        translated_body = getOpenTagHtml(opentag) + translated_linearblock.getHtml() + getCloseTagHtml(closetag)
+        try: print ('--- apply_tm - translated_body block:\n', translated_body)
+        except: pass
+        state = 0
+        if not translated_block and translated and n_invariants and not n_substitutions:
+            self.state = INVARIANT
+            self.save()
+        elif n_substitutions or translated:
+            previous_state = translated_block and translated_block.state or 0
+            if not translated_block:
+                translated_block = self.clone(target_language)
+            if translated:
+                state = TRANSLATED
+                logger.info('block: %d , %s TRANSLATED' % (self.id, not previous_state and 'new' or ''))
+            else:
+                state = PARTIALLY
+                logger.info('block: %d , %s PARTIALLY' % (self.id, not previous_state and 'new' or ''))
+            translated_block.state = state
+            if n_substitutions:
+                translated_block.body = translated_body
+            if not dry:
+                translated_block.save()
         if dry:
-            return translated, n_invariants, n_substitutions, body, lineardoc, linearsentences, segments_tokens, n_translations, translated_sentences, translated_body
+            return state, n_invariants, n_substitutions, body, lineardoc, linearsentences, segments_tokens, n_translations, translated_sentences, translated_body
         else:
-            return translated, n_invariants, n_substitutions
+            return state, n_invariants, n_substitutions
 
     def apply_invariants(self, segmenter):
         if self.no_translate:

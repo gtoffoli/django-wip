@@ -23,6 +23,7 @@ blockTags = [
     # HTML5 sectioning content
     'article', 'aside', 'body', 'nav', 'section', 'footer', 'header', 'figure',
     'figcaption', 'fieldset', 'details', 'blockquote',
+    'address', # added by Giovanni Toffoli
     # other
     'hr', 'button', 'canvas', 'center', 'col', 'colgroup', 'embed',
     'map', 'object', 'pre', 'progress', 'video',
@@ -31,27 +32,33 @@ blockTags = [
 ]
 blockTags_dict = dict([(tagName, True,) for tagName in blockTags])
 
-from xml.sax import parseString, ContentHandler
+# from xml.sax import parseString, ContentHandler
+from lxml import html
 from .Contextualizer import Contextualizer
 from .Builder import Builder
 from .Utils import isSegment, isReference, isInlineEmptyTag
 
-class LineardocSAXHandler(ContentHandler):
+class LineardocParser():
+    """ Parses an html text with a DOM parser
+        and generates a Lineardoc by emulating a SAX parser """
 
-    def __init__(self, builder, options, contextualizer):
-        ContentHandler.__init__(self)
-        self.builder = builder
-        self.options = options
+    def __init__(self, contextualizer, options, html_text):
+        parent = None
+        wrapperTag = None
+        self.builder = Builder(parent, wrapperTag)
         self.contextualizer = contextualizer
+        self.options = options
+        self.doc = html.fromstring(html_text)
+        # remove XML comments
+        comments = self.doc.xpath('//comment()')
+        for c in comments:
+            p = c.getparent()
+            if p is not None:
+                p.remove(c)
+        self.process(self.doc)
 
-    def startDocument(self):
-        pass
-
-    def startElement(self, tagName, attrs):
+    def onopentag(self, tagName, attributes):
         """ see funcion onopentag in Javascript version """
-        attributes = {}
-        for name in attrs.getNames():
-            attributes[name] = attrs.getValue(name)
         tag = { 'name': tagName,
                 'attributes': attributes }
         if self.options.get('isolateSegments', None) and isSegment(tag):
@@ -71,9 +78,8 @@ class LineardocSAXHandler(ContentHandler):
         else:
             self.builder.pushBlockTag(tag)
         self.contextualizer.onOpenTag(tag)
- 
-    # def onclosetag(self, tagName):
-    def endElement(self, tagName):
+
+    def onclosetag(self, tagName):
         """ see funcion onclosetag in Javascript version """
         self.contextualizer.onCloseTag()
         isAnn = self.isInlineAnnotationTag(tagName)
@@ -99,20 +105,30 @@ class LineardocSAXHandler(ContentHandler):
             raise
 
     def characters(self, text):
-        """ see funcion ontext in Javascript version """
+        """ see function ontext in Javascript version """
         self.builder.addTextChunk(text, self.contextualizer.canSegment())
 
     def isInlineAnnotationTag(self, tagName):
         """ Determine whether a tag is an inline annotation """
         return not blockTags_dict.get(tagName, False)
 
-def Parse(html):
-    """ Parse an html text and generate a Lineardoc """
-    parent = None
-    wrapperTag = None
-    builder = Builder(parent, wrapperTag)
-    options = {}
+    def process(self, el):
+        """ Visit DOM tree recursively and generate SAX events """
+        tagName = el.tag
+        attrs = el.attrib
+        self.onopentag(tagName, attrs)
+        if el.text:
+            self.characters(el.text)
+        for child in el.iterchildren():
+            self.process(child)
+        self.onclosetag(tagName)
+        if el.tail:
+            self.characters(el.tail)
+
+def LineardocParse(html):
+    """ Parses an html text with a DOM parser
+        and generates a Lineardoc by emulating a SAX parser """
     contextualizer = Contextualizer()
-    handler = LineardocSAXHandler(builder, options, contextualizer)
-    parseString(html, handler)
-    return builder.doc
+    options = {}
+    handler = LineardocParser(contextualizer, options, html)
+    return handler.builder.doc

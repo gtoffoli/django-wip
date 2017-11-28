@@ -139,28 +139,25 @@ label { font-size: small; }
 	</fieldset>
 
 	<fieldset>
-		<legend>Translated</legend>
-	<div>{{ translated_body|safe }}</div>
-	</fieldset>
-
-	<fieldset>
 		<legend>Sentences</legend>
 	<ol>
-	{% for s in linearsentences %}
-		<li>{{ s.isTranslated }} {{ s.getPlainText }}</li>
-	{% endfor %}
+	{% for s in linearsentences %}{% with text=s.getPlainText %}
+		{% if text %}
+		<li {% if s.isTranslated %}style="color: DarkGray;"{% endif %}>{{ s.getPlainText }}</li>
+		{% endif %}
+	{% endwith %}{% endfor %}
 	</ol>
 	</fieldset>
 
 	<fieldset>
-		<legend>Translated</legend>
+		<legend>{% if state == 1 %}Partially translated{% endif %}{% if state == 2 %}Translated{% endif %}</legend>
 	<div>{{ translated_body|safe }}</div>
 	</fieldset>
 
 {% comment %}{% endcomment %}
 	<fieldset>
-		<legend>Segments</legend>
-	<table width="100%">Using Lineardoc and SAX</th></thead>
+		<legend>Segments and tokens</legend>
+	<table width="100%"><thead><th>Using Lineardoc and SAX</th></thead>
 	<tbody><tr>
 		<td style="vertical-align:top">
 				{% for s, tokens in segments_tokens %}<p>{{ s|length }} {{ s }}</p>

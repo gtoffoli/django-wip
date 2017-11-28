@@ -290,9 +290,13 @@ class TextBlock:
             lines.append(line)
         return '\n'.join(lines)
 
-    def hasCommonTag(self, name):
+    def hasCommonTag(self, name, attrs=[]):
         for tag in self.getCommonTags():
             if tag['name'] == name:
+                attributes = tag.get('attributes', [])
+                for attr in attrs:
+                    if not attr in attributes:
+                        return False
                 return True
         return False
 
@@ -305,8 +309,8 @@ class TextBlock:
             return self.textChunks
         boundaries = boundaries[:]
         boundaries.sort()
-        # add an extra boundary to avoid a test when incrementing boundaryPtr
-        boundaries.append(self.offsets[-1]['start']+self.offsets[-1]['length'])
+        # add an extra boundary as top
+        boundaries.append(10000)
         boundaryPtr = 0
         boundary = boundaries[boundaryPtr]
 
@@ -339,8 +343,8 @@ class TextBlock:
                     break
                 elif relOffset >= chunkLength:
                     if text == '\n':
+                        offset += 1
                         if i>0 and textChunks[i-1].inlineContent:
-                            offset += 1
                             if offset == boundary:
                                 flushChunks()
                             break
@@ -348,17 +352,22 @@ class TextBlock:
                             space = TextChunk(' ', textChunk.tags[:], None)
                             currentTextChunks.append(space)
                     else:
-                        if not currentTextChunks and len(text) > 1 and text.startswith(' '):
-                            space = TextChunk(' ', textChunk.tags[:], None)
-                            currentTextChunks.append(space)
-                            flushChunks()
-                            textChunk.text = textChunk.text[1:]
+                        # put apart leading spaces of a text chunk just after a boundary or a line-break
+                        if not currentTextChunks:
+                            spacesMatch = re.match('\s+', text)
+                            if spacesMatch:
+                                spaces = text[spacesMatch.start():spacesMatch.end()]
+                                nSpaces = len(spaces)
+                                if nSpaces < len(text):
+                                    currentTextChunks.append(TextChunk(spaces, textChunk.tags[:], None))
+                                    flushChunks()
+                                    textChunk.text = textChunk.text[nSpaces:]
                         currentTextChunks.append(textChunk)
                     offset += chunkLength
                     if offset == boundary:
                         flushChunks()
                     break
-                else:
+                else: # relOffset < chunkLength
                     leftPart = TextChunk(textChunk.text[:relOffset], textChunk.tags[:], None)
                     rightPart = TextChunk(textChunk.text[relOffset:], textChunk.tags[:], textChunk.inlineContent)
                     currentTextChunks.append(leftPart)
