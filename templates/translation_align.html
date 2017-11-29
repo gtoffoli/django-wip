@@ -34,14 +34,14 @@ th, td { text-align: left; vertical-align: top; }
 {% block head_title %}Segment: {{ segment.text }}{% endblock %}
 
 {% block title-page %}
-<span style="color: black; font-size: smaller;">Translation: </span>
+<span style="color: black; font-size: smaller;">Align translation: </span>
 <span class="{{ target_language.code }}" style="font-size: smaller;">{{ translation.text|truncatechars:64 }}</span>
 {% endblock %}
 
 {% block content-page %}
 	<fieldset>
 	<legend>Segment - 
-    <label>id</label><a href="/segment/{{ segment.id }}/">{{ segment.id }}</a> &nbsp;
+    <label>id</label><a href="/segment/{{ segment.id }}/">{{ segment.id }} <i class="fa fa-eye"></i></a> &nbsp;
     <span class="{{ source_language.code }}">{{ source_language.name }}</span> &nbsp;
     {% if segment.site %}<label>site</label>{{ segment.site.name }} &nbsp;{% endif %}
 	</legend>
@@ -50,7 +50,7 @@ th, td { text-align: left; vertical-align: top; }
 
 	<fieldset>
 	<legend>Translation - 
-	<label>id</label>{{ translation.id }} &nbsp;
+	<label>id</label><a href="/segment_translate/{{ segment.id }}/{{ target_language.code }}/">{{ translation.id }} <i class="fa fa-language"></i></a> &nbsp;
     <span class="{{ target_language.code }}">{{ target_language.name }}</span> &nbsp;
 	{% if translation.user_role %} <label>by</label>{{ translation.user_role }}{% endif %}
 	</legend>
@@ -64,8 +64,8 @@ th, td { text-align: left; vertical-align: top; }
      <div>
 		{% comment %}<input type="submit" name="apply_filter" class="btn btn-sm" value="Apply filter below"> &nbsp;&nbsp;{% endcomment %}
 		{{ n }} translations found{% if n %}:{% endif %}
-		{% if previous %}<input type="submit" name="goto-{{ previous.id }}" class="btn btn-sm" value="Previous">{% endif %}
-		{% if next %}<input type="submit" name="goto-{{ next.id }}" class="btn btn-sm" value="Next">{% endif %}
+		{% if previous %}<input type="submit" name="goto-{{ previous.id }}" class="btn btn-sm btn-default" value="Previous">{% endif %}
+		{% if next %}<input type="submit" name="goto-{{ next.id }}" class="btn btn-sm btn-default" value="Next">{% endif %}
     </div>
     <table><thead>
     	<tr>{% for field in sequencer_form.visible_fields %}<th>{{ field.label_tag }}</th>{% endfor %}</tr>
@@ -89,9 +89,9 @@ th, td { text-align: left; vertical-align: top; }
 
 	{{ translation_align_form.alignment }}
 	
-	<div><input type="submit" name="save_draft_alignment" class="btn btn-sm" onclick="document.getElementById('id_alignment').value='-'; this.form.submit();" value="Clear links">
+	<div><input type="submit" name="save_draft_alignment" class="btn btn-default btn-sm" onclick="document.getElementById('id_alignment').value='-'; this.form.submit();" value="Clear links">
   &nbsp; <input type="submit" name="save_draft_alignment" class="btn btn-default btn-sm" onclick="document.getElementById('id_alignment').value=get_alignment(); this.form.submit();" value="Save draft alignment">
-  &nbsp; <input type="submit" name="save_confirmed_alignment" class="btn btn-sm" onclick="document.getElementById('id_alignment').value=get_alignment(); this.form.submit();" value="Save confirmed alignment"></div>
+  &nbsp; <input type="submit" name="save_confirmed_alignment" class="btn btn-default btn-sm" onclick="document.getElementById('id_alignment').value=get_alignment(); this.form.submit();" value="Save confirmed alignment"></div>
  
     <div><label>Compute alignment</label> {{ translation_align_form.compute_alignment }}</div>
 	</fieldset>

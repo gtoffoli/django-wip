@@ -6,7 +6,7 @@
 <style>
 .it { color: LimeGreen; }
 .en { color: #FF0088; }
-.es { color: OrangeRed; }
+.es { color: Orange; }
 .fr { color: blue; }   
 </style>
 {% endblock %}
@@ -97,12 +97,12 @@
 			    {% if target_translations %}
                     {% for translation in target_translations %}
 				  <tr>
-				  <td style="vertical-align:top;"><a href="/translation_align/{{ translation.id }}/" class="{{ target_language.code }}">{{ target_language.code }}</a></td>
+				  <td style="vertical-align: top;"><a href="/translation_align/{{ translation.id }}/" class="{{ target_language.code }}">{{ target_language.code|upper }}</a></td>
 				  <td>
                         	<input type="hidden" name="translation-{{ translation.id }}" id="translation-{{ translation.id }}" value="{{ translation.id }}">
                         	<textarea class="form-control custom-control" name="text-{{ translation.id }}" id="text-{{ translation.id }}" style="width:100%">{{ translation.text }}</textarea>
 					    {% if show_alignments and translation.alignment %}
-							  <br />{{ translation.alignment }}
+							  <br /><small>{{ translation.alignment }}</small>
 			            {% endif %}
                   </td>
                   <td class="text-center" style="vertical-align:top;">
@@ -114,7 +114,7 @@
                     {% endfor %}
   			    {% else %}
 				  <tr>
-				  <td></td>
+				  <td><a href="/segment_translate/{{ segment.id }}/{{ target_language.code }}/" title="translate this segment"><i class="fa fa-language font07em" style="background-color: white; color: blue; border: none;"></i></a></td>
 				  <td>
                         <textarea class="form-control custom-control" name="text-{{ segment.id }}" id="text-{{ segment.id }}" style="width:100%"></textarea>
 				  </td>
@@ -132,7 +132,7 @@
               {% for other_language in other_languages %}
                 {% for translation in translations|lookup:other_language.code %}
 				  <tr>
-                		<td style="font-size: smaller; vertical-align:top;"><a href="/translation_align/{{ translation.id }}/"  class="{{ other_language.code }}">{{ other_language.code }}</a></td>
+                		<td style="font-size: smaller; vertical-align: middle;"><a href="/translation_align/{{ translation.id }}/"  class="{{ other_language.code }}">{{ other_language.code|upper }}</a></td>
 						<td style="font-size: smaller;">{{ translation.text }}</td>
 						<td></td>
 				  <tr>

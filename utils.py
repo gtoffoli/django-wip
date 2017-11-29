@@ -75,13 +75,16 @@ def text_from_html(string):
 def split_strip(s):
     return " ".join(s.split())
 
+def merge_spaces(s):
+    """ replace multiple contiguous spaces with a single space """
+    return re.sub('\s\s+', ' ', s)
+
 """
 http://stackoverflow.com/questions/4624062/get-all-text-inside-a-tag-in-lxml
 http://stackoverflow.com/questions/4770191/lxml-etree-element-text-doesnt-return-the-entire-text-from-an-element
 http://stackoverflow.com/questions/26304626/lxml-how-to-get-xpath-of-htmlelement
 """
 def strings_from_block(block, tree=None, exclude_xpaths=[]):
-    children = block.getchildren()
     children = block.getchildren()
     if children:
         yield block.text
@@ -99,16 +102,21 @@ def strings_from_block(block, tree=None, exclude_xpaths=[]):
                 yield el
     else:
         content = block.text_content()
+        print ('"{}"'.format(content))
         yield content
+    """
     if block.tag in settings.BLOCK_TAGS:
         yield '\n'
+    """
+    print ('"{}"'.format(block.tail))
     yield block.tail
 
 def strings_from_html(string, fragment=False, exclude_xpaths=[], exclude_tx=False):
+    strings = []
     try:
         doc = html.fromstring(string)
     except:
-        return
+        return []
     comments = doc.xpath('//comment()')
     for c in comments:
         p = c.getparent()
@@ -120,9 +128,8 @@ def strings_from_html(string, fragment=False, exclude_xpaths=[], exclude_tx=Fals
     else:
         tree = doc.getroottree()
         body = doc.find('body')
-    # if not body:
     if body is None:
-        return
+        return []
     for tag in settings.TO_DROP_TAGS:
         els = body.findall(tag)
         for el in els:
@@ -134,15 +141,25 @@ def strings_from_html(string, fragment=False, exclude_xpaths=[], exclude_tx=Fals
     ls = []
     for s in strings_from_block(body, tree=tree, exclude_xpaths=exclude_xpaths):
         if s:
+            """
             if s == '\n':
                 if ls:
-                    yield ' '.join(ls)
+                    # yield ' '.join(ls)
+                    yield ''.join(ls)
                 ls = []
             s = split_strip(s)
+            """
+            if s == '\n':
+                if ls:
+                    strings.append(merge_spaces(''.join(ls)))
+                    ls = []
+                s = ' '
             if s:
-                ls.append(s)
+                ls.append(merge_spaces(s))
     if ls:
-        yield ' '.join(ls)
+        # yield ' '.join(ls)
+        strings.append(merge_spaces(''.join(ls)))
+    return strings
 
 def elements_from_element(element):
     """ returns the in block and, recursively, the child blocks, when
