@@ -172,7 +172,10 @@ LOGGING = {
     'filters': {
         'require_debug_false': {
             '()': 'django.utils.log.RequireDebugFalse'
-        }
+        },
+        'require_debug_true': {
+            '()': 'django.utils.log.RequireDebugTrue'
+        },
     },
     'formatters': {
         'verbose': {
@@ -184,6 +187,7 @@ LOGGING = {
     },
     'handlers': {
         'console': {
+            'filters': ['require_debug_true'],
             'class': 'logging.StreamHandler',
         },
         'mail_admins': {
@@ -227,7 +231,7 @@ LOGGING = {
         'wip': {
             'handlers': ['wip'],
             'level': 'INFO',
-            'propagate': True,
+            'propagate': False,
         },
     },
 }

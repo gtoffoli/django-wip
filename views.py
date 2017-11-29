@@ -1146,7 +1146,7 @@ def block_translate(request, block_id, target_code):
     target_language = get_object_or_404(Language, code=target_code)
     BlockSequencerForm.base_fields['translation_languages'].queryset = Language.objects.filter(code__in=proxy_codes)
     save_block = apply_filter = goto = extract = '' 
-    create = modify = ''
+    create = modify = delete = ''
     translated_blocks = TranslatedBlock.objects.filter(block=block, language=target_language).order_by('-modified')
     translated_block = translated_blocks.count() and translated_blocks[0] or None
     if translated_block:
@@ -1172,7 +1172,9 @@ def block_translate(request, block_id, target_code):
                     create = key.split('-')[1]
                 elif key.startswith('modify-'):
                     modify = key.split('-')[1]
-        apply_filter = not (save_block or segment or string or extract or goto or create or modify)
+                elif key.startswith('delete-'):
+                    delete = key.split('-')[1]
+        apply_filter = not (save_block or segment or string or extract or goto or create or modify or delete)
         if save_block:
             form = BlockEditForm(post)
             if form.is_valid():
@@ -1183,6 +1185,7 @@ def block_translate(request, block_id, target_code):
                 block.no_translate = no_translate
                 block.save()
         elif create:
+            """
             translated_block = TranslatedBlock(block=block, language=Language.objects.get(code=create), state=PARTIALLY, editor=request.user)
             translated_block.body = post.get('translation-%s' % create)
             # print 'create: ', create, translation.body
@@ -1191,6 +1194,10 @@ def block_translate(request, block_id, target_code):
             if not segments:
                 translated_block.state=TRANSLATED
                 translated_block.save()
+            """
+            block.apply_tm()
+            translated_blocks = TranslatedBlock.objects.filter(block=block, language=Language.objects.get(code=create)).order_by('-modified')
+            translated_block = translated_blocks.count() and translated_blocks[0] or None
         elif modify:
             translated_block = TranslatedBlock.objects.filter(block=block, language=Language.objects.get(code=modify)).order_by('-modified')[0]
             translated_block.body = post.get('translation-%s' % modify)
@@ -1200,6 +1207,10 @@ def block_translate(request, block_id, target_code):
             if not segments:
                 translated_block.state=TRANSLATED
                 translated_block.save()
+        elif delete:
+            translated_block = TranslatedBlock.objects.filter(block=block, language=Language.objects.get(code=delete)).order_by('-modified')[0]
+            translated_block.delete()
+            translated_block = None
         elif (apply_filter or goto):
             form = BlockSequencerForm(post)
             if form.is_valid():
@@ -1226,7 +1237,7 @@ def block_translate(request, block_id, target_code):
             segment_string = get_or_add_segment(request, string, source_language, site=block.site, add=True)
             # return HttpResponseRedirect('/segment_translate/%d/%s/' % (segment_string.id, proxy_codes[0]))
             return HttpResponseRedirect('/segment_translate/%d/%s/' % (segment_string.id, target_code))
-    if (not post) or save_block or create or modify or extract or segment or string:
+    if (not post) or save_block or create or modify or delete or extract or segment or string:
         sequencer_context = request.session.get('sequencer_context', {})
         if sequencer_context:
             project_site_id = sequencer_context.get('project_site_id', None)

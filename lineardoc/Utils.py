@@ -3,6 +3,9 @@
 # converted from the LinearDoc javascript library of the Wikimedia Content translation project
 # https://github.com/wikimedia/mediawiki-services-cxserver/tree/master/lineardoc
 
+voidTags = ['area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'link', 'meta', 'param', 'source', 'track', 'wbr']
+voidTags_dict = dict([(tagName, True,) for tagName in voidTags])
+
 from .TextChunk import TextChunk
 
 def findAll(text, regex, callback):
@@ -47,7 +50,8 @@ def getOpenTagHtml(tag):
     attributes.sort()
     for attr in attributes:
         html.append(' ' + esc(attr) + '="' + escAttr(tag['attributes'][attr]) + '"')
-    if tag.get('isSelfClosing', None):
+    # if tag.get('isSelfClosing', None):
+    if voidTags_dict.get(tag['name'], None):
         html.append(' /')
     html.append('>')
     return ''.join(html)
@@ -64,7 +68,8 @@ def cloneOpenTag(tag):
 
 def getCloseTagHtml(tag):
     """ Render a SAX close tag into an HTML string """
-    if tag.get('isSelfClosing', None):
+    # if tag.get('isSelfClosing', None):
+    if voidTags_dict.get(tag['name'], None):
         return ''
     return '</' + esc(tag['name']) + '>'
 

@@ -207,7 +207,8 @@ class Site(models.Model):
 
     def make_segmenter(self, verbose=False):
         if self.segmenter:
-            print ('segmenter already exists')
+            if verbose:
+                print ('segmenter already exists')
             return self.segmenter
         srx_filepath = os.path.join(RESOURCES_ROOT, self.language.code, 'segment.srx')
         srx_rules = srx_segmenter.parse(srx_filepath)
@@ -254,7 +255,7 @@ class Site(models.Model):
                 custom_regexps.append(item)
                 if item[0].islower():
                     custom_regexps.append(item[0].upper() + item[1:])
-            print ('custom_regexps:', custom_regexps)
+            # print ('custom_regexps:', custom_regexps)
         return NltkTokenizer(language=self.language.code, custom_regexps=custom_regexps, lowercasing=False, return_matches=return_matches)
 
     def pages_summary(self):
@@ -1896,20 +1897,20 @@ class Block(node_factory('BlockEdge')):
         html = re.sub("(<!--(.*?)-->)", "", body, flags=re.MULTILINE)
         html = normalize_string(html)
         lineardoc = LineardocParse(html)
-        print ('--- apply_tm:', len(lineardoc.items), 'blocks - wrapperTag:', lineardoc.wrapperTag)
-        print (lineardoc.items)
+        logger.info('--- apply_tm: {0} blocks - wrapperTag: {1!s}'.format(len(lineardoc.items), lineardoc.wrapperTag))
+        logger.info('{}'.format(lineardoc.items))
         try:
             assert (len(lineardoc.items) == 3)
             assert (lineardoc.items[0].get('type', '') == 'open')
             assert (lineardoc.items[1].get('type', '') == 'textblock')
             assert (lineardoc.items[2].get('type', '') == 'close')
         except:
+            logger.warning('Ill formed block: {}'.format(self.id))
             return 0, 0, 0
         opentag = lineardoc.items[0]['item']
         linearblock = lineardoc.items[1]['item']
         closetag = lineardoc.items[2]['item']
-        try: print ('--- apply_tm - linearblock:\n', linearblock.dump())
-        except: pass
+        logger.info('--- apply_tm - linearblock:\n {!s}'.format(linearblock.dump()))
 
         def getBoundaries(text):
             segments, boundaries, whitespaces = segmenter.extract(text)
@@ -1917,10 +1918,7 @@ class Block(node_factory('BlockEdge')):
 
         linearsentences = linearblock.getSentences(getBoundaries)
         n_segments = len(linearsentences)
-        print ('--- apply_tm - linearblock sentences:')
-        for ls in linearsentences: 
-            try: print (ls.dump())
-            except: pass
+        logger.info('--- apply_tm - linearblock sentences: \n {!s}'.format('\n'.join([ls.dump() for ls in linearsentences])))
         return_matches = True
         if not source_tokenizer:
             source_tokenizer = site.make_tokenizer(return_matches=return_matches)
@@ -1947,11 +1945,10 @@ class Block(node_factory('BlockEdge')):
             segment = segment.strip().replace('  ', ' ')
             # empty segment? do nothing
             if not segment:
-                print ('--- empty:', i_segment, '"'+segment+'"')
+                logger.info('--- empty segment: {0} "{1}"'.format(i_segment, segment))
                 translated_sentences.append(linearsentence)
                 continue
-            try: print ('segment:', i_segment, '"'+segment+'"')
-            except: pass
+            logger.info('segment: {0} "{1}"'.format(i_segment, segment))
             source_matches = list(source_tokenizer.tokenize(segment))
             tokens = [segment[m.span()[0]:m.span()[1]] for m in source_matches]
             segments_tokens.append([segment, tokens])
@@ -1959,13 +1956,12 @@ class Block(node_factory('BlockEdge')):
             non_invariant_tokens = [t for t in tokens if not is_invariant_word(t, site_invariants=site_invariants)]
             if not non_invariant_tokens or Segment.objects.filter(is_invariant=True, language=source_language, site=site, text=segment):
                 n_invariants += 1
-                try: print ('--- invariant_segment:', i_segment, '"'+segment+'"')
-                except: pass
+                logger.info('--- invariant_segment: {0} "{1}"'.format(i_segment, segment))
                 translated_sentences.append(linearsentence)
                 continue
             # second, look for a translation
             translations = Translation.objects.filter(language=target_language, segment__site=site, segment__text=segment).distinct().order_by('-translation_type', 'user_role__role_type', 'user_role__level')
-            print ('# translations:', len(translations))
+            logger.info('# {} translations:'.format(translations.count()))
             if not translations:
                 translated_sentences.append(linearsentence)
                 translated = False
@@ -1987,7 +1983,7 @@ class Block(node_factory('BlockEdge')):
                             'attributes': { 'tx': 'auto' }})
                     translated_sentences.append(translated_sentence)
                     n_substitutions += 1
-                    print ('--- simple substitution:', i_segment)
+                    logger.info('--- simple substitution: {}'.format(i_segment))
                     replaced = True
                     break
             if replaced:
@@ -1997,7 +1993,7 @@ class Block(node_factory('BlockEdge')):
             alignment = alignment and normalized_alignment(alignment)
             n_translations += 1
             if alignment and translation.alignment_type==MANUAL:
-                print (alignment, normalized_alignment(alignment))
+                # print (alignment, normalized_alignment(alignment))
                 target_matches = list(target_tokenizer.tokenize(translated_segment))
                 range_mappings = self.make_rangeMappings(translated_segment, source_matches, target_matches, alignment)
                 # print ('--- range_mappings', range_mappings)
@@ -2009,24 +2005,19 @@ class Block(node_factory('BlockEdge')):
                 # print ('--- translated_sentence', i_segment, translated_sentence.getPlainText())
                 translated_sentences.append(translated_sentence)
                 n_substitutions += 1
-                print ('--- substitution using alignment:', i_segment)
+                logger.info('--- substitution using alignment: {}'.format(i_segment))
                 continue
 
             translated_sentences.append(linearsentence)
-            print ('--- original sentence:', i_segment, linearsentence)
+            logger.info('--- original sentence: {0} {1!s}'.format(i_segment, linearsentence))
             translated = False
-        print ('--- apply_tm - translated sentences:')
-        for ts in translated_sentences:
-            try: print (ts.dump())
-            except: pass
+        logger.info('--- apply_tm - translated sentences:\n {!s}'.format('\n'.join([ts.dump() for ts in translated_sentences])))
         translated_linearblock = mergeSentences(translated_sentences)
         translated_linearblock = translated_linearblock.simplify()
-        try: print ('--- apply_tm - translated block:\n', translated_linearblock.dump())
-        except: pass
+        logger.info('--- apply_tm - translated block:\n {!s}'.format(translated_linearblock.dump()))
         # translated_body = translated_linearblock.getHtml()
         translated_body = getOpenTagHtml(opentag) + translated_linearblock.getHtml() + getCloseTagHtml(closetag)
-        try: print ('--- apply_tm - translated_body block:\n', translated_body)
-        except: pass
+        logger.info('--- apply_tm - translated_body block:\n {!s}'.format(translated_body))
         state = 0
         if not translated_block and translated and n_invariants and not n_substitutions:
             self.state = INVARIANT
@@ -2037,10 +2028,10 @@ class Block(node_factory('BlockEdge')):
                 translated_block = self.clone(target_language)
             if translated:
                 state = TRANSLATED
-                logger.info('block: %d , %s TRANSLATED' % (self.id, not previous_state and 'new' or ''))
+                logger.info('block: {0} , {1} TRANSLATED'.format(self.id, not previous_state and 'new' or ''))
             else:
                 state = PARTIALLY
-                logger.info('block: %d , %s PARTIALLY' % (self.id, not previous_state and 'new' or ''))
+                logger.info('block: {0} , {1} PARTIALLY'.format(self.id, not previous_state and 'new' or ''))
             translated_block.state = state
             if n_substitutions:
                 translated_block.body = translated_body
@@ -2127,7 +2118,7 @@ class Block(node_factory('BlockEdge')):
                     child_block = blocks_in_page[0].block           
                     translated_child, child_translation_date = child_block.translated_block_element(language, element=child_element, webpage=webpage, xpath=child_xpath)
                     if child_translation_date:
-                        element.replace(child, translated_child)
+                        element.replace(child_element, translated_child)
                         if translation_date:
                             translation_date = max(translation_date, child_translation_date)
                         else:
