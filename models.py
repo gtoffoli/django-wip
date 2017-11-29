@@ -2585,6 +2585,9 @@ class Translation(models.Model):
     user_role = models.ForeignKey(UserRole, verbose_name='user role', blank=True, null=True)
     timestamp = models.DateTimeField()
 
+    def is_aligned(self):
+        return self.alignment and self.alignment_type==MANUAL and normalized_alignment(self.alignment) or False
+
     def get_navigation(self, order_by=TEXT_ASC, alignment_type=ANY):
         id = self.id
         text = self.segment.text

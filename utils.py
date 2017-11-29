@@ -102,13 +102,13 @@ def strings_from_block(block, tree=None, exclude_xpaths=[]):
                 yield el
     else:
         content = block.text_content()
-        print ('"{}"'.format(content))
+        # print ('"{}"'.format(content))
         yield content
     """
     if block.tag in settings.BLOCK_TAGS:
         yield '\n'
     """
-    print ('"{}"'.format(block.tail))
+    # print ('"{}"'.format(block.tail))
     yield block.tail
 
 def strings_from_html(string, fragment=False, exclude_xpaths=[], exclude_tx=False):

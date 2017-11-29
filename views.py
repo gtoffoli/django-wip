@@ -1318,6 +1318,7 @@ def block_translate(request, block_id, target_code):
     var_dict['sequencer_form'] = BlockSequencerForm(initial={'project_site': project_site_id, 'webpage': webpage_id, 'block_age': block_age, 'translation_state': translation_state, 'translation_languages': translation_languages, 'translation_age': translation_age, 'source_text_filter': source_text_filter,})
     var_dict['source_segments'] = source_segments
     var_dict['translated_block'] = translated_block
+    var_dict['translation_state'] = translated_block and translated_block.state or TO_BE_TRANSLATED
     # return render_to_response('block_translate.html', var_dict, context_instance=RequestContext(request))
     return render(request, 'block_translate.html', var_dict)
 
