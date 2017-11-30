@@ -22,6 +22,7 @@ from .models import OWNER, MANAGER, LINGUIST, REVISOR, TRANSLATOR, GUEST
 from .models import MANUAL
 from .vocabularies import Language, Subject
 from .utils import string_checksum, normalize_string
+from .aligner import tokenize, split_alignment
 from wip import srx_segmenter
 
 def set_blocks_language(slug, dry=False):
@@ -394,4 +395,23 @@ def fix_translated_blocks():
             tb.body = body
             tb.save()
     return n_auto, n_man
+
+def fix_alignments(proxy):
+    site = proxy.site
+    source_tokenizer = proxy.site.make_tokenizer()
+    target_tokenizer = proxy.make_tokenizer()
+    translations = Translation.objects.filter(segment__site=site, language=proxy.language)
+    for t in translations:
+        alignment = t.alignment
+        if alignment and t.alignment_type == MANUAL:
+            source_tokens = tokenize(t.segment.text, tokenizer=source_tokenizer)
+            target_tokens = tokenize(t.text, tokenizer=target_tokenizer)
+            n_source_tokens = len(source_tokens)
+            n_target_tokens = len(target_tokens)
+            links = split_alignment(alignment, return_links=True)
+            links.sort(key=lambda x: (x[1], x[0]))
+            for link in links:
+                if link[0]>= n_source_tokens or link[1] >= n_target_tokens:
+                    print ('translation {0}: {1} not < {2} or {3} not < {4}'.format(t.id, link[0], n_source_tokens, link[1], n_target_tokens))
+                    break
 
