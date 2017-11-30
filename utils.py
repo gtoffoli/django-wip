@@ -79,6 +79,8 @@ def merge_spaces(s):
     """ replace multiple contiguous spaces with a single space """
     return re.sub('\s\s+', ' ', s)
 
+BREAK = '!break!'
+
 """
 http://stackoverflow.com/questions/4624062/get-all-text-inside-a-tag-in-lxml
 http://stackoverflow.com/questions/4770191/lxml-etree-element-text-doesnt-return-the-entire-text-from-an-element
@@ -97,6 +99,10 @@ def strings_from_block(block, tree=None, exclude_xpaths=[]):
                 if xpath in exclude_xpaths:
                     continue
             if child.tag in settings.TO_DROP_TAGS:
+                continue
+            if child.tag in settings.VOID_TAGS:
+                yield BREAK
+                yield child.tail
                 continue
             for el in strings_from_block(child, tree=tree, exclude_xpaths=exclude_xpaths):
                 yield el
@@ -140,7 +146,11 @@ def strings_from_html(string, fragment=False, exclude_xpaths=[], exclude_tx=Fals
             el.getparent().remove(el)
     ls = []
     for s in strings_from_block(body, tree=tree, exclude_xpaths=exclude_xpaths):
-        if s:
+        if s == BREAK:
+            if ls:
+                strings.append(merge_spaces(''.join(ls)))
+                ls = []
+        elif s:
             """
             if s == '\n':
                 if ls:

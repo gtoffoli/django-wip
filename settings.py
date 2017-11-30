@@ -259,6 +259,9 @@ BLOCK_TAGS = [
    'img', 'figure', 'figcaption', 'canvas', 'video',
    'form', 'fieldset', 'input', 'button', 'select', 'option', 'textarea', 'output',
 ]
+VOID_TAGS = [
+    'area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'link', 'meta', 'param', 'source', 'track', 'wbr',
+]
 TO_DROP_TAGS = [
     'head', 'link', 'script', 'style','iframe',
 ]
