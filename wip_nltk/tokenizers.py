@@ -16,12 +16,17 @@ class NltkTokenizer(object):
     """An object representing a tokenizer wizard"""
 
     # def __init__(self, language=None, tokenizer=None, regexps=[], lowercasing=False, replacements=''):
-    def __init__(self, language=None, tokenizer=None, regexps=[], custom_regexps=[], lowercasing=False, replacements='', return_matches=False):
+    def __init__(self, language_code='it', tokenizer_type='baroni', regexps=[], custom_regexps=[], lowercasing=False, replacements='', return_matches=False):
+        """
         self.tokenizer = tokenizer
         if not language or language==u'it':
             self.language = 'italian'
             self.tokenizer = self.tokenizer or u'baroni'
+        
         self.tokenizer = self.tokenizer or u'word'
+        """
+        self.language_code = language_code
+        self.tokenizer_type = tokenizer_type
         self.regexps = regexps
         self.custom_regexps = custom_regexps
         self.lowercasing = lowercasing
@@ -30,14 +35,12 @@ class NltkTokenizer(object):
 
     def tokenize(self, text):
         """ tokenize """
-        if self.tokenizer == u'punkt':
-            tokenizer = nltk.data.load('tokenizers/punkt/%s.pickle' % self.language)
+        if self.tokenizer_type == u'punkt':
+            tokenizer = nltk.data.load('tokenizers/punkt/%s.pickle' % self.language_code)
             return tokenizer.tokenize(text)
-        # elif self.tokenizer == u'baroni' or language==u'italian':
-        elif self.tokenizer == u'baroni':
+        elif self.tokenizer_type == u'baroni':
             return self.baroni_regexp_tokenize(text)
         else: # word
-            # return nltk.word_tokenize(text)
             if self.lowercasing:
                 text = text.lower()
             tokenizer = TreebankWordTokenizer()
@@ -59,7 +62,10 @@ class NltkTokenizer(object):
         if self.regexps:
             regexp_list = self.regexps
         else:
-            regexp_path = os.path.join(settings.RESOURCES_ROOT, 'it', '%s_regexps.txt' % self.language)
+            # regexp_path = os.path.join(settings.RESOURCES_ROOT, 'it', '%s_regexps.txt' % self.language)
+            regexp_path = os.path.join(settings.RESOURCES_ROOT, self.language_code, 'tokenize.txt')
+            if not os.path.isfile(regexp_path):
+                regexp_path = os.path.join(settings.RESOURCES_ROOT, 'tokenize.txt')
             f = codecs.open(regexp_path, 'r', 'unicode_escape')
             regexp_list = []
             for line in f.readlines():

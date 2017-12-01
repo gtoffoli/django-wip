@@ -1185,23 +1185,19 @@ def block_translate(request, block_id, target_code):
                 block.no_translate = no_translate
                 block.save()
         elif create:
-            """
-            translated_block = TranslatedBlock(block=block, language=Language.objects.get(code=create), state=PARTIALLY, editor=request.user)
-            translated_block.body = post.get('translation-%s' % create)
-            # print 'create: ', create, translation.body
-            translated_block.save()
-            segments = translated_block.translated_block_get_segments(None)
-            if not segments:
-                translated_block.state=TRANSLATED
-                translated_block.save()
-            """
+            if translated_block:
+                translated_block.delete()
             block.apply_tm()
             translated_blocks = TranslatedBlock.objects.filter(block=block, language=Language.objects.get(code=create)).order_by('-modified')
             translated_block = translated_blocks.count() and translated_blocks[0] or None
+            segments = translated_block.translated_block_get_segments(None)
         elif modify:
-            translated_block = TranslatedBlock.objects.filter(block=block, language=Language.objects.get(code=modify)).order_by('-modified')[0]
+            translated_blocks = TranslatedBlock.objects.filter(block=block, language=Language.objects.get(code=modify)).order_by('-modified')
+            if translated_blocks:
+                translated_block = translated_blocks[0]
+            else:
+                translated_block = block.clone(target_language)
             translated_block.body = post.get('translation-%s' % modify)
-            # print 'modify: ', modify, translation.body
             translated_block.save()
             segments = translated_block.translated_block_get_segments(None)
             if not segments:
@@ -1211,6 +1207,7 @@ def block_translate(request, block_id, target_code):
             translated_block = TranslatedBlock.objects.filter(block=block, language=Language.objects.get(code=delete)).order_by('-modified')[0]
             translated_block.delete()
             translated_block = None
+            segments = block.block_get_segments(None)
         elif (apply_filter or goto):
             form = BlockSequencerForm(post)
             if form.is_valid():
@@ -1338,12 +1335,14 @@ def propagate_block_translation(request, block, translated_block):
             similar_block_translation.block = similar_block
         similar_block_translation.save()
 
+"""
 # srx_filepath = os.path.join(RESOURCES_ROOT, 'segment.srx')
 srx_filepath = os.path.join(settings.RESOURCES_ROOT, 'it', 'segment.srx')
 srx_rules = srx_segmenter.parse(srx_filepath)
 italian_rules = srx_rules['Italian']
 segmenter = srx_segmenter.SrxSegmenter(italian_rules)
 re_parentheses = re.compile(r'\(([^)]+)\)')
+"""
 
 def block_pages(request, block_id):
     var_dict = {}
@@ -3211,6 +3210,7 @@ if settings.USE_NLTK:
         var_dict['scan'] = fetched = get_object_or_404(PageVersion, pk=fetched_id)
         var_dict['page'] = page = fetched.webpage
         var_dict['site'] = site = page.site
+        segmenter = site.make_segmenter()
         page = fetched.webpage
         site = page.site
         if page.encoding.count('html'):

@@ -165,10 +165,12 @@ function apply_translation (target_code, id_from, id_to) {
 	<td style="vertical-align: top; border-top-color:transparent;">
 	{% if translated_block %}
 	<textarea id="{{ target_code }}" name="translation-{{ target_code }}" class="rounded-box {{ target_code }}" style="width: 96%; height:100px; margin-top: 0.5em;">{{ translated_block.normalized_body }}</textarea>
-	<input type="submit" class="btn btn-sm btn-default" value="Modify translation" name="modify-{{ target_code }}" /> &nbsp;
-	<input type="submit" class="btn btn-sm btn-warning" value="Delete translation" name="delete-{{ target_code }}" />
+	<input type="submit" class="btn btn-sm btn-default" value="Save manual changes" name="modify-{{ target_code }}" /> &nbsp;
+	<input type="submit" class="btn btn-sm btn-warning" value="Delete block translation" name="delete-{{ target_code }}" /> &nbsp;
+	<input type="submit" class="btn btn-sm btn-warning" value="Retranslate block" name="create-{{ target_code }}" />
 	{% else %}
 	<textarea id="{{ target_code }}" name="translation-{{ target_code }}" name="translation-{{ target_code }}"  style="width: 96%; height:100px;">{{ page_block.normalized_body }}</textarea>
+	<input type="submit" class="btn btn-sm btn-default" value="Save manual changes" name="modify-{{ target_code }}" /> &nbsp;
 	<input type="submit" class="btn btn-sm btn-primary" value="Translate block" name="create-{{ target_code }}" />
 	{% endif %}
 	</td>

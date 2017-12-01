@@ -187,7 +187,7 @@ class NltkTagger(object):
         if text:
             raw = text
             # tokens = nltk.word_tokenize(raw)
-            tokenizer = NltkTokenizer(language=self.language)
+            tokenizer = NltkTokenizer(language_code=self.language)
             tokens = tokenizer.tokenize(raw)
         if not self.tagger:
             self.build_tagger()

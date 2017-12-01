@@ -61,12 +61,22 @@ class SrxSegmenter:
         # return segments, whitespaces
         return segments, boundaries, whitespaces
 
-def parse(srx_filepath):
-    """ Parse SRX file and return it and return a dict """
+# def parse(srx_filepath):
+def parse(srx_filepath, language_code=None):
+    """ Parse SRX file and return it as a dict if no language_code is provided; 
+        extract and return only the related rule list if a known language_code is provided """
+
     tree = lxml.etree.parse(srx_filepath)
     namespaces = {
         'ns': 'http://www.lisa.org/srx20'
     }
+
+    languagerulename = None
+    if language_code:
+        for languagemap in tree.xpath('//ns:languagemap', namespaces=namespaces):
+            languagepattern = languagemap.attrib.get('languagepattern')
+            if re.search(languagepattern, language_code):
+                languagerulename = languagemap.attrib.get('languagerulename')
 
     rules = {}
 
@@ -94,4 +104,7 @@ def parse(srx_filepath):
 
         rules[rule_name] = current_rule
 
-    return rules
+    if languagerulename:
+        return rules.get(languagerulename, [])
+    else:
+        return rules

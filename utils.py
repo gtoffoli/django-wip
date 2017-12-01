@@ -39,6 +39,21 @@ import wip.srx_segmenter as srx_segmenter
 # from wip.settings import BLOCK_TAGS, TO_DROP_TAGS
 from django.conf import settings
 
+def get_segmenter_rules(language_code):
+    srx_filepath = os.path.join(settings.RESOURCES_ROOT, language_code, 'segment.srx')
+    if not os.path.isfile(srx_filepath):
+        srx_filepath = os.path.join(settings.RESOURCES_ROOT, 'segment.srx')
+    return srx_segmenter.parse(srx_filepath, language_code=language_code)
+
+def make_segmenter(language_code):
+    """
+    srx_filepath = os.path.join(settings.RESOURCES_ROOT, language_code, 'segment.srx')
+    srx_rules = srx_segmenter.parse(srx_filepath)
+    current_rules = srx_rules['Italian']
+    """
+    current_rules = get_segmenter_rules(language_code)
+    return srx_segmenter.SrxSegmenter(current_rules)
+
 def is_invariant_word(word):
     # return word.count('#') or word.count('@') or word.count('http') or word.replace(',', '.').isnumeric()
     return word.count('#') or word.count('@') or word.count('http') or re.sub('[\.\,\-\/]', '', word).isnumeric() or (len(word)==1 and string.punctuation.count(word))
@@ -117,6 +132,22 @@ def strings_from_block(block, tree=None, exclude_xpaths=[]):
     # print ('"{}"'.format(block.tail))
     yield block.tail
 
+# see https://stackoverflow.com/questions/42932828/how-delete-tag-from-node-in-lxml-without-tail
+def preserve_tail_before_delete(node):
+    if node.tail: # preserve the tail
+        previous = node.getprevious()
+        if previous is not None: # if there is a previous sibling it will get the tail
+            if previous.tail is None:
+                previous.tail = node.tail
+            else:
+                previous.tail = previous.tail + node.tail
+        else: # The parent get the tail as text
+            parent = node.getparent()
+            if parent.text is None:
+                parent.text = node.tail
+            else:
+                parent.text = parent.text + node.tail
+
 def strings_from_html(string, fragment=False, exclude_xpaths=[], exclude_tx=False):
     strings = []
     try:
@@ -139,10 +170,12 @@ def strings_from_html(string, fragment=False, exclude_xpaths=[], exclude_tx=Fals
     for tag in settings.TO_DROP_TAGS:
         els = body.findall(tag)
         for el in els:
+            preserve_tail_before_delete(el)
             el.getparent().remove(el)
     if exclude_tx:
         els = body.findall('.//span[@tx]')
         for el in els:
+            preserve_tail_before_delete(el)
             el.getparent().remove(el)
     ls = []
     for s in strings_from_block(body, tree=tree, exclude_xpaths=exclude_xpaths):
@@ -449,12 +482,6 @@ def pretty_html(in_path, out_name=''):
         out_file = in_file
     out_file.write(html_text)
     out_file.close
-
-def make_segmenter(language_code):
-    srx_filepath = os.path.join(settings.RESOURCES_ROOT, language_code, 'segment.srx')
-    srx_rules = srx_segmenter.parse(srx_filepath)
-    current_rules = srx_rules['Italian']
-    return srx_segmenter.SrxSegmenter(current_rules)
 
 re_eu_date = re.compile(r'(0?[1-9]|[1-2][0-9]|3[0-1])(-|/|\.)(0?[1-9]|1[0-2])(-|/|\.)([0-9]{4})') # es: 10/7/1953, 21-12-2015
 re_decimal_thousands_separators = re.compile(r'[0-9](\.|\,)[0-9]')

@@ -68,6 +68,7 @@ DEFAULT_USER = 1
 from .utils import element_tostring, text_from_html, strings_from_html, elements_from_element, replace_element_content, element_signature
 from .utils import normalize_string, replace_segment, string_checksum, text_to_list # , non_invariant_words
 from .utils import is_invariant_word as is_base_invariant_word
+from .utils import get_segmenter_rules, make_segmenter
 # import wip.srx_segmenter
 import wip.srx_segmenter as srx_segmenter
 
@@ -210,18 +211,20 @@ class Site(models.Model):
             if verbose:
                 print ('segmenter already exists')
             return self.segmenter
-        srx_filepath = os.path.join(RESOURCES_ROOT, self.language.code, 'segment.srx')
+        language_code = self.language.code
+        """
+        srx_filepath = os.path.join(RESOURCES_ROOT, language_code, 'segment.srx')
         srx_rules = srx_segmenter.parse(srx_filepath)
         current_rules = srx_rules['Italian']
+        """
+        current_rules = get_segmenter_rules(language_code)
         if self.srx_initials:
             custom_rules_list = text_to_list(self.srx_initials)
             if len(custom_rules_list) == 1:
                 beforebreak_text = '%s' % re.escape(custom_rules_list[0])
             else:
-                # beforebreak_text = '(?%s)' % '|'.join([re.escape(item) for item in custom_rules_list])
                 beforebreak_text = '\\b(%s)' % '|'.join([re.escape(item) for item in custom_rules_list])
             afterbreak_text = '\s'
-            # print (beforebreak_text, afterbreak_text)
             non_breaks = current_rules['non_breaks']
             non_breaks.append((beforebreak_text, afterbreak_text))
             current_rules['non_breaks'] = non_breaks
@@ -256,7 +259,7 @@ class Site(models.Model):
                 if item[0].islower():
                     custom_regexps.append(item[0].upper() + item[1:])
             # print ('custom_regexps:', custom_regexps)
-        return NltkTokenizer(language=self.language.code, custom_regexps=custom_regexps, lowercasing=False, return_matches=return_matches)
+        return NltkTokenizer(language_code=self.language.code, custom_regexps=custom_regexps, lowercasing=False, return_matches=return_matches)
 
     def pages_summary(self):
         pages = Webpage.objects.filter(site=self).order_by('path')
@@ -499,7 +502,7 @@ class Site(models.Model):
         return len(self.get_segments(translation_state=ANY))
 
     def get_token_frequency(self, lowercasing=True):
-        tokenizer = NltkTokenizer(language=self.language_id, lowercasing=lowercasing)
+        tokenizer = NltkTokenizer(language_code=self.language_id, lowercasing=lowercasing)
         tokens_dict = defaultdict(int)
         segments = self.get_segments()
         for segment in segments:
@@ -531,6 +534,10 @@ class Proxy(models.Model):
     enable_live_translation = models.BooleanField(default=False)
     robots_txt = models.TextField(verbose_name='robots.txt', blank=True, null=True, help_text="The virtual content of the robots.txt page." )
     translate_deny = models.TextField(verbose_name='Deny translation', blank=True, null=True, help_text="Paths of pages not to processed online by the proxy" )
+
+    def __init__(self, *args, **kwargs):
+        super(Proxy, self).__init__(*args, **kwargs)
+        self.segmenter = None
 
     class Meta:
         verbose_name = _('proxy site')
@@ -576,10 +583,16 @@ class Proxy(models.Model):
                 blocks.append(block)
         return blocks
 
+    def make_segmenter(self, verbose=False):
+        language_code = self.language.code
+        current_rules = get_segmenter_rules(language_code)
+        self.segmenter = srx_segmenter.SrxSegmenter(current_rules)
+        return self.segmenter
+
     def make_tokenizer(self, return_matches=False):
         """ create a tokenizer for the proxy target language ...
             possibly exploit knowledge related to the target language and/or the proxy itself """
-        return NltkTokenizer(language=self.language.code, lowercasing=False, return_matches=return_matches)
+        return NltkTokenizer(language_code=self.language.code, lowercasing=False, return_matches=return_matches)
 
     """
     def import_translations(self, file, request=None):
@@ -1118,7 +1131,7 @@ class Proxy(models.Model):
 
     def get_token_frequency(self, lowercasing=True):
         # tokenizer = NltkTokenizer(lowercasing=lowercasing)
-        tokenizer = NltkTokenizer(language=self.language_id, lowercasing=lowercasing)
+        tokenizer = NltkTokenizer(language_code=self.language_id, lowercasing=lowercasing)
         tokens_dict = defaultdict(int)
         translations = self.get_translations()
         for translation in translations:
@@ -1973,10 +1986,13 @@ class Block(node_factory('BlockEdge')):
             replaced = False
             for j in range(len(textChunks)):
                 textChunk = textChunks[j]
-                if len(textChunk.text) and textChunk.text==segment:
+                # if len(textChunk.text) and textChunk.text==segment:
+                text = textChunk.text
+                if len(text) and text.count(segment):
                     # linearsentence = linearsentence.replaceChunkText(j, translated_segment)
                     translated_sentence = copy.deepcopy(linearsentence)
-                    translated_sentence.textChunks[j].text = translated_segment
+                    # translated_sentence.textChunks[j].text = translated_segment
+                    translated_sentence.textChunks[j].text = text.replace(segment, translated_segment)
                     translated_sentence.textChunks = addCommonTag (
                         translated_sentence.textChunks, {
                             'name': 'span',
@@ -2020,7 +2036,7 @@ class Block(node_factory('BlockEdge')):
         logger.info('--- apply_tm - translated_body block:\n {!s}'.format(translated_body))
         state = 0
         if not translated_block and translated and n_invariants and not n_substitutions:
-            self.state = INVARIANT
+            self.state = state = INVARIANT
             self.save()
         elif n_substitutions or translated:
             previous_state = translated_block and translated_block.state or 0
@@ -2619,8 +2635,8 @@ class Translation(models.Model):
         return n, first, last, previous, next
 
     def make_json(self):
-        source_tokenizer = NltkTokenizer(language=self.segment.language_id, lowercasing=False)
-        target_tokenizer = NltkTokenizer(language=self.language_id, lowercasing=False)
+        source_tokenizer = NltkTokenizer(language_code=self.segment.language_id, lowercasing=False)
+        target_tokenizer = NltkTokenizer(language_code=self.language_id, lowercasing=False)
         source_tokens = tokenize(self.segment.text, tokenizer=source_tokenizer)
         target_tokens = tokenize(self.text, tokenizer=target_tokenizer)
         cells = []
