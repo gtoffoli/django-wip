@@ -295,6 +295,38 @@ def split_alignment(alignment, return_links=False):
     rev = ' '.join(['-'.join([str(link[0]), str(link[1])]) for link in rev])
     return fwd, rev
 
+def split_normalize_alignment(alignment):
+    """
+    alignment: a (possibly) symmetric alignment, in pharaoh text format
+    fwd: an asymmetric alignment keeping one link at most including the same right element
+    rev: an asymmetric alignment keeping one link at most including the same left element
+    """
+    links = []
+    for link in alignment.split():
+        left, right = link.split('-')
+        if not left or not right:
+            continue
+        links.append([int(left), int(right)])
+    links.sort(key=lambda x: (x[1], x[0]))
+    fwd = []
+    rights = []
+    for link in links:
+        if  link[1] in rights:
+            continue
+        fwd.append(link)
+        rights.append(link[1])
+    fwd = ' '.join(['-'.join([str(link[0]), str(link[1])]) for link in fwd])
+    rev = []
+    lefts = []
+    links.sort(key=lambda x: (x[0], x[1]))
+    for link in links:
+        if  link[0] in lefts:
+            continue
+        rev.append(link)
+        lefts.append(link[0])
+    rev = ' '.join(['-'.join([str(link[0]), str(link[1])]) for link in rev])
+    return fwd, rev
+
 def merge_alignments(fwd, rev):        
     """
     very rough symmetrization alorithm
@@ -342,8 +374,8 @@ def proxy_null_aligner_eval(proxy, translations, lowercasing=False):
     compute the quality of a null evaluator applying in cascade
     unsymmetrizzation and symmetrizzation of a known alignment
     """
-    tokenizer_1 = NltkTokenizer(language=proxy.site.language_id, lowercasing=lowercasing)
-    tokenizer_2 = NltkTokenizer(language=proxy.language_id, lowercasing=lowercasing)
+    tokenizer_1 = NltkTokenizer(language_code=proxy.site.language_id, lowercasing=lowercasing)
+    tokenizer_2 = NltkTokenizer(language_code=proxy.language_id, lowercasing=lowercasing)
     aer_total = 0.0
     n_evaluated = 0
     for translation in translations:

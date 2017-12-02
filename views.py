@@ -1297,6 +1297,7 @@ def block_translate(request, block_id, target_code):
     # print ('source_segments: ', source_segments)
     var_dict = {}
     var_dict['page_block'] = block
+    var_dict['body'] = translated_block and translated_block.body or block.body
     webpage = webpage_id and Webpage.objects.get(pk=webpage_id) or None
     n, previous, next = block.get_navigation(site=project_site_id, webpage=webpage, translation_state=translation_state, translation_codes=translation_codes, source_text_filter=source_text_filter)
     var_dict['n'] = n

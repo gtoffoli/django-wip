@@ -12,7 +12,7 @@ if (sys.version_info > (3, 0)):
     # Python 3 code in this block
     from importlib import reload
     import urllib.request as urllib2
-    from wip.aligner import split_alignment, normalized_alignment, proxy_symmetrize_alignments, proxy_eflomal_align
+    from wip.aligner import split_alignment, split_normalize_alignment, normalized_alignment, proxy_symmetrize_alignments, proxy_eflomal_align
     from io import StringIO
 else:
     reload(sys)  
@@ -934,9 +934,9 @@ class Proxy(models.Model):
                     if known_links_fwd and known_links_rev:
                         fwd = rev = ''
                         if translation.alignment and translation.alignment_type==MANUAL:
-                            # if evaluate and n_translations % 2 == 0:
                             if not evaluate or test_set_module == 0 or n_translations % test_set_module != 0:
-                                fwd, rev = split_alignment(translation.alignment)
+                                # fwd, rev = split_alignment(translation.alignment)
+                                fwd, rev = split_normalize_alignment(translation.alignment)
                         known_links_fwd.write('%s\n' % fwd)
                         known_links_rev.write('%s\n' % rev)
                 if outfile_3:
@@ -1057,7 +1057,8 @@ class Proxy(models.Model):
                 print ('evaluation: ', evaluation)
             return evaluation
     
-    def eflomal_align_translations(self, lowercasing=False, max_tokens=1000, max_fertility=100, symmetrize=True, use_know_links=True, test_set_module=2, evaluate=False, verbose=False, debug=False):
+    # def eflomal_align_translations(self, lowercasing=False, max_tokens=1000, max_fertility=100, symmetrize=True, use_know_links=True, test_set_module=2, evaluate=False, verbose=False, debug=False):
+    def eflomal_align_translations(self, lowercasing=False, max_tokens=1000, max_fertility=100, symmetrize=False, use_know_links=True, test_set_module=2, evaluate=False, verbose=False, debug=False):
         if not evaluate:
             self.clear_alignments()
         proxy_code = '%s_%s' % (self.site.slug, self.language_id)

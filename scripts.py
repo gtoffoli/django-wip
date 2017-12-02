@@ -19,7 +19,7 @@ from .models import Site, Proxy, Webpage, PageVersion, Block, TranslatedBlock
 from .models import String, Txu, TxuSubject
 from .models import UserRole, Segment, Translation, SEGMENT, FRAGMENT
 from .models import OWNER, MANAGER, LINGUIST, REVISOR, TRANSLATOR, GUEST
-from .models import MANUAL
+from .models import MT, MANUAL
 from .vocabularies import Language, Subject
 from .utils import string_checksum, normalize_string
 from .aligner import tokenize, split_alignment
@@ -413,5 +413,8 @@ def fix_alignments(proxy):
             for link in links:
                 if link[0]>= n_source_tokens or link[1] >= n_target_tokens:
                     print ('translation {0}: {1} not < {2} or {3} not < {4}'.format(t.id, link[0], n_source_tokens, link[1], n_target_tokens))
+                    t.alignment = ''
+                    t.alignment_type = MT
+                    t.save()
                     break
 

@@ -48,10 +48,8 @@ function apply_translation (target_code, id_from, id_to) {
 	translation = document.getElementById(id_to).textContent;
 	textarea = document.getElementById(target_code);
 	text = textarea.value;
-	// tx_open = '<span tx man>';
 	tx_open = '<span tx="man">';
 	tx_close = '</span>';
-	// pos = text.toLowerCase().indexOf(segment);
 	pos = text.indexOf(segment);
 	if (pos >= 0) {
 		firstchar = text.charAt(pos);
@@ -152,8 +150,8 @@ function apply_translation (target_code, id_from, id_to) {
 				{% endif %}</td></tr>
 		{% for t in translations %}
 		<tr><td><span id="tra-{{ forloop.parentloop.counter }}-{{ forloop.counter }}" class="{{ target_code }}">{{ t.text }}</span>
-				<a onclick="apply_translation('{{ target_code }}', 'str-{{ forloop.parentloop.counter }}', 'tra-{{ forloop.parentloop.counter }}-{{ forloop.counter }}'); return true;" class="fa fa-check" style="background-color: white; color: blue; border: none;" title="apply this translation" />
-				&nbsp; <a href="/translation_align/{{ t.id }}/" class="fa fa-arrows-h" style="background-color: white; color: {% if t.is_aligned %}Lime{% else %}Red{% endif %}; border: none;" title="align this translation" /></td></tr>
+				{% if segment.text in body %}<a onclick="apply_translation('{{ target_code }}', 'str-{{ forloop.parentloop.counter }}', 'tra-{{ forloop.parentloop.counter }}-{{ forloop.counter }}'); return true;" class="fa fa-check" style="background-color: white; color: blue; border: none;" title="apply this translation" /> &nbsp;{% endif %}
+				<a href="/translation_align/{{ t.id }}/" class="fa fa-arrows-h" style="background-color: white; color: {% if t.is_aligned %}Lime{% else %}Red{% endif %}; border: none;" title="align this translation" /></td></tr>
 		{% endfor %}
 		{% endfor %}
 		</tbody></table>
