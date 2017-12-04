@@ -66,7 +66,7 @@ from .aligner import tokenize, best_alignment, aer
 from .settings import RESOURCES_ROOT, BLOCK_TAGS, BLOCKS_EXCLUDE_BY_XPATH, SEPARATORS, STRIPPED, EMPTY_WORDS, BOTH_QUOTES
 DEFAULT_USER = 1
 from .utils import element_tostring, text_from_html, strings_from_html, elements_from_element, replace_element_content, element_signature
-from .utils import normalize_string, replace_segment, string_checksum, text_to_list # , non_invariant_words
+from .utils import compact_spaces, normalize_string, replace_segment, string_checksum, text_to_list # , non_invariant_words
 from .utils import is_invariant_word as is_base_invariant_word
 from .utils import get_segmenter_rules, make_segmenter
 # import wip.srx_segmenter
@@ -820,8 +820,8 @@ class Proxy(models.Model):
         return n_ready, n_translated, n_partially
 
     def translate_page_content(self, content):
-        html_string = re.sub("(<!--(.*?)-->)", "", content, flags=re.MULTILINE)
-        html_string = normalize_string(html_string)
+        # html_string = re.sub("(<!--(.*?)-->)", "", content, flags=re.MULTILINE)
+        html_string = normalize_string(content)
         content_document = html.document_fromstring(html_string)
         translated_document, has_translation = translated_element(content_document, self.site, webpage=None, language=self.language, translate_live=self.enable_live_translation)
         if has_translation:
@@ -1339,8 +1339,7 @@ class Webpage(models.Model):
             return [] # , 0, 0
         last_version = versions[0]
         html_string = last_version.body
-        # http://stackoverflow.com/questions/1084741/regexp-to-strip-html-comments
-        html_string = re.sub("(<!--(.*?)-->)", "", html_string, flags=re.MULTILINE)
+        # html_string = re.sub("(<!--(.*?)-->)", "", html_string, flags=re.MULTILINE)
         html_string = normalize_string(html_string)
         html_string = html_string.replace('encoding="utf-8"', '')
         if not html_string:
@@ -1490,8 +1489,8 @@ class PageVersion(models.Model):
             segmenter = self.webpage.site.make_segmenter()
         site = self.webpage.site
         exclude_xpaths = BLOCKS_EXCLUDE_BY_XPATH.get(site.slug, [])
-        html_string = re.sub("(<!--(.*?)-->)", "", self.body, flags=re.MULTILINE)
-        html_string = normalize_string(html_string)
+        # html_string = re.sub("(<!--(.*?)-->)", "", self.body, flags=re.MULTILINE)
+        html_string = normalize_string(self.body)
         segments = []
         for string in list(strings_from_html(html_string, fragment=False, exclude_xpaths=exclude_xpaths)):
             if string and string[0]=='{' and string[-1]=='}':
@@ -1908,8 +1907,8 @@ class Block(node_factory('BlockEdge')):
                 body = translated_block.body
             else:
                 body = self.body
-        html = re.sub("(<!--(.*?)-->)", "", body, flags=re.MULTILINE)
-        html = normalize_string(html)
+        # html = re.sub("(<!--(.*?)-->)", "", body, flags=re.MULTILINE)
+        html = normalize_string(body)
         lineardoc = LineardocParse(html)
         logger.info('--- apply_tm: {0} blocks - wrapperTag: {1!s}'.format(len(lineardoc.items), lineardoc.wrapperTag))
         logger.info('{}'.format(lineardoc.items))
@@ -1950,13 +1949,15 @@ class Block(node_factory('BlockEdge')):
         translated_sentences = []
         translated_sentence = None
         for i_segment in range(n_segments):
+            """
             if translated_sentence:
                 pass
                 translated_sentence = None
+            """
             translated_sentence = None
             linearsentence = linearsentences[i_segment]
             segment = linearsentence.getPlainText() # .strip()
-            segment = segment.strip().replace('  ', ' ')
+            # segment = segment.strip().replace('  ', ' ')
             # empty segment? do nothing
             if not segment:
                 logger.info('--- empty segment: {0} "{1}"'.format(i_segment, segment))
@@ -1974,7 +1975,8 @@ class Block(node_factory('BlockEdge')):
                 translated_sentences.append(linearsentence)
                 continue
             # second, look for a translation
-            translations = Translation.objects.filter(language=target_language, segment__site=site, segment__text=segment).distinct().order_by('-translation_type', 'user_role__role_type', 'user_role__level')
+            # translations = Translation.objects.filter(language=target_language, segment__site=site, segment__text=segment).distinct().order_by('-translation_type', 'user_role__role_type', 'user_role__level')
+            translations = Translation.objects.filter(language=target_language, segment__site=site, segment__text=compact_spaces(segment.strip())).distinct().order_by('-translation_type', 'user_role__role_type', 'user_role__level')
             logger.info('# {} translations:'.format(translations.count()))
             if not translations:
                 translated_sentences.append(linearsentence)
@@ -2234,8 +2236,8 @@ def translated_element(element, site, webpage=None, language=None, xpath='/html'
 def get_segments(body, site, segmenter, fragment=True, exclude_tx=True, exclude_xpaths=False):
     if not segmenter:
         segmenter = site.make_segmenter()
-    html_string = re.sub("(<!--(.*?)-->)", "", body, flags=re.MULTILINE)
-    html_string = normalize_string(html_string)
+    # html_string = re.sub("(<!--(.*?)-->)", "", body, flags=re.MULTILINE)
+    html_string = normalize_string(body)
     if not html_string:
         return []
     segments = []

@@ -78,10 +78,9 @@ class WipDiscoverPipeline(object):
         spider.page_count += 1
         if not (scan.count_words or scan.count_segments):
             return item
-        # body = item['body']
         body = item['body'].decode()
-        html_string = re.sub("(<!--(.*?)-->)", "", body, flags=re.MULTILINE)
-        html_string = normalize_string(html_string)
+        # html_string = re.sub("(<!--(.*?)-->)", "", body, flags=re.MULTILINE)
+        html_string = normalize_string(body)
         if not html_string:
             return item
         tokens_dict = defaultdict(int)

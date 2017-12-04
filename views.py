@@ -1602,7 +1602,7 @@ def translation_align(request, translation_id):
         translation.alignment = alignment
         if post.get('save_draft_alignment'):
             translation.alignment_type = MT
-        elif post.get('save_confirmed_alignment'):
+        elif post.get('save_confirmed_alignment') or post.get('save_confirmed_and_return'):
             translation.alignment_type = MANUAL
         translation.save()
     else:
@@ -1612,7 +1612,9 @@ def translation_align(request, translation_id):
     var_dict['can_edit'] = True
     var_dict['sequencer_form'] = TranslationSequencerForm(initial={'order_by': order_by, 'alignment_type': alignment_type})
     sequencer_context = request.session.get('sequencer_context', {})
-    var_dict['block_id'] = sequencer_context.get('block', None)
+    var_dict['block_id'] = block_id = sequencer_context.get('block', None)
+    if block_id and post.get('save_confirmed_and_return'):
+        return HttpResponseRedirect('/block/%d/translate/%s/' % (block_id, translation.language.code))
     return render(request, 'translation_align.html', var_dict)
 
 @staff_member_required

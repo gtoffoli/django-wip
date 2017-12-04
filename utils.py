@@ -36,7 +36,6 @@ from difflib import Differ, HtmlDiff
 # import wip.srx_segmenter
 import wip.srx_segmenter as srx_segmenter
 
-# from wip.settings import BLOCK_TAGS, TO_DROP_TAGS
 from django.conf import settings
 
 def get_segmenter_rules(language_code):
@@ -46,11 +45,6 @@ def get_segmenter_rules(language_code):
     return srx_segmenter.parse(srx_filepath, language_code=language_code)
 
 def make_segmenter(language_code):
-    """
-    srx_filepath = os.path.join(settings.RESOURCES_ROOT, language_code, 'segment.srx')
-    srx_rules = srx_segmenter.parse(srx_filepath)
-    current_rules = srx_rules['Italian']
-    """
     current_rules = get_segmenter_rules(language_code)
     return srx_segmenter.SrxSegmenter(current_rules)
 
@@ -69,14 +63,6 @@ def fix_html_structure(string):
 def etree_from_html(string):
     parser = etree.HTMLParser()
     return etree.parse(StringIO.StringIO(string), parser)
-    """
-    tree = etree.parse(StringIO.StringIO(string), parser)
-    comments = tree.xpath('//comment()')
-    for c in comments:
-        p = c.getparent()
-        p.remove(c)
-    return tree
-    """
 
 def text_from_html(string):
     doc = html.fromstring(string)
@@ -87,12 +73,14 @@ def text_from_html(string):
             p.remove(c)
     return doc.text_content()
 
-def split_strip(s):
-    return " ".join(s.split())
-
 def merge_spaces(s):
     """ replace multiple contiguous spaces with a single space """
-    return re.sub('\s\s+', ' ', s)
+    return re.sub('\s\s+', ' ', s) # merge spaces
+
+def compact_spaces(s):
+    """ convert non-breaking spaces and replace multiple contiguous spaces with a single space """
+    s = s.replace(u"&nbsp;", u" ").replace(u"&#160;", u" ").replace(u"\u00a0", u" ") # convert html entities and unicode
+    return merge_spaces(s)
 
 BREAK = '!break!'
 
@@ -123,13 +111,7 @@ def strings_from_block(block, tree=None, exclude_xpaths=[]):
                 yield el
     else:
         content = block.text_content()
-        # print ('"{}"'.format(content))
         yield content
-    """
-    if block.tag in settings.BLOCK_TAGS:
-        yield '\n'
-    """
-    # print ('"{}"'.format(block.tail))
     yield block.tail
 
 # see https://stackoverflow.com/questions/42932828/how-delete-tag-from-node-in-lxml-without-tail
@@ -184,14 +166,6 @@ def strings_from_html(string, fragment=False, exclude_xpaths=[], exclude_tx=Fals
                 strings.append(merge_spaces(''.join(ls)))
                 ls = []
         elif s:
-            """
-            if s == '\n':
-                if ls:
-                    # yield ' '.join(ls)
-                    yield ''.join(ls)
-                ls = []
-            s = split_strip(s)
-            """
             if s == '\n':
                 if ls:
                     strings.append(merge_spaces(''.join(ls)))
@@ -200,7 +174,6 @@ def strings_from_html(string, fragment=False, exclude_xpaths=[], exclude_tx=Fals
             if s:
                 ls.append(merge_spaces(s))
     if ls:
-        # yield ' '.join(ls)
         strings.append(merge_spaces(''.join(ls)))
     return strings
 
@@ -264,28 +237,12 @@ def replace_segment(html_text, segment, tx='auto'):
     # if text and not text.replace(segment, '', 1).strip(settings.DEFAULT_STRIPPED):
     if text and not text.replace(segment, '', 1).strip():
         element.text = ''
-        # attrs={'tx':'', tx:''}
         attrs={'tx': tx }
         child = etree.Element('span', **attrs)
         element.insert(0, child)
-        # return etree.tostring(element)
         return element_tostring(element)
     return False
     # to be extended
-
-"""
-def non_invariant_words(words):
-    non_invariant = []
-    for word in words:
-        if word.isnumeric() or word.replace(',', '.').isnumeric():
-            continue
-        if word.count('@')==1:
-            continue
-        if word in ['Roma', 'roma',]:
-            continue
-        non_invariant.append(word)
-    return non_invariant
-"""
 
 def md5sum(file):
     """Calculate the md5 checksum of a file-like object without reading its
@@ -309,25 +266,15 @@ def string_checksum(string):
     return m.hexdigest()
 
 def block_checksum(block):
-    # string = etree.tostring(block)
     string = element_tostring(block)
-    """
-    buf = BytesIO(string)
-    return md5sum(buf)
-    m = hashlib.md5()
-    m.update(string)
-    return m.hexdigest()
-    """
     return string_checksum(string)
 
 def element_signature(element):
-    # tags = [el.tag for el in element.iter()]
     tags = []
     for el in element.iter():
         tag = el.tag
         if type(tag) is str:
             tags.append(tag)
-    # return string_checksum('.'.join(tags) + '_' + element.text_content())
     return string_checksum(('.'.join(tags) + '_' + element.text_content()).encode())
 
 def guess_block_language(block):
@@ -415,20 +362,23 @@ def unescape(text):
         return text # leave as is
     return re.sub("&#?\w+;", fixup, text)
 
-def normalize_string(s):
-    # s = unicode_entities(s)
+# def normalize_string(s):
+def normalize_string(s, compactspaces=False):
     if s:
-        # s = s.replace(u"\u2018", "'").replace(u"\u2019", "'").replace(' - ', ' – ')
-        # s = s.replace("‘", "'").replace("’", "'").replace(' - ', ' – ')
+        # http://stackoverflow.com/questions/1084741/regexp-to-strip-html-comments
+        s = re.sub("(<!--(.*?)-->)", "", s, flags=re.MULTILINE)
         s = unescape(s)
         try:
             s.translate(settings.TRANS_QUOTES)
-            s = s.replace(u"\u2018", u"'").replace(u"\u2019", u"'")
-            s = s.replace(u"\u201C", u'\"').replace(u"\u201D", u'\"')
-            s = s.replace(u"\u2026", u"..").replace(u"\u2033", u'\"')
-            s = s.replace(u"\u00a0", u" ")
-            s = s.replace(u"&#8216;", u"'").replace(u"&#8217;", u"'")
-            s = s.replace(u"&nbsp;", u" ").replace(u"&#160;", u" ").replace(u'&#39;', u" ")
+            s = s.replace(u"\u2018", u"'").replace(u"\u2019", u"'") # left and right single quotation marks
+            s = s.replace(u"\u201C", u'\"').replace(u"\u201D", u'\"') # left and right double quotation marks
+            s = s.replace(u"\u2026", u"..").replace(u"\u2033", u'\"') # horizontal ellipsis and double prime quotation mark
+            s = s.replace(u"&#8216;", u"'").replace(u"&#8217;", u"'") # left and right single quotation marks
+            # s = s.replace(u'&#39;', u" ")
+            s = s.replace(u'&#39;', u"'") # apostrophe entity
+            # s = s.replace(u"&nbsp;", u" ").replace(u"&#160;", u" ").replace(u"\u00a0", u" ") # non-breaking space
+            if compactspaces:
+                s = compact_spaces(s)
         except:
             pass
     return s

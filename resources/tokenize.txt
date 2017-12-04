@@ -9,7 +9,7 @@
 ## [^\s\{\}\[\]\(\)\"]*[0-9]+[^\s\{\}\[\]\(\)\"]*[^\s\.,\!\?\:\{\}\[\]\(\)\"]
 [^\s\{\}\[\]\(\)\"]*[0-9]+[^\s\{\}\[\]\(\)\"]*[^\s\.,;\!\?\:\{\}\[\]\(\)\"]
 
-# email addresses, possibly with spaces around the @ char
+# email addresses, possibly with spaces around the @ char (GT)
 [a-zA-Z0-9_\.\-]+\ ?@\ ?[a-zA-Z0-9\-]+\.[a-zA-Z0-9\-\.]+
 
 # Single letter acronyms (if one writes U.C.L.A, this will treat
@@ -26,6 +26,9 @@ S\.
 
 # 'Real' words
 [a-zA-Z\xc0-\xff]+[0-9]*[\'\u2019]?
+
+# One or more non-breaking spaces (GT)
+(&nbsp;|&#160;|\u00a0)+
 
 # Ellipsis
 \.\.\.
