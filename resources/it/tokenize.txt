@@ -28,7 +28,7 @@ S\.
 [a-zA-Z\xc0-\xff]+[0-9]*[\'\u2019]?
 
 # One or more non-breaking spaces (GT)
-(&nbsp;|&#160;|\u00a0)+
+(?:&nbsp;|&#160;|\u00a0)+
 
 # Ellipsis
 \.\.\.
