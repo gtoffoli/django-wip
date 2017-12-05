@@ -1259,14 +1259,14 @@ class Webpage(models.Model):
             qs = qs.filter(no_translate=True)
         elif translation_state == TRANSLATED:
             if translation_codes:
-                qs = qs.filter(webpage__language_id__in=translation_codes)
+                qs = qs.filter(translated_version__language_id__in=translation_codes)
             else:
-                qs = qs.filter(webpage__isnull=False) # at least 1
+                qs = qs.filter(translated_version__isnull=False) # at least 1
         elif translation_state == TO_BE_TRANSLATED:
             if translation_codes:
                 qs = qs.annotate(nt = RawSQL("SELECT COUNT(*) FROM wip_translatedversion WHERE webpage_id = wip_webpage.id and language_id IN ('%s')" % "','".join(translation_codes), ())).filter(nt=0)
             else:
-                qs = qs.filter(webpage__isnull=True).exclude(no_translate=True) # none
+                qs = qs.filter(translated_version__isnull=True).exclude(no_translate=True) # none
         if order_by == 'id':
             id = self.id
             qs_before = qs.filter(id__lt=id)
@@ -1312,11 +1312,11 @@ class Webpage(models.Model):
             translations = TranslatedBlock.objects.filter(block=block, language_id__in=proxy_codes)
             for translation in translations:
                 code = translation.language_id
-                if translation.state == 2:
+                if translation.state == REVISED:
                     proxy_dict[code]['revised'] += 1
-                elif translation.state == 1:
+                elif translation.state == TRANSLATED:
                     proxy_dict[code]['translated'] += 1
-                else:
+                else: # PARTIALLY
                     proxy_dict[code]['partially'] += 1
         sorted_list = sorted(proxy_dict.items())
         proxy_list = []
@@ -1499,7 +1499,8 @@ class PageVersion(models.Model):
         return segments
 
 class TranslatedVersion(models.Model):
-    webpage = models.ForeignKey(Webpage)
+    # webpage = models.ForeignKey(Webpage)
+    webpage = models.ForeignKey(Webpage, related_name='translated_version')
     language = models.ForeignKey(Language)
     body = models.TextField(blank=True, null=True)
     created = CreationDateTimeField()
@@ -1668,6 +1669,35 @@ class String(models.Model):
         # return previous, next
         return n, first, last, previous, next
 
+def filter_blocks(site=None, webpage=None, translation_state='', translation_codes=[], source_text_filter='', order_by='id'):
+    target_code = len(translation_codes)==1 and translation_codes[0] or None
+    qs = Block.objects
+    if webpage:
+        qs = qs.filter(block_in_page__webpage=webpage).distinct()
+    elif site:
+        qs = qs.filter(block_in_page__webpage__site=site).distinct()
+    if translation_state == INVARIANT: # block is language independent
+        qs = qs.filter(no_translate=True)
+    elif translation_state == ALREADY: # block is already in target language
+        qs = qs.filter(language_id=target_code)
+    elif translation_state == TRANSLATED:
+        if translation_codes:
+            for code in translation_codes:
+                qs = qs.filter(source_block__language_id=code)
+        else:
+            qs = qs.filter(source_block__isnull=False) # at least 1
+    elif translation_state == TO_BE_TRANSLATED:
+        if translation_codes:
+            qs = qs.annotate(nt = RawSQL("SELECT COUNT(*) FROM wip_translatedblock WHERE block_id = wip_block.id and language_id IN ('%s')" % "','".join(translation_codes), ())).filter(nt=0)
+        else:
+            qs = qs.filter(source_block__isnull=True) # none
+        qs = qs.exclude(no_translate=True) # none
+        if target_code:
+            qs = qs.exclude(language_id=target_code)
+    if source_text_filter:
+        qs = qs.filter(body__icontains=source_text_filter)
+    return qs
+
 class Block(node_factory('BlockEdge')):
     site = models.ForeignKey(Site)
     xpath = models.CharField(max_length=200, blank=True, default='')
@@ -1707,7 +1737,12 @@ class Block(node_factory('BlockEdge')):
         return self.language or self.site.language or Language.objects.get(code='it')
 
     def bips(self):
-        return BlockInPage.objects.filter(block=self).distinct().count()
+        # return BlockInPage.objects.filter(block=self).distinct().count()
+        return BlockInPage.objects.filter(block=self).distinct()
+
+    def get_page(self):
+        bips = self.bips()
+        return bips.count() and bips[0].webpage or None
 
     def get_level(self):
         parents = self.parents()
@@ -1725,29 +1760,8 @@ class Block(node_factory('BlockEdge')):
     def num_children(self):
         return len(self.get_children())
 
-    def get_previous_next(self, include_language=None, exclude_language=None, order_by='id', skip_no_translate=None):
-        site = self.site
-        qs = Block.objects.filter(site=site)
-        if skip_no_translate:
-            qs = qs.exclude(no_translate=True)
-        if order_by == 'id':
-            id = self.id
-            qs_before = qs.filter(id__lt=id)
-            qs_after = qs.filter(id__gt=id)
-        """
-        elif order_by == 'xpath':
-            xpath = self.xpath
-            qs_before = qs.filter(xpath__lt=xpath)
-            qs_after = qs.filter(xpath__gt=xpath)
-        """
-        qs_before = qs_before.order_by('-'+order_by)
-        qs_after = qs_after.order_by(order_by)
-        previous = qs_before.count() and qs_before[0] or None
-        next = qs_after.count() and qs_after[0] or None
-        return previous, next
-
-    # alternative version of get_previous_next
     def get_navigation(self, site=None, webpage=None, translation_state='', translation_codes=[], source_text_filter='', order_by='id'):
+        """
         target_code = len(translation_codes)==1 and translation_codes[0] or None
         qs = Block.objects.filter(site=self.site)
         if webpage:
@@ -1760,7 +1774,6 @@ class Block(node_factory('BlockEdge')):
             qs = qs.filter(language_id=target_code)
         elif translation_state == TRANSLATED:
             if translation_codes:
-                # qs = qs.filter(source_block__language_id__in=translation_codes)
                 for code in translation_codes:
                     qs = qs.filter(source_block__language_id=code)
             else:
@@ -1769,23 +1782,19 @@ class Block(node_factory('BlockEdge')):
             if translation_codes:
                 qs = qs.annotate(nt = RawSQL("SELECT COUNT(*) FROM wip_translatedblock WHERE block_id = wip_block.id and language_id IN ('%s')" % "','".join(translation_codes), ())).filter(nt=0)
             else:
-                # qs = qs.filter(source_block__isnull=True).exclude(no_translate=True) # none
                 qs = qs.filter(source_block__isnull=True) # none
             qs = qs.exclude(no_translate=True) # none
             if target_code:
                 qs = qs.exclude(language_id=target_code)
         if source_text_filter:
             qs = qs.filter(body__icontains=source_text_filter)
+        """
+        site = site or self.site
+        qs = filter_blocks(site=self.site, webpage=webpage, translation_state=translation_state, translation_codes=translation_codes, source_text_filter=source_text_filter)
         if order_by == 'id':
             id = self.id
             qs_before = qs.filter(id__lt=id)
             qs_after = qs.filter(id__gt=id)
-        """
-        elif order_by == 'xpath':
-            xpath = self.xpath
-            qs_before = qs.filter(xpath__lt=xpath)
-            qs_after = qs.filter(xpath__gt=xpath)
-        """
         qs_before = qs_before.order_by('-'+order_by)
         qs_after = qs_after.order_by(order_by)
         previous = qs_before.count() and qs_before[0] or None

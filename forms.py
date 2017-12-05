@@ -59,10 +59,10 @@ class PageManageForm(forms.Form):
     no_translate = forms.BooleanField(required=False, label='No translate')
 
 class PageSequencerForm(forms.Form):
-    page_age = forms.CharField(required=False, label="Page age range", widget=forms.TextInput(attrs={'size': 8, 'style': 'width: 50px;',}))
-    translation_state = forms.ChoiceField(required=False, choices=TRANSLATION_STATE_CHOICES, label="Translation state", widget=forms.Select(attrs={ 'style': 'width: auto; height: 2em;',}))
-    translation_languages = forms.ModelMultipleChoiceField(required=False, queryset=Language.objects.all(), label="Translation languages", widget=forms.SelectMultiple(attrs={ 'style': 'width: auto;', 'size': 3,}))
-    translation_age = forms.CharField(required=False, label="Translation age range", widget=forms.TextInput(attrs={'size': 8, 'style': 'width: 50px;',}))
+    page_age = forms.CharField(required=False, label="Page age range", widget=forms.TextInput(attrs={'size': 8, 'style': 'width: 50px;', 'onchange': 'javascript: this.form.submit()',}))
+    translation_state = forms.ChoiceField(required=False, choices=TRANSLATION_STATE_CHOICES, label="Translation state", widget=forms.Select(attrs={ 'style': 'width: auto; height: 2em;', 'onchange': 'javascript: this.form.submit()',}))
+    translation_languages = forms.ModelMultipleChoiceField(required=False, queryset=Language.objects.all(), label="Translation languages", widget=forms.SelectMultiple(attrs={ 'style': 'width: auto;', 'size': 3, 'onchange': 'javascript: this.form.submit()',}))
+    translation_age = forms.CharField(required=False, label="Translation age range", widget=forms.TextInput(attrs={'size': 8, 'style': 'width: 50px;', 'onchange': 'javascript: this.form.submit()',}))
     list_blocks = forms.BooleanField(required=False, label='List contained blocks')
 
 class BlockEditForm(forms.Form):

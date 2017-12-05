@@ -3,35 +3,36 @@
 
 {% block head_title %}Page: {{ site.url }}{{ webpage.path }}{% endblock %}
 
-{% comment %}
 {% block extra_head %}
 <style>
+h4 { margin: 0; padding: 0; }
+form { margin: 0; padding: 0; }
+table { margin: 0; padding: 0; }
+fieldset {
+    border: 1px groove #ddd !important;
+    padding: 0 1.4em 1.4em 1.4em !important;
+    margin: 0 0 1.0em 0 !important;
+    -webkit-box-shadow:  0px 0px 0px 0px #000;
+            box-shadow:  0px 0px 0px 0px #000;
+}
+legend {
+    width: inherit; /* Or auto */
+    padding: 0 10px; /* To give a bit of padding on the left and right */
+    border-bottom:none;
+    font-size: small;
+    font-style: italic;
+}
 
 label { display: inline; font-weight: bold; margin-right: 1.0em; padding: 0.2em 0em; }
-pre { display: inline; padding: 0; }
-pre code { line-height: 0.5; }
-.l { text-align: left; }
-.r { text-align: right; }
-table { border-spacing: 10px 0; border-collapse: separate; }
-th, td { text-align: left; vertical-align: top; }
 </style>
 {% endblock %}
-{% endcomment %}
 
 {% block body_id %}page{% endblock %}
 
-{% block title-page %}{% trans "page"|capfirst %}{% endblock %}
+{% block title-page %}{% trans "page"|capfirst %} &nbsp; <span style="color: grey; font-size: smaller;">{{ site.url }}{{ webpage.path }}</span>{% endblock %}
 
 {% block content-page %}
-<blockquote>{{ site.url }}{{ webpage.path }}</blockquote>
-{% comment %}
-    <div><label>Project</label> <a href="/site/{{ site.slug }}/" style="font-size: larger;">{{ site.name }}</a></div>
-    <div><label>Page id</label> {{ webpage.id }} &nbsp;
-		 <label>Encoding</label> {{ webpage.encoding }}</div>
-    <div><label>Page URL</label> <a href="{{ site.url }}{{ webpage.path }}">{{ site.url }}{{ webpage.path }}</a> &nbsp;
-    	 <label>Null proxy</label> <a href="/{{ site.path_prefix }}{{ webpage.path }}">/{{ site.path_prefix }}{{ webpage.path }}</a></div>
-{% endcomment %}
-	{% comment %}<div><label>Crawled &nbsp; first:</label>{{ webpage.created|date:"SHORT_DATETIME_FORMAT" }}, &nbsp; <label>last:</label>{{ webpage.last_checked|date:"SHORT_DATETIME_FORMAT" }}, &nbsp; <label>last code:</label>{{ webpage.last_checked_response_code }}</div>{% endcomment %}
+{% comment %}<div><label>Crawled &nbsp; first:</label>{{ webpage.created|date:"SHORT_DATETIME_FORMAT" }}, &nbsp; <label>last:</label>{{ webpage.last_checked|date:"SHORT_DATETIME_FORMAT" }}, &nbsp; <label>last code:</label>{{ webpage.last_checked_response_code }}</div>{% endcomment %}
 
 
   <table class="table table-responsive table-bordered table-striped">
@@ -39,54 +40,62 @@ th, td { text-align: left; vertical-align: top; }
       <tr>
       	<th>{% trans "project"|capfirst %}</th>
       	<th>{% trans "page id"|capfirst %}</th>
-      	<th>{% trans "encoding"|capfirst %}</th>
+      	{% comment %}<th>{% trans "encoding"|capfirst %}</th>{% endcomment %}
       	<th>{% trans "page URL"|capfirst %}</th>
       	<th>{% trans "null proxy"|capfirst %}</th>
       	<th>{% trans "blocks"|capfirst %}</th>
-      	<th>{% trans "in use"|capfirst %}</th>
+      	{% comment %}<th>{% trans "in use"|capfirst %}</th>{% endcomment %}
       </tr>
     </thead>
     <tbody>
     	<tr>
     		<td><span class="mR10">{{ site.name }}</span><span class="mR10"><a href="{% url 'site' site.slug %}"><i class="fa fa-th-large" aria-hidden="true"></i></a></span><a href="{{ site.url }}"><i class="fa fa-eye" aria-hidden="true"></i></a></td>
     		<td>{{ webpage.id }}</td>
-    		<td>{{ webpage.encoding }}</td>
+    		{% comment %}<td>{{ webpage.encoding }}</td>{% endcomment %}
     		<td><a href="{{ site.url }}{{ webpage.path }}">{{ site.url }}{{ webpage.path }}</a></td>
     		<td><a href="/{{ site.path_prefix }}{{ webpage.path }}">/{{ site.path_prefix }}{{ webpage.path }}</a></td>
     		<td>{% if block_count %}<a href="/page/{{ webpage.id }}/blocks/">{{ block_count }}</a>{% else %}<a href="/page/{{ webpage.id }}/extract_blocks/">{% trans "extract blocks"|capfirst %}</a>{% endif %}</td>
-    		<td>{{ blocks_in_use.count }}</td>
+    		{% comment %}<td>{{ blocks_in_use.count }}</td>{% endcomment %}
     	</tr>
     </tbody>
   </table>
 
-		{% if user.is_superuser %}
+{% if user.is_superuser %}
 		
 <form class="mTB40" action="/page/{{ webpage.id }}/" method="post">{% csrf_token %}
+
+	<fieldset>
+		<legend>Navigation :
+		{% if previous %}<span class="mR10"><input type="submit" name="goto-{{ previous.id }}" class="btn btn-default btn-sm" value="Previous"></span>{% endif %}
+		{% if next %}<input type="submit" name="goto-{{ next.id }}" class="btn btn-default btn-sm" value="Next">{% endif %}
+		</legend>
+
+    <table>
+    <thead>
+    	<tr>{% for field in sequencer_form.visible_fields %}<th style="padding-bottom:0; border-bottom-width:0">{{ field.label_tag }} &nbsp;</th>{% endfor %}</tr>
+   	</thead>
+   	<tbody><tr>
+		<td style="vertical-align:top;">{{ sequencer_form.page_age }}</td>
+		<td style="vertical-align:top;">{{ sequencer_form.translation_state }}</td>
+		<td style="vertical-align:top;">{{ sequencer_form.translation_languages }}</td>
+		<td style="vertical-align:top;">{{ sequencer_form.translation_age }}</td>
+		<td style="vertical-align:top;">{{ sequencer_form.list_blocks }}</td>
+	</tr></tbody>
+	</table> 
+	</fieldset>
+{% comment %}
+	<span class="mR30"><input type="submit" name="apply_filter" class="btn btn-default btn-sm" value="Apply filter"></span>
+{% endcomment %}
+
     <div class="form-group">
 		 <span class="mR30"><label>Invariant</label> {{ edit_form.no_translate }} &nbsp;
 							<input type="submit" name="save_page" value="Save" class="btn btn-default btn-sm"></span>
+
 		 <span class="mR30"><input type="submit" name="fetch_page" value="Re-fetch page" class="btn btn-default btn-sm"></span>
 		 <span class="mR30"><input type="submit" name="purge_blocks" value="Purge blocks" class="btn btn-default btn-sm"></span>
 		 <span class="mR30"><input type="submit" name="extract_blocks" value="Extract blocks" class="btn btn-default btn-sm"></span>
-	  </div>
+	</div>
 
-    <h4>{% trans "navigation"|capfirst %}</h4>
-    <div class="form group">
-    <table class="table table-responsive">
-    	<thead>
-    	<tr>{% for field in sequencer_form.visible_fields %}<th style="padding-bottom:0; border-bottom-width:0">{{ field.label_tag }}</th>{% endfor %}</tr>
-   	</thead>
-   	<tbody><tr>
-		<td style="border-top-width:0">{{ sequencer_form.page_age }}</td>
-		<td style="border-top-width:0">{{ sequencer_form.translation_state }}</td>
-		<td style="border-top-width:0">{{ sequencer_form.translation_languages }}</td>
-		<td style="border-top-width:0">{{ sequencer_form.translation_age }}</td>
-		<td style="border-top-width:0">{{ sequencer_form.list_blocks }}</td>
-	</tr></tbody></table> 
-			<span class="mR30"><input type="submit" name="apply_filter" class="btn btn-default btn-sm" value="Apply filter"></span>
-		{% if previous %}<span class="mR10"><input type="submit" name="goto-{{ previous.id }}" class="btn btn-default btn-sm" value="Previous"></span>{% endif %}
-		{% if next %}<input type="submit" name="goto-{{ next.id }}" class="btn btn-default btn-sm" value="Next">{% endif %}
-    </div>   	
 	</form>
 {% endif %}
 
@@ -109,12 +118,12 @@ th, td { text-align: left; vertical-align: top; }
    	   <a href="/{{ site.path_prefix }}/{{ language.code }}{{ webpage.path }}"><i class="fa fa-eye" aria-hidden="true"></i></a>
    	   <a href="/page/{{ webpage.id }}/cache_translation/{{ language.code }}/"><i class="fa fa-check" aria-hidden="true"></i></a></td>
    <td class="text-right">{{ total }}</td>
-   <td class="text-right">{{ invariant }}</td>
+   <td class="text-right">{{ invariant }} {% if invariant %}<a href="/block/0/?filter=no_translate&page={{ webpage.id }}"><i class="fa fa-caret-square-o-right"></i></a>{% endif %}</td>
    <td class="text-right">{{ dict.already }}</td>
    <td class="text-right">{{ dict.partially }}</td>
-   <td class="text-right">{{ dict.translated }}</td>
+   <td class="text-right">{% with translated=dict.translated %} {{ translated }} {% if translated %}<a href="/block/0/?filter=translated&page={{ webpage.id }}&lang={{ language.code }}"><i class="fa fa-caret-square-o-right"></i></a>{% endif %}{% endwith %}</td>
    <td class="text-right">{{ dict.revised }}</td>
-   <td class="text-right">{{ dict.left }}</td>
+   <td class="text-right">{% with left=dict.left %} {{ left }} {% if left %}<a href="/block/0/?filter=to_be_translated&page={{ webpage.id }}&lang={{ language.code }}"><i class="fa fa-caret-square-o-right"></i></a>{% endif %}{% endwith %}</td>
 </tr>{% endfor %}
 </tbody>
 </table>
