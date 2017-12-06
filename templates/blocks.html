@@ -4,14 +4,7 @@
 {% block head_title %}{% trans "blocks of project"|capfirst %}: {{ site.name }}{% endblock %}
 
 {% block extra_head %}
-{% comment %}
-<style>
-    pre { display: inline; padding: 0; }
-    pre code { line-height: 0.5; }
-</style>
-{% endcomment %}
 {% endblock %}
-
 
 {% block body_id %}blocks{% endblock %}
 
@@ -37,7 +30,6 @@
         <th class="text-right">Id</th>
         <th class="text-right">Chars</th>
         <th>Text is / starts with ..</th>
-        <th>xPath</th>
         <th class="text-right">Pages</th>
         <th>{% trans "date"|capfirst %}/{% trans "time"|capfirst %}</th>
         {% for proxy in proxies %}<th>{{ proxy.language.code }}</th>{% endfor %}
@@ -45,13 +37,12 @@
       <tbody>
         {% for site_block in site_blocks %}
           <tr>
-            <td class="text-right">{{forloop.counter|rjust:"3"}}</td>
+            <td class="text-right">{{forloop.counter|add:offset|rjust:"5"}}</td>
             <td class="text-right">{{ site_block.id }}</td>
             <td class="text-right">{{ site_block.body|length }}</td>
-            <td> <a href="/block/{{ site_block.id }}/">{{ site_block.get_label|truncatechars_html:80 }}</a></td>
-            <td><a href="/block/{{ site_block.id }}/">{{ site_block.xpath }}</a></td>
+            <td> <a href="/block/{{ site_block.id }}/?site={{ site.slug }}">{{ site_block.get_label|truncatechars_html:80 }}</a></td>
             <td class="text-right"><a href="/block/{{ site_block.id }}/pages/">{{ site_block.webpages.all.count }}</a></td>
-            <td>{{ site_block.time|date:"SHORT_DATETIME_FORMAT" }}</td>
+            <td>{{ site_block.time|date:"d/m/Y G:i T" }}</td>
             {% for language_code, translations in site_block.get_last_translations %}
               <td>
               {% if translations %}

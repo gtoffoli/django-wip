@@ -108,8 +108,8 @@
              <td><span class="mR10">{{ site.name }}</span><span class="mR10"><a href="{% url 'site' site.slug %}" title="{% trans "go to the site management dashboard" %}"><i class="fa fa-th-large" aria-hidden="true"></i></a></span></td>
              <td class="text-right">{% if site.source_pages.count %}<span class="mR10">{{ site.source_pages.count }}</span><a href="/site/{{ site.slug }}/pages/" title="{% trans "list pages" %}"><i class="fa fa-th-list"></i></a>{% else %}0{% endif %}</td>
              <td class="text-right">{{ site.page_versions.count }}</td>
-             <td class="text-right">{% if site.source_blocks.count %}<span class="mR10">{{ site.source_blocks.count }}</span><a href="/site/{{ site.slug }}/blocks/" title="{% trans "list blocks" %}"><i class="fa fa-th-list"></i></a>{% else %}0{% endif %}</td>
-   			 <td class="text-right">{{ site.blocks_in_use.count }}</td>
+             <td class="text-right">{{ site.source_blocks.count }}</td>
+   			 <td class="text-right">{% if site.source_blocks.count %}<span class="mR10">{{ site.blocks_in_use.count }}</span> <a href="/site/{{ site.slug }}/blocks/" title="{% trans "list blocks" %}"><i class="fa fa-th-list"></i></a>{% else %}0{% endif %}</td>
              <td>
                {% if site.proxies %}
                  {% for proxy in site.proxies %}<div>

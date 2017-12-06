@@ -53,7 +53,7 @@ label { font-size: small; }
       	<td>{{ language }}</td>
       	<td style="text-align: center;">{{ page_block.id }}</td>
       	{% comment %}<td>{{ page_block.checksum }}</td>{% endcomment %}
-      	<td>{{ page_block.time|date:"SHORT_DATETIME_FORMAT" }}</td>
+      	<td>{{ page_block.time|date:"d/m/Y G:i T" }}</td>
       	<td>{% if page_block.no_translate %}{% trans "yes"|capfirst %}{% endif %}</td>
       	<td style="text-align: center;">{% with n=page_block.bips.count %}
       	{% if n == 1 %}<a href="/page/{{ page_block.get_page.id }}/">{{ n }}</a>{% elif n %}{{ n }}{% endif %}
@@ -65,6 +65,7 @@ label { font-size: small; }
 
 {% if user.is_superuser %}
    	<form class="mTB40" action="/block/{{ page_block.id }}/" method="post" style="margin: 0; padding: 0;">{% csrf_token %}
+{% endif %}
  
 	<fieldset>
 		<legend>Navigation - {{ n }} blocks found:
@@ -87,8 +88,6 @@ label { font-size: small; }
 		{% comment %}<td>{{ sequencer_form.list_pages }}</td>{% endcomment %}
 	</tr></tbody></table>
 	</fieldset>
-	</form>
-{% endif %}
 
 	<fieldset>
 		<legend>Content and translations</legend>
@@ -105,11 +104,16 @@ label { font-size: small; }
 	{% endwith %}
 	</fieldset>
 
+{% if user.is_superuser %}
 	<fieldset>
 		<legend>Properties</legend>
-		<span class="mR10"><label>Block language</label> {{ edit_form.language }}</span><span class="mR10"><label>Invariant</label> {{ edit_form.no_translate }}</span>
+		<span class="mR10"><label>Block language</label> {{ edit_form.language }}</span>
+		<span class="mR10"><label>Invariant</label> {{ edit_form.no_translate }}</span>
 		<input type="submit" name="save_block" value="Save properties" class="btn btn-default btn-sm">
 	</fieldset>
+
+	</form>
+{% endif %}
 	
  	{% if pages and list_pages %}
 	    <h4 style="margin-top:30px">{% trans "pages including this block"|capfirst %}</h4>
@@ -128,7 +132,7 @@ label { font-size: small; }
 			<td class="text-right">{{ page.id }}</td>
 			<td><a href="/page/{{ page.id }}/">{{ page.path }}</a></td>
 			<td class="text-right"><a href="/page/{{ page.id }}/">{{ page.blocks.count }}</a></td>
-			<td>{{ page.last_checked|date:"SHORT_DATETIME_FORMAT" }}</td></tr>
+			<td>{{ page.last_checked|date:"d/m/Y G:i T" }}</td></tr>
 		  {% endfor %}
 	    </tbody>
     	</table>

@@ -912,8 +912,9 @@ def site_blocks(request, site_slug):
     site = get_object_or_404(Site, slug=site_slug)
     var_dict['site'] = site
     var_dict['proxies'] = proxies = Proxy.objects.filter(site=site).order_by('language__code')   
-    qs = Block.objects.filter(site=site).order_by('xpath')
-    var_dict['block_count'] = block_count = qs.count()
+    # qs = Block.objects.filter(site=site).order_by('xpath')
+    qs = site.get_blocks_in_use().order_by('id')
+    var_dict['block_count'] = qs.count()
     paginator = Paginator(qs, settings.PAGE_SIZE)
     page = request.GET.get('page', 1)
     try:
@@ -932,7 +933,6 @@ def site_blocks(request, site_slug):
     var_dict['before'] = steps_before(page)
     var_dict['after'] = steps_after(page, paginator.num_pages)
     var_dict['site_blocks'] = site_blocks
-    # return render_to_response('blocks.html', var_dict, context_instance=RequestContext(request))
     return render(request, 'blocks.html', var_dict)
 
 def site_translated_blocks(request, site_slug):
@@ -1004,9 +1004,9 @@ def block(request, block_id):
     - state: translated (at least one language), untranslated (at least one language), all
     """
     first_block = block = None
+    site_slug = request.GET.get('site', '')
     if int(block_id) == 0:
         filter = request.GET.get('filter', '')
-        site_slug = request.GET.get('site', '')
         target_code = request.GET.get('lang', '')
         webpage_id = request.GET.get('page', '')
         translation_state = None
@@ -1016,6 +1016,7 @@ def block(request, block_id):
             if site_slug:
                 site = get_object_or_404(Site, slug=site_slug)
                 sequencer_context['project_site_id'] = site.id
+                sequencer_context['webpage'] = None
             elif webpage_id:
                 webpage = get_object_or_404(Webpage, pk=webpage_id)
                 site = webpage.site
@@ -1059,6 +1060,7 @@ def block(request, block_id):
                     block = get_object_or_404(Block, pk=goto)
         apply_filter = not (save_block or goto)
         if save_block:
+            print ('1 save_block')
             form = BlockEditForm(post)
             if form.is_valid():
                 data = form.cleaned_data
@@ -1066,6 +1068,7 @@ def block(request, block_id):
                 no_translate = data['no_translate']
                 block.language = language
                 block.no_translate = no_translate
+                print ('2 save_block', language, no_translate)
                 block.save()
         elif (apply_filter or goto):
             form = BlockSequencerForm(post)
@@ -1082,23 +1085,11 @@ def block(request, block_id):
                 source_text_filter = data['source_text_filter']
                 list_pages = False # data['list_pages']
     if not post or save_block or create or modify:
-        """
-        translation_state = None
-        translation_codes = []
-        if not post and first_block:
-            if filter == 'no_translate':
-                translation_state = INVARIANT
-            elif filter == 'already':
-                translation_state = ALREADY
-                translation_codes = [target_code]
-        """
         sequencer_context = request.session.get('sequencer_context', {})
-        if sequencer_context:
+        if sequencer_context and not site_slug:
             webpage_id = sequencer_context.get('webpage', None)
             block_age = sequencer_context.get('block_age', '')
             project_site_id = sequencer_context.get('project_site_id', None) or block.site.id
-            # translation_state = translation_state or sequencer_context.get('translation_state', TO_BE_TRANSLATED)
-            # translation_codes = translation_codes or sequencer_context.get('translation_codes', [])
             translation_state = sequencer_context.get('translation_state', TO_BE_TRANSLATED)
             translation_codes = sequencer_context.get('translation_codes', [])
             translation_age = sequencer_context.get('translation_age', '')
