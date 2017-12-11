@@ -5,7 +5,7 @@
 <style>
 .it { color: LimeGreen; }
 .en { color: #FF0088; }
-.es { color: OrangeRed; }
+.es { color: Orange; }
 .fr { color: blue; }   
 </style>
 {% endblock %}

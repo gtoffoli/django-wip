@@ -19,14 +19,12 @@ legend {
     font-style: italic;
 }
 label { display: inline; font-weight: bold; margin-right: 1.0em; padding: 0.2em 0em; }
-pre { display: inline;  padding: 0; }
-pre code { display: inline; }
 tr.odd { background: LightGray; }
 tr.even { background: white; }
-.it { color: LimeGreen; }
-.en { color: #FF0088; }
-.es { color: OrangeRed; }
-.fr { color: blue; }   
+.it { border: 1px solid; border-color: Green; margin: 1px; }
+.en { border: 2px solid; border-color: Red; margin: 1px; }
+.es { border: 2px solid; border-color: Orange; margin: 1px; }
+.fr { border: 1px solid; border-color: Blue; margin: 1px; }
 th, td { text-align: left; vertical-align: top; }
 </style>
 {% endblock %}
@@ -41,7 +39,7 @@ th, td { text-align: left; vertical-align: top; }
 {% block content-page %}
 	<fieldset>
 	<legend>Segment - 
-    <label>id</label><a href="/segment/{{ segment.id }}/">{{ segment.id }} <i class="fa fa-eye"></i></a> &nbsp;
+    <label>id</label><a href="/segment/{{ segment.id }}/">{{ segment.id }}</a> &nbsp;
     <span class="{{ source_language.code }}">{{ source_language.name }}</span> &nbsp;
     {% if segment.site %}<label>site</label>{{ segment.site.name }} &nbsp;{% endif %}
 	</legend>
@@ -50,7 +48,7 @@ th, td { text-align: left; vertical-align: top; }
 
 	<fieldset>
 	<legend>Translation - 
-	<label>id</label><a href="/segment_translate/{{ segment.id }}/{{ target_language.code }}/">{{ translation.id }} <i class="fa fa-language"></i></a> &nbsp;
+	<label>id</label><a href="/segment_translate/{{ segment.id }}/{{ target_language.code }}/">{{ translation.id }}</a> &nbsp;
     <span class="{{ target_language.code }}">{{ target_language.name }}</span> &nbsp;
 	{% if translation.user_role %} <label>by</label>{{ translation.user_role }}{% endif %}
 	</legend>
@@ -60,13 +58,16 @@ th, td { text-align: left; vertical-align: top; }
 <form action="/translation_align/{{ translation.id }}/" id="sequencer_form" method="post">
 	{% csrf_token %}
 	<fieldset>
-		<legend>Navigation</legend>
-     <div>
+		<legend>Navigation -
 		{% comment %}<input type="submit" name="apply_filter" class="btn btn-sm" value="Apply filter below"> &nbsp;&nbsp;{% endcomment %}
 		{{ n }} translations found{% if n %}:{% endif %}
 		{% if previous %}<input type="submit" name="goto-{{ previous.id }}" class="btn btn-sm btn-default" value="Previous">{% endif %}
 		{% if next %}<input type="submit" name="goto-{{ next.id }}" class="btn btn-sm btn-default" value="Next">{% endif %}
-    </div>
+		&nbsp;<a href="/segment/{{ segment.id }}/">View segment</a>
+		&nbsp;<a href="/segment_translate/{{ segment.id }}/{{ target_language.code }}/">Translate segment</a>
+		{% if block_id %}&nbsp;<a href="/block/{{ block_id }}/translate/{{ target_language.code }}/">Back to last block</a>{% endif %}
+    	</legend>
+
     <table><thead>
     	<tr>{% for field in sequencer_form.visible_fields %}<th>{{ field.label_tag }}</th>{% endfor %}</tr>
    	</thead><tbody><tr>
@@ -99,8 +100,6 @@ th, td { text-align: left; vertical-align: top; }
     <div><label>Compute alignment</label> {{ translation_align_form.compute_alignment }}</div>
 	</fieldset>
 </form>
-
-{% if block_id %}<div><i><a href="/block/{{ block_id }}/translate/{{ target_language.code }}/">Back to last block</a></i></div>{% endif %}
 
 {% endblock %}
 

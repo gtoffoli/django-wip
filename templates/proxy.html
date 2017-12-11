@@ -59,12 +59,12 @@
       <td>{% if page_count %}<span class="mR10">{{ page_count }}</span><span class="mR10"><a href="/site/{{ site.slug }}/pages/" title="{% trans "list pages" %}"><i class="fa fa-th-list"></i></a></span><a href="/page/{{ first_page.id }}/" title="{% trans "browse all pages" %}"><i class="fa fa-caret-square-o-right"></i></a>{% else %}0{% endif %}</td>
       <td>{{ translated_pages_count }}</td>
       <td>{{ word_count }}</td>
-      <td>{% if block_count %}<span class="mR10">{{ block_count }}</span><span class="mR10"><a href="/site/{{ site.slug }}/blocks/" title="{% trans "list blocks" %}"><i class="fa fa-th-list"></i></a></span><a href="/block/{{ first_block.id }}/" title="{% trans "browse all blocks" %}"><i class="fa fa-caret-square-o-right"></i></a>{% else %}0{% endif %}</td>
+      <td>{{ block_count }}</td>
       <td>{{ blocks_invariant }}</td>
       <td>{{ translated_blocks_count }}</td>
       <td>{{ partially_blocks_count }}</td>
       <td>{{ left_blocks_count }}</td>
-      <td>{{ blocks_in_use.count }}</td>
+      <td>{% if blocks_in_use %}<span class="mR10">{{ blocks_in_use.count }}</span><span class="mR10"><a href="/site/{{ site.slug }}/blocks/" title="{% trans "list blocks in use" %}"><i class="fa fa-th-list"></i></a></span><a href="/block/{{ first_block.id }}/?site={{ site.slug }}" title="{% trans "browse blocks in use" %}"><i class="fa fa-caret-square-o-right"></i></a>{% else %}0{% endif %}</td>
     </tbody>
   </table>
 

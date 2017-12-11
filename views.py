@@ -1552,6 +1552,8 @@ def segment_view(request, segment_id):
     var_dict['sequencer_form'] = SegmentSequencerForm(initial={'project_site': project_site, 'translation_state': translation_state, 'translation_languages': translation_languages, 'order_by': order_by, 'show_similar': show_similar})
     var_dict['TRANSLATION_TYPE_DICT'] = TRANSLATION_TYPE_DICT
     var_dict['ROLE_DICT'] = ROLE_DICT
+    sequencer_context = request.session.get('sequencer_context', {})
+    var_dict['block_id'] = sequencer_context.get('block', None)
     return render(request, 'segment_view.html', var_dict)
 
 @staff_member_required

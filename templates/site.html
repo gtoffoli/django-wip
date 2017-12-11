@@ -56,7 +56,7 @@
 		<td>{{ site.get_segment_count }}</td>
 		<td>{{ word_count }}</td>
         <td>{{ block_count }}</td>
-   		<td>{% if blocks_in_use.count %}<span class="mR10">{{ blocks_in_use.count }}</span><span class="mR10"><a href="/site/{{ site.slug }}/blocks/" title="{% trans "list blocks" %}"><i class="fa fa-th-list"></i></a></span><a href="/block/{{ first_block.id }}/?site={{ site.slug }}" title="{% trans "browse all blocks" %}"><i class="fa fa-caret-square-o-right"></i></a>{% else %}0{% endif %}</td>
+   		<td>{% if blocks_in_use.count %}<span class="mR10">{{ blocks_in_use.count }}</span><span class="mR10"><a href="/site/{{ site.slug }}/blocks/" title="{% trans "list blocks in use" %}"><i class="fa fa-th-list"></i></a></span><a href="/block/{{ first_block.id }}/?site={{ site.slug }}" title="{% trans "browse blocks in use" %}"><i class="fa fa-caret-square-o-right"></i></a>{% else %}0{% endif %}</td>
         <td>{% if proxies %}
               {% for proxy in proxies %}
                 <span class="mR10">{{ proxy.name }}</span>
