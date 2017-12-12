@@ -521,7 +521,8 @@ class Site(models.Model):
                 segment.save()              
 
     def get_token_frequency(self, lowercasing=True):
-        tokenizer = NltkTokenizer(language_code=self.language_id, lowercasing=lowercasing)
+        # tokenizer = NltkTokenizer(language_code=self.language_id, lowercasing=lowercasing)
+        tokenizer = self.make_tokenizer()
         tokens_dict = defaultdict(int)
         segments = self.get_segments()
         for segment in segments:
@@ -970,7 +971,8 @@ class Proxy(models.Model):
     def make_bitext(self, lowercasing=False, use_invariant=False, tokenizer=None, max_tokens=1000, max_fertility=1000):
         site = self.site
         target_language = self.language
-        source_tokenizer = NltkTokenizer(site.language_id, lowercasing=lowercasing)
+        # source_tokenizer = NltkTokenizer(site.language_id, lowercasing=lowercasing)
+        source_tokenizer = site.make_tokenizer()
         target_tokenizer = NltkTokenizer(self.language_id, lowercasing=lowercasing)
         segments = Segment.objects.filter(site=site)
         bitext = []
@@ -1036,8 +1038,10 @@ class Proxy(models.Model):
     def align_translations(self, aligner=None, bitext=None, ibm_model=2, iterations=5, lowercasing=False, evaluate=False, verbose=False):
         if not evaluate:
             self.clear_alignments()
-        source_tokenizer = NltkTokenizer(self.site.language_id, lowercasing=lowercasing)
-        target_tokenizer = NltkTokenizer(self.language_id, lowercasing=lowercasing)
+        # source_tokenizer = NltkTokenizer(self.site.language_id, lowercasing=lowercasing)
+        source_tokenizer = self.site.make_tokenizer()
+        # target_tokenizer = NltkTokenizer(self.language_id, lowercasing=lowercasing)
+        target_tokenizer = self.make_tokenizer()
         if not aligner:
             # aligner = self.get_train_aligner(bitext=bitext, ibm_model=ibm_model, train=True, iterations=iterations, tokenizer=tokenizer, lowercasing=lowercasing)
             aligner = self.get_train_aligner(bitext=bitext, ibm_model=ibm_model, train=True, iterations=iterations, lowercasing=lowercasing)
@@ -1151,7 +1155,8 @@ class Proxy(models.Model):
 
     def get_token_frequency(self, lowercasing=True):
         # tokenizer = NltkTokenizer(lowercasing=lowercasing)
-        tokenizer = NltkTokenizer(language_code=self.language_id, lowercasing=lowercasing)
+        # tokenizer = NltkTokenizer(language_code=self.language_id, lowercasing=lowercasing)
+        tokenizer = self.make_tokenizer()
         tokens_dict = defaultdict(int)
         translations = self.get_translations()
         for translation in translations:
@@ -1967,7 +1972,8 @@ class Block(node_factory('BlockEdge')):
             if proxy: 
                 target_tokenizer = proxy.make_tokenizer(return_matches=return_matches)
             else:
-                target_tokenizer = NltkTokenizer(source_language.code, lowercasing=False, return_matches=return_matches)
+                # target_tokenizer = NltkTokenizer(source_language.code, lowercasing=False, return_matches=return_matches)
+                target_tokenizer = NltkTokenizer(target_language.code, lowercasing=False, return_matches=return_matches)
         site_invariants = text_to_list(site.invariant_words)
         segments_tokens = []
         n_invariants = 0
@@ -2671,7 +2677,8 @@ class Translation(models.Model):
         return n, first, last, previous, next
 
     def make_json(self):
-        source_tokenizer = NltkTokenizer(language_code=self.segment.language_id, lowercasing=False)
+        # source_tokenizer = NltkTokenizer(language_code=self.segment.language_id, lowercasing=False)
+        source_tokenizer = self.segment.site.make_tokenizer()
         target_tokenizer = NltkTokenizer(language_code=self.language_id, lowercasing=False)
         source_tokens = tokenize(self.segment.text, tokenizer=source_tokenizer)
         target_tokens = tokenize(self.text, tokenizer=target_tokenizer)
