@@ -66,6 +66,7 @@ th, td { text-align: left; vertical-align: top; }
     	<tr>{% for field in sequencer_form.visible_fields %}<th>{{ field.label_tag }}</th>{% endfor %}</tr>
    	</thead><tbody><tr>
 		<td>{{ sequencer_form.project_site }}</td>
+		<td>&nbsp;{{ sequencer_form.in_use }}</td>
 		<td>{{ sequencer_form.translation_state }}</td>
 		<td>{{ sequencer_form.translation_languages }}</td>
 		<td>{{ sequencer_form.order_by }}</td>

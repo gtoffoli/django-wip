@@ -501,6 +501,25 @@ class Site(models.Model):
     def get_segment_count(self):
         return len(self.get_segments(translation_state=ANY))
 
+    def get_segments_in_use(self):
+        return Segment.objects.filter(site=self, in_use=True)
+        
+    def refresh_segments_in_use(self):
+        segments_dict = defaultdict(int)
+        blocks_in_use = self.get_blocks_in_use()
+        segmenter = self.make_segmenter()
+        for block in blocks_in_use:
+            segment_texts = block.block_get_segments(segmenter)
+            for text in segment_texts:
+                for segment in Segment.objects.filter(site=self, text=text):
+                    segments_dict[segment.id] += 1
+        segments = Segment.objects.filter(site=self)
+        for segment in segments:
+            in_use = (segments_dict[segment.id] > 0)
+            if in_use != segment.in_use:
+                segment.in_use = in_use
+                segment.save()              
+
     def get_token_frequency(self, lowercasing=True):
         tokenizer = NltkTokenizer(language_code=self.language_id, lowercasing=lowercasing)
         tokens_dict = defaultdict(int)
@@ -2483,9 +2502,10 @@ class UserRole(models.Model):
    
 class Segment(models.Model):
     site = models.ForeignKey(Site, verbose_name='source site')
-    language = models.ForeignKey(Language, verbose_name='source language')
+    language = models.ForeignKey(Language, verbose_name='source language', blank=True, null=True)
     is_fragment = models.BooleanField('fragment', default=False)
     is_invariant = models.BooleanField('invariant', default=False)
+    in_use = models.BooleanField('in use', default=True)
     text = models.TextField('plain text extracted', blank=True, null=True)
     html = models.TextField('original text with tags', blank=True, null=True)
     comment = models.TextField('comment', blank=True, null=True)
@@ -2532,13 +2552,17 @@ class Segment(models.Model):
     def get_language_translations(self, target_language):
         return Translation.objects.filter(segment=self, language=target_language).order_by('-translation_type', 'user_role__role_type', 'user_role__level')
 
-    def get_navigation(self, site=None, translation_state='', translation_languages=[], order_by=TEXT_ASC):
+    def get_navigation(self, site=None, in_use=None, translation_state='', translation_languages=[], order_by=TEXT_ASC):
         id = self.id
         text = self.text
         created = self.created
         qs = Segment.objects.filter(language=self.language)
         if site:
             qs = qs.filter(site=site)
+        if in_use == 'Y':
+            qs = qs.filter(in_use=True)
+        elif in_use == 'N':
+            qs = qs.exclude(in_use=True)
         if translation_state == INVARIANT:
             qs = qs.filter(is_invariant=True)
         elif translation_state == TRANSLATED:

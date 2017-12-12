@@ -12,6 +12,8 @@ from .models import STRING_TYPE_CHOICES, STRING_SORT_CHOICES, STRING_TRANSLATION
 from .models import ROLE_TYPE_CHOICES
 from .vocabularies import Language, Subject
 
+YES_NO_CHOICES = (('', '',), ('Y', 'Y',), ('N', 'N',),)
+
 PARALLEL_SENTENCES_FORMAT_CHOICES = (
     (1, _("xliff")),
     (2, _("text"))
@@ -90,6 +92,7 @@ class StringSequencerForm(forms.Form):
 class SegmentSequencerForm(forms.Form):
     # string_types = forms.MultipleChoiceField(required=False, choices=STRING_TYPE_CHOICES, label="String types", widget=forms.SelectMultiple(attrs={ 'style': 'width: auto;', 'size': 4, 'onchange': 'javascript: this.form.submit()', }))
     project_site = forms.ModelChoiceField(required=False, label="Project site", queryset=Site.objects.all(), widget=forms.Select(attrs={'style':'height: 24px;', 'onchange': 'javascript: this.form.submit()',}))
+    in_use = forms.ChoiceField(required=False, choices=YES_NO_CHOICES, label="In use", widget=forms.Select(attrs={ 'style': 'width: auto; height: 2em;', 'onchange': 'javascript: this.form.submit()', }))
     translation_state = forms.ChoiceField(required=False, choices=STRING_TRANSLATION_STATE_CHOICES, label="Translation state", widget=forms.Select(attrs={ 'style': 'width: auto; height: 2em;', 'onchange': 'javascript: this.form.submit()', }))
     translation_languages = forms.ModelMultipleChoiceField(required=False, queryset=Language.objects.all(), label="Target languages", widget=forms.SelectMultiple(attrs={ 'style': 'width: auto;', 'size': 3, 'onchange': 'javascript: this.form.submit()', }))
     order_by = forms.ChoiceField(required=False, choices=STRING_SORT_CHOICES, label="Sort order", widget=forms.Select(attrs={ 'style': 'width: auto; height: 2em;', }))
@@ -152,6 +155,7 @@ class ListSegmentsForm(forms.Form):
     source_text_filter = forms.CharField(required=False, label="Text in source string", widget=forms.TextInput(attrs={'style': 'width: 500px;', 'onchange': 'javascript: this.form.submit()',}))
     target_language = forms.ModelChoiceField(required=True, label="Target language", queryset=Language.objects.all(), widget=forms.Select(attrs={'style':'height: 24px;', 'onchange': 'javascript: this.form.submit()',}))
     target_text_filter = forms.CharField(required=False, label="Text in target string", widget=forms.TextInput(attrs={'style': 'width: 500px;', 'onchange': 'javascript: this.form.submit()',}))
+    in_use = forms.ChoiceField(required=False, choices=YES_NO_CHOICES, label="In use", widget=forms.Select(attrs={ 'style': 'width: auto; height: 2em;', 'onchange': 'javascript: this.form.submit()', }))
     show_other_targets = forms.BooleanField(required=False, label='Show other targets', widget=forms.CheckboxInput(attrs={'onchange': 'javascript: this.form.submit()',}))
     show_alignments = forms.BooleanField(required=False, label='Show alignments', widget=forms.CheckboxInput(attrs={'onchange': 'javascript: this.form.submit()',}))
 

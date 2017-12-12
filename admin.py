@@ -310,8 +310,8 @@ class UserRoleAdmin(admin.ModelAdmin):
     list_filter = ('site', 'role_type', 'source_language', 'target_language')
 
 class SegmentAdmin(admin.ModelAdmin):
-    list_display = ['id', 'site', 'language', 'text', 'is_fragment',]
-    list_filter = ['site', 'language']
+    list_display = ['id', 'site', 'language', 'text', 'in_use', 'is_fragment',]
+    list_filter = ['site', 'language', 'in_use',]
     search_fields = ['text',]
 
 class TranslationAdmin(admin.ModelAdmin):

@@ -44,7 +44,8 @@
 
 <div>{% for field in list_segments_form.visible_fields|slice:"0:2" %}{{ field.label_tag }} {{ field }} &nbsp; {% endfor %}
 	 {% with field=list_segments_form.visible_fields.6 %}{{ field.label_tag }} {{ field }} {% endwith %}
-	 {% with field=list_segments_form.visible_fields.7 %}{{ field.label_tag }} {{ field }} {% endwith %}</div>
+	 {% with field=list_segments_form.visible_fields.7 %}{{ field.label_tag }} {{ field }} {% endwith %}
+	 {% with field=list_segments_form.visible_fields.8 %}{{ field.label_tag }} {{ field }} {% endwith %}</div>
 <div>{% for field in list_segments_form.visible_fields|slice:"2:4" %}{{ field.label_tag }} {{ field }} &nbsp; {% endfor %}</div>
 <div>{% for field in list_segments_form.visible_fields|slice:"4:6" %}{{ field.label_tag }}<span style="font-size: medium;">&nbsp; </span>{{ field }} &nbsp; {% endfor %}</div>
 

@@ -81,6 +81,7 @@ function capFirst(id) {
     	<tr>{% for field in sequencer_form.visible_fields %}<th>{{ field.label_tag }}</th>{% endfor %}</tr>
    	</thead><tbody><tr>
 		<td>{{ sequencer_form.project_site }}</td>
+		<td>&nbsp;{{ sequencer_form.in_use }}</td>
 		<td>{{ sequencer_form.translation_state }}</td>
 		<td>{{ sequencer_form.translation_languages }}</td>
 		<td>{{ sequencer_form.order_by }}</td>
@@ -112,10 +113,12 @@ function capFirst(id) {
 <form action="/segment_translate/{{ segment.id }}/{{ target_code }}/" method="post">
 	{% csrf_token %}
 	<fieldset>
-		<legend><i>Add <span class="{{ target_language.code }}">{{ target_language }}</span> translation</i></legend>
+		<legend><i>Add/replace <span class="{{ target_language.code }}">{{ target_language }}</span> translation</i></legend>
 
 		<div>{{ translation_form.translation.errors }}{{ translation_form.translation }}</div>
-		<div><input type="submit" name="save-{{ target_language.code }}" value="Save {{ target_language.name }} translation" class="btn btn-sm" /></div>
+		<div><input type="submit" name="save-{{ target_language.code }}" value="Save {{ target_language.name }} translation" class="btn btn-sm btn-default" />
+			 {% if block_id %}<input type="submit" name="save_return-{{ target_language.code }}" value="Save translation and return to block" class="btn btn-sm btn-default" />{% endif %}
+		</div>
 	</fieldset>
 </form>
 
