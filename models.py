@@ -2315,10 +2315,12 @@ def segments_from_string(string, site, segmenter, exclude_TM_invariants=True, in
         s = s.replace('\xc2\xa0', ' ')
         s = re_spaces.sub(' ', s)
         s = s.strip()
-        """ REMOVE PSEUDO-BULLETS """
+        """ 171212: !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        # REMOVE PSEUDO-BULLETS
         if s.startswith(u'- ') or s.startswith(u'– '): s = s[2:]
         if s.endswith(u' -') or s.endswith(u' –'): s = s[:-3]
         s = s.strip()
+        """
         if len(s) < 3:
             continue
         # KEEP SEGMENTS CONTAINING: DATES, NUMBERS INCLUDING SEPARATORS, CURRENCY SYMBOLS

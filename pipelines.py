@@ -30,7 +30,8 @@ from django.conf import settings
 # from settings import PAGES_EXCLUDE_BY_CONTENT
 from .models import Site, Webpage, PageVersion
 from .models import Scan, Link, WordCount, SegmentCount
-from .utils import is_invariant_word, strings_from_html, normalize_string, make_segmenter, segments_from_string
+from .utils import is_invariant_word, strings_from_html, normalize_string, make_segmenter # , segments_from_string
+from .models import segments_from_string
 
 from wip.wip_nltk.tokenizers import NltkTokenizer
 tokenizer = NltkTokenizer()
