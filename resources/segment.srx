@@ -1102,6 +1102,16 @@
 </rule>
 </languagerule>
 <languagerule languagerulename="English">
+<!-- potential number: point between digits -->
+<rule break="no">
+<beforebreak>[0-9]\.</beforebreak>
+<afterbreak>[0-9]</afterbreak>
+</rule>
+<!-- universal abbreviation pattern -->
+<rule break="no">
+<beforebreak>\b([a-zA-Z]\.){1,}</beforebreak>
+<afterbreak>[\s,]</afterbreak>
+</rule>
 <rule break="no">
 <beforebreak>\bwww\.</beforebreak>
 <afterbreak>\w</afterbreak>

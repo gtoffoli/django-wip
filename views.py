@@ -3113,7 +3113,8 @@ def discover(request, site=None, scan_id=None):
             count_words = data['count_words']
             count_segments = data['count_segments']
             run_worker_process()
-            scan = Scan(name=name, allowed_domains=allowed_domains, start_urls=start_urls, allow=allow, deny=deny, max_pages=max_pages, count_words=count_words, count_segments=count_segments, task_id=0, user=user)
+            # scan = Scan(name=name, allowed_domains=allowed_domains, start_urls=start_urls, allow=allow, deny=deny, max_pages=max_pages, count_words=count_words, count_segments=count_segments, task_id=0, user=user)
+            scan = Scan(name=name, site=site, allowed_domains=allowed_domains, start_urls=start_urls, allow=allow, deny=deny, max_pages=max_pages, count_words=count_words, count_segments=count_segments, task_id=0, user=user)
             scan.save()
             async_result = discover_task.delay(scan.pk)
             scan.task_id = async_result.task_id

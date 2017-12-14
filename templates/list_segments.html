@@ -76,6 +76,7 @@
         <th class="text-right">#</th>
         <th></th>
         <th>id</th>
+        <th>U</th>
         <th style="width:40%">{{ source_language }}</th>
         <th style="width:54%">{{ target_language }}</th>
       </thead>
@@ -85,9 +86,8 @@
           <td class="text-right">{{forloop.counter|add:offset}}</td>
           <td><input type="checkbox" name="selection" value="{{ segment.id }}" /></td>
           <td class="text-right"><a href="/segment/{{ segment.id }}/" class="{{ source_language.code }}">{{ segment.id }}</a></td>
-          <td>
-            {{ segment.text }}
-          </td>
+          <td>{% if segment.in_use %}x{% endif %}</td>
+          <td>{{ segment.text }}</td>
           <td>
           <table style="width:100%"><tbody>
           <thead><th style="width:4%"></th><th style="width:85%"></th><th style="width:11%"></th></thead>

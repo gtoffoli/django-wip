@@ -77,7 +77,7 @@ class WipDiscoverPipeline(object):
         """
         scan_id = spider.scan_id
         scan = Scan.objects.get(pk=scan_id)
-        site = Scan.site
+        site = scan.site
         link = Link(scan=scan, url=item['url'], status=item['status'], encoding=item['encoding'], size=item['size'], title=item['title'])
         link.save()
         spider.page_count += 1
@@ -100,7 +100,7 @@ class WipDiscoverPipeline(object):
                     if not is_invariant_word(token):
                         tokens_dict[token] += 1
             if scan.count_segments:
-                segments = segments_from_string(string, segmenter)
+                segments = segments_from_string(string, site, segmenter)
                 for segment in segments:
                     segments_dict[segment] += 1
         if scan.count_words:
