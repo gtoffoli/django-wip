@@ -63,7 +63,7 @@ from wip.lineardoc.Utils import addCommonTag, getOpenTagHtml, getCloseTagHtml
 from .vocabularies import Language, Subject, ApprovalStatus
 from .aligner import tokenize, best_alignment, aer
 
-from .settings import RESOURCES_ROOT, BLOCK_TAGS, BLOCKS_EXCLUDE_BY_XPATH, SEPARATORS, STRIPPED, EMPTY_WORDS, BOTH_QUOTES
+from .settings import RESOURCES_ROOT, BLOCK_TAGS, BLOCKS_EXCLUDE_BY_XPATH, EMPTY_WORDS, BOTH_QUOTES
 DEFAULT_USER = 1
 from .utils import element_tostring, text_from_html, strings_from_html, elements_from_element, replace_element_content, element_signature
 from .utils import compact_spaces, normalize_string, replace_segment, string_checksum, text_to_list # , non_invariant_words
@@ -1472,7 +1472,8 @@ class Webpage(models.Model):
                             parent.add_child(block)
                             n += 1
                         except:
-                            print ('create_blocks_dag error:', xpaths[j], xpath)
+                            pass
+                            # print ('create_blocks_dag error:', xpaths[j], xpath)
                     break
             i += 1
             blocks.append(block)
@@ -2335,24 +2336,6 @@ def segments_from_string(string, site, segmenter, exclude_TM_invariants=True, in
         if s.startswith('Home'):
             continue
         if not s: continue
-        """ STRIP PUNCTUATION MARKS, BRACKETS, ARITHMETIC OPERATORS ... 
-        s = s.strip(SEPARATORS[language_code])
-        if not s: continue
-        """
-        """ REMOVE STARTING OR ENDING QUOTES THAT HAVE MATCHING QUOTES
-        for left, right in QUOTES:
-            if s[0]==left and s.count(right)<=1:
-                s = s[1:]
-                if not s: break
-                s = s.replace(right, '').strip()
-                if not s: break
-            if s[-1]==right and s.count(left)<=1:
-                s = s[:-1]
-                if not s: break
-                s = s.replace(right, '').strip()
-                if not s: break
-        if not s: continue
-        """
         """ REMOVE SEGMENTS INCLUDING ONLY WORDS BELONGING TO INVARIANT CLASSES """
         words = re.split(" |\'", s)
         if len(words) > 1:

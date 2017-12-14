@@ -234,7 +234,6 @@ def replace_segment(html_text, segment, tx='auto'):
     if not n:
         return False
     text = element.text or ''
-    # if text and not text.replace(segment, '', 1).strip(settings.DEFAULT_STRIPPED):
     if text and not text.replace(segment, '', 1).strip():
         element.text = ''
         attrs={'tx': tx }
@@ -432,55 +431,6 @@ def pretty_html(in_path, out_name=''):
         out_file = in_file
     out_file.write(html_text)
     out_file.close
-
-re_eu_date = re.compile(r'(0?[1-9]|[1-2][0-9]|3[0-1])(-|/|\.)(0?[1-9]|1[0-2])(-|/|\.)([0-9]{4})') # es: 10/7/1953, 21-12-2015
-re_decimal_thousands_separators = re.compile(r'[0-9](\.|\,)[0-9]')
-re_spaces = re.compile(r'\b[\b]+')
-# see models.segments_from_string
-# def segments_from_string(string, site, segmenter, exclude_TM_invariants=True):
-def segments_from_string(string, segmenter):
-    if string.count('window') and string.count('document'):
-        return []
-    if string.count('flickr'):
-        return []
-    segments = segmenter.extract(string)[0]
-    filtered = []
-    for s in segments:
-        # REPLACE NON-BREAK SPACES
-        s = s.replace('\xc2\xa0', ' ')
-        s = re_spaces.sub(' ', s)
-        s = s.strip()
-        """ 171212: !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        # REMOVE PSEUDO-BULLETS
-        if s.startswith(u'- ') or s.startswith(u'– '): s = s[2:]
-        if s.endswith(u' -') or s.endswith(u' –'): s = s[:-3]
-        s = s.strip()
-        """
-        if len(s) < 3:
-            continue
-        # KEEP SEGMENTS CONTAINING: DATES, NUMBERS INCLUDING SEPARATORS, CURRENCY SYMBOLS
-        # if re_eu_date.findall(s) or re_decimal_thousands_separators.findall(s) or regex.findall(ur'\p{Sc}', s):
-        if re_eu_date.findall(s) or re_decimal_thousands_separators.findall(s) or regex.findall(r'\p{Sc}', s):
-            filtered.append(s)
-            continue
-        # REMOVE RESIDUOUS SEGMENTS NON INCLUDING ANY LETTER
-        if not re.search('[a-zA-Z]', s):
-            continue
-        if not s: continue
-        # REMOVE SEGMENTS INCLUDING ONLY WORDS BELONGING TO INVARIANT CLASSES
-        words = re.split(" |\'", s)
-        if len(words) > 1:
-            while words and is_invariant_word(words[0]):
-                words = words[1:]
-            while words and is_invariant_word(words[-1]):
-                words = words[:-1]
-            if not words: continue
-        if len(words) == 1: # 1 word at the start or as the result of stripping other words
-            word = words[0]
-            if is_invariant_word(word) or word.isupper():
-                continue
-        filtered.append(s)
-    return filtered
 
 # see: http://stackoverflow.com/questions/8506914/detect-whether-celery-is-available-running
 def get_celery_worker_stats():

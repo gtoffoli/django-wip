@@ -33,8 +33,10 @@ from .models import Scan, Link, WordCount, SegmentCount
 from .utils import is_invariant_word, strings_from_html, normalize_string, make_segmenter # , segments_from_string
 from .models import segments_from_string
 
+"""
 from wip.wip_nltk.tokenizers import NltkTokenizer
 tokenizer = NltkTokenizer()
+"""
 segmenter = make_segmenter('it')
 
 class WipDiscoverPipeline(object):
@@ -56,14 +58,15 @@ class WipDiscoverPipeline(object):
         self.exporter = JsonLinesItemExporter(self.output_file)
         self.exporter.start_exporting()
         """
-        print ('--- spider_opened for scan %d, %s ---' % (spider.scan_id, spider.name))
+        pass
+        # print ('--- spider_opened for scan %d, %s ---' % (spider.scan_id, spider.name))
 
     def spider_closed(self, spider):
         """
         self.exporter.finish_exporting()
         self.output_file.close()
         """
-        print ('--- spider_closed ---')
+        # print ('--- spider_closed ---')
         scan = Scan.objects.get(pk=spider.scan_id)
         scan.terminated = True
         scan.save()
@@ -74,6 +77,7 @@ class WipDiscoverPipeline(object):
         """
         scan_id = spider.scan_id
         scan = Scan.objects.get(pk=scan_id)
+        site = Scan.site
         link = Link(scan=scan, url=item['url'], status=item['status'], encoding=item['encoding'], size=item['size'], title=item['title'])
         link.save()
         spider.page_count += 1
@@ -84,6 +88,7 @@ class WipDiscoverPipeline(object):
         html_string = normalize_string(body)
         if not html_string:
             return item
+        tokenizer = site.make_tokenizer()
         tokens_dict = defaultdict(int)
         segments_dict = defaultdict(int)
         for string in strings_from_html(html_string):
@@ -123,10 +128,12 @@ class WipCrawlPipeline(object):
         return cls()
 
     def spider_opened(self, spider):
-        print ('--- spider_opened ---')
+        pass
+        # print ('--- spider_opened ---')
 
     def spider_closed(self, spider):
-        print ('--- spider_closed ---')
+        pass
+        # print ('--- spider_closed ---')
 
     def process_item(self, item, spider):
         site = Site.objects.get(pk=item['site_id'])

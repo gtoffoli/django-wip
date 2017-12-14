@@ -70,10 +70,6 @@ from .forms import SegmentSequencerForm, SegmentEditForm, SegmentTranslationForm
 from .forms import StringSequencerForm, StringEditForm, StringsTranslationsForm, StringTranslationForm, TranslationServiceForm, FilterPagesForm
 from .forms import UserRoleEditForm, ListSegmentsForm, ImportXliffForm
 from .session import get_language, set_language, get_site, set_site, get_userrole, set_userrole
-"""
-from settings import PAGE_SIZE, PAGE_STEPS
-from settings import DATA_ROOT, RESOURCES_ROOT, tagger_filename, BLOCK_TAGS, QUOTES, SEPARATORS, STRIPPED, DEFAULT_STRIPPED, EMPTY_WORDS, PAGES_EXCLUDE_BY_CONTENT
-"""
 from .utils import strings_from_html, elements_from_element, block_checksum, ask_mymemory, ask_gt, text_to_list # , non_invariant_words
 from .utils import pageversion_diff, diff_style
 from  wip import srx_segmenter
@@ -296,7 +292,7 @@ def site(request, site_slug):
                 # task_id = crawl_site.delay(site.id)
                 run_worker_process()
                 task_id = crawl_site_task.delay(site.id)
-                print ('site_crawl : ', site.name, 'task id: ', task_id)
+                # print ('site_crawl : ', site.name, 'task id: ', task_id)
             elif purge_blocks:
                 site.purge_bips(verbose=False)
             elif extract_blocks:
@@ -334,7 +330,8 @@ def site(request, site_slug):
                         webpage.create_blocks_dag()
                     # except:
                     else:
-                        print ('extract_blocks: error on page ', webpage.id)
+                        pass
+                        # print ('extract_blocks: error on page ', webpage.id)
             elif refetch_pages:
                 n_pages, n_updates, n_unfound = site.refetch_pages(verbose=verbose)
                 messages.add_message(request, messages.INFO, 'Requested %d pages: %d updated, %d unfound' % (n_pages, n_updates, n_unfound))
@@ -449,7 +446,8 @@ def site(request, site_slug):
                                     segment.save()
                                     n += 1
                             except:
-                                print ('error: ', i)
+                                pass
+                                # print ('error: ', i)
                     messages.add_message(request, messages.INFO, 'Imported %d invariants out of %d (%d repetitions).' % (n, m, d))
                 else:
                     messages.add_message(request, messages.ERROR, 'Please, select a file to upload.')
@@ -1042,7 +1040,7 @@ def block(request, block_id):
                 sequencer_context['translation_state'] = REVISED
             request.session['sequencer_context'] = sequencer_context
             blocks = filter_blocks(site=site, webpage=webpage, translation_state=translation_state, translation_codes=[target_code])
-            print ('blocks:', blocks.count())
+            # print ('blocks:', blocks.count())
             if blocks:
                 first_block = block = blocks.order_by('id')[0]
     else:
@@ -1064,7 +1062,7 @@ def block(request, block_id):
                     block = get_object_or_404(Block, pk=goto)
         apply_filter = not (save_block or goto)
         if save_block:
-            print ('1 save_block')
+            # print ('1 save_block')
             form = BlockEditForm(post)
             if form.is_valid():
                 data = form.cleaned_data
@@ -1072,7 +1070,7 @@ def block(request, block_id):
                 no_translate = data['no_translate']
                 block.language = language
                 block.no_translate = no_translate
-                print ('2 save_block', language, no_translate)
+                # print ('2 save_block', language, no_translate)
                 block.save()
         elif (apply_filter or goto):
             form = BlockSequencerForm(post)
@@ -1458,7 +1456,8 @@ def string_view(request, string_id):
             order_by = int(data['order_by'])
             show_similar = data['show_similar']
         else:
-            print ('error', form.errors)
+            pass
+            # print ('error', form.errors)
     """
     print 'project_site: ', project_site
     string_context['project_site'] = project_site_id
@@ -1539,7 +1538,8 @@ def segment_view(request, segment_id):
             order_by = int(data['order_by'])
             show_similar = data['show_similar']
         else:
-            print ('error', form.errors)
+            pass
+            # print ('error', form.errors)
     # print ('project_site: ', project_site)
     segment_context['translation_state'] = translation_state
     segment_context['translation_codes'] = translation_codes
@@ -1609,7 +1609,8 @@ def translation_align(request, translation_id):
                 order_by = int(data['order_by'])
                 alignment_type = int(data['alignment_type'])
             else:
-                print ('error', form.errors)
+                pass
+                # print ('error', form.errors)
 
     translation_context['order_by'] = order_by
     translation_context['alignment_type'] = alignment_type
@@ -1764,7 +1765,8 @@ def string_translate(request, string_id, target_code):
                     var_dict['external_translations'] = external_translations
                     var_dict['translation_service'] = TRANSLATION_SERVICE_DICT[MYMEMORY]
             else:
-                print ('error', translation_service_form.errors)
+                pass
+                # print ('error', translation_service_form.errors)
             translation_form = StringTranslationForm()
         elif save_translation:
             translation_form = StringTranslationForm(request.POST)
@@ -1794,7 +1796,7 @@ def string_translate(request, string_id, target_code):
                         txu_subject = TxuSubject(txu=target_txu, subject=subject)
                         txu_subject.save()
             else:
-                print ('error', translation_form.errors)
+                # print ('error', translation_form.errors)
                 # return render_to_response('string_translate.html', {'translation_form': translation_form,}, context_instance=RequestContext(request))
                 return render(request, 'string_translate.html', {'translation_form': translation_form,})
             translation_service_form = TranslationServiceForm()
@@ -1955,7 +1957,8 @@ def segment_translate(request, segment_id, target_code):
                         external_translations.append(external_translation)
                 var_dict['external_translations'] = external_translations
             else:
-                print ('error', translation_service_form.errors)
+                pass
+                # print ('error', translation_service_form.errors)
             translation_form = SegmentTranslationForm()
         elif save_translation:
             translation_form = SegmentTranslationForm(request.POST)
@@ -1966,7 +1969,7 @@ def segment_translate(request, segment_id, target_code):
                 if save_return:
                     return HttpResponseRedirect('/block/%d/translate/%s/' % (block_id, target_code))
             else:
-                print ('error', translation_form.errors)
+                # print ('error', translation_form.errors)
                 return render(request, 'segment_translate.html', {'translation_form': translation_form,})
             translation_service_form = TranslationServiceForm()
         else: # apply_filter
@@ -2009,7 +2012,6 @@ def raw_tokens(text, language_code):
     tokens = re.split(" |\'", text)
     raw_tokens = []
     for token in tokens:
-        # token = token.strip(STRIPPED[language_code])
         token = token.strip(settings.DEFAULT_STRIPPED)
         if not token:
             continue
@@ -2257,7 +2259,7 @@ def strings_translations(request, proxy_slug=None, state=None):
     qs = qs.order_by('text')
     string_count = qs.count()
     var_dict['string_count'] = string_count
-    paginator = Paginator(qs, PAGE_SIZE)
+    paginator = Paginator(qs, settings.PAGE_SIZE)
     page = request.GET.get('page', 1)
     try:
         strings = paginator.page(page)
@@ -2269,7 +2271,6 @@ def strings_translations(request, proxy_slug=None, state=None):
         # If page is out of range (e.g. 9999), deliver last page of results.
         page = paginator.num_pages
         strings = paginator.page(paginator.num_pages)
-    var_dict['page_size'] = settings.PAGE_SIZE
     var_dict['page'] = page = int(page)
     var_dict['offset'] = (page-1) * settings.PAGE_SIZE
     var_dict['before'] = steps_before(page)
@@ -2429,7 +2430,7 @@ def list_segments(request, state=None):
     if id:
         index = qs.filter(text__lt=segment.text).count()
         page = index/settings.PAGE_SIZE + 1
-        print ('index, page =', index, page)
+        # print ('index, page =', index, page)
     else:
         page = request.GET.get('page', 1)
     paginator = Paginator(qs, settings.PAGE_SIZE)
@@ -3051,9 +3052,10 @@ def run_worker_process():
         if key.startswith('celery@'):
             pid = value.get('pid', None)
     if pid:
-        print ('--- worker is running ---')
+        pass
+        # print ('--- worker is running ---')
     else:
-        print ('--- running worker ---')
+        # print ('--- running worker ---')
         p = Process(target=run_worker, args=[])
         p.start()
         while not pid and i < 10:
@@ -3068,7 +3070,7 @@ def run_worker_process():
 def stop_crawler(request, scan_id):
     scan = Scan.objects.get(pk=scan_id)
     task_id = scan.task_id
-    print ('--- stopping task %s ---' % task_id)
+    # print ('--- stopping task %s ---' % task_id)
     revoke(task_id, terminate=True)
     scan.terminated = True
     scan.save()
@@ -3152,14 +3154,14 @@ def site_crawl_by_slug(request, site_slug):
         process.start() # the script will block here until the crawling is finished
         process.stop()
     else:
-        print ('site_crawl_by_slug : ', site_slug)
+        # print ('site_crawl_by_slug : ', site_slug)
         """
         crawl_site.apply_async(args=(site.id,))
         """
         # task_id = crawl_site.delay(site.id)
         run_worker_process()
         task_id = crawl_site_task.delay(site.id)
-        print ('task id: ', task_id)
+        # print ('task id: ', task_id)
     return HttpResponseRedirect('/site/%s/' % site_slug)
 
 @app.task()

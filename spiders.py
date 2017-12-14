@@ -37,13 +37,15 @@ class WipCrawlSpider(CrawlSpider):
         return spider
 
     def spider_opened(self):
-        print ('--- spider_opened ---')
+        pass
+        # print ('--- spider_opened ---')
 
     def spider_closed(self):
-        print ('--- spider_closed ---')
+        pass
+        # print ('--- spider_closed ---')
 
     def parse_item(self, response):
-        print (response.headers)
+        # print (response.headers)
         item = WipCrawlItem()
         item['site_id'] = self.site_id
         item['url'] = response.url
@@ -111,10 +113,11 @@ class WipDiscoverSpider(CrawlSpider):
 
     def spider_opened(self):
         # self.exporter = JsonLinesItemExporter(sys.stdout)
-        print ('--- spider_opened for scan %d, %s ---' % (self.scan_id, self.name))
+        pass
+        # print ('--- spider_opened for scan %d, %s ---' % (self.scan_id, self.name))
 
     def spider_closed(self):
-        print ('--- spider_closed ---')
+        # print ('--- spider_closed ---')
         scan = Scan.objects.get(pk=self.scan_id)
         scan.terminated = True
         scan.page_count = Link.objects.filter(scan=scan).count()
@@ -162,10 +165,10 @@ class WipDiscoverScript(object):
                             (WipDiscoverSpider,),
                             {'name':scan.get_label(), 'scan_id':scan_id, 'max_pages':scan.max_pages, 'page_count':0, 'allowed_domains':text_to_list(scan.allowed_domains), 'start_urls':text_to_list(scan.start_urls), 'rules': rules,})
         spider = spider_class()
-        print ('--- start scan %s ---' % scan.get_label())
+        # print ('--- start scan %s ---' % scan.get_label())
         self.crawler.crawl(spider)
         self.crawler.start()
-        print ('--- end scan ---')
+        # print ('--- end scan ---')
 
     def crawl(self, scan_id):
         p = Process(target=self._crawl, args=[scan_id])
@@ -203,7 +206,7 @@ class L2MemberScraper(CrawlSpider):
 
 
     def parse_item(self, response):
-        print (response.headers)
+        # print (response.headers)
         item = L2MemberItem()
         item['url'] = response.url
         item['status'] = response.status
@@ -231,7 +234,7 @@ class L2MemberScraper(CrawlSpider):
         item['twitter'] = twitter and twitter[0].strip() or ''
         youtube = response.xpath('//div[@class="col-xs-12 col-sm-8 col-md-8 info-aderente"]//a[@title="Youtube Channel"]/@href').extract()
         item['youtube'] = youtube and youtube[0].strip() or ''
-        print (item)
+        # print (item)
         return item
 
 class L2SchoolItem(scrapy.Item):
@@ -275,7 +278,7 @@ class L2SchoolScraper(CrawlSpider):
                     follow=True),]
 
     def parse_item(self, response):
-        print (response.headers)
+        # print (response.headers)
         item = L2SchoolItem()
         item['url'] = response.url
         item['status'] = response.status
