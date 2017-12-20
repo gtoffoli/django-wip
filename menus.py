@@ -3,7 +3,7 @@ from django.core.urlresolvers import reverse
 from django.utils.translation import ugettext as _, ugettext_lazy
 # from settings import SITE_NAME
 from .vocabularies import Language
-from .models import Site, Proxy, get_or_set_user_role, ADMINISTRATOR
+from .models import Site, Proxy, get_or_set_user_role, get_role_type, ADMINISTRATOR
 from .session import get_language, get_site, get_userrole
 from .views import my_roles
 
@@ -162,7 +162,7 @@ Menu.add_item("main", MenuItem(ugettext_lazy("Strings"),
                                icon='',
                                weight=30,
                                children=strings_children,
-                               check=lambda request: get_or_set_user_role(request).role_type==ADMINISTRATOR,
+                               check=lambda request: get_role_type(request)==ADMINISTRATOR,
                                separator=True))     
 Menu.add_item("main", MenuItem(ugettext_lazy("Italian strings"),
                                url='/',
@@ -170,6 +170,6 @@ Menu.add_item("main", MenuItem(ugettext_lazy("Italian strings"),
                                weight=30,
                                children=italian_strings_children,
                                # check=lambda request: request.user.is_authenticated(),
-                               check=lambda request: get_or_set_user_role(request).role_type==ADMINISTRATOR,
+                               check=lambda request: get_role_type(request)==ADMINISTRATOR,
                                separator=True))     
 

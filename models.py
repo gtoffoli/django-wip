@@ -2537,7 +2537,10 @@ def get_or_set_user_role(request, site=None, source_language=None, target_langua
     if user_role_id: # current role
         user_role = UserRole.objects.get(pk=user_role_id)
     else: # role of higher level
-        qs = UserRole.objects.filter(user=request.user)
+        user = request.user
+        if not user.is_authenticated():
+            return None
+        qs = UserRole.objects.filter(user=user)
         if site:
             qs = qs.filter(site=site)
         else:
@@ -2550,6 +2553,9 @@ def get_or_set_user_role(request, site=None, source_language=None, target_langua
         set_userrole(request, user_role.id)
     return user_role
 
+def get_role_type(request, site=None, source_language=None, target_language=None):
+    user_role = get_or_set_user_role(request, site=site, source_language=source_language, target_language=target_language)
+    return user_role and user_role.role_type or None
   
 class Segment(models.Model):
     site = models.ForeignKey(Site, verbose_name='source site')
