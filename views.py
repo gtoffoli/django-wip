@@ -260,13 +260,14 @@ def proxies(request):
 
 def site(request, site_slug):
     user = request.user
+    current_role = get_or_set_user_role(request)
     site = get_object_or_404(Site, slug=site_slug)
     set_site(request, site_slug)
     var_dict = {}
     var_dict['site'] = site
     var_dict['can_manage'] = site.can_manage(user)
     var_dict['can_operate'] = site.can_operate(user)
-    var_dict['can_view'] = site.can_view(user)
+    var_dict['can_view'] = site.can_view(current_role)
     var_dict['proxies'] =  proxies = site.get_proxies()
     var_dict['proxy_languages'] = proxy_languages = [proxy.language for proxy in proxies]
     words_distribution = site.get_token_frequency(lowercasing=True)
@@ -2658,11 +2659,6 @@ def add_segment_translation(request):
         target_language = Language.objects.get(name=target_language)
         source_language = Language.objects.get(name=source_language)
         segment = Segment.objects.filter(pk=source_id)
-        """
-        user_role = get_userrole(request)
-        if not user_role:
-            user_role = UserRole.objects.filter(user=request.user, source_language=source_language, target_language=target_language).order_by('role_type')[0]
-        """
         user_role = get_or_set_user_role(request, site=segment.site, source_language=source_language, target_language=target_language)
         try:
             translation = Translation.objects.get(segment=segment, language=target_language)

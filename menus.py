@@ -30,7 +30,6 @@ def sites_children(request):
     children = []
     current_role = get_or_set_user_role(request)
     for site in Site.objects.all().order_by('name'):
-        # if site.can_view(request.user):
         if site.can_view(current_role):
             slug = site.slug
             children.append (MenuItem(
