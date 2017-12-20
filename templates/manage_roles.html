@@ -17,27 +17,27 @@ th, td { text-align: left; vertical-align: top; }
 {% if user_roles %}
 <form action="#" method="post" id="manage-roles">{% csrf_token %}
 <table>
-<thead><th></th><th>id</th><th>user</th><th>site</th><th>role</th><th>level</th><th>source</th><th>target</th></thead>
+<thead><th></th><th>id</th><th>user</th><th>role</th><th>site</th><th>source</th><th>target</th><th>level</th></thead>
 <tbody>
 {% for user_role in user_roles %}
 	<tr>
         <td><input type="checkbox" name="selection" value="{{ user_role.pk }}" /></td>
 		<td><a href="/role/{{ user_role.pk }}/">{{ user_role.pk }}</a></td>
 		<td>{{ user_role.user.username }}</td>
-		<td>{{ user_role.site.name }}</td>
 		<td>{{ user_role.get_type_name }}</td>
-		<td>{% if user_role.level %}{{ user_role.level }}{% endif %}</td>
-		<td>{% if user_role.source_language %}{{ user_role.source_language.code }}{% endif %}</td>
-		<td>{% if user_role.target_language %}{{ user_role.target_language.code }}{% endif %}</td>
+		<td>{% if user_role.site %}{{ user_role.site.name }}{% endif %}</td>
+		<td style="text-align: right;">{% if user_role.source_language %}{{ user_role.source_language.code }}{% endif %}</td>
+		<td style="text-align: left;">{% if user_role.target_language %}{{ user_role.target_language.code }}{% endif %}</td>
+		<td style="text-align: center;">{% if user_role.level %}{{ user_role.level }}{% endif %}</td>
 	</tr>
 {% endfor %}
 </tbody>
 </table>
        <input class="btn btn-default btn-sm" type="submit" name="delete-roles" value="{% trans "delete selected roles"|capfirst %}">
-&nbsp; <input class="btn btn-default btn-sm" type="submit" name="add-role" value="{% trans "add role"|capfirst %}">
+&nbsp; <a class="btn btn-default btn-sm" href="/role/edit/">Add role</a>
 </form>
 {% else %}
-<div>{% trans "no user roles are present"|capfirst %}.</div>
+<div>{% trans "cannot manage other roles with current role"|capfirst %}.</div>
 {% endif %}
 
 {% endblock %}

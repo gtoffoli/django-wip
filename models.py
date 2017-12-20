@@ -65,6 +65,7 @@ from .aligner import tokenize, best_alignment, aer
 
 from .settings import RESOURCES_ROOT, BLOCK_TAGS, BLOCKS_EXCLUDE_BY_XPATH, EMPTY_WORDS, BOTH_QUOTES
 DEFAULT_USER = 1
+from .session import get_userrole, set_userrole
 from .utils import element_tostring, text_from_html, strings_from_html, elements_from_element, replace_element_content, element_signature
 from .utils import compact_spaces, normalize_string, replace_segment, string_checksum, text_to_list # , non_invariant_words
 from .utils import is_invariant_word as is_base_invariant_word
@@ -177,8 +178,15 @@ class Site(models.Model):
     def can_operate(self, user):
         return user.is_superuser
 
+    """
     def can_view(self, user):
         return user.is_authenticated()
+    """
+
+    def can_view(self, current_role):
+        if not current_role:
+            return False
+        return current_role.role_type==ADMINISTRATOR or current_role.site == self or current_role.source_language == self.language
 
     def __str__(self):
         return self.name
@@ -534,6 +542,23 @@ class Site(models.Model):
 
     def get_word_count(self, lowercasing=True):
         return len(self.get_token_frequency())
+
+def sites_user_can_view(user):
+    all_sites = Site.objects.all()
+    if user.is_superuser:
+        return list(all_sites)
+    sites = set()
+    user_roles = UserRole.objects.filter(user=user)
+    for role in user_roles:
+        role_type = role.role_type
+        if role_type in [OWNER, TRANSLATOR, CLIENT]:
+            sites.add(role.site)
+        elif role == LINGUIST:
+            for proxy in Proxy.objects.all():
+                role_language = role.source_language
+                if proxy.site.language==role_language or proxy.language==role_language:
+                    sites.add(proxy.site)
+    return list(sites)
 
 class SiteTheme(models.Model):
     site = models.ForeignKey(Site, related_name='theme_used_for_site')
@@ -2433,48 +2458,51 @@ def get_display_name(self):
     return display_name
 User.get_display_name = get_display_name
 
-OWNER = 0
-MANAGER = 1
-LINGUIST = 2
-REVISOR = 3
+ADMINISTRATOR = 0
+OWNER = 1
+MANAGER = 2
+LINGUIST = 3
+# REVISOR = 3
 TRANSLATOR = 4
-GUEST = 5
+CLIENT = 5
 ROLE_TYPE_CHOICES = (
-    (OWNER, 'Site owner'),
-    (MANAGER, 'Site manager'),
+    (ADMINISTRATOR, 'Administrator'),
+    (OWNER, 'Owner'),
+    (MANAGER, 'Manager'),
     (LINGUIST, 'Linguist'),
-    (REVISOR,  'Revisor'),
-    (TRANSLATOR,  'Translator'),
-    (GUEST,  'Guest'),
+    # (REVISOR, 'Revisor'),
+    (TRANSLATOR, 'Translator'),
+    (CLIENT, 'Client'),
 )
 ROLE_TYPE_DICT = dict(ROLE_TYPE_CHOICES)
-ROLE_DICT = { OWNER: 'O', MANAGER: 'M', LINGUIST: 'L', REVISOR: 'R', TRANSLATOR: 'T', GUEST: 'G' }
+ROLE_DICT = { ADMINISTRATOR: 'A', OWNER: 'O', MANAGER: 'M', LINGUIST: 'L', TRANSLATOR: 'T', CLIENT: 'C' }
 
 class UserRole(models.Model):
     user = models.ForeignKey(User, verbose_name='role owner', related_name='role_user', help_text='whom this role was granted')
-    role_type = models.IntegerField(choices=ROLE_TYPE_CHOICES, default=GUEST, verbose_name='role type')
-    level = models.IntegerField(verbose_name='level', help_text=_('level of experience/reliability: let try to use the range 1 to 5 (top level)'))
-    site = models.ForeignKey(Site, verbose_name='site/project', null=True, help_text="leave undefined for a global role")
-    source_language = models.ForeignKey(Language, verbose_name='source language', related_name='source_language', null=True, help_text="leave undefined if role applies to any source language")
-    target_language = models.ForeignKey(Language, verbose_name='target language', related_name='target_language', null=True, help_text="can be undefined only for some role types")
+    role_type = models.IntegerField(choices=ROLE_TYPE_CHOICES, default=CLIENT, verbose_name='role type')
+    level = models.IntegerField(verbose_name='level', blank=True, null=True)
+    site = models.ForeignKey(Site, verbose_name='site/project', blank=True, null=True, help_text="leave undefined for a global role")
+    source_language = models.ForeignKey(Language, verbose_name='source language', related_name='source_language', blank=True, null=True, help_text="leave undefined if role applies to any source language")
+    target_language = models.ForeignKey(Language, verbose_name='target language', related_name='target_language', blank=True, null=True, help_text="can be undefined only for some role types")
     creator = models.ForeignKey(User, verbose_name='role creator', related_name='creator_user', blank=True, null=True, help_text='who granted this role')
     created = CreationDateTimeField(verbose_name='role creation date')
 
     class Meta:
         verbose_name = _('user role')
         verbose_name_plural = _('user roles')
+        ordering = ('role_type', 'level')
 
     def __str__(self):
         source_code = self.source_language and self.source_language.code or ''
         target_code = self.target_language and self.target_language.code or ''
         # return u'%s: %s of level %d for %s->%s couple and site %s' % (self.user.username, ROLE_TYPE_DICT[self.role_type], self.level, source_code, target_code, self.site.name)
-        repr = [self.user.username, ROLE_TYPE_DICT[self.role_type]]
-        if self.site.name:
-            repr.append('site %s' % self.site.name)
+        label = [self.user.username, ROLE_TYPE_DICT[self.role_type]]
+        label.append(self.site and '%s' % self.site.name or '-')
         if source_code and target_code:
-            repr.append('%s->%s' % (source_code, target_code))
-        repr.append('level %d' % self.level)
-        return ', '.join(repr)
+            label.append('%s->%s' % (source_code, target_code))
+        if self.level:
+            label.append(str(self.level))
+        return ', '.join(label)
 
     def __unicode__(self):
         return self.__str__()
@@ -2486,11 +2514,43 @@ class UserRole(models.Model):
         return ROLE_TYPE_DICT[self.role_type]
 
     def get_label(self):
-        label = '%s for %s' % (self.get_type_name(), self.site.name)
-        if self.target_language:
-            label += ' with %s as target' % self.target_language.name
+        source_code = self.source_language and self.source_language.code or ''
+        target_code = self.target_language and self.target_language.code or ''
+        # label = '%s for %s' % (self.get_type_name(), self.site.name)
+        label = self.get_type_name()
+        label = ''
+        if self.site:
+            label += ' of %s' % self.site.name
+        if source_code and target_code:
+            if label:
+                label += ' and'
+            label += ' for languages %s -> %s' % (source_code, target_code)
+        elif source_code:
+            if label:
+                label += ' and'
+            label += ' for language %s' % source_code
+        label = self.get_type_name() + label
         return label
-   
+
+def get_or_set_user_role(request, site=None, source_language=None, target_language=None):
+    user_role_id = get_userrole(request)
+    if user_role_id: # current role
+        user_role = UserRole.objects.get(pk=user_role_id)
+    else: # role of higher level
+        qs = UserRole.objects.filter(user=request.user)
+        if site:
+            qs = qs.filter(site=site)
+        else:
+            if source_language:
+                qs = qs.filter(source_language=source_language)
+            if target_language:
+                qs = qs.filter(target_language=target_language)
+        qs = qs.order_by('role_type')
+        user_role = qs[0]
+        set_userrole(request, user_role.id)
+    return user_role
+
+  
 class Segment(models.Model):
     site = models.ForeignKey(Site, verbose_name='source site')
     language = models.ForeignKey(Language, verbose_name='source language', blank=True, null=True)
@@ -2617,16 +2677,16 @@ class TranslationSource(models.Model):
     source_type = models.IntegerField(choices=TRANSLATION_SOURCE_TYPE_CHOICES, verbose_name='translation source type')
 
 class Translation(models.Model):
-    segment = models.ForeignKey(Segment, verbose_name='source segment', related_name='segment_translation')
+    segment = models.ForeignKey(Segment, verbose_name='segment', related_name='segment_translation')
     language = models.ForeignKey(Language, verbose_name='language')
-    text = models.TextField('target text', blank=True, null=True)
-    alignment = models.TextField('source to target alignment', blank=True, null=True)
+    text = models.TextField('text', blank=True, null=True)
+    alignment = models.TextField('alignment', blank=True, null=True)
     translation_type = models.IntegerField(choices=TRANSLATION_TYPE_CHOICES, default=0, verbose_name='translation type')
     translation_source = models.ForeignKey(TranslationSource, verbose_name='translation source', blank=True, null=True)
     alignment_type = models.IntegerField(choices=TRANSLATION_TYPE_CHOICES, default=0, verbose_name='alignment type')
     is_locked = models.BooleanField('locked', default=False)
-    user_role = models.ForeignKey(UserRole, verbose_name='user role', blank=True, null=True)
-    timestamp = models.DateTimeField()
+    user_role = models.ForeignKey(UserRole, verbose_name='role', blank=True, null=True)
+    timestamp = models.DateTimeField('time')
 
     def is_aligned(self):
         return self.alignment and self.alignment_type==MANUAL and normalized_alignment(self.alignment) or False

@@ -18,7 +18,7 @@ from django.contrib.auth.models import User
 from .models import Site, Proxy, Webpage, PageVersion, Block, TranslatedBlock
 from .models import String, Txu, TxuSubject
 from .models import UserRole, Segment, Translation, SEGMENT, FRAGMENT
-from .models import OWNER, MANAGER, LINGUIST, REVISOR, TRANSLATOR, GUEST
+from .models import ADMINISTRATOR, OWNER, MANAGER, LINGUIST, TRANSLATOR, CLIENT
 from .models import MT, MANUAL
 from .vocabularies import Language, Subject
 from .utils import string_checksum, normalize_string

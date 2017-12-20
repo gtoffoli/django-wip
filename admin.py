@@ -15,6 +15,7 @@ from .models import String, Txu, TxuSubject
 from .models import Block, BlockEdge, BlockInPage, TranslatedBlock
 from .models import Scan, Link, SegmentCount, WordCount
 from .models import UserRole, Segment, Translation
+from .models import TRANSLATION_TYPE_DICT, MANUAL
 
 class SiteAdmin(admin.ModelAdmin):
     list_display = ['name', 'language', 'slug', 'path_prefix', 'url', 'allowed_domains', 'start_urls', 'deny',]
@@ -315,8 +316,8 @@ class SegmentAdmin(admin.ModelAdmin):
     search_fields = ['text',]
 
 class TranslationAdmin(admin.ModelAdmin):
-    list_display = ['id', 'segment_link', 'language', 'text', 'translation_type', 'alignment_type', 'alignment', 'user_role']
-    list_filter = ['language', 'alignment_type',]
+    list_display = ['id', 'segment_link', 'site', 'language', 'text', 'translationtype', 'has_alignment', 'alignmenttype', 'time', 'user_role']
+    list_filter = ['language', 'alignment_type',  'user_role',]
     search_fields = ['text', 'alignment',]
 
     def segment_link(self, obj):
@@ -327,8 +328,30 @@ class TranslationAdmin(admin.ModelAdmin):
     segment_link.short_description = 'segment'
     segment_link.allow_tags = True
 
+    def site(self, obj):
+        return obj.segment.site_id
+
     def languages(self, obj):
         return '%s -> %s' % (obj.segment.language_id, obj.language_id)
+
+    def translationtype(self, obj):
+        return TRANSLATION_TYPE_DICT[obj.translation_type]
+    translationtype.short_description = 'Tr.type'
+    
+    def has_alignment(self, obj):
+        return obj.alignment and 'X' or ''
+    has_alignment.short_description = 'Al.'
+
+    def alignmenttype(self, obj):
+        if obj.alignment:
+            return obj.alignment_type == MANUAL and 'Manual' or 'Auto'
+        else:
+            return ''
+    alignmenttype.short_description = 'Al.type'
+
+    def time(self, obj):
+        return obj.timestamp.strftime("%y%m%d-%H%M")
+    time.short_description = 'Time'
 
 admin.site.register(Site, SiteAdmin)
 # admin.site.register(SiteTheme, SiteThemeAdmin)

@@ -184,12 +184,12 @@ class DiscoverForm(forms.Form):
 class UserRoleEditForm(forms.ModelForm):
     class Meta:
         model = UserRole
-        exclude = ()
+        exclude = ('creator',)
 
     id = forms.CharField(required = False, widget=forms.HiddenInput())
     user = forms.ModelChoiceField(queryset=User.objects.all(), widget=forms.Select(attrs={'style':'height: 24px;',}))
     site = forms.ModelChoiceField(required=False, label="Site", queryset=Site.objects.all(), widget=forms.Select(attrs={'style':'height: 24px;',}))
-    role_type = forms.ChoiceField(required=False, choices=ROLE_TYPE_CHOICES, label="Tole type", widget=forms.Select(attrs={ 'style': 'width: auto; height: 2em;',}))
+    role_type = forms.ChoiceField(required=False, choices=ROLE_TYPE_CHOICES, label="Role type", widget=forms.Select(attrs={ 'style': 'width: auto; height: 2em;',}), help_text=_('level of experience/reliability: let try to use the range 1 to 5 (top level)'))
     level = forms.IntegerField(required=False, label="Level", widget=forms.TextInput(attrs={'size': 8, 'style': 'width: 50px;',}))
     source_language = forms.ModelChoiceField(required=False, label="Source language", queryset=Language.objects.all(), widget=forms.Select(attrs={'style':'height: 24px;',}))
     target_language = forms.ModelChoiceField(required=False, label="Target language", queryset=Language.objects.all(), widget=forms.Select(attrs={'style':'height: 24px;',}))
