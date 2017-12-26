@@ -214,31 +214,33 @@ class Site(models.Model):
         verbose_name = _('project')
         verbose_name_plural = _('projects')
 
-    def make_segmenter(self, verbose=False):
-        if self.segmenter:
+    def make_segmenter(self, verbose=False, force=False):
+        if self.segmenter and not force:
             if verbose:
                 print ('segmenter already exists')
             return self.segmenter
         language_code = self.language.code
-        """
-        srx_filepath = os.path.join(RESOURCES_ROOT, language_code, 'segment.srx')
-        srx_rules = srx_segmenter.parse(srx_filepath)
-        current_rules = srx_rules['Italian']
-        """
         current_rules = get_segmenter_rules(language_code)
         if self.srx_initials:
             custom_rules_list = text_to_list(self.srx_initials)
             if len(custom_rules_list) == 1:
-                beforebreak_text = '%s' % re.escape(custom_rules_list[0])
+                # word boundary followed by abbreviation (1)
+                beforebreak_text = "\\b%s" % re.escape(custom_rules_list[0])
             else:
-                beforebreak_text = '\\b(%s)' % '|'.join([re.escape(item) for item in custom_rules_list])
-            afterbreak_text = '\s'
+                # word boundary followed by abbreviation (+)
+                beforebreak_text = "\\b(%s)" % '|'.join([re.escape(item) for item in custom_rules_list])
+            # blankspace or comma (non terminating chars)
+            afterbreak_text = "[\s,]"
             non_breaks = current_rules['non_breaks']
-            non_breaks.append((beforebreak_text, afterbreak_text))
+            non_break = (beforebreak_text, afterbreak_text)
+            non_breaks.append(non_break)
             current_rules['non_breaks'] = non_breaks
             if verbose:
                 for item in non_breaks:
-                    print (item)
+                    try:
+                        print (item)
+                    except:
+                        pass
         if self.srx_rules:
             non_breaks = current_rules['non_breaks']
             custom_rules_list = text_to_list(self.srx_rules)
@@ -249,7 +251,8 @@ class Site(models.Model):
                     print (beforebreak_text, afterbreak_text)
             current_rules['non_breaks'] = non_breaks
         # return srx_segmenter.SrxSegmenter(current_rules)
-        self.segmenter = srx_segmenter.SrxSegmenter(current_rules)
+        # self.segmenter = srx_segmenter.SrxSegmenter(current_rules)
+        self.segmenter = srx_segmenter.SrxSegmenter(rule=current_rules)
         return self.segmenter
 
     def make_tokenizer(self, return_matches=False):
@@ -631,7 +634,7 @@ class Proxy(models.Model):
     def make_segmenter(self, verbose=False):
         language_code = self.language.code
         current_rules = get_segmenter_rules(language_code)
-        self.segmenter = srx_segmenter.SrxSegmenter(current_rules)
+        self.segmenter = srx_segmenter.SrxSegmenter(rule=current_rules)
         return self.segmenter
 
     def make_tokenizer(self, return_matches=False):
@@ -639,12 +642,6 @@ class Proxy(models.Model):
             possibly exploit knowledge related to the target language and/or the proxy itself """
         return NltkTokenizer(language_code=self.language.code, lowercasing=False, return_matches=return_matches)
 
-    """
-    def import_translations(self, file, request=None):
-        user_id = request and request.user.id or 1
-        reliability = 5
-        target_code = target_language.code
-    """
     def import_translations(self, xliff_file, request=None, user_role=None):
         if not user_role:
             pass # ma dovrebbe essere specificato 
@@ -2307,10 +2304,8 @@ def get_segments(body, site, segmenter, fragment=True, exclude_tx=True, exclude_
         segments.extend(segments_from_string(string, site, segmenter))
     return segments
 
-# def can_strip(word, site_invariants=[]):
 def is_invariant_word(word, site_invariants=[]):
     """ word belongs to invariant classes: web addresses, email addresses, numbers """
-    # return word.count('#') or word.count('@') or word.count('http') or word.replace(',', '.').isnumeric() or word in site_invariants
     return is_base_invariant_word(word) or word in site_invariants
 
 def non_invariant_words(words, site_invariants=[]):
@@ -2323,14 +2318,16 @@ def non_invariant_words(words, site_invariants=[]):
 re_eu_date = re.compile(r'(0?[1-9]|[1-2][0-9]|3[0-1])(-|/|\.)(0?[1-9]|1[0-2])(-|/|\.)([0-9]{4})') # es: 10/7/1953, 21-12-2015
 re_decimal_thousands_separators = re.compile(r'[0-9](\.|\,)[0-9]')
 re_spaces = re.compile(r'\b[\b]+')
-def segments_from_string(string, site, segmenter, exclude_TM_invariants=True, include_boundaries=False):
+def segments_from_string(string, site, segmenter, exclude_TM_invariants=True, include_boundaries=False, verbose=False):
     if string.count('window') and string.count('document'):
         return []
     if string.count('flickr'):
         return []
     site_invariants = text_to_list(site.invariant_words)
     # segments = segmenter.extract(string)[0]
-    segments, boundaries, whitespaces = segmenter.extract(string)
+    segments, boundaries, whitespaces = segmenter.extract(string, verbose=verbose)
+    if verbose:
+        print ('raw segments:', segments)
     filtered = []
     filtered_boundaries = []
     # for s in segments:
@@ -2350,7 +2347,6 @@ def segments_from_string(string, site, segmenter, exclude_TM_invariants=True, in
         if len(s) < 3:
             continue
         # KEEP SEGMENTS CONTAINING: DATES, NUMBERS INCLUDING SEPARATORS, CURRENCY SYMBOLS
-        # if re_eu_date.findall(s) or re_decimal_thousands_separators.findall(s) or regex.findall(ur'\p{Sc}', s):
         if re_eu_date.findall(s) or re_decimal_thousands_separators.findall(s) or regex.findall(r'\p{Sc}', s):
             filtered.append(s)
             continue
@@ -2363,6 +2359,7 @@ def segments_from_string(string, site, segmenter, exclude_TM_invariants=True, in
         if not s: continue
         """ REMOVE SEGMENTS INCLUDING ONLY WORDS BELONGING TO INVARIANT CLASSES """
         words = re.split(" |\'", s)
+        """
         if len(words) > 1:
             stripped = False
             while words and is_invariant_word(words[0], site_invariants=site_invariants):
@@ -2376,6 +2373,10 @@ def segments_from_string(string, site, segmenter, exclude_TM_invariants=True, in
             word = words[0]
             if is_invariant_word(word, site_invariants=site_invariants) or word.isupper() or word.lower() in EMPTY_WORDS[site.language.code]:
                 continue
+        """
+        invariant_words = [word for word in words if is_invariant_word(word, site_invariants=site_invariants)]
+        if len(invariant_words)==len(words):
+            continue
         """ REMOVE SEGMENT MATCHING SITE-ASSOCIATED INVARIANT STRINGS IN THE TM """
         if exclude_TM_invariants:
             # if String.objects.filter(site=site, language=site.language, text=s, invariant=True).count():

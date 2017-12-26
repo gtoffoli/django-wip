@@ -49,7 +49,6 @@ def make_segmenter(language_code):
     return srx_segmenter.SrxSegmenter(current_rules)
 
 def is_invariant_word(word):
-    # return word.count('#') or word.count('@') or word.count('http') or word.replace(',', '.').isnumeric()
     return word.count('#') or word.count('@') or word.count('http') or re.sub('[\.\,\-\/]', '', word).isnumeric() or (len(word)==1 and string.punctuation.count(word))
 
 def element_tostring(e):
@@ -107,6 +106,8 @@ def strings_from_block(block, tree=None, exclude_xpaths=[]):
                 yield BREAK
                 yield child.tail
                 continue
+            if child.tag in settings.BLOCK_TAGS:
+                yield BREAK
             for el in strings_from_block(child, tree=tree, exclude_xpaths=exclude_xpaths):
                 yield el
     else:

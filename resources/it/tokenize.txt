@@ -24,6 +24,9 @@
 # worth removing less likely strings...
 S\.
 
+# universal abbreviation pattern
+\b(?:[a-zA-Z]\.)+
+
 # 'Real' words possibly including hyphens
 [a-zA-Z\xc0-\xff]+[\-][a-zA-Z\xc0-\xff]+
 

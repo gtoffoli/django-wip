@@ -20,8 +20,7 @@
 </rule>
 <!-- universal abbreviation pattern -->
 <rule break="no">
-<!-- <beforebreak>\b([a-zA-Z]\.){2,}</beforebreak> -->
-<beforebreak>\b([a-zA-Z]\.){1,}</beforebreak>
+<beforebreak>\b([a-zA-Z]\.)+</beforebreak>
 <afterbreak>[\s,]</afterbreak>
 </rule>
 <!-- Italian abbreviations A - C-->
