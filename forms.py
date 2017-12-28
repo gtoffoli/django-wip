@@ -8,7 +8,7 @@ from django.utils.translation import ugettext_lazy as _, string_concat
 from django.contrib.auth.models import User
 from .models import Site, Segment, String
 from .models import UserRole
-from .models import STRING_TYPE_CHOICES, STRING_SORT_CHOICES, STRING_TRANSLATION_STATE_CHOICES, TRANSLATION_STATE_CHOICES, TRANSLATION_SERVICE_CHOICES
+from .models import SEGMENT_SORT_CHOICES, STRING_TYPE_CHOICES, STRING_SORT_CHOICES, STRING_TRANSLATION_STATE_CHOICES, TRANSLATION_STATE_CHOICES, TRANSLATION_SERVICE_CHOICES
 from .models import ROLE_TYPE_CHOICES
 from .vocabularies import Language, Subject
 
@@ -63,7 +63,7 @@ class PageManageForm(forms.Form):
 class PageSequencerForm(forms.Form):
     page_age = forms.CharField(required=False, label="Page age range", widget=forms.TextInput(attrs={'size': 8, 'style': 'width: 50px;', 'onchange': 'javascript: this.form.submit()',}))
     translation_state = forms.ChoiceField(required=False, choices=TRANSLATION_STATE_CHOICES, label="Translation state", widget=forms.Select(attrs={ 'style': 'width: auto; height: 2em;', 'onchange': 'javascript: this.form.submit()',}))
-    translation_languages = forms.ModelMultipleChoiceField(required=False, queryset=Language.objects.all(), label="Translation languages", widget=forms.SelectMultiple(attrs={ 'style': 'width: auto;', 'size': 3, 'onchange': 'javascript: this.form.submit()',}))
+    translation_languages = forms.ModelMultipleChoiceField(required=False, queryset=Language.objects.all(), label="Tr. languages", widget=forms.SelectMultiple(attrs={ 'style': 'width: auto;', 'size': 3, 'onchange': 'javascript: this.form.submit()',}))
     translation_age = forms.CharField(required=False, label="Translation age range", widget=forms.TextInput(attrs={'size': 8, 'style': 'width: 50px;', 'onchange': 'javascript: this.form.submit()',}))
     list_blocks = forms.BooleanField(required=False, label='List contained blocks')
 
@@ -76,7 +76,7 @@ class BlockSequencerForm(forms.Form):
     webpage = forms.IntegerField(required=False, widget=forms.TextInput(attrs={'size': 8, 'style': 'width: 50px;', 'onchange': 'javascript: this.form.submit()',}))
     # block_age = forms.CharField(required=False, label="Block age range", widget=forms.TextInput(attrs={'size': 8, 'style': 'width: 50px;', 'onchange': 'javascript: this.form.submit()',}))
     translation_state = forms.ChoiceField(required=False, choices=TRANSLATION_STATE_CHOICES, label="Translation state", widget=forms.Select(attrs={ 'style': 'width: auto; height: 2em;', 'onchange': 'javascript: this.form.submit()',}))
-    translation_languages = forms.ModelMultipleChoiceField(required=False, queryset=Language.objects.all(), label="Translation languages", widget=forms.SelectMultiple(attrs={ 'style': 'width: auto;', 'size': 3, 'onchange': 'javascript: this.form.submit()',}))
+    translation_languages = forms.ModelMultipleChoiceField(required=False, queryset=Language.objects.all(), label="Tr. languages", widget=forms.SelectMultiple(attrs={ 'style': 'width: auto;', 'size': 3, 'onchange': 'javascript: this.form.submit()',}))
     # translation_age = forms.CharField(required=False, label="Translation age range", widget=forms.TextInput(attrs={'size': 8, 'style': 'width: 50px;', 'onchange': 'javascript: this.form.submit()',}))
     source_text_filter = forms.CharField(required=False, label="Text in block", widget=forms.TextInput(attrs={'style': 'width: 500px;', 'onchange': 'javascript: this.form.submit()',}))
     # list_pages = forms.BooleanField(required=False, label='List containing pages')
@@ -151,11 +151,12 @@ class StringsTranslationsForm(forms.Form):
 class ListSegmentsForm(forms.Form):
     project_site = forms.ModelChoiceField(required=False, label="Project site", queryset=Site.objects.all(), widget=forms.Select(attrs={'style':'height: 24px;', 'onchange': 'javascript: this.form.submit()',}))
     translation_state = forms.ChoiceField(required=False, label="Translation state", choices=STRING_TRANSLATION_STATE_CHOICES, widget=forms.Select(attrs={ 'style': 'width: auto; height: 2em;', 'onchange': 'javascript: this.form.submit()',}))
+    in_use = forms.ChoiceField(required=False, choices=YES_NO_CHOICES, label="In use", widget=forms.Select(attrs={ 'style': 'width: auto; height: 2em;', 'onchange': 'javascript: this.form.submit()', }))
     source_language = forms.ModelChoiceField(required=True, label="Source language", queryset=Language.objects.all(), widget=forms.Select(attrs={'style':'height: 24px;', 'onchange': 'javascript: this.form.submit()',}))
     source_text_filter = forms.CharField(required=False, label="Text in source string", widget=forms.TextInput(attrs={'style': 'width: 500px;', 'onchange': 'javascript: this.form.submit()',}))
     target_language = forms.ModelChoiceField(required=True, label="Target language", queryset=Language.objects.all(), widget=forms.Select(attrs={'style':'height: 24px;', 'onchange': 'javascript: this.form.submit()',}))
     target_text_filter = forms.CharField(required=False, label="Text in target string", widget=forms.TextInput(attrs={'style': 'width: 500px;', 'onchange': 'javascript: this.form.submit()',}))
-    in_use = forms.ChoiceField(required=False, choices=YES_NO_CHOICES, label="In use", widget=forms.Select(attrs={ 'style': 'width: auto; height: 2em;', 'onchange': 'javascript: this.form.submit()', }))
+    order_by = forms.ChoiceField(required=False, choices=SEGMENT_SORT_CHOICES, label="Sort order", widget=forms.Select(attrs={ 'style': 'width: auto; height: 2em;', 'onchange': 'javascript: this.form.submit()',}))
     show_other_targets = forms.BooleanField(required=False, label='Show other targets', widget=forms.CheckboxInput(attrs={'onchange': 'javascript: this.form.submit()',}))
     show_alignments = forms.BooleanField(required=False, label='Show alignments', widget=forms.CheckboxInput(attrs={'onchange': 'javascript: this.form.submit()',}))
 

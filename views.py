@@ -29,6 +29,7 @@ import re
 from math import sqrt
 from lxml import html, etree
 import json
+from collections import defaultdict
 
 # from settings import BASE_DIR, USE_SCRAPY, USE_NLTK
 
@@ -58,7 +59,7 @@ from .models import Scan, Link, WordCount, SegmentCount
 from .models import UserRole, Segment, Translation
 from .models import segments_from_string, non_invariant_words
 from .models import STRING_TYPE_DICT, UNKNOWN, SEGMENT #, TERM, FRAGMENT
-from .models import TEXT_ASC # , ID_ASC, DATETIME_DESC, DATETIME_ASC
+from .models import TEXT_ASC, COUNT_DESC # , ID_ASC, DATETIME_DESC, DATETIME_ASC
 from .models import ANY, TO_BE_TRANSLATED, TRANSLATED, PARTIALLY, REVISED, INVARIANT, ALREADY
 from .models import ROLE_DICT, TRANSLATION_TYPE_DICT, TRANSLATION_SERVICE_DICT, GOOGLE, MYMEMORY
 from .models import ADMINISTRATOR, OWNER, MANAGER, LINGUIST, TRANSLATOR, CLIENT
@@ -355,7 +356,8 @@ def site(request, site_slug):
                 if dry:
                     print (extract_deny_list)
                 if download_segments:
-                    download_list = []
+                    # download_list = []
+                    segments_dict = defaultdict(int)
                 for webpage in webpages:
                     path = webpage.path
                     if webpage.last_unfound and (webpage.last_unfound > webpage.last_checked):
@@ -378,27 +380,23 @@ def site(request, site_slug):
                             break
                     if skip_page:
                         continue
-                    """
-                    try:
-                        segments = page_version.page_version_get_segments()
-                    except: # Unicode strings with encoding declaration are not supported. Please use bytes input or XML fragments without declaration.
-                        print '- error on ', path
-                        continue
-                    """
                     segments = page_version.page_version_get_segments(segmenter=segmenter)
                     if dry:
                         print (path)
                         continue
                     for s in segments:
                         if download_segments:
+                            """
                             if not s in download_list:
-                                download_list.append(s)
+                                # download_list.append(s)
+                            """
+                            segments_dict[s] += 1
                         else:
-                            # is_model_instance, string = get_or_add_string(request, s, language, string_type=SEGMENT, add=True, txu=None, site=site, reliability=0)
-                            get_or_add_segment(request, s, language, site)
-                        sys.stdout.write('.')
+                            get_or_add_segment(request, s, language, site, add=True)
+                        # sys.stdout.write('.')
                 if download_segments:
                     # messages.add_message(request, messages.INFO, 'Downloaded %d segments.' % len(download_list))
+                    download_list = sorted(segments_dict, key=segments_dict.get, reverse=True)
                     data = u'\r\n'.join(download_list)
                     response = HttpResponse(data, content_type='application/octet-stream')
                     time_stamp = datetime.datetime.now().strftime('%y%m%d-%H-%M-%S')
@@ -565,7 +563,8 @@ def proxy(request, proxy_slug):
                 parallel_format = int(data['parallel_format'])
                 lines = []
                 # segments = Segment.objects.filter(site=proxy.site, is_invariant=False)
-                segments = Segment.objects.filter(site=proxy.site, is_invariant=False, in_use=True)
+                # segments = Segment.objects.filter(site=proxy.site, is_invariant=False, in_use=True)
+                segments = Segment.objects.filter(site=proxy.site, is_invariant=False, in_use__gt=0)
                 for segment in segments:
                     source_text = segment.text
                     translations = Translation.objects.filter(segment=segment, language=proxy.language)
@@ -1246,13 +1245,10 @@ def block_translate(request, block_id, target_code):
                 extract_strings = False # data['extract_strings']
         elif extract:
             for segment in segments:
-                # is_model_instance, segment_string = get_or_add_string(request, segment, source_language, site=block.site, string_type=SEGMENT, add=True)
                 segment_string = get_or_add_segment(request, segment, source_language, block.site, add=True)
         elif segment:
-            #is_model_instance, segment_string = get_or_add_string(request, segment, source_language, site=block.site, string_type=SEGMENT, add=True)
             segment_string = get_or_add_segment(request, segment, source_language, block.site, add=True)
         elif string:
-            # is_model_instance, segment_string = get_or_add_string(request, string, source_language, site=block.site, add=True)
             segment_string = get_or_add_segment(request, string, source_language, site=block.site, add=True)
             return HttpResponseRedirect('/segment_translate/%d/%s/' % (segment_string.id, target_code))
     if (not post) or save_block or create or modify or delete or extract or segment or string:
@@ -2310,6 +2306,7 @@ def list_segments(request, state=None):
     in_use = tm_edit_context.get('in_use', 'Y')
     show_other_targets = tm_edit_context.get('show_other_targets', False)
     show_alignments = tm_edit_context.get('show_alignments', False)
+    order_by = tm_edit_context.get('order_by', TEXT_ASC)
     tm_edit_context['project_site'] = project_site_id
     tm_edit_context['source_language'] = source_language_code
     tm_edit_context['target_language'] = target_language_code
@@ -2358,6 +2355,7 @@ def list_segments(request, state=None):
             tm_edit_context['in_use'] = in_use = data['in_use']
             tm_edit_context['show_other_targets'] = show_other_targets = data['show_other_targets']
             tm_edit_context['show_alignments'] = show_alignments = data['show_alignments']
+            tm_edit_context['order_by'] = order_by = int(data['order_by'])
             request.session['tm_edit_context'] = tm_edit_context
             """
             if project_site and target_language:
@@ -2367,7 +2365,7 @@ def list_segments(request, state=None):
             if post.get('add-segment', '') and project_site and source_language and source_text_filter:
                 segment, created = Segment.objects.get_or_create(site=project_site, language=source_language, text=source_text_filter)
     else:
-        form = ListSegmentsForm(initial={'project_site': project_site, 'in_use': in_use, 'translation_state': translation_state, 'source_language': source_language, 'target_language': target_language, 'source_text_filter': source_text_filter, 'target_text_filter': target_text_filter, 'show_other_targets': show_other_targets, })
+        form = ListSegmentsForm(initial={'project_site': project_site, 'in_use': in_use, 'translation_state': translation_state, 'source_language': source_language, 'target_language': target_language, 'source_text_filter': source_text_filter, 'target_text_filter': target_text_filter, 'show_other_targets': show_other_targets, 'order_by': order_by })
 
     if translation_state == TRANSLATED:
         translated = True
@@ -2386,20 +2384,29 @@ def list_segments(request, state=None):
     var_dict['show_other_targets'] = show_other_targets
     var_dict['show_alignments'] = show_alignments
     var_dict['other_languages'] = Language.objects.exclude(code=target_language_code).order_by('code')
+    var_dict['order_by'] = order_by
 
     if project_site and translation_state == INVARIANT:
         qs = Segment.objects.filter(site=project_site, is_invariant=True)
     else:
         qs = find_segments(source_languages=[source_language], target_languages=[target_language], site=project_site, translated=translated, order_by='')
     if in_use == 'Y':
-        qs = qs.filter(in_use=True)
+        # qs = qs.filter(in_use=True)
+        qs = qs.exclude(in_use=0)
     elif in_use == 'N':
-        qs = qs.exclude(in_use=True)
+        # qs = qs.exclude(in_use=True)
+        qs = qs.filter(in_use=0)
     if source_text_filter:
         qs = qs.filter(text__icontains=source_text_filter)
     if target_text_filter:
         qs = qs.filter(segment_translation__text__icontains=target_text_filter)
-    qs = qs.order_by('text')
+    if order_by == TEXT_ASC:
+        qs = qs.order_by('text')
+    elif order_by == COUNT_DESC:
+        qs = qs.order_by('-in_use')
+    else:
+        qs = qs.order_by('id')
+        
     segment_count = qs.count()
     var_dict['segment_count'] = segment_count
     if id:

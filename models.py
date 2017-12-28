@@ -103,7 +103,7 @@ TRANSLATION_STATE_CHOICES = (
     (TRANSLATED,  _('translated'),),
     (REVISED,  _('revised'),),
     (INVARIANT,  _('invariant'),),
-    (ALREADY,  _('already in target language'),),
+    (ALREADY,  _('in target language'),),
 )
 TRANSLATION_STATE_DICT = dict(TRANSLATION_STATE_CHOICES)
 
@@ -132,6 +132,7 @@ TEXT_ASC = 1
 ID_ASC = 2
 DATETIME_DESC = -3
 DATETIME_ASC = 3
+COUNT_DESC = -4
 STRING_SORT_CHOICES = (
     (TEXT_ASC, _('text'),),
     (ID_ASC, _('id'),),
@@ -139,6 +140,13 @@ STRING_SORT_CHOICES = (
     (DATETIME_ASC,  _('datetime'),),
 )
 STRING_SORT_DICT = dict(STRING_SORT_CHOICES)
+
+SEGMENT_SORT_CHOICES = (
+    (ID_ASC, _('id'),),
+    (TEXT_ASC, _('text'),),
+    (COUNT_DESC, _('count'),),
+)
+SEGMENT_SORT_DICT = dict(SEGMENT_SORT_CHOICES)
 
 PARALLEL_FORMAT_NONE = 0
 PARALLEL_FORMAT_XLIFF = 1
@@ -348,23 +356,21 @@ class Site(models.Model):
         return Block.objects.filter(block_in_page__webpage__site=self).distinct()
 
     def page_checksum(self, body):
-        if not self.slug == 'scuolemigranti':
-            return string_checksum(body)
-        # patterns = ['<div class="textwidget"><div id="flickr_recent_',]
         deny_list = text_to_list(self.checksum_deny)
-        l_in = body.splitlines()
-        l_out = []
-        for l in l_in:
-            should_skip = False
-            for deny_pattern in deny_list:
-                if l.count(deny_pattern):
-                    should_skip = True
-                    break
-            if should_skip:
-                continue
-            l_out.append(l)
-        # return string_checksum('\n'.join(l_out))
-        return string_checksum('\n'.join(l_out).encode())
+        if deny_list: 
+            l_in = body.splitlines()
+            l_out = []
+            for l in l_in:
+                should_skip = False
+                for deny_pattern in deny_list:
+                    if l.count(deny_pattern):
+                        should_skip = True
+                        break
+                if should_skip:
+                    continue
+                l_out.append(l)
+            body = '\n'.join(l_out)
+        return string_checksum(body.encode())
 
     # def fetch_page(self, path, webpage=None, extract_blocks=True, extract_segments=False, diff=False, dry=False, verbose=False):
     def fetch_page(self, path, webpage=None, extract_blocks=True, extract_block=None, extract_segments=False, diff=False, dry=False, verbose=False):
@@ -513,7 +519,8 @@ class Site(models.Model):
         return len(self.get_segments(translation_state=ANY))
 
     def get_segments_in_use(self):
-        return Segment.objects.filter(site=self, in_use=True)
+        # return Segment.objects.filter(site=self, in_use=True)
+        return Segment.objects.filter(site=self, in_use__gt=0)
         
     def refresh_segments_in_use(self):
         segments_dict = defaultdict(int)
@@ -521,12 +528,15 @@ class Site(models.Model):
         segmenter = self.make_segmenter()
         for block in blocks_in_use:
             segment_texts = block.block_get_segments(segmenter)
+            if segment_texts:
+                page_count = BlockInPage.objects.filter(block=block).count()
             for text in segment_texts:
                 for segment in Segment.objects.filter(site=self, text=text):
-                    segments_dict[segment.id] += 1
+                    segments_dict[segment.id] += page_count
         segments = Segment.objects.filter(site=self)
         for segment in segments:
-            in_use = (segments_dict[segment.id] > 0)
+            # in_use = (segments_dict[segment.id] > 0)
+            in_use = segments_dict[segment.id]
             if in_use != segment.in_use:
                 segment.in_use = in_use
                 segment.save()              
@@ -2563,7 +2573,8 @@ class Segment(models.Model):
     language = models.ForeignKey(Language, verbose_name='source language', blank=True, null=True)
     is_fragment = models.BooleanField('fragment', default=False)
     is_invariant = models.BooleanField('invariant', default=False)
-    in_use = models.BooleanField('in use', default=True)
+    # in_use = models.BooleanField('in use', default=True)
+    in_use = models.IntegerField('in use', default=0)
     text = models.TextField('plain text extracted', blank=True, null=True)
     html = models.TextField('original text with tags', blank=True, null=True)
     comment = models.TextField('comment', blank=True, null=True)
@@ -2618,9 +2629,11 @@ class Segment(models.Model):
         if site:
             qs = qs.filter(site=site)
         if in_use == 'Y':
-            qs = qs.filter(in_use=True)
+            # qs = qs.filter(in_use=True)
+            qs = qs.exclude(in_use=0)
         elif in_use == 'N':
-            qs = qs.exclude(in_use=True)
+            # qs = qs.exclude(in_use=True)
+            qs = qs.filter(in_use=0)
         if translation_state == INVARIANT:
             qs = qs.filter(is_invariant=True)
         elif translation_state == TRANSLATED:

@@ -42,12 +42,10 @@
 
 <form action="#" method="post" id="translation-form">{% csrf_token %}
 
-<div>{% for field in list_segments_form.visible_fields|slice:"0:2" %}{{ field.label_tag }} {{ field }} &nbsp; {% endfor %}
-	 {% with field=list_segments_form.visible_fields.6 %}{{ field.label_tag }} {{ field }} {% endwith %}
-	 {% with field=list_segments_form.visible_fields.7 %}{{ field.label_tag }} {{ field }} {% endwith %}
-	 {% with field=list_segments_form.visible_fields.8 %}{{ field.label_tag }} {{ field }} {% endwith %}</div>
-<div>{% for field in list_segments_form.visible_fields|slice:"2:4" %}{{ field.label_tag }} {{ field }} &nbsp; {% endfor %}</div>
-<div>{% for field in list_segments_form.visible_fields|slice:"4:6" %}{{ field.label_tag }}<span style="font-size: medium;">&nbsp; </span>{{ field }} &nbsp; {% endfor %}</div>
+<div>{% for field in list_segments_form.visible_fields|slice:"0:3" %}{{ field.label_tag }} {{ field }} &nbsp; {% endfor %}</div>
+<div>{% for field in list_segments_form.visible_fields|slice:"3:5" %}{{ field.label_tag }} {{ field }} &nbsp; {% endfor %}</div>
+<div>{% for field in list_segments_form.visible_fields|slice:"5:7" %}{{ field.label_tag }} {{ field }} &nbsp; {% endfor %}</div>
+<div>{% for field in list_segments_form.visible_fields|slice:"7:10" %}{{ field.label_tag }} {{ field }} &nbsp; {% endfor %}</div>
 
     {% if segments.paginator.num_pages > 1 %}
       <div class="text-right">
@@ -86,7 +84,7 @@
           <td class="text-right">{{forloop.counter|add:offset}}</td>
           <td><input type="checkbox" name="selection" value="{{ segment.id }}" /></td>
           <td class="text-right"><a href="/segment/{{ segment.id }}/" class="{{ source_language.code }}">{{ segment.id }}</a></td>
-          <td>{% if segment.in_use %}x{% endif %}</td>
+          <td>{% if segment.in_use %}{{ segment.in_use }}{% endif %}</td>
           <td>{{ segment.text }}</td>
           <td>
           <table style="width:100%"><tbody>
