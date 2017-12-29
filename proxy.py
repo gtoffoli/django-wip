@@ -31,7 +31,8 @@ from django_diazo.settings import DOCTYPE
 
 # REWRITE_REGEX = re.compile(r'((?:src|action|href)=["\'])/(?!\/)')
 REWRITE_REGEX = re.compile(r'((?:action)=["\'])/(?!\/)')
-RESOURCES_REGEX = re.compile(r'(\.(css|js|png|jpg|gif|pdf|ppt|pptx|doc|docx|xls|xslx|odt|woff))', re.IGNORECASE)
+# RESOURCES_REGEX = re.compile(r'(\.(css|js|png|jpg|gif|pdf|ppt|pptx|doc|docx|xls|xslx|odt|woff))', re.IGNORECASE)
+RESOURCES_REGEX = re.compile(r'(\.(css|js|png|jpg|gif|pdf|ppt|pptx|doc|docx|xls|xslx|odt|woff|ttf))', re.IGNORECASE)
 BODY_REGEX = re.compile(r'(\<body.*?\>)', re.IGNORECASE)
 
 # hreflang_template = '<link rel="alternate" hreflang="%s" href="%s" />'
@@ -48,7 +49,6 @@ backdoor = """
 
 class WipHttpProxy(HttpProxy):
     prefix = ''
-    # prefix = '/dummy'
     rewrite_links = False
     site_id = ''
     proxy_id = ''
@@ -84,25 +84,25 @@ class WipHttpProxy(HttpProxy):
             if self.proxy_id:
                 self.proxy = proxy = Proxy.objects.get(pk=self.proxy_id)
                 self.site = site = proxy.site
+                self.base_url = site.url
             elif self.site_id:
                 self.site = site = Site.objects.get(pk=self.site_id)
 
         self.original_request_path = request.path
         request = self.normalize_request(request)
+        """
         if self.mode == 'play':
             response = self.play(request)
             # TODO: avoid repetition, flow of logic could be improved
             if self.rewrite:
-                """
-                response = self.rewrite_response(request, response)
-                """
+                # response = self.rewrite_response(request, response)
                 if hasattr(self.content, 'decode'):
                     self.content = response.content.decode('utf-8')
                 self.rewrite_response(request)
                 if hasattr(self.content, 'encode'):
                     response.content = self.content.encode('utf-8')
             return response
-
+        """
         key = '%s-%s' % (proxy.site.path_prefix, url)
         should_cache_resource = False
         resource_match = RESOURCES_REGEX.search(url)
@@ -117,6 +117,7 @@ class WipHttpProxy(HttpProxy):
             else:
                 should_cache_resource = True
         response = super(HttpProxy, self).dispatch(request, *args, **kwargs)
+        print (response.status_code)
         if resource_match is not None:
             cache_seconds = 7 * 24 * 3600
             patch_response_headers(response, cache_timeout=cache_seconds)
