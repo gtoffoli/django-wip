@@ -67,7 +67,7 @@ from .settings import RESOURCES_ROOT, BLOCK_TAGS, BLOCKS_EXCLUDE_BY_XPATH, EMPTY
 DEFAULT_USER = 1
 from .session import get_userrole, set_userrole
 from .utils import element_tostring, text_from_html, strings_from_html, elements_from_element, replace_element_content, element_signature
-from .utils import compact_spaces, normalize_string, replace_segment, string_checksum, text_to_list # , non_invariant_words
+from .utils import compact_spaces, strip_html_comments, normalize_string, replace_segment, string_checksum, text_to_list # , non_invariant_words
 from .utils import is_invariant_word as is_base_invariant_word
 from .utils import get_segmenter_rules, make_segmenter
 # import wip.srx_segmenter
@@ -872,8 +872,8 @@ class Proxy(models.Model):
         return n_ready, n_translated, n_partially
 
     def translate_page_content(self, content):
-        # html_string = re.sub("(<!--(.*?)-->)", "", content, flags=re.MULTILINE)
-        html_string = normalize_string(content)
+        # html_string = normalize_string(content)
+        html_string = strip_html_comments(content)
         content_document = html.document_fromstring(html_string)
         translated_document, has_translation = translated_element(content_document, self.site, webpage=None, language=self.language, translate_live=self.enable_live_translation)
         if has_translation:
@@ -1395,8 +1395,8 @@ class Webpage(models.Model):
             return [] # , 0, 0
         last_version = versions[0]
         html_string = last_version.body
-        # html_string = re.sub("(<!--(.*?)-->)", "", html_string, flags=re.MULTILINE)
-        html_string = normalize_string(html_string)
+        # html_string = normalize_string(html_string)
+        html_string = strip_html_comments(html_string)
         html_string = html_string.replace('encoding="utf-8"', '')
         if not html_string:
             return []
@@ -1546,8 +1546,9 @@ class PageVersion(models.Model):
             segmenter = self.webpage.site.make_segmenter()
         site = self.webpage.site
         exclude_xpaths = BLOCKS_EXCLUDE_BY_XPATH.get(site.slug, [])
-        # html_string = re.sub("(<!--(.*?)-->)", "", self.body, flags=re.MULTILINE)
-        html_string = normalize_string(self.body)
+        # html_string = normalize_string(self.body)
+        html_string = strip_html_comments(self.body)
+        html_string = normalize_string(html_string)
         segments = []
         for string in list(strings_from_html(html_string, fragment=False, exclude_xpaths=exclude_xpaths)):
             if string and string[0]=='{' and string[-1]=='}':
@@ -1973,8 +1974,9 @@ class Block(node_factory('BlockEdge')):
                 body = translated_block.body
             else:
                 body = self.body
-        # html = re.sub("(<!--(.*?)-->)", "", body, flags=re.MULTILINE)
-        html = normalize_string(body)
+        # html = normalize_string(body)
+        html = strip_html_comments(body)
+        html = normalize_string(html)
         lineardoc = LineardocParse(html)
         logger.info('--- apply_tm: {0} blocks - wrapperTag: {1!s}'.format(len(lineardoc.items), lineardoc.wrapperTag))
         logger.info('{}'.format(lineardoc.items))
@@ -2303,7 +2305,6 @@ def translated_element(element, site, webpage=None, language=None, xpath='/html'
 def get_segments(body, site, segmenter, fragment=True, exclude_tx=True, exclude_xpaths=False):
     if not segmenter:
         segmenter = site.make_segmenter()
-    # html_string = re.sub("(<!--(.*?)-->)", "", body, flags=re.MULTILINE)
     html_string = normalize_string(body)
     if not html_string:
         return []

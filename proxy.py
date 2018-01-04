@@ -11,9 +11,14 @@ import re
 from logging import getLogger
 
 from django.http import HttpResponse
+from django.shortcuts import redirect
 from django.utils.cache import patch_response_headers
 from django.core.cache import caches
 from httpproxy.views import HttpProxy
+from revproxy.views import ProxyView as RevProxy
+from revproxy.response import  get_django_response
+import revproxy
+revproxy.MIN_STREAMING_LENGTH = 1024 * 1024 * 1024 #  4 * 1024  # 4KB
 
 from .models import Site, Proxy, Webpage
 
@@ -47,9 +52,13 @@ info = {
 backdoor = """
 """
 
+# class WipHttpProxy(View):
 class WipHttpProxy(HttpProxy):
+    """ subclasses httpproxy.views.HttpProxy in order to reuse auxiliary methods, such as record and play:
+        main ones (dispatch and rewrite_response) are completely redefined """
+
+    # new class attributes
     prefix = ''
-    rewrite_links = False
     site_id = ''
     proxy_id = ''
     language_code = ''
@@ -65,10 +74,14 @@ class WipHttpProxy(HttpProxy):
         self.params = {}
 
     def dispatch(self, request, url, *args, **kwargs):
+        """ redefines the dispatch method of httpproxy.views.HttpProxy """
+        # anticipating next 3 statements from method of superclass shouldn't harm
         self.url = url
-        self.forwarded_host = request.META.get('HTTP_X_FORWARDED_HOST', None)
-        self.host = self.forwarded_host or request.META.get('HTTP_HOST', '')
+        self.original_request_path = request.path
+        request = self.normalize_request(request)
 
+        # new stuff below concerns proxies and sites in the WIP model
+        self.host = self.request.get_host() # Returns the originating host of the request using information from the HTTP_X_FORWARDED_HOST (if USE_X_FORWARDED_HOST is enabled) and HTTP_HOST headers, in that order
         self.online = False
         for proxy in Proxy.objects.all():
             if proxy.host and self.host.count(proxy.host):
@@ -88,9 +101,7 @@ class WipHttpProxy(HttpProxy):
             elif self.site_id:
                 self.site = site = Site.objects.get(pk=self.site_id)
 
-        self.original_request_path = request.path
-        request = self.normalize_request(request)
-        """
+        """ test on mode "play" shouldn't harm, even if unused - CAN RETURN >
         if self.mode == 'play':
             response = self.play(request)
             # TODO: avoid repetition, flow of logic could be improved
@@ -102,11 +113,12 @@ class WipHttpProxy(HttpProxy):
                 if hasattr(self.content, 'encode'):
                     response.content = self.content.encode('utf-8')
             return response
-        """
+        < test on mode "play" """
+
+        # 1st part of stuff below concerns caching of "resources", such as media files - CAN RETURN
         key = '%s-%s' % (proxy.site.path_prefix, url)
         should_cache_resource = False
         resource_match = RESOURCES_REGEX.search(url)
-        
         if resource_match is not None:
             resources_cache = caches['resources']
             cached_response = resources_cache.get(key, None)
@@ -116,8 +128,15 @@ class WipHttpProxy(HttpProxy):
                 return cached_response
             else:
                 should_cache_resource = True
-        response = super(HttpProxy, self).dispatch(request, *args, **kwargs)
-        print (response.status_code)
+
+        response = super(HttpProxy, self).dispatch(request, *args, **kwargs) # <----- call method of superclass
+        # response = super(WipHttpProxy, self).dispatch(request, *args, **kwargs) # <----- call method of superclass
+        """ test on mode "record" shouldn't harm, even if unused >
+        if self.mode == 'record':
+            self.record(response)
+        > test on mode "record" """
+
+        # 2-nd part of stuff below concerns caching of "resources", such as media files - CAN RETURN
         if resource_match is not None:
             cache_seconds = 7 * 24 * 3600
             patch_response_headers(response, cache_timeout=cache_seconds)
@@ -125,46 +144,36 @@ class WipHttpProxy(HttpProxy):
             resources_cache.set(key, response)
             return response
 
+        # handle requests for robots.txt
         parsed_url = urlparse.urlparse(url)
         self.path = parsed_url.path
         if self.proxy and self.path == 'robots.txt':
-            # response.content = self.proxy.robots_txt
             response.content = self.proxy.robots_txt.encode('utf-8')
             return response
 
+        # apply various transformations on the response content only if the "html" tag is found at the beginning (?)
         trailer = response.content[:100]
         # if trailer.count('<') and trailer.lower().count('html'):
         if trailer.count('<'.encode('utf-8')) and trailer.lower().count('html'.encode('utf-8')):
-            """
-            response = self.transform_response(request, response)
-            if self.proxy_id and self.language_code:
-                self.translate_response(request, response)
-            else:
-                if self.mode == 'record':
-                    self.record(response)
-                if self.rewrite:
-                    response = self.rewrite_response(request, response)
-            if self.rewrite_links:
-                response = self.replace_links(response)
-                response = self.rewrite_response(request, response)
-            """
             self.content = response.content.decode('utf-8')
+
+            # DIAZO transform temporarily inactive
             # self.transform_response(request, response)
+
+            # apply specific proxy-translation transformation
             if self.proxy_id and self.language_code:
                 self.translate_response(request)
-            else:
-                if self.mode == 'record':
-                    self.record(response)
-                if self.rewrite:
-                    self.rewrite_response(request)
-            if self.rewrite_links:
+
+            # test on self.rewrite
+            if self.rewrite:
                 self.replace_links()
                 self.rewrite_response(request)
             response.content = self.content.encode('utf-8')
 
         if self.proxy:
+            # add language-related headers
             headers = []
-            original_url = '%s/%s' % (self.site.url, self.path)
+            # original_url = '%s/%s' % (self.site.url, self.path)
             protocol = 'http://'
             for proxy in Proxy.objects.filter(site=self.site):
                 if self.online and proxy.host:
@@ -173,7 +182,6 @@ class WipHttpProxy(HttpProxy):
                     proxy_url = '%slocalhost:8000/%s/%s' % (protocol, proxy.base_path, self.path)
                 headers.append(hreflang_template % (proxy_url, proxy.language_id))
             link = ', '.join(headers)
-            # print ('link: ', link)
             response['Link'] = link
 
         return response
@@ -230,11 +238,6 @@ class WipHttpProxy(HttpProxy):
             response = HttpResponse('<?xml version="1.0" encoding="UTF-8"?>\n' + tostring(content))
         return response
 
-    """
-    def translate_response(self, request, response):
-        request = self.request
-        content = response.content
-    """
     def translate_response(self, request):
         if self.proxy:
             proxy = self.proxy
@@ -245,63 +248,31 @@ class WipHttpProxy(HttpProxy):
         path = urlparse.urlparse(self.url).path
         transformed = False
         if request.GET or request.POST:
-            """
-            content, transformed = proxy.translate_page_content(content)
-            """
             self.content, transformed = proxy.translate_page_content(self.content)
         else:
-            # path = urlparse.urlparse(self.url).path
-            # print ('translate_response: ', path)
-            # print ('enable_live_translation: ', proxy.enable_live_translation)
             webpages = Webpage.objects.filter(site=site, path=path).order_by('-created')
             if webpages:
                 webpage = webpages[0]
-                # print ('no_translate', webpage.no_translate)
                 if not webpage.no_translate:
-                    """
-                    content, transformed = webpage.get_translation(self.language_code)
-                    """
                     self.content, transformed = webpage.get_translation(self.language_code)
             if not transformed and proxy.enable_live_translation:
-                # print ('no translation found: ', path)
-                """
-                content, transformed = proxy.translate_page_content(content)
-                """
                 self.content, transformed = proxy.translate_page_content(self.content)
         # replace text or HTML fragment on the fly (new)
-        """
-        content = proxy.replace_fragments(content, path)
-        response.content = content
-        return response
-        """
         if hasattr(self.content, 'decode'):
             self.content = self.content.decode()
         self.content = proxy.replace_fragments(self.content, path)
 
     def replace_links(self):
-    # def replace_links(self, response):
         """
         Rewrites unconditionally the links in the HTML
         removing the base url of the original site (if any) when in online mode
         or replacing it with the proxy prefix
         """
-        """
-        content = response.content
-        content = content.replace(self.base_url, self.prefix)
-        response.content = content
-        return response
-        """
-        try:
-            print ('replace_links - self.online:', self.online, ', self.base_url:', self.base_url, ', self.prefix:', self.prefix)
-            print ('replace_links - self.host:', self.host, ', self.proxy.host:', self.proxy.host)
-        except:
-            pass
         if self.online:
             self.content = self.content.replace(self.base_url, '')
         else:
             self.content = self.content.replace(self.base_url, self.prefix)
 
-    # def rewrite_response(self, request, response):
     def rewrite_response(self, request):
         """
         Rewrites the response to fix references to resources loaded from HTML
@@ -311,10 +282,6 @@ class WipHttpProxy(HttpProxy):
             "src", "href" and "action" attributes with a value starting with "/"
         """
         proxy_root = self.original_request_path.rsplit(request.path, 1)[0]
-        """
-        content = response.content
-        content = REWRITE_REGEX.sub(r'\1{}/'.format(proxy_root), content)
-        """
         self.content = REWRITE_REGEX.sub(r'\1{}/'.format(proxy_root), self.content)
         site_url = self.base_url
         extra = ''
@@ -322,11 +289,106 @@ class WipHttpProxy(HttpProxy):
             webpages = Webpage.objects.filter(site=self.site, path=self.path).order_by('-created')
             if webpages:
                 extra = '<a href="/page/%s/">@</a> ' % webpages[0].id
-        """
-        if self.proxy and self.online:
-            content = BODY_REGEX.sub(r'\1' + info[self.language_code] % (extra, site_url, site_url.split('//')[1]), content)
-        response.content = content
-        return response
-        """
         if self.proxy and self.online:
             self.content = BODY_REGEX.sub(r'\1' + info[self.language_code] % (extra, site_url, site_url.split('//')[1]), self.content)
+
+class WipRevProxy(RevProxy):
+    # upstream = 'https://www.linkroma.it'
+
+    # new class attributes
+    prefix = ''
+    site_id = ''
+    proxy_id = ''
+    language_code = ''
+    proxy = None
+
+    def dispatch(self, request, path):
+        """ redefines the dispatch method of revproxy.views.ProxyView """
+
+        # custom stuff
+        self.url = path
+        self.original_request_path = request.path
+        parsed_url = urlparse.urlparse(path)
+        self.path = parsed_url.path
+
+ 
+        self.request_headers = self.get_request_headers()
+
+        redirect_to = self._format_path_to_redirect(request)
+        if redirect_to:
+            return redirect(redirect_to)
+
+        proxy_response = self._created_proxy_response(request, path)
+
+        self._replace_host_on_redirect_location(request, proxy_response)
+        self._set_content_type(request, proxy_response)
+
+        # custom stuff below concerns proxies and sites in the WIP model
+        self.host = self.request.get_host() # Returns the originating host of the request using information from the HTTP_X_FORWARDED_HOST (if USE_X_FORWARDED_HOST is enabled) and HTTP_HOST headers, in that order
+        self.online = False
+        for proxy in Proxy.objects.all():
+            if proxy.host and self.host.count(proxy.host):
+                self.proxy = proxy
+                self.proxy_id = proxy.id
+                self.language_code = proxy.language.code
+                site = proxy.site
+                self.site = site
+                self.base_url = site.url
+                self.online = True
+                break
+        if not self.proxy:
+            if self.proxy_id:
+                self.proxy = proxy = Proxy.objects.get(pk=self.proxy_id)
+                self.site = site = proxy.site
+                self.base_url = site.url
+            elif self.site_id:
+                self.site = site = Site.objects.get(pk=self.site_id)
+                self.base_url = site.url
+
+        # 1st part of custom stuff below concerns caching of "resources", such as media files - CAN RETURN
+        key = '%s-%s' % (proxy.site.path_prefix, path)
+        should_cache_resource = False
+        resource_match = RESOURCES_REGEX.search(path)
+        if resource_match is not None:
+            resources_cache = caches['resources']
+            cached_response = resources_cache.get(key, None)
+            if cached_response:
+                cache_seconds = 7 * 24 * 3600
+                patch_response_headers(cached_response, cache_timeout=cache_seconds)
+                return cached_response
+            else:
+                should_cache_resource = True
+
+        response = get_django_response(proxy_response,
+                                       strict_cookies=self.strict_cookies)
+
+        # 2-nd part of custom stuff below concerns caching of "resources", such as media files - CAN RETURN
+        if resource_match is not None:
+            cache_seconds = 7 * 24 * 3600
+            patch_response_headers(response, cache_timeout=cache_seconds)
+        if should_cache_resource:
+            resources_cache.set(key, response)
+            return response
+
+        # custom: apply various transformations on the response content only if the "html" tag is found at the beginning (?)
+        if hasattr(response, 'content'):
+            trailer = response.content[:100]
+            if trailer.count('<'.encode('utf-8')) and trailer.lower().count('html'.encode('utf-8')):
+                self.content = response.content.decode('utf-8')
+    
+                # DIAZO transform temporarily inactive
+    
+                # apply specific proxy-translation transformation
+                if self.proxy_id and self.language_code:
+                    self.translate_response(request)
+    
+                self.replace_links()
+                self.rewrite_response(request)
+                response.content = self.content.encode('utf-8')
+
+        self.log.debug("RESPONSE RETURNED: %s", response)
+        return response
+
+WipRevProxy.translate_response = WipHttpProxy.translate_response
+WipRevProxy.replace_links = WipHttpProxy.replace_links
+WipRevProxy.rewrite_response = WipHttpProxy.rewrite_response

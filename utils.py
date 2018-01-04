@@ -362,11 +362,14 @@ def unescape(text):
         return text # leave as is
     return re.sub("&#?\w+;", fixup, text)
 
+def strip_html_comments(s):
+    # http://stackoverflow.com/questions/1084741/regexp-to-strip-html-comments
+    return re.sub("(<!--(.*?)-->)", "", s, flags=re.MULTILINE)
+
 # def normalize_string(s):
 def normalize_string(s, compactspaces=False):
     if s:
-        # http://stackoverflow.com/questions/1084741/regexp-to-strip-html-comments
-        s = re.sub("(<!--(.*?)-->)", "", s, flags=re.MULTILINE)
+        # s = re.sub("(<!--(.*?)-->)", "", s, flags=re.MULTILINE)
         s = unescape(s)
         try:
             s.translate(settings.TRANS_QUOTES)

@@ -46,6 +46,7 @@ INSTALLED_APPS = [
     'bootstrap3',
     'menu',
     'httpproxy',
+    'revproxy',
     'actstream',
     'django_dag',
     'adminsortable2',
@@ -53,6 +54,9 @@ INSTALLED_APPS = [
     'rest_framework',
     'wip',
 ]
+
+# PROXY_APP = 'httpproxy'
+PROXY_APP = 'revproxy'
 
 # MIDDLEWARE_CLASSES = [
 MIDDLEWARE = [

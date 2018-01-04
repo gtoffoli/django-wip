@@ -28,9 +28,9 @@ from wip import views
 from wip import search_indexes
 from .api import find_block, send_block, send_fragment
 from .proxy import WipHttpProxy
+from .proxy import WipRevProxy
 
 urlpatterns = [
-    # url(r'^dummy/(?P<url>.*)$', WipHttpProxy.as_view(rewrite_links=True)),
     url(r'^admin/', admin.site.urls),
     url(r'^tinymce/', include('tinymce.urls')),
     url(r"^$", views.home, name="home"),
@@ -119,20 +119,26 @@ if settings.USE_NLTK:
         url(r"^page_scan/(?P<fetched_id>[\d]+)/$", views.page_scan, name="page_scan"),
     )   
 
-try:
-    proxies = Proxy.objects.all()
-    for proxy in proxies:
-        prefix = '/%s' % str(proxy.base_path)
-        base_url = str(proxy.site.url)
+sites = Site.objects.all()
+proxies = Proxy.objects.all()
+for proxy in proxies:
+    prefix = '/%s' % str(proxy.base_path)
+    base_url = str(proxy.site.url)
+    if settings.PROXY_APP == 'httpproxy':
         regex = r'^' + proxy.base_path + r'/(?P<url>.*)$'
-        url_entry = url(regex, WipHttpProxy.as_view(base_url=base_url, prefix=prefix, rewrite_links=True, proxy_id=proxy.id, language_code=proxy.language.code))
-        urlpatterns.append(url_entry)
-    sites = Site.objects.all()
-    for site in sites:
-        prefix = '/%s' % str(site.path_prefix)
-        base_url = str(site.url)
+        url_entry = url(regex, WipHttpProxy.as_view(base_url=base_url, prefix=prefix, rewrite=True, proxy_id=proxy.id, language_code=proxy.language.code))
+    else:
+        regex = r'^' + proxy.base_path + r'/(?P<path>.*)$'
+        url_entry = url(regex, WipRevProxy.as_view(_upstream=base_url, prefix=prefix, proxy_id=proxy.id, language_code=proxy.language.code))
+    urlpatterns.append(url_entry)
+sites = Site.objects.all()
+for site in sites:
+    prefix = '/%s' % str(site.path_prefix)
+    base_url = str(site.url)
+    if settings.PROXY_APP == 'httpproxy':
         regex = r'^' + site.path_prefix + r'/(?P<url>.*)$'
-        url_entry = url(regex, WipHttpProxy.as_view(base_url=base_url, prefix=prefix, rewrite_links=True, site_id=site.id))
-        urlpatterns.append(url_entry)
-except:
-    pass
+        url_entry = url(regex, WipHttpProxy.as_view(base_url=base_url, prefix=prefix, rewrite=True, site_id=site.id))
+    else:
+        regex = r'^' + site.path_prefix + r'/(?P<path>.*)$'
+        url_entry = url(regex, WipRevProxy.as_view(_upstream=base_url, prefix=prefix, site_id=site.id))
+    urlpatterns.append(url_entry)

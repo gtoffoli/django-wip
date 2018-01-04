@@ -30,7 +30,7 @@ from django.conf import settings
 # from settings import PAGES_EXCLUDE_BY_CONTENT
 from .models import Site, Webpage, PageVersion
 from .models import Scan, Link, WordCount, SegmentCount
-from .utils import is_invariant_word, strings_from_html, normalize_string, make_segmenter # , segments_from_string
+from .utils import is_invariant_word, strip_html_comments, normalize_string, strings_from_html, make_segmenter # , segments_from_string
 from .models import segments_from_string
 
 """
@@ -84,8 +84,9 @@ class WipDiscoverPipeline(object):
         if not (scan.count_words or scan.count_segments):
             return item
         body = item['body'].decode()
-        # html_string = re.sub("(<!--(.*?)-->)", "", body, flags=re.MULTILINE)
-        html_string = normalize_string(body)
+        # html_string = normalize_string(body)
+        html_string = strip_html_comments(body)
+        html_string = normalize_string(html_string)
         if not html_string:
             return item
         tokenizer = site.make_tokenizer()
