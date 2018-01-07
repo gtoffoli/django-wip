@@ -23,6 +23,14 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'wip.settings')
 PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
 BASE_DIR = os.path.dirname(PROJECT_DIR)
 
+# Static files (CSS, JavaScript, Images)
+# https://docs.djangoproject.com/en/1.9/howto/static-files/
+
+STATIC_URL = '/static/'
+STATIC_ROOT = os.path.join(BASE_DIR, 'static')
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+CACHE_ROOT = os.path.join(BASE_DIR, 'cache')
+
 SILENCED_SYSTEM_CHECKS = []
 
 # Application definition
@@ -79,7 +87,8 @@ ROOT_URLCONF = 'wip.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [os.path.join(BASE_DIR, "wip", "templates")],
+        'DIRS': [os.path.join(BASE_DIR, "wip", "templates"),
+                 os.path.join(MEDIA_ROOT, 'themes', '6')],
         'OPTIONS': {
             'context_processors': [
                 'django.template.context_processors.debug',
@@ -138,14 +147,6 @@ SITE_ID = 1
 SITE_NAME = 'FairVillage - WIP'
 
 LOGIN_REDIRECT_URL = '/'
-
-# Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/1.9/howto/static-files/
-
-STATIC_URL = '/static/'
-STATIC_ROOT = os.path.join(BASE_DIR, 'static')
-MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
-CACHE_ROOT = os.path.join(BASE_DIR, 'cache')
 
 BROKER_URL = 'amqp://guest:guest@localhost:5672//'
 

@@ -10,7 +10,7 @@ from django import forms
 from django.contrib import admin
 from tinymce.widgets import TinyMCE
 
-from .models import Site, Proxy, Webpage, PageVersion, TranslatedVersion # , SiteTheme
+from .models import Site, SiteTheme, Proxy, Webpage, PageVersion, TranslatedVersion # , SiteTheme
 from .models import String, Txu, TxuSubject
 from .models import Block, BlockEdge, BlockInPage, TranslatedBlock
 from .models import Scan, Link, SegmentCount, WordCount
@@ -20,10 +20,26 @@ from .models import TRANSLATION_TYPE_DICT, MANUAL
 class SiteAdmin(admin.ModelAdmin):
     list_display = ['name', 'language', 'slug', 'path_prefix', 'url', 'allowed_domains', 'start_urls', 'deny',]
 
-"""
 class SiteThemeAdmin(admin.ModelAdmin):
-    list_display = ['site', 'theme',]
-"""
+    list_display = ['id', 'site_link', 'theme_link',]
+
+    def site_link(self, obj):
+        site = obj.site
+        label = site.name
+        url = '/admin/wip/site/%d/' % site.id
+        link = '<a href="%s">%s</a>' % (url, label)
+        return link
+    site_link.short_description = 'site'
+    site_link.allow_tags = True
+
+    def theme_link(self, obj):
+        theme = obj.theme
+        label = theme.name
+        url = '/admin/django_diazo/theme/%d/' % theme.id
+        link = '<a href="%s">%s</a>' % (url, label)
+        return link
+    theme_link.short_description = 'theme'
+    theme_link.allow_tags = True
 
 class ProxyAdmin(admin.ModelAdmin):
     list_display = ['name', 'language', 'slug', 'site_name', 'host', 'base_path', 'live',]
@@ -354,7 +370,7 @@ class TranslationAdmin(admin.ModelAdmin):
     time.short_description = 'Time'
 
 admin.site.register(Site, SiteAdmin)
-# admin.site.register(SiteTheme, SiteThemeAdmin)
+admin.site.register(SiteTheme, SiteThemeAdmin)
 admin.site.register(Proxy, ProxyAdmin)
 admin.site.register(Webpage, WebpageAdmin)
 admin.site.register(PageVersion, PageVersionAdmin)

@@ -581,6 +581,9 @@ class SiteTheme(models.Model):
         verbose_name = _('theme used for site')
         verbose_name_plural = _('themes used for site')
 
+    def __str__(self):
+        return self.theme.name
+
 class Proxy(models.Model):
     name = models.CharField(max_length=100)
     slug = AutoSlugField(unique=True, populate_from='name', editable=True)

@@ -12,8 +12,10 @@ from logging import getLogger
 
 from django.http import HttpResponse
 from django.shortcuts import redirect
+from django.views.generic.base import ContextMixin
 from django.utils.cache import patch_response_headers
 from django.core.cache import caches
+from django.conf import settings
 from httpproxy.views import HttpProxy
 from revproxy.views import ProxyView as RevProxy
 from revproxy.response import  get_django_response
@@ -22,17 +24,22 @@ revproxy.MIN_STREAMING_LENGTH = 1024 * 1024 * 1024 #  4 * 1024  # 4KB
 
 from .models import Site, Proxy, Webpage
 
-"""
 from lxml import etree
 from lxml.etree import tostring
 from repoze.xmliter.serializer import XMLSerializer
 from repoze.xmliter.utils import getHTMLSerializer
-"""
 from diazo.wsgi import DiazoMiddleware
 from diazo.utils import quote_param
 from diazo.compiler import compile_theme
 from django_diazo.settings import DOCTYPE
 # from django_diazo.utils import get_active_theme, check_themes_enabled, should_transform
+if settings.PROXY_APP == 'revproxy':
+    from io import StringIO
+    from django.template.base import Template
+    from diazo.compiler import compile_theme
+    from revproxy.transformer import DiazoTransformer
+    from revproxy.utils import get_charset, is_html_content_type
+
 
 # REWRITE_REGEX = re.compile(r'((?:src|action|href)=["\'])/(?!\/)')
 REWRITE_REGEX = re.compile(r'((?:action)=["\'])/(?!\/)')
@@ -49,10 +56,7 @@ info = {
   'es': """
 <div align="center">%sEsta es una traducción experimental y parcial del sitio web <a href="%s">%s</a></div>""",
 }
-backdoor = """
-"""
 
-# class WipHttpProxy(View):
 class WipHttpProxy(HttpProxy):
     """ subclasses httpproxy.views.HttpProxy in order to reuse auxiliary methods, such as record and play:
         main ones (dispatch and rewrite_response) are completely redefined """
@@ -157,8 +161,8 @@ class WipHttpProxy(HttpProxy):
         if trailer.count('<'.encode('utf-8')) and trailer.lower().count('html'.encode('utf-8')):
             self.content = response.content.decode('utf-8')
 
-            # DIAZO transform temporarily inactive
-            # self.transform_response(request, response)
+            # DIAZO transform
+            self.transform_response(request, response)
 
             # apply specific proxy-translation transformation
             if self.proxy_id and self.language_code:
@@ -197,16 +201,9 @@ class WipHttpProxy(HttpProxy):
         rules_file = os.path.join(theme.theme_path(), 'rules.xml')
         compiled_file = os.path.join(theme.theme_path(), 'compiled.xsl')
         if not os.path.exists(compiled_file) or theme.debug:
-            """
-            print ('self.theme_id: ', self.theme_id)
-            print ('theme.id: ', theme.id)
-            print ('os.path.exists(rules_file): ', os.path.exists(rules_file))
-            print ('theme.debug: ', theme.debug)
-            """
             self.theme_id = theme.id
             read_network = False
             access_control = etree.XSLTAccessControl(read_file=True, write_file=False, create_dir=False, read_network=read_network, write_network=False)
-            compiler_parser = etree.XMLParser()
             theme_parser = etree.HTMLParser()
             rules_parser = etree.XMLParser(recover=False)
             compiled_theme = compile_theme(
@@ -219,7 +216,8 @@ class WipHttpProxy(HttpProxy):
                 rules_parser=rules_parser,
                 xsl_params={})
             out_file = open(compiled_file, 'w')
-            out_file.write(etree.tostring(compiled_theme))
+            # out_file.write(etree.tostring(compiled_theme))
+            out_file.write(etree.tostring(compiled_theme).decode())
             out_file.close()
         else:
             in_file = open(compiled_file, 'r')
@@ -230,7 +228,6 @@ class WipHttpProxy(HttpProxy):
             response = HttpResponse()
         else:
             parser = etree.HTMLParser(remove_blank_text=True, remove_comments=True)
-            # print ('parser: ', parser)
             content = etree.fromstring(response.content, parser)
         result = self.transform(content, **self.params)
         response.content = XMLSerializer(result, doctype=DOCTYPE).serialize()
@@ -292,8 +289,8 @@ class WipHttpProxy(HttpProxy):
         if self.proxy and self.online:
             self.content = BODY_REGEX.sub(r'\1' + info[self.language_code] % (extra, site_url, site_url.split('//')[1]), self.content)
 
-class WipRevProxy(RevProxy):
-    # upstream = 'https://www.linkroma.it'
+class WipRevProxy(RevProxy, ContextMixin):
+    html5 = False
 
     # new class attributes
     prefix = ''
@@ -374,11 +371,13 @@ class WipRevProxy(RevProxy):
         if hasattr(response, 'content'):
             trailer = response.content[:100]
             if trailer.count('<'.encode('utf-8')) and trailer.lower().count('html'.encode('utf-8')):
-                self.content = response.content.decode('utf-8')
-    
-                # DIAZO transform temporarily inactive
+
+                # apply DIAZO transform
+                if self.site.get_active_theme(request):
+                    response = self.transform_response(request, response)
     
                 # apply specific proxy-translation transformation
+                self.content = response.content.decode()
                 if self.proxy_id and self.language_code:
                     self.translate_response(request)
     
@@ -387,6 +386,21 @@ class WipRevProxy(RevProxy):
                 response.content = self.content.encode('utf-8')
 
         self.log.debug("RESPONSE RETURNED: %s", response)
+        return response
+
+    def transform_response(self, request, response):
+        theme = self.site.get_active_theme(request)
+        if not theme:
+            return response
+        rules_filename = os.path.join(theme.theme_path(), 'rules.xml')
+        theme_filename = os.path.join(theme.theme_path(), 'theme.html')
+        with open(theme_filename, encoding='utf-8') as f:
+            theme = f.read()
+
+        context_data = self.get_context_data()
+        diazo = DiazoTransformer(request, response)
+        response = diazo.transform(rules_filename, theme_filename,
+                                   self.html5, context_data, theme=theme)
         return response
 
 WipRevProxy.translate_response = WipHttpProxy.translate_response
