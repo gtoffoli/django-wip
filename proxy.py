@@ -8,6 +8,7 @@ else:
 
 import os
 import re
+import datetime
 import logging
 
 from django.http import HttpResponse
@@ -306,7 +307,8 @@ class WipRevProxy(RevProxy, ContextMixin):
         """ see __init__ method of DjangoDiazoMiddleware in module django_diazo.middleware """
         super(WipRevProxy, self).__init__(*args,**kwargs)
         self.log = logging.getLogger('wip')
-        self.log.info("WipRevProxy created")
+        time_stamp = datetime.datetime.now().strftime('%y%m%d-%H-%M-%S')
+        self.log.info("WipRevProxy created: %s", time_stamp)
 
 
     def dispatch(self, request, path):
