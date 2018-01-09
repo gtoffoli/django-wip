@@ -352,7 +352,8 @@ class WipRevProxy(RevProxy, ContextMixin):
                 self.site = site = Site.objects.get(pk=self.site_id)
                 self.base_url = site.url
         self.log.info("request host: %s", self.host)
-        self.log.info("host: %s", self.proxy.host)
+        if self.proxy:
+            self.log.info("host: %s", self.proxy.host)
         self.log.info("prefix: %s", str(self.prefix))
         self.log.info("base_url: %s", self.base_url)
         self.log.info("online: %s", str(self.online))

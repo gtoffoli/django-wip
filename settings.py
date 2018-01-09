@@ -125,7 +125,10 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
+""" not needed: see Apache and Nginx proxy configuration
 USE_X_FORWARDED_HOST = True
+"""
+
 # PROXY_APP = 'httpproxy'
 PROXY_APP = 'revproxy'
 
