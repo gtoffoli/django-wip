@@ -63,9 +63,6 @@ INSTALLED_APPS = [
     'wip',
 ]
 
-# PROXY_APP = 'httpproxy'
-PROXY_APP = 'revproxy'
-
 # MIDDLEWARE_CLASSES = [
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -128,6 +125,9 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
+USE_X_FORWARDED_HOST = True
+# PROXY_APP = 'httpproxy'
+PROXY_APP = 'revproxy'
 
 # Internationalization
 # https://docs.djangoproject.com/en/1.9/topics/i18n/

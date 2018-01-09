@@ -354,7 +354,7 @@ class WipRevProxy(RevProxy, ContextMixin):
         self.log.info("request host: %s", self.host)
         self.log.info("host: %s", self.proxy.host)
         self.log.info("prefix: %s", str(self.prefix))
-        self.log.info("base_urle: %s", self.base_url)
+        self.log.info("base_url: %s", self.base_url)
         self.log.info("online: %s", str(self.online))
 
         # 1st part of custom stuff below concerns caching of "resources", such as media files - CAN RETURN
