@@ -8,7 +8,7 @@ else:
 
 import os
 import re
-from logging import getLogger
+import logging
 
 from django.http import HttpResponse
 from django.shortcuts import redirect
@@ -76,6 +76,8 @@ class WipHttpProxy(HttpProxy):
         self.diazo = None
         self.transform = None
         self.params = {}
+        self.log = logging.getLogger('wip')
+        self.log.info("WipHttpProxy created")
 
     def dispatch(self, request, url, *args, **kwargs):
         """ redefines the dispatch method of httpproxy.views.HttpProxy """
@@ -299,6 +301,14 @@ class WipRevProxy(RevProxy, ContextMixin):
     language_code = ''
     proxy = None
 
+
+    def __init__(self, *args,**kwargs):
+        """ see __init__ method of DjangoDiazoMiddleware in module django_diazo.middleware """
+        super(WipRevProxy, self).__init__(*args,**kwargs)
+        self.log = logging.getLogger('wip')
+        self.log.info("WipRevProxy created")
+
+
     def dispatch(self, request, path):
         """ redefines the dispatch method of revproxy.views.ProxyView """
 
@@ -341,6 +351,11 @@ class WipRevProxy(RevProxy, ContextMixin):
             elif self.site_id:
                 self.site = site = Site.objects.get(pk=self.site_id)
                 self.base_url = site.url
+        self.log.info("request host: %s", self.host)
+        self.log.info("host: %s", self.proxy.host)
+        self.log.info("prefix: %s", str(self.prefix))
+        self.log.info("base_urle: %s", self.base_url)
+        self.log.info("online: %s", str(self.online))
 
         # 1st part of custom stuff below concerns caching of "resources", such as media files - CAN RETURN
         key = '%s-%s' % (proxy.site.path_prefix, path)
@@ -373,12 +388,15 @@ class WipRevProxy(RevProxy, ContextMixin):
             if trailer.count('<'.encode('utf-8')) and trailer.lower().count('html'.encode('utf-8')):
 
                 # apply DIAZO transform
-                if self.site.get_active_theme(request):
+                theme = self.site.get_active_theme(request)
+                if theme:
+                    self.log.info("apply theme: %s", theme.name)
                     response = self.transform_response(request, response)
     
                 # apply specific proxy-translation transformation
                 self.content = response.content.decode()
                 if self.proxy_id and self.language_code:
+                    self.log.info("translate to language: %s", self.language_code)
                     self.translate_response(request)
     
                 self.replace_links()
@@ -394,6 +412,7 @@ class WipRevProxy(RevProxy, ContextMixin):
             return response
         rules_filename = os.path.join(theme.theme_path(), 'rules.xml')
         theme_filename = os.path.join(theme.theme_path(), 'theme.html')
+        self.log.info("theme and rules from: %s and %s", theme_filename, rules_filename)
         with open(theme_filename, encoding='utf-8') as f:
             theme = f.read()
 

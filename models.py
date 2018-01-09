@@ -174,6 +174,12 @@ class Site(models.Model):
         super(Site, self).__init__(*args, **kwargs)
         self.segmenter = None
 
+    def __str__(self):
+        return self.name
+
+    def __unicode__(self):
+        return self.__str__()
+
     def get_absolute_url(self):
         return '/site/%s/' % self.slug
 
@@ -195,12 +201,6 @@ class Site(models.Model):
         if not current_role:
             return False
         return current_role.role_type==ADMINISTRATOR or current_role.site == self or current_role.source_language == self.language
-
-    def __str__(self):
-        return self.name
-
-    def __unicode__(self):
-        return self.__str__()
 
     def get_allowed_domains(self):
         return text_to_list(self.allowed_domains)
@@ -596,13 +596,16 @@ class Proxy(models.Model):
     robots_txt = models.TextField(verbose_name='robots.txt', blank=True, null=True, help_text="The virtual content of the robots.txt page." )
     translate_deny = models.TextField(verbose_name='Deny translation', blank=True, null=True, help_text="Paths of pages not to processed online by the proxy" )
 
+    class Meta:
+        verbose_name = _('proxy site')
+        verbose_name_plural = _('proxy sites')
+
     def __init__(self, *args, **kwargs):
         super(Proxy, self).__init__(*args, **kwargs)
         self.segmenter = None
 
-    class Meta:
-        verbose_name = _('proxy site')
-        verbose_name_plural = _('proxy sites')
+    def __str__(self):
+        return self.name
 
     def get_absolute_url(self):
         return '/proxy/%s/' % self.slug
