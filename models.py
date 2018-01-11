@@ -880,6 +880,7 @@ class Proxy(models.Model):
     def translate_page_content(self, content):
         # html_string = normalize_string(content)
         html_string = strip_html_comments(content)
+        html_string = normalize_string(html_string)
         content_document = html.document_fromstring(html_string)
         translated_document, has_translation = translated_element(content_document, self.site, webpage=None, language=self.language, translate_live=self.enable_live_translation)
         if has_translation:

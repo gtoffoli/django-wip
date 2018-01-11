@@ -128,8 +128,8 @@ AUTH_PASSWORD_VALIDATORS = [
 """ not needed? see Apache and Nginx proxy configuration """
 USE_X_FORWARDED_HOST = True
 
-# PROXY_APP = 'httpproxy'
-PROXY_APP = 'revproxy'
+PROXY_APP = 'httpproxy'
+# PROXY_APP = 'revproxy'
 
 # Internationalization
 # https://docs.djangoproject.com/en/1.9/topics/i18n/
