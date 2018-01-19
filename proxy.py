@@ -272,7 +272,7 @@ class WipHttpProxy(HttpProxy):
         """
         if self.online:
             if self.proxy and self.site.url.count(self.proxy.host):
-                self.content = self.content.replace(self.base_url, self.language_code)
+                self.content = self.content.replace(self.base_url, '%s/%s' % (self.base_url, self.language_code))
             else:
                 self.content = self.content.replace(self.base_url, '')
         else:
