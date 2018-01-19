@@ -52,12 +52,13 @@ def is_invariant_word(word):
     return word.count('#') or word.count('@') or word.count('http') or re.sub('[\.\,\-\/]', '', word).isnumeric() or (len(word)==1 and string.punctuation.count(word))
 
 def element_tostring(e):
-    # return html.tostring(e, encoding='utf-8')
-    return html.tostring(e)
+    # return html.tostring(e)
+    return html.tostring(e, encoding='unicode')
 
 def fix_html_structure(string):
     doc = html.fromstring(string)
-    return html.tostring(doc)
+    # return html.tostring(doc)
+    return html.tostring(doc, encoding='unicode')
 
 def etree_from_html(string):
     parser = etree.HTMLParser()

@@ -220,7 +220,7 @@ class WipHttpProxy(HttpProxy):
                 xsl_params={})
             out_file = open(compiled_file, 'w')
             # out_file.write(etree.tostring(compiled_theme))
-            out_file.write(etree.tostring(compiled_theme).decode())
+            out_file.write(etree.tostring(compiled_theme).decode('utf-8'))
             out_file.close()
         else:
             in_file = open(compiled_file, 'r')
@@ -257,9 +257,11 @@ class WipHttpProxy(HttpProxy):
                     self.content, transformed = webpage.get_translation(self.language_code)
             if not transformed and proxy.enable_live_translation:
                 self.content, transformed = proxy.translate_page_content(self.content)
-        # replace text or HTML fragment on the fly (new)
+        """
         if hasattr(self.content, 'decode'):
-            self.content = self.content.decode()
+            self.content = self.content.decode('utf-8')
+        """
+        # replace text or HTML fragment on the fly
         self.content = proxy.replace_fragments(self.content, path)
 
     def replace_links(self):
@@ -397,7 +399,7 @@ class WipRevProxy(RevProxy, ContextMixin):
                     response = self.transform_response(request, response)
     
                 # apply specific proxy-translation transformation
-                self.content = response.content.decode()
+                self.content = response.content.decode('utf-8')
                 if self.proxy_id and self.language_code:
                     self.log.info("translate to language: %s", self.language_code)
                     self.translate_response(request)

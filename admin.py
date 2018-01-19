@@ -83,7 +83,7 @@ class WebpageAdmin(admin.ModelAdmin):
     blocks_count.allow_tags = True
 
 class PageVersionAdmin(admin.ModelAdmin):
-    # list_filter = ['webpage__site__name',]
+    list_filter = ['webpage__site__name',]
     list_display = ['id', 'site', 'webpage_link', 'time', 'response_code', 'size', 'checksum',]
     list_display_links = ('id',)
     search_fields = ['webpage__id', 'webpage__path', 'body',]

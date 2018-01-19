@@ -928,19 +928,8 @@ class Proxy(models.Model):
             see: https://www.safaribooksonline.com/library/view/python-cookbook-2nd/0596007973/ch01s19.html """
         site = self.site
         language = self.language
-        """
-        qs = String.objects.filter(string_type=FRAGMENT, site=site, language=site.language, txu__string__language=self.language)
-        # see: http://stackoverflow.com/questions/15465858/django-reverse-to-contains-icontains
-        qs = qs.extra(where=['''%s LIKE wip_string.path'''], params=(path,),)
-        if qs.count():
-            adict = dict([[s.text, String.objects.filter(txu=s.txu, language=language)[0].text] for s in qs])
-        """
         # qs = Segment.objects.filter(is_fragment=True, site=site, language=site.language, segment__language=language)
         qs = Segment.objects.filter(is_fragment=True, site=site, language=site.language, segment_translation__language=language)
-        # see: http://stackoverflow.com/questions/15465858/django-reverse-to-contains-icontains
-        """ > but the "path" field is missing in the Segment class !!!
-        qs = qs.extra(where=['''%s LIKE wip_string.path'''], params=(path,),)
-        > """
         if qs.count():
             adict = {}
             for segment in qs:
@@ -1278,21 +1267,9 @@ class Webpage(models.Model):
         has_translation = False
         site = self.site
         language = get_object_or_404(Language, code=language_code)
-        """
-        proxy = Proxy.objects.get(site=site, language=language)
-        if proxy.enable_live_translation:
-            content = self.fetch_live()
-            content_document = html.document_fromstring(content)
-            # translated_document, has_translation = translated_element(content_document, site, self, language)
-            translated_document, has_translation = translated_element(content_document, site, webpage=self, language=language)
-            if has_translation:
-                content = element_tostring(translated_document)
-                return content, has_translation
-        """
         if not cache:
             translated_versions = TranslatedVersion.objects.filter(webpage=self, language=language).order_by('-modified')
             translated_version = translated_versions and translated_versions[0] or None
-        # if translated_version:
         if not cache and translated_version:
             return translated_version.body, True        
         versions = PageVersion.objects.filter(webpage=self).order_by('-time')
@@ -1300,10 +1277,8 @@ class Webpage(models.Model):
         if last_version:
             content = last_version.body
             content_document = html.document_fromstring(content)
-            # translated_document, has_translation = translated_element(content_document, site, self, language)
             translated_document, has_translation = translated_element(content_document, site, webpage=self, language=language)
             if has_translation:
-                # content = html.tostring(translated_document)
                 content = element_tostring(translated_document)
         return content, has_translation
 
@@ -1988,9 +1963,13 @@ class Block(node_factory('BlockEdge')):
         logger.info('--- apply_tm: {0} blocks - wrapperTag: {1!s}'.format(len(lineardoc.items), lineardoc.wrapperTag))
         logger.info('{}'.format(lineardoc.items))
         try:
+            logger.info('lineardoc items: {}'.format(len(lineardoc.items)))
             assert (len(lineardoc.items) == 3)
+            logger.info('type of lineardoc item 0: {}'.format(lineardoc.items[0].get('type', '')))
             assert (lineardoc.items[0].get('type', '') == 'open')
+            logger.info('type of lineardoc item 1: {}'.format(lineardoc.items[1].get('type', '')))
             assert (lineardoc.items[1].get('type', '') == 'textblock')
+            logger.info('type of lineardoc item 2: {}'.format(lineardoc.items[2].get('type', '')))
             assert (lineardoc.items[2].get('type', '') == 'close')
         except:
             logger.warning('Ill formed block: {}'.format(self.id))
