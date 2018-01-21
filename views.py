@@ -1204,14 +1204,34 @@ def block_translate(request, block_id, target_code):
                 block.no_translate = no_translate
                 block.save()
         elif create:
-            """
-            if translated_block:
-                translated_block.delete()
-            """
-            block.apply_tm()
-            translated_blocks = TranslatedBlock.objects.filter(block=block, language=Language.objects.get(code=create)).order_by('-modified')
-            translated_block = translated_blocks.count() and translated_blocks[0] or None
-            segments = translated_block.translated_block_get_segments(None)
+            children = block.get_children()
+            n_children = len(children)
+            if n_children: 
+                translation_state = block.compute_translation_state(target_language)
+                print ('children:', len(children), 'state:', translation_state)
+                body = block.body
+                n_substitutions = 0
+                for child in children:
+                    if body.count(child.body):
+                        translation = child.get_last_translation(target_language)
+                        body = body.replace(child.body, translation.body)
+                        n_substitutions += 1
+                if n_substitutions:
+                    translated_block = block.clone(target_language)
+                    translated_block.body = body
+                    segments = translated_block.translated_block_get_segments(None)
+                    if len(segments):
+                        translation_state = PARTIALLY
+                    else:
+                        translation_state = TRANSLATED
+                    translated_block.state = translation_state
+                    translated_block.save()
+                    print ('n_substitutions:', n_substitutions, 'state:', translation_state)
+            else:
+                block.apply_tm()
+                translated_blocks = TranslatedBlock.objects.filter(block=block, language=Language.objects.get(code=create)).order_by('-modified')
+                translated_block = translated_blocks.count() and translated_blocks[0] or None
+                segments = translated_block.translated_block_get_segments(None)
         elif modify:
             translated_blocks = TranslatedBlock.objects.filter(block=block, language=Language.objects.get(code=modify)).order_by('-modified')
             if translated_blocks:
