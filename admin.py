@@ -46,6 +46,7 @@ class ProxyAdmin(admin.ModelAdmin):
 
     def site_name(self, obj):
         return obj.site.name
+    site_name.short_description = 'site'
 
     def live(self, obj):
         return obj.enable_live_translation
@@ -260,17 +261,22 @@ class TranslatedBlockForm(forms.ModelForm):
         }
 
 class TranslatedBlockAdmin(admin.ModelAdmin):
+    search_fields = ['body',]
     list_filter = ['block__site__name', 'language',]
-    # list_display = ['id', 'site_name', 'block_link', 'language', 'xpath', 'state', 'modified', 'editor',]
-    list_display = ['id', 'site_name', 'block_link', 'language', 'state', 'modified', 'editor',]
+    list_display = ['id', 'site_name', 'block_link', 'block_label', 'language', 'state', 'modified', 'editor',]
 
     def site_name(self, obj):
         return obj.block.site.name
+    site_name.short_description = 'site'
 
-    """
-    def xpath(self, obj):
-        return obj.block.xpath
-    """
+    def block_label(self, obj):
+        url = '/admin/wip/translatedblock/%d/' % obj.id
+        # label = '%s' % (obj.xpath)
+        label = '%s' % obj.get_label()
+        link = '<a href="%s" style="font-size:smaller;">%s</a>' % (url, label)
+        return link
+    block_label.short_description = 'Body'
+    block_label.allow_tags = True
 
     def block_link(self, obj):
         block = obj.block
@@ -332,7 +338,7 @@ class SegmentAdmin(admin.ModelAdmin):
     search_fields = ['text',]
 
 class TranslationAdmin(admin.ModelAdmin):
-    list_display = ['id', 'segment_link', 'site', 'language', 'text', 'translationtype', 'has_alignment', 'alignmenttype', 'time', 'user_role']
+    list_display = ['id', 'segment_link', 'site_name', 'language', 'text', 'translationtype', 'has_alignment', 'alignmenttype', 'time', 'user_role']
     list_filter = ['language', 'alignment_type',  'user_role',]
     search_fields = ['text', 'alignment',]
 
@@ -344,8 +350,9 @@ class TranslationAdmin(admin.ModelAdmin):
     segment_link.short_description = 'segment'
     segment_link.allow_tags = True
 
-    def site(self, obj):
-        return obj.segment.site_id
+    def site_name(self, obj):
+        return obj.segment.site.name
+    site_name.short_description = 'site'
 
     def languages(self, obj):
         return '%s -> %s' % (obj.segment.language_id, obj.language_id)

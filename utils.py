@@ -79,7 +79,8 @@ def merge_spaces(s):
 
 def compact_spaces(s):
     """ convert non-breaking spaces and replace multiple contiguous spaces with a single space """
-    s = s.replace(u"&nbsp;", u" ").replace(u"&#160;", u" ").replace(u"\u00a0", u" ") # convert html entities and unicode
+    # s = s.replace(u"&nbsp;", u" ").replace(u"&#160;", u" ").replace(u"\u00a0", u" ") # convert html entities and unicode
+    s = s.replace(u"&nbsp;", u" ").replace(u"&#160;", u" ").replace(u"\u00a0", u" ").replace(u"\uc2a0", u" ") # convert html entities and unicode
     return merge_spaces(s)
 
 BREAK = '!break!'

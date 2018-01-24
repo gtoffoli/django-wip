@@ -294,9 +294,9 @@ class Site(models.Model):
             translations = TranslatedVersion.objects.filter(webpage=page)
             for translation in translations:
                 code = translation.language_id
-                if translation.state == 2:
+                if translation.state == 3:
                     proxy_dict[code]['revised'] += 1
-                elif translation.state == 1:
+                elif translation.state == 2:
                     proxy_dict[code]['translated'] += 1
                 else:
                     proxy_dict[code]['partially'] += 1
@@ -335,9 +335,9 @@ class Site(models.Model):
             translations = TranslatedBlock.objects.filter(block=block)
             for translation in translations:
                 code = translation.language_id
-                if translation.state == 2:
+                if translation.state == 3:
                     proxy_dict[code]['revised'] += 1
-                elif translation.state == 1:
+                elif translation.state == 2:
                     proxy_dict[code]['translated'] += 1
                 else:
                     proxy_dict[code]['partially'] += 1
@@ -1370,6 +1370,7 @@ class Webpage(models.Model):
     def extract_blocks(self, dry=False, xpath=None, verbose=False):
         """ if xpath is specified, extract only one block """
         site = self.site
+        segmenter = site.make_segmenter()
         versions = PageVersion.objects.filter(webpage=self).order_by('-time')
         if verbose:
             print ('versions: ', versions)
@@ -1395,37 +1396,44 @@ class Webpage(models.Model):
                 break
             for el in elements_from_element(top_el):
                 if el.tag in BLOCK_TAGS and el.tag != 'br':
-                    # save_failed = False
                     n_1 += 1 # number of block elements
                     """ NO [1] element index in xpath address !!!
                     el_xpath = tree.getpath(el)
                     """
                     el_xpath = tree.getpath(el).replace('[1]','')
-                    if False: # verbose:
-                        print (xpath, el_xpath)
                     if xpath and not el_xpath==xpath:
                         continue
                     checksum = element_signature(el)
+                    """
                     string = etree.tostring(el)
                     matching_blocks = Block.objects.filter(site=site, checksum=checksum).order_by('-time')
-                    if matching_blocks:
+                    """
+                    # match based on checksum is only a 1st approximation
+                    string = element_tostring(el)         
+                    # skip blocks containing no segments!
+                    segments = get_segments(string, site, segmenter, exclude_tx=False)
+                    if not segments:
+                        continue
+                    blocks = Block.objects.filter(site=site, checksum=checksum).order_by('-time')
+                    matching_blocks = []
+                    for b in blocks:
+                        if b.body == string:
+                            matching_blocks.append(b)
+                    if len(matching_blocks):
                         block = matching_blocks[0]
                     else:
                         block = Block(site=site, checksum=checksum, body=string)
                         if not dry:
-                            block.save()
+                            block.save() # new block to be created always
                             n_2 += 1 # number of new saved blocks
-                        """
-                        except:
-                            print ('--- save error in page ---', self.id)
-                            save_failed = True
-                        """
                     block.xpath = el_xpath # xpath volatile value only for local use !!!
                     current_blocks.append(block)
                     if not dry:
                         this_block_in_page = BlockInPage.objects.filter(block=block, xpath=el_xpath, webpage=self).count()
-                        if not this_block_in_page: # save_failed:
-                            if matching_blocks: # purge BIPs for this xpath if BIP with new block is being created
+                        if not this_block_in_page:
+                            if matching_blocks:
+                                # purge BIPs for this xpath if BIP with new block is being created
+                                # but DO NOT PURGE BOCKS: could be present in page in rotation
                                 blocks_in_page = BlockInPage.objects.filter(xpath=el_xpath, webpage=self)
                                 blocks_in_page.delete()
                             n_3 += 1 # number of new blocks in page
@@ -1443,15 +1451,25 @@ class Webpage(models.Model):
             current_blocks include a volatile xpath attribute !!!
         """
         if current_blocks:
+            """
             blocks_dict = {}
             for block in current_blocks:
                 blocks_dict[block.checksum] = block.xpath
+            """
+            # blocks in multiple paths can have the same checksum
+            blocks_dict = defaultdict(list)
+            for block in current_blocks:
+                blocks_dict[block.checksum].append(block.xpath)
             bips = BlockInPage.objects.filter(webpage=self)
             for bip in bips:
+                """
                 xpath = blocks_dict.get(bip.block.checksum, None)
                 if not (xpath and bip.xpath == xpath):
+                """
+                xpaths = blocks_dict.get(bip.block.checksum, [])
+                if not (xpaths and bip.xpath in xpaths):
                     bip.delete()
-        """ delete all but last BIP for each xpath """
+        """ delete all but last BIP for each xpath (this doesn't fit rotating content) """
         bips = list(BlockInPage.objects.filter(webpage=self).order_by('xpath', '-time'))
         n_purged = 0
         previous_xpath = None
@@ -1958,7 +1976,8 @@ class Block(node_factory('BlockEdge')):
                 body = self.body
         # html = normalize_string(body)
         html = strip_html_comments(body)
-        html = normalize_string(html)
+        # html = normalize_string(html)
+        html = normalize_string(html, compactspaces=True)
         lineardoc = LineardocParse(html)
         logger.info('--- apply_tm: {0} blocks - wrapperTag: {1!s}'.format(len(lineardoc.items), lineardoc.wrapperTag))
         logger.info('{}'.format(lineardoc.items))
@@ -2019,15 +2038,20 @@ class Block(node_factory('BlockEdge')):
                 translated_sentences.append(linearsentence)
                 continue
             logger.info('segment: {0} "{1}"'.format(i_segment, segment))
+            logger.info('stripped segment: {0} "{1}"'.format(i_segment, compact_spaces(segment.strip())))
             source_matches = list(source_tokenizer.tokenize(segment))
             tokens = [segment[m.span()[0]:m.span()[1]] for m in source_matches]
             segments_tokens.append([segment, tokens])
             # first, test if no translation is required
             non_invariant_tokens = [t for t in tokens if not is_invariant_word(t, site_invariants=site_invariants)]
-            if not non_invariant_tokens or Segment.objects.filter(is_invariant=True, language=source_language, site=site, text=segment):
+            # if not non_invariant_tokens or Segment.objects.filter(is_invariant=True, language=source_language, site=site, text=segment):
+            if not non_invariant_tokens or Segment.objects.filter(is_invariant=True, site=site, text=segment):
                 n_invariants += 1
                 logger.info('--- invariant_segment: {0} "{1}"'.format(i_segment, segment))
                 translated_sentences.append(linearsentence)
+                continue
+            if Segment.objects.filter(language=target_language, site=site, text=segment):
+                n_invariants += 1
                 continue
             # second, look for a translation
             # translations = Translation.objects.filter(language=target_language, segment__site=site, segment__text=segment).distinct().order_by('-translation_type', 'user_role__role_type', 'user_role__level')
@@ -2225,6 +2249,12 @@ class TranslatedBlock(models.Model):
         verbose_name = _('translated block')
         verbose_name_plural = _('translated blocks')
 
+    def get_label(self):
+        label = text_from_html(self.body)
+        if len(label) > 80:
+            label = label[:80] + ' ...'
+        return label
+
     def translated_block_get_segments(self, segmenter):
         return get_segments(self.body, self.block.site, segmenter)
 
@@ -2242,13 +2272,17 @@ class BlockEdge(edge_factory('Block', concrete = False)):
 # def translated_element(element, site, webpage, language, xpath='/html'):
 def translated_element(element, site, webpage=None, language=None, xpath='/html', translate_live=False):
     # print 'translated_element', xpath
+    checksum = element_signature(element)
     has_translation = False
     block = None
-    blocks_in_page = webpage and BlockInPage.objects.filter(xpath=xpath, webpage=webpage).order_by('-time') or []
+    # take into account possible rotation of content in the same page position
+    blocks_in_page = webpage and BlockInPage.objects.filter(webpage=webpage, xpath=xpath, block__checksum=checksum).order_by('-time') or []
+    if not blocks_in_page:
+        blocks_in_page = webpage and BlockInPage.objects.filter(webpage=webpage, xpath=xpath).order_by('-time') or []
     if blocks_in_page:
         block = blocks_in_page[0].block
     elif not webpage and translate_live:
-        checksum = element_signature(element)
+        # checksum = element_signature(element)
         blocks = Block.objects.filter(site=site, checksum=checksum).order_by('-time')
         block = blocks and blocks[0] or None
         # if block: print ('checksum: ', checksum, 'block: ', block)
@@ -2321,26 +2355,18 @@ def segments_from_string(string, site, segmenter, exclude_TM_invariants=True, in
     if string.count('flickr'):
         return []
     site_invariants = text_to_list(site.invariant_words)
-    # segments = segmenter.extract(string)[0]
     segments, boundaries, whitespaces = segmenter.extract(string, verbose=verbose)
     if verbose:
         print ('raw segments:', segments)
     filtered = []
     filtered_boundaries = []
-    # for s in segments:
     for i in range(len(segments)):
         s = segments[i]
         boundary = boundaries[i]
-        """ REPLACE NON-BREAK SPACES """
-        s = s.replace('\xc2\xa0', ' ')
-        s = re_spaces.sub(' ', s)
-        s = s.strip()
-        """ 171212: !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        # REMOVE PSEUDO-BULLETS
-        if s.startswith(u'- ') or s.startswith(u'– '): s = s[2:]
-        if s.endswith(u' -') or s.endswith(u' –'): s = s[:-3]
-        s = s.strip()
-        """
+        """ NORMALIZE STRING """
+        # unworkable to keep no-break spaces since they can't be aligned as other tokens
+        # do not remove pseudo bullets: often they are useful context
+        s = normalize_string(s, compactspaces=True)
         if len(s) < 3:
             continue
         # KEEP SEGMENTS CONTAINING: DATES, NUMBERS INCLUDING SEPARATORS, CURRENCY SYMBOLS
@@ -2356,32 +2382,15 @@ def segments_from_string(string, site, segmenter, exclude_TM_invariants=True, in
         if not s: continue
         """ REMOVE SEGMENTS INCLUDING ONLY WORDS BELONGING TO INVARIANT CLASSES """
         words = re.split(" |\'", s)
-        """
-        if len(words) > 1:
-            stripped = False
-            while words and is_invariant_word(words[0], site_invariants=site_invariants):
-                words = words[1:]
-                stripped = True
-            while words and is_invariant_word(words[-1], site_invariants=site_invariants):
-                words = words[:-1]
-                stripped = True
-            if not words: continue
-        if len(words) == 1: # 1 word at the start or as the result of stripping other words
-            word = words[0]
-            if is_invariant_word(word, site_invariants=site_invariants) or word.isupper() or word.lower() in EMPTY_WORDS[site.language.code]:
-                continue
-        """
         invariant_words = [word for word in words if is_invariant_word(word, site_invariants=site_invariants)]
         if len(invariant_words)==len(words):
             continue
         """ REMOVE SEGMENT MATCHING SITE-ASSOCIATED INVARIANT STRINGS IN THE TM """
         if exclude_TM_invariants:
-            # if String.objects.filter(site=site, language=site.language, text=s, invariant=True).count():
             if Segment.objects.filter(site=site, language=site.language, text=s, is_invariant=True).count():
                 continue
         filtered.append(s)
         filtered_boundaries.append(boundary)
-    # print ('segments_from_string - boundaries, filtered_boundaries:', boundaries, filtered_boundaries)
     if include_boundaries:
         return filtered, boundaries
     else:

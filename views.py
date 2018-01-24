@@ -66,6 +66,7 @@ from .models import ADMINISTRATOR, OWNER, MANAGER, LINGUIST, TRANSLATOR, CLIENT
 from .models import TM, MT, MANUAL
 from .models import PARALLEL_FORMAT_NONE, PARALLEL_FORMAT_XLIFF, PARALLEL_FORMAT_TEXT
 from .models import get_or_set_user_role
+from .models import get_segments
 from .forms import DiscoverForm
 from .forms import SiteManageForm, ProxyManageForm, PageManageForm, PageSequencerForm, BlockEditForm, BlockSequencerForm
 from .forms import SegmentSequencerForm, SegmentEditForm, SegmentTranslationForm, TranslationViewForm, TranslationSequencerForm
@@ -1155,7 +1156,6 @@ def block(request, block_id):
         var_dict['translated_body']  = translated_body
     return render(request, 'block.html', var_dict)
 
-# def block_translate(request, block_id):
 def block_translate(request, block_id, target_code):
     block = get_object_or_404(Block, pk=block_id)
     site = block.site
@@ -1173,12 +1173,10 @@ def block_translate(request, block_id, target_code):
     else:
         segments = block.block_get_segments(None)
     segments = [segment.strip() for segment in segments]
-    # print (segments)
     extract_strings = False
     post = request.POST
     if post:
         save_block = post.get('save_block', '')
-        # apply_filter = post.get('apply_filter', '')
         segment = request.POST.get('segment', '')
         string = request.POST.get('string', '')
         extract = request.POST.get('extract', '')
@@ -1213,13 +1211,15 @@ def block_translate(request, block_id, target_code):
                 n_substitutions = 0
                 for child in children:
                     if body.count(child.body):
-                        translation = child.get_last_translation(target_language)
-                        body = body.replace(child.body, translation.body)
-                        n_substitutions += 1
-                if n_substitutions:
+                        if not child.no_translate:
+                            translation = child.get_last_translation(target_language)
+                            if translation:
+                                body = body.replace(child.body, translation.body)
+                                n_substitutions += 1
+                segments = get_segments(body, site, None)
+                if n_substitutions or not len(segments):
                     translated_block = block.clone(target_language)
                     translated_block.body = body
-                    segments = translated_block.translated_block_get_segments(None)
                     if len(segments):
                         translation_state = PARTIALLY
                     else:
@@ -1313,6 +1313,10 @@ def block_translate(request, block_id, target_code):
         if not segment:
             continue
         if not non_invariant_words(segment.split(), site_invariants=site_invariants):
+            continue
+        if Segment.objects.filter(is_invariant=True, site=site, text=segment):
+            continue
+        if Segment.objects.filter(language=target_language, site=site, text=segment):
             continue
         if source_language == target_language:
             continue
