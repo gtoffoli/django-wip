@@ -144,7 +144,8 @@ class WipHttpProxy(HttpProxy):
         except error.HTTPError as e:
             response_body = e.read()
             status = e.code
-            return HttpResponse(response_body, status=status)
+            # return HttpResponse(response_body, status=status)
+            response = HttpResponse(response_body, status=status)
 
         # 2-nd part of stuff below concerns caching of "resources", such as media files - CAN RETURN
         if resource_match is not None:
