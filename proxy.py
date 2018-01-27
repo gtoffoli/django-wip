@@ -3,6 +3,7 @@
 import sys
 if (sys.version_info > (3, 0)):
     from urllib import parse as urlparse
+    from urllib import error
 else:
     import urlparse
 
@@ -138,12 +139,12 @@ class WipHttpProxy(HttpProxy):
             else:
                 should_cache_resource = True
 
-        response = super(HttpProxy, self).dispatch(request, *args, **kwargs) # <----- call method of superclass
-        # response = super(WipHttpProxy, self).dispatch(request, *args, **kwargs) # <----- call method of superclass
-        """ test on mode "record" shouldn't harm, even if unused >
-        if self.mode == 'record':
-            self.record(response)
-        > test on mode "record" """
+        try:
+            response = super(HttpProxy, self).dispatch(request, *args, **kwargs) # <----- call method of superclass
+        except error.HTTPError as e:
+            response_body = e.read()
+            status = e.code
+            return HttpResponse(response_body, status=status)
 
         # 2-nd part of stuff below concerns caching of "resources", such as media files - CAN RETURN
         if resource_match is not None:
