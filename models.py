@@ -1199,6 +1199,7 @@ class Webpage(models.Model):
     path = models.CharField(max_length=200)
     language = models.ForeignKey(Language, null=True, blank=True, help_text="Possibly overrides the site language")
     no_translate = models.BooleanField('NoTr', default=False) # 'Do not translate'
+    multi_bips_xpaths = models.TextField('Multi-bips xpaths', blank=True, null=True, help_text="X-paths of page regions allowing mutiple bips with same xpath" )
     created = CreationDateTimeField()
     # referer = models.ForeignKey('self', related_name='page_referer', blank=True, null=True)
     encoding = models.CharField(max_length=200, blank=True, null=True)
@@ -1253,6 +1254,60 @@ class Webpage(models.Model):
         """ fetch known page; if content has changed, save the version and re-extract blocks """
         path = self.path
         updated = self.site.fetch_page(path, webpage=self, extract_blocks=extract_blocks, extract_segments=extract_segments, dry=dry, verbose=verbose)
+        return updated
+
+    def fetch_page(self, extract_blocks=True, extract_block=None, extract_segments=False, dry=False, verbose=False):
+        site = self.site
+        path = self.path
+        page_url = site.url + path
+        if verbose:
+            print (page_url)
+        updated = False
+        request = urllib2.Request(page_url)
+        time_1 = time.time()
+        try:
+            response = urllib2.urlopen(request)
+        except Exception as e:
+            if verbose:
+                print (page_url, ': error = ', e)
+            self.last_unfound = timezone.now()
+            self.save()
+            return -1
+        time_2 = time.time()
+        delay = int(round(time_2 - time_1))
+        if verbose:
+            print ('delay: ', delay)
+        response_code = response.getcode()
+        self.last_checked = timezone.now()
+        self.last_checked_response_code = response_code
+        self.save()
+        body = response.read().decode()
+        size = len(body)
+        checksum = site.page_checksum(body)
+        page_versions = PageVersion.objects.filter(webpage=self).order_by('-time')
+        page_version = page_versions and page_versions[0] or None
+        if page_version:
+            if verbose:
+                print ('size: ', page_version.size, '->', size)
+                print ('checksum: ', page_version.checksum, '->', checksum)
+        if extract_block or (not dry and (not page_version or checksum != page_version.checksum)):
+            page_version = PageVersion(webpage=self, delay=delay, response_code=response_code, size=size, checksum=checksum, body=body)
+            page_version.save()
+            updated = True
+            if extract_block:
+                self.extract_blocks(xpath=extract_block, verbose=verbose)
+            elif extract_blocks:
+                extracted_blocks = self.extract_blocks(verbose=verbose)
+                if verbose:
+                    print ('blocks extracted:', len(extracted_blocks))
+                """ DA APPROFONDIRE >
+                if purge_bips:
+                    self.purge_bips(current_blocks=extracted_blocks, verbose=verbose)
+                < """
+                self.create_blocks_dag()
+        if verbose:
+            page_version_id = page_version and page_version.id or 0
+            print (site.id, self.id, page_version_id)
         return updated
 
     def get_versions(self):
@@ -1369,13 +1424,16 @@ class Webpage(models.Model):
 
     def extract_blocks(self, dry=False, xpath=None, verbose=False):
         """ if xpath is specified, extract only one block """
+        """ the block body is not normalized """
+        """ by default delete previous bips for same page and path """
         site = self.site
+        multi_bips_xpaths = text_to_list(self.multi_bips_xpaths)
         segmenter = site.make_segmenter()
         versions = PageVersion.objects.filter(webpage=self).order_by('-time')
         if verbose:
             print ('versions: ', versions)
         if not versions:
-            return [] # , 0, 0
+            return []
         last_version = versions[0]
         html_string = last_version.body
         # html_string = normalize_string(html_string)
@@ -1410,7 +1468,7 @@ class Webpage(models.Model):
                     """
                     # match based on checksum is only a 1st approximation
                     string = element_tostring(el)         
-                    # skip blocks containing no segments!
+                    # 180125: skip blocks containing no segments!
                     segments = get_segments(string, site, segmenter, exclude_tx=False)
                     if not segments:
                         continue
@@ -1432,18 +1490,23 @@ class Webpage(models.Model):
                         this_block_in_page = BlockInPage.objects.filter(block=block, xpath=el_xpath, webpage=self).count()
                         if not this_block_in_page:
                             if matching_blocks:
-                                # purge BIPs for this xpath if BIP with new block is being created
+                                # by default purge BIPs for this xpath if BIP with new block is being created
                                 # but DO NOT PURGE BOCKS: could be present in page in rotation
-                                blocks_in_page = BlockInPage.objects.filter(xpath=el_xpath, webpage=self)
-                                blocks_in_page.delete()
+                                purge_bips = True
+                                for multi_bips_xpath in multi_bips_xpaths:
+                                    if el_xpath.count(multi_bips_xpath):
+                                        purge_bips = False
+                                        break
+                                if purge_bips:
+                                    blocks_in_page = BlockInPage.objects.filter(xpath=el_xpath, webpage=self)
+                                    blocks_in_page.delete()
                             n_3 += 1 # number of new blocks in page
                             block_in_page = BlockInPage(block=block, xpath=el_xpath, webpage=self)
                             block_in_page.save()
                     if xpath and el_xpath==xpath:
                         done = True
                         break
-        # return n_1, n_2, n_3
-        return current_blocks # , n_2, n_3
+        return current_blocks
 
     # BIP = block in page
     def purge_bips(self, current_blocks=None, verbose=False):

@@ -42,8 +42,8 @@ if settings.PROXY_APP == 'revproxy':
     from revproxy.utils import get_charset, is_html_content_type
 
 
-# REWRITE_REGEX = re.compile(r'((?:src|action|href)=["\'])/(?!\/)')
-REWRITE_REGEX = re.compile(r'((?:action)=["\'])/(?!\/)')
+REWRITE_REGEX = re.compile(r'((?:src|action|href)=["\'])/(?!\/)')
+# REWRITE_REGEX = re.compile(r'((?:action)=["\'])/(?!\/)')
 # RESOURCES_REGEX = re.compile(r'(\.(css|js|png|jpg|gif|pdf|ppt|pptx|doc|docx|xls|xslx|odt|woff))', re.IGNORECASE)
 RESOURCES_REGEX = re.compile(r'(\.(css|js|png|jpg|gif|pdf|ppt|pptx|doc|docx|xls|xslx|odt|woff|ttf))', re.IGNORECASE)
 BODY_REGEX = re.compile(r'(\<body.*?\>)', re.IGNORECASE)
@@ -85,7 +85,9 @@ class WipHttpProxy(HttpProxy):
         # anticipating next 3 statements from method of superclass shouldn't harm
         self.url = url
         self.original_request_path = request.path
+        self.log.info('original_request_path: %s', request.path)
         request = self.normalize_request(request)
+        self.log.info('request_path: %s', request.path)
 
         # new stuff below concerns proxies and sites in the WIP model
         self.host = self.request.get_host() # Returns the originating host of the request using information from the HTTP_X_FORWARDED_HOST (if USE_X_FORWARDED_HOST is enabled) and HTTP_HOST headers, in that order
@@ -173,8 +175,8 @@ class WipHttpProxy(HttpProxy):
 
             # test on self.rewrite
             if self.rewrite:
-                self.replace_links()
                 self.rewrite_response(request)
+                self.replace_links()
             response.content = self.content.encode('utf-8')
 
         if self.proxy:
@@ -273,21 +275,36 @@ class WipHttpProxy(HttpProxy):
         if self.online:
             if self.proxy and self.site.url.count(self.proxy.host):
                 self.content = self.content.replace(self.base_url, '%s/%s' % (self.base_url, self.language_code))
+                """
+                ex: if https://www.linkroma.it includes www.linkroma.it
+                    replace https://www.linkroma.it/sviluppo-applicazioni-web/
+                       with https://www.linkroma.it/en/sviluppo-applicazioni-web/
+                """
             else:
                 self.content = self.content.replace(self.base_url, '')
+                """
+                ex: if http://www.scuolemegranti.org doesn't include en.scuolemigranti.it
+                    replace http://www.scuolemegranti.org/rete/
+                       with /rete/
+                """
         else:
             self.content = self.content.replace(self.base_url, self.prefix)
+            """
+            ex: replace http://www.scuolemegranti.org/rete/ with /sm/en/rete/
+            """
 
     def rewrite_response(self, request):
         """
-        Rewrites the response to fix references to resources loaded from HTML
-        files (images, etc.).
-        .. note:
+        Rewrites the response to fix references to resources loaded from HTML files (images, etc.).
+        .. original note:
             The rewrite logic uses a fairly simple regular expression to look for
             "src", "href" and "action" attributes with a value starting with "/"
+            – your results may vary.
         """
-        proxy_root = self.original_request_path.rsplit(request.path, 1)[0]
+        proxy_root = self.original_request_path.rsplit(request.path, 1)[0] # example: /link/en
         self.content = REWRITE_REGEX.sub(r'\1{}/'.format(proxy_root), self.content)
+        self.log.info('proxy_root: %s', proxy_root)
+        # next coded added by GT: possibly add a link to the WIP site
         site_url = self.base_url
         extra = ''
         if request.user.is_superuser:
