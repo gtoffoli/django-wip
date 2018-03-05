@@ -3130,6 +3130,8 @@ def site_crawl_by_slug(request, site_slug):
         run_worker_process()
         task_id = crawl_site_task.delay(site.id)
         # print ('task id: ', task_id)
+        site.last_crawled = timezone.now()
+        site.save()
     return HttpResponseRedirect('/site/%s/' % site_slug)
 
 @app.task()

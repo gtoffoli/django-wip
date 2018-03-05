@@ -170,6 +170,10 @@ class Site(models.Model):
     invariant_words = models.TextField(verbose_name='Custom invariant words', blank=True, null=True, help_text="Custom invariant words" )
     themes = models.ManyToManyField(Theme, through='SiteTheme', related_name='site', blank=True, verbose_name='diazo themes')
     variable_regions = models.TextField('Variable content regions', blank=True, null=True, help_text="Path-xpath combinations identifying page regions with frequently changing content" )
+    last_crawled = models.DateTimeField(null=True, help_text="Last time the site was crawled")
+    last_fetched = models.DateTimeField(null=True, help_text="Last time new versions of site pages were fetched")
+    last_block_extraction = models.DateTimeField(null=True, help_text="Last time blocks were extracted from site pages")
+    last_segment_extraction = models.DateTimeField(null=True, help_text="Last time segments were extracted from site pages")
 
     def __init__(self, *args, **kwargs):
         super(Site, self).__init__(*args, **kwargs)
@@ -313,6 +317,7 @@ class Site(models.Model):
         return pages, total, invariant, proxy_list
 
     def blocks_summary(self):
+        """
         blocks = Block.objects.filter(block_in_page__webpage__site=self).order_by('checksum', '-time')
         last_ids = []
         checksum = '' 
@@ -321,6 +326,9 @@ class Site(models.Model):
                 checksum = block.checksum
                 last_ids.append(block.id)
         blocks = Block.objects.prefetch_related('source_block').filter(id__in=last_ids).order_by('-time')
+        """
+        last_date = self.last_block_extraction or self.last_fetched or self.last_crawled or timezone.now()
+        blocks = Block.objects.filter(Q(block_in_page__webpage__site=self) | Q(last_seen__gt=last_date)).distinct().order_by('checksum', '-time')
         proxy_codes = [proxy.language_id for proxy in Proxy.objects.filter(site=self)]
         proxy_list = [[code, {'already': 0, 'partially': 0, 'translated': 0, 'revised': 0}] for code in proxy_codes]
         proxy_dict = dict(proxy_list)
@@ -354,7 +362,9 @@ class Site(models.Model):
         return blocks, total, invariant, proxy_list
 
     def get_blocks_in_use(self):
-        return Block.objects.filter(block_in_page__webpage__site=self).distinct()
+        # return Block.objects.filter(block_in_page__webpage__site=self).distinct()
+        last_date = self.last_block_extraction or self.last_fetched or self.last_crawled or timezone.now()
+        return Block.objects.filter(Q(block_in_page__webpage__site=self) | Q(last_seen__gt=last_date)).distinct()
 
     def page_checksum(self, body):
         deny_list = text_to_list(self.checksum_deny)
@@ -474,6 +484,13 @@ class Site(models.Model):
                 n_updates += 1
             sys.stdout.write('.')
             time.sleep(1)
+        now = timezone.now()
+        self.last_fetched = now
+        if extract_blocks:
+            self.last_block_extraction = now
+        if extract_segments:
+            self.last_segment_extraction = now
+        self.save()
         return webpages.count(), n_updates, n_unfound
 
     def get_active_theme(self, request):
@@ -1481,10 +1498,14 @@ class Webpage(models.Model):
                     blocks = Block.objects.filter(site=site, checksum=checksum).order_by('-time')
                     matching_blocks = []
                     for b in blocks:
-                        if b.body == string:
+                        # if b.body == string:
+                        string = string.strip()
+                        if b.body.strip() == string:
                             matching_blocks.append(b)
                     if len(matching_blocks):
                         block = matching_blocks[0]
+                        block.last_seen = timezone.now()
+                        block.save()
                     else:
                         block = Block(site=site, checksum=checksum, body=string)
                         if not dry:
@@ -1805,7 +1826,9 @@ def filter_blocks(site=None, webpage=None, translation_state='', translation_cod
     if webpage:
         qs = qs.filter(block_in_page__webpage=webpage).distinct()
     elif site:
-        qs = qs.filter(block_in_page__webpage__site=site).distinct()
+        # qs = qs.filter(block_in_page__webpage__site=site).distinct()
+        last_date = site.last_block_extraction or site.last_fetched or site.last_crawled or timezone.now()
+        qs = qs.filter(Q(block_in_page__webpage__site=site) | Q(last_seen__gt=last_date)).distinct()
     if translation_state == INVARIANT: # block is language independent
         qs = qs.filter(no_translate=True)
     elif translation_state == ALREADY: # block is already in target language
