@@ -15,13 +15,13 @@ from django.conf import settings
 from django.shortcuts import get_object_or_404
 from django.contrib.auth.models import User
 # from settings import DATA_ROOT, RESOURCES_ROOT, SITES_ROOT
-from .models import Site, Proxy, Webpage, PageVersion, Block, TranslatedBlock
+from .models import Site, Proxy, Webpage, PageVersion, Block, TranslatedBlock, BlockInPage
 from .models import String, Txu, TxuSubject
 from .models import UserRole, Segment, Translation, SEGMENT, FRAGMENT
 from .models import ADMINISTRATOR, OWNER, MANAGER, LINGUIST, TRANSLATOR, CLIENT
 from .models import MT, MANUAL
 from .vocabularies import Language, Subject
-from .utils import string_checksum, normalize_string
+from .utils import text_to_list, string_checksum, normalize_string
 from .aligner import tokenize, split_alignment
 from wip import srx_segmenter
 
@@ -418,3 +418,18 @@ def fix_alignments(proxy):
                     t.save()
                     break
 
+def fix_bips(site, dry=True):
+    variable_regions = [region.split() for region in text_to_list(site.variable_regions)]
+    webpages = Webpage.objects.filter(site=site)
+    for webpage in webpages:
+        variable_xpaths = [variable_region[1] for variable_region in variable_regions if variable_region[0]==webpage.path]
+        bips = BlockInPage.objects.filter(webpage=webpage).order_by('xpath')
+        for bip in bips:
+            for variable_xpath in variable_xpaths:
+                if bip.xpath.startswith(variable_xpath):
+                    print ('xpath:', bip.xpath)
+                    if not bip.xpath == variable_xpath:
+                        print ('block:', bip.block.body)
+                    if not dry:
+                        bip.delete()
+                    break

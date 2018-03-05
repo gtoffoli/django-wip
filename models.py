@@ -169,6 +169,7 @@ class Site(models.Model):
     srx_initials = models.TextField(verbose_name='Custom initials', blank=True, null=True, help_text="Initials to be made explicit as SRX rules" )
     invariant_words = models.TextField(verbose_name='Custom invariant words', blank=True, null=True, help_text="Custom invariant words" )
     themes = models.ManyToManyField(Theme, through='SiteTheme', related_name='site', blank=True, verbose_name='diazo themes')
+    variable_regions = models.TextField('Variable content regions', blank=True, null=True, help_text="Path-xpath combinations identifying page regions with frequently changing content" )
 
     def __init__(self, *args, **kwargs):
         super(Site, self).__init__(*args, **kwargs)
@@ -1199,7 +1200,7 @@ class Webpage(models.Model):
     path = models.CharField(max_length=200)
     language = models.ForeignKey(Language, null=True, blank=True, help_text="Possibly overrides the site language")
     no_translate = models.BooleanField('NoTr', default=False) # 'Do not translate'
-    multi_bips_xpaths = models.TextField('Multi-bips xpaths', blank=True, null=True, help_text="X-paths of page regions allowing mutiple bips with same xpath" )
+    # multi_bips_xpaths = models.TextField('Multi-bips xpaths', blank=True, null=True, help_text="X-paths of page regions allowing mutiple bips with same xpath" )
     created = CreationDateTimeField()
     # referer = models.ForeignKey('self', related_name='page_referer', blank=True, null=True)
     encoding = models.CharField(max_length=200, blank=True, null=True)
@@ -1318,10 +1319,12 @@ class Webpage(models.Model):
         return versions and versions[0] or None
 
     def get_translation(self, language_code, use_cache=True, cache=False):
+        logger.info('get_translation: %d -> %s', self.id, language_code)
         content = None
         has_translation = False
         site = self.site
         language = get_object_or_404(Language, code=language_code)
+        proxy = Proxy.objects.get(site=site, language=language)
         if not cache:
             translated_versions = TranslatedVersion.objects.filter(webpage=self, language=language).order_by('-modified')
             translated_version = translated_versions and translated_versions[0] or None
@@ -1332,7 +1335,8 @@ class Webpage(models.Model):
         if last_version:
             content = last_version.body
             content_document = html.document_fromstring(content)
-            translated_document, has_translation = translated_element(content_document, site, webpage=self, language=language)
+            # translated_document, has_translation = translated_element(content_document, site, webpage=self, language=language)
+            translated_document, has_translation = translated_element(content_document, site, webpage=self, language=language, translate_live=proxy.enable_live_translation)
             if has_translation:
                 content = element_tostring(translated_document)
         return content, has_translation
@@ -1427,7 +1431,9 @@ class Webpage(models.Model):
         """ the block body is not normalized """
         """ by default delete previous bips for same page and path """
         site = self.site
-        multi_bips_xpaths = text_to_list(self.multi_bips_xpaths)
+        variable_regions = [region.split() for region in text_to_list(site.variable_regions)]
+        variable_xpaths = [variable_region[1] for variable_region in variable_regions if variable_region[0]==self.path]
+
         segmenter = site.make_segmenter()
         versions = PageVersion.objects.filter(webpage=self).order_by('-time')
         if verbose:
@@ -1482,6 +1488,7 @@ class Webpage(models.Model):
                     else:
                         block = Block(site=site, checksum=checksum, body=string)
                         if not dry:
+                            block.last_seen = timezone.now()
                             block.save() # new block to be created always
                             n_2 += 1 # number of new saved blocks
                     block.xpath = el_xpath # xpath volatile value only for local use !!!
@@ -1490,14 +1497,19 @@ class Webpage(models.Model):
                         this_block_in_page = BlockInPage.objects.filter(block=block, xpath=el_xpath, webpage=self).count()
                         if not this_block_in_page:
                             if matching_blocks:
+                                """
                                 # by default purge BIPs for this xpath if BIP with new block is being created
                                 # but DO NOT PURGE BOCKS: could be present in page in rotation
+                                """
+                                """
                                 purge_bips = True
                                 for multi_bips_xpath in multi_bips_xpaths:
                                     if el_xpath.count(multi_bips_xpath):
                                         purge_bips = False
                                         break
                                 if purge_bips:
+                                """
+                                if not el_xpath in variable_xpaths:
                                     blocks_in_page = BlockInPage.objects.filter(xpath=el_xpath, webpage=self)
                                     blocks_in_page.delete()
                             n_3 += 1 # number of new blocks in page
@@ -1547,7 +1559,6 @@ class Webpage(models.Model):
         return n_purged
 
     def create_blocks_dag(self, verbose=False):
-        # BlockEdge.objects.all().delete()
         blocks_in_page = list(BlockInPage.objects.filter(webpage=self).order_by('xpath'))
         blocks = [None]
         xpaths = ['no-xpath']
@@ -1558,7 +1569,6 @@ class Webpage(models.Model):
             block = bip.block
             xpath = bip.xpath
             for j in range(i, -1, -1):
-                # if xpath.startswith(xpaths[j]) and not xpath==xpaths[j]:
                 if xpath.startswith(xpaths[j]) and (len(xpath.split('/')) > len(xpaths[j].split('/'))):
                     parent = blocks[j]
                     m += 1
@@ -1568,7 +1578,6 @@ class Webpage(models.Model):
                             n += 1
                         except:
                             pass
-                            # print ('create_blocks_dag error:', xpaths[j], xpath)
                     break
             i += 1
             blocks.append(block)
@@ -1826,9 +1835,10 @@ class Block(node_factory('BlockEdge')):
     language = models.ForeignKey(Language, null=True, blank=True)
     no_translate = models.BooleanField(default=False)
     checksum = models.CharField(max_length=32)
-    time = CreationDateTimeField()
+    time = CreationDateTimeField(verbose_name='creation time')
     state = models.IntegerField(default=0)
     webpages = models.ManyToManyField(Webpage, through='BlockInPage', related_name='block', blank=True, verbose_name='pages')
+    last_seen = models.DateTimeField(null=True, verbose_name='last seen')
 
     class Meta:
         verbose_name = _('page block')
@@ -2334,21 +2344,31 @@ class BlockEdge(edge_factory('Block', concrete = False)):
 # inspired by the algorithm of utils.elements_from_element
 # def translated_element(element, site, webpage, language, xpath='/html'):
 def translated_element(element, site, webpage=None, language=None, xpath='/html', translate_live=False):
-    # print 'translated_element', xpath
+    logger.info('translated_element: %s', xpath)
     checksum = element_signature(element)
     has_translation = False
     block = None
     # take into account possible rotation of content in the same page position
     blocks_in_page = webpage and BlockInPage.objects.filter(webpage=webpage, xpath=xpath, block__checksum=checksum).order_by('-time') or []
+    """
     if not blocks_in_page:
         blocks_in_page = webpage and BlockInPage.objects.filter(webpage=webpage, xpath=xpath).order_by('-time') or []
+    """
     if blocks_in_page:
         block = blocks_in_page[0].block
+    """
     elif not webpage and translate_live:
-        # checksum = element_signature(element)
         blocks = Block.objects.filter(site=site, checksum=checksum).order_by('-time')
         block = blocks and blocks[0] or None
         # if block: print ('checksum: ', checksum, 'block: ', block)
+    """
+    if not block and translate_live:
+        body = element_tostring(element)
+        blocks = Block.objects.filter(site=site, checksum=checksum).order_by('-last_seen')
+        for b in blocks:
+            if b.body == body: # need to filter also on block freshness ?
+                block = b
+                break
     if block:
         if block.no_translate:
             return element, True
@@ -2377,7 +2397,6 @@ def translated_element(element, site, webpage=None, language=None, xpath='/html'
             # if child_tags_dict_1[tag] > 1:
             if n>1 and child_tags_dict_1[tag] > 1:
                 branch += '[%d]' % n
-#           translated_child, child_has_translation = translated_element(child, site, webpage, language, xpath='%s/%s' % (xpath, branch))
             translated_child, child_has_translation = translated_element(child, site, webpage=webpage, language=language, xpath='%s/%s' % (xpath, branch), translate_live=translate_live)
             if child_has_translation:
                 element.replace(child, translated_child)

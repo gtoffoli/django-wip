@@ -332,16 +332,9 @@ def site(request, site_slug):
                             break
                     if should_skip:
                         continue
-                    # try:
-                    if True:
-                        # n_1, n_2, n_3 = webpage.extract_blocks()
-                        extracted_blocks = webpage.extract_blocks()
-                        webpage.purge_bips(current_blocks=extracted_blocks)
-                        webpage.create_blocks_dag()
-                    # except:
-                    else:
-                        pass
-                        # print ('extract_blocks: error on page ', webpage.id)
+                    extracted_blocks = webpage.extract_blocks()
+                    webpage.purge_bips(current_blocks=extracted_blocks)
+                    webpage.create_blocks_dag()
             elif refetch_pages:
                 n_pages, n_updates, n_unfound = site.refetch_pages(verbose=verbose)
                 messages.add_message(request, messages.INFO, 'Requested %d pages: %d updated, %d unfound' % (n_pages, n_updates, n_unfound))
