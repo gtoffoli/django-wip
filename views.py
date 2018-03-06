@@ -986,8 +986,10 @@ def get_or_add_translation(request, segment, text, language, translation_type=MA
     if translations:
         translation = translations[0]
     else:
-        # translation = Translation(segment=segment, text=text, language=language, user=request.user)
         translation = Translation(segment=segment, text=text, language=language, translation_type=translation_type, user_role=user_role, timestamp=timezone.now())
+        if len(segment.text.split())==1 and len(text.split())==1:
+            translation.alignment = '0-0'
+            translation.alignment_type = MANUAL
         translation.save()
     return translation
 
@@ -2483,9 +2485,18 @@ def add_update_translation(request):
             pass # eccezione
         if translation_id:
             Translation.objects.filter(pk=translation_id).update(text=target_text, translation_type=MANUAL, user_role=user_role, timestamp=timezone.now())
+            if len(segment.text.split())==1 and len(target_text.split())==1:
+                translation = Translation.objects.get(pk=translation_id)
+                if  not translation.alignment:
+                    translation.alignment = '0-0'
+                    translation.alignment_type = MANUAL
+                    translation.save()
             return JsonResponse({"data": "modify",})
         else:
             translation = Translation(segment=segment, language_id=target_code, text=target_text, translation_type=MANUAL, user_role=user_role, timestamp=timezone.now())
+            if len(segment.text.split())==1 and len(target_text.split())==1:
+                translation.alignment = '0-0'
+                translation.alignment_type = MANUAL
             translation.save()
             translation_id = translation.id
             return JsonResponse({"data": "add","translation_id": translation_id,})

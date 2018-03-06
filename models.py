@@ -400,6 +400,7 @@ class Site(models.Model):
                 print (page_url, ': error = ', e)
             if webpage:
                 webpage.last_unfound = timezone.now()
+                webpage.save()
             return -1
         time_2 = time.time()
         delay = int(round(time_2 - time_1))
@@ -409,6 +410,7 @@ class Site(models.Model):
         if webpage:
             webpage.last_checked = timezone.now()
             webpage.last_checked_response_code = response_code
+            webpage.save()
         # body = response.read()
         body = response.read().decode()
         size = len(body)
