@@ -35,7 +35,7 @@ SILENCED_SYSTEM_CHECKS = []
 
 # Application definition
 INSTALLED_APPS = [
-    'haystack',
+    # 'haystack',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',

@@ -73,9 +73,7 @@ from .utils import get_segmenter_rules, make_segmenter
 # import wip.srx_segmenter
 import wip.srx_segmenter as srx_segmenter
 
-def is_linearblock_translated(block):
-    return block.hasCommonTag('span', attrs=['tx'])
-TextBlock.isTranslated = is_linearblock_translated
+UNKNOWN = 0
 
 MYMEMORY = 1
 MATECAT = 2
@@ -86,9 +84,6 @@ TRANSLATION_SERVICE_CHOICES = (
     # (MATECAT, _('Matecat')),
 )
 TRANSLATION_SERVICE_DICT = dict(TRANSLATION_SERVICE_CHOICES)
-
-def code_to_language(code):
-    return Language.objects.get(pk=code)
 
 TO_BE_TRANSLATED = -1
 ANY = NONE = 0
@@ -107,40 +102,11 @@ TRANSLATION_STATE_CHOICES = (
 )
 TRANSLATION_STATE_DICT = dict(TRANSLATION_STATE_CHOICES)
 
-STRING_TRANSLATION_STATE_CHOICES = (
-    (ANY, _('any'),),
-    (INVARIANT, _('invariant'),),
-    (TO_BE_TRANSLATED, _('to be translated'),),
-    (TRANSLATED,  _('translated'),),
-    (REVISED,  _('revised'),),
-)
-STRING_TRANSLATION_STATE_DICT = dict(STRING_TRANSLATION_STATE_CHOICES)
-
-UNKNOWN = 0
-TERM = 1
-SEGMENT = 2
-FRAGMENT = 3
-STRING_TYPE_CHOICES = (
-    (UNKNOWN, _('unknown'),),
-    (TERM, _('term'),),
-    (SEGMENT, _('segment'),),
-    (FRAGMENT,  _('fragment'),),
-)
-STRING_TYPE_DICT = dict(STRING_TYPE_CHOICES)
-
 TEXT_ASC = 1
 ID_ASC = 2
 DATETIME_DESC = -3
 DATETIME_ASC = 3
 COUNT_DESC = -4
-STRING_SORT_CHOICES = (
-    (TEXT_ASC, _('text'),),
-    (ID_ASC, _('id'),),
-    (DATETIME_DESC, _('datetime inverse'),),
-    (DATETIME_ASC,  _('datetime'),),
-)
-STRING_SORT_DICT = dict(STRING_SORT_CHOICES)
-
 SEGMENT_SORT_CHOICES = (
     (ID_ASC, _('id'),),
     (TEXT_ASC, _('text'),),
@@ -151,6 +117,14 @@ SEGMENT_SORT_DICT = dict(SEGMENT_SORT_CHOICES)
 PARALLEL_FORMAT_NONE = 0
 PARALLEL_FORMAT_XLIFF = 1
 PARALLEL_FORMAT_TEXT = 2
+
+
+def is_linearblock_translated(block):
+    return block.hasCommonTag('span', attrs=['tx'])
+TextBlock.isTranslated = is_linearblock_translated
+
+def code_to_language(code):
+    return Language.objects.get(pk=code)
 
 class Site(models.Model):
     name = models.CharField(max_length=100)
@@ -512,16 +486,6 @@ class Site(models.Model):
 
     def add_fragment(self, text, path='', reliability=5):
         added = False
-        """
-        strings = String.objects.filter(text=text, language=self.language, site=self)
-        if strings:
-            string = strings[0]
-        else:
-            string = String(text=text, string_type=FRAGMENT, site=self, language=self.language, txu=None, path=path, reliability=reliability)
-            string.save()
-            added = True
-        return string, added
-        """
         segments = Segment.objects.filter(text=text, language=self.language, site=self)
         if segments:
             segment = segments[0]
@@ -532,7 +496,6 @@ class Site(models.Model):
         return segment, added
 
     def get_segments(self, translation_state=ANY):
-        # return String.objects.filter(site=self, language=self.language, string_type=SEGMENT)
         return Segment.objects.filter(site=self, language=self.language)
     
     def get_segment_count(self):
@@ -728,42 +691,6 @@ class Proxy(models.Model):
                     continue
                 status['found'] += 1
                 sys.stdout.write('.')
-                """
-                qs = String.objects.filter(text=source, language=source_language, site=site)
-                print qs.count()
-                if target_code == 'en':
-                    qs = qs.filter(Q(txu__isnull=True) | Q(txu__en=False))
-                elif target_code == 'es':
-                    qs = qs.filter(Q(txu__isnull=True) | Q(txu__es=False))
-                elif target_code == 'fr':
-                    qs = qs.filter(Q(txu__isnull=True) | Q(txu__fr=False))
-                elif target_code == 'it':
-                    qs = qs.filter(Q(txu__isnull=True) | Q(txu__it=False))
-                n_source = qs.count()
-                print n_source
-                if not n_source:
-                    source_string = String(text=source, language=source_language, site=site, reliability=reliability)
-                    source_string.save()
-                elif n_source == 1:
-                    source_string = qs[0]
-                else:
-                    continue
-                txu = source_string.txu
-                if not txu:
-                    txu = Txu(provider=site.name, user_id=user_id)
-                    txu.save()
-                    source_string.txu = txu
-                    source_string.save()
-                target_string = String(text=target, language=target_language, site=site, txu=txu, reliability=reliability)
-                target_string.save()
-                """
-
-                """
-                segment, created = Segment.objects.get_or_create(text=source, language=source_language, site=site)
-                translation, created = Translation.objects.get_or_create(segment=segment, text=target, language=target_language, translation_type=MANUAL, user_role=user_role)
-                if created:
-                    status['imported'] += 1
-                """
                 try:
                     segment = Segment.objects.get(text=source, language=source_language, site=site)
                     translation = Translation.objects.get(segment=segment, text=target, language=target_language)
@@ -1608,13 +1535,6 @@ class Webpage(models.Model):
         if verbose:
             print (m, n)
 
-def get_strings(text, language, site=None):
-    if site:
-        strings = String.objects.filter(text=text, language=language, site=site)
-    else:
-        strings = String.objects.filter(text=text, language=language)
-    return strings
-
 class PageVersion(models.Model):
     webpage = models.ForeignKey(Webpage)
     time = CreationDateTimeField()
@@ -1667,160 +1587,6 @@ class TranslatedVersion(models.Model):
         verbose_name = _('translated version')
         verbose_name_plural = _('translated versions')
 # ContentType, currently not used, could be Site, Webpage or Block
-class Txu(models.Model):
-    provider = models.CharField(verbose_name='txu source', max_length=100, blank=True, null=True)
-    entry_id = models.CharField(verbose_name='id by provider', max_length=100, blank=True, null=True)
-    subjects = models.ManyToManyField('Subject', through='TxuSubject', related_name='txu', blank=True, verbose_name='subjects')
-    created = CreationDateTimeField()
-    modified = ModificationDateTimeField()
-    user = models.ForeignKey(User, null=True)
-    comments = models.TextField(blank=True, null=True)
-    en = models.BooleanField(default=False)
-    es = models.BooleanField(default=False)
-    fr = models.BooleanField(default=False)
-    it = models.BooleanField(default=False)
-
-    class Meta:
-        verbose_name = _('translation unit')
-        verbose_name_plural = _('translation units')
-        ordering = ('-created',)
-
-    def __str__(self):
-        return self.entry_id or str(self.id)
-
-    def __unicode__(self):
-        return self.__str__()
-
-    def update_languages(self):
-        strings = String.objects.filter(txu=self)
-        l_dict = { 'en': False, 'es': False, 'fr': False, 'it': False, }
-        for s in strings:
-            l_dict[s.language_id] = True
-        updated = False
-        for code in l_dict.keys():
-            if getattr(self, code) != l_dict[code]:
-                setattr(self, code, l_dict[code])
-                updated = True
-        if updated:
-            self.save()
-        return updated
-
-class TxuSubject(models.Model):
-    txu = models.ForeignKey(Txu, related_name='txu')
-    subject = models.ForeignKey(Subject, related_name='subject')
-
-    class Meta:
-        verbose_name = _('txu subject')
-        verbose_name_plural = _('txu subjects')
-
-class String(models.Model):
-    string_type = models.IntegerField(choices=STRING_TYPE_CHOICES, default=UNKNOWN, null=True, verbose_name='string type')
-    invariant = models.BooleanField(default=False)
-    language = models.ForeignKey(Language)
-    site = models.ForeignKey(Site, null=True)
-    path = models.CharField(max_length=200, default='/', blank=True)
-    txu = models.ForeignKey(Txu, blank=True, null=True, related_name='string')
-    reliability = models.IntegerField(default=1)
-    text = models.TextField()
-    created = CreationDateTimeField(null=True)
-    modified = ModificationDateTimeField(null=True)
-    user = models.ForeignKey(User, null=True)
-    is_fragment = models.BooleanField(default=False)
-
-    class Meta:
-        verbose_name = _('string')
-        verbose_name_plural = _('strings')
-        ordering = ('-id',)
-
-    def __str__(self):
-        return self.text
-
-    def __unicode__(self):
-        return self.__str__()
-
-    def language_code(self):
-        return self.language.code
-
-    def tokens(self):
-        return self.text.split()
-
-    def get_translations(self, target_languages=[]):
-        if not target_languages:
-            target_languages = Language.objects.exclude(code=self.language.code).distinct().order_by('code')
-        translations = []
-        has_translations = False
-        txu = self.txu
-        for language in target_languages:
-            strings = String.objects.filter(txu=txu, language_id=language.code)
-            if strings:
-                has_translations = True
-            translations.append([language, strings])
-        return has_translations and translations or []
-
-    def get_navigation(self, string_types=[], site=None, translation_state='', translation_codes=[], order_by=TEXT_ASC):
-        # print ('order_by: ', order_by)
-        text = self.text
-        id = self.id
-        modified = self.modified
-        qs = String.objects.filter(language_id=self.language_id)
-        # print (1, qs.count())
-        if string_types:
-            qs = qs.filter(string_type__in=string_types)
-            # print (2, qs.count())
-        if site:
-            qs = qs.filter(site=site)
-        if translation_state == INVARIANT:
-            qs = qs.filter(invariant=True)
-        elif translation_state == TRANSLATED:
-            qs = qs.exclude(invariant=True)
-            qs = qs.filter(txu__string__language_id__in=translation_codes)
-        elif translation_state == TO_BE_TRANSLATED:
-            qs = qs.exclude(invariant=True)
-            """
-            qs = qs.exclude(txu__string__language_id__in=translation_codes)
-            """
-            if 'en' in translation_codes:
-                qs = qs.filter(txu__en=False)
-            if 'es' in translation_codes:
-                qs = qs.filter(txu__es=False)
-            if 'fr' in translation_codes:
-                qs = qs.filter(txu__fr=False)
-            if 'it' in translation_codes:
-                qs = qs.filter(txu__it=False)
-            # print (3, qs.count())
-            # print (4, translation_codes)
-        first = last = previous = next = None
-        n = qs.count()
-        # print (n, order_by, TEXT_ASC, order_by == TEXT_ASC, 1 == 1)
-        if n:
-            if order_by == TEXT_ASC:
-                qs = qs.order_by('text')
-                qs_before = qs.filter(text__lt=text).order_by('-text')
-                qs_after = qs.filter(text__gt=text).order_by('text')
-                # print (order_by, qs_before.count())
-            elif order_by == ID_ASC:
-                qs = qs.order_by('id')
-                qs_before = qs.filter(id__lt=id).order_by('-id')
-                qs_after = qs.filter(id__gt=id).order_by('id')
-                # print (order_by, qs_before.count())
-            elif order_by == DATETIME_ASC:
-                qs = qs.order_by('modified')
-                qs_before = qs.filter(modified__lt=modified).order_by('-modified')
-                qs_after = qs.filter(modified__gt=modified).order_by('modified')
-                # print (order_by, qs_before.count())
-            elif order_by == DATETIME_DESC:
-                qs = qs.order_by('-modified')
-                qs_before = qs.filter(modified__gt=modified).order_by('modified')
-                qs_after = qs.filter(modified__lt=modified).order_by('-modified')
-                # print (order_by, qs_before.count())
-            previous = qs_before.count() and qs_before[0] or None
-            next = qs_after.count() and qs_after[0] or None
-            first = qs[0]
-            first = not first.id==id or None
-            last = qs.reverse()[0]
-            last = not last.id==id or None
-        # return previous, next
-        return n, first, last, previous, next
 
 def filter_blocks(site=None, webpage=None, translation_state='', translation_codes=[], source_text_filter='', order_by='id'):
     target_code = len(translation_codes)==1 and translation_codes[0] or None

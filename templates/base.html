@@ -68,11 +68,13 @@
             </ul>
             {% endwith %}
 
+{% comment %}
             <form class="navbar-form navbar-left" role="search">
               <div class="form-group">
                 <input type="text" class="form-control" placeholder="Search" name="q" id="navigation_autocomplete">
               </div>
             </form>
+{% endcomment %}
             {% endif %}
             
             <ul class="nav navbar-nav navbar-right">
@@ -135,6 +137,7 @@
 
         {% block script_base %}
             <script src="{% static "wip/js/bootstrap.min.js" %}"></script>
+{% comment %}
             <script type="text/javascript" src="{% static 'autocomplete_light/autocomplete.js' %}"></script>
             <script type="text/javascript">
                $(document).ready(function() {
@@ -150,6 +153,7 @@
                 }
                });
             </script>
+ {% endcomment %}
             {% block extra_script %}{% endblock %}
         {% endblock %}
   </body>

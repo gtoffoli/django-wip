@@ -17,7 +17,6 @@ Including another URLconf
     3. Add a URL to urlpatterns:  url(r'^blog/', include(blog_urls))
 """
 
-# from settings import USE_SCRAPY, USE_NLTK
 from django.conf import settings
 from django.conf.urls import include, url
 from django.views.generic import TemplateView
@@ -25,7 +24,8 @@ from django.contrib import admin
 
 from .models import Site, Proxy
 from wip import views
-from wip import search_indexes
+# from wip import search_indexes
+import wip.terms.views as term_views
 from .api import find_block, send_block, send_fragment
 from .proxy import WipHttpProxy
 from .proxy import WipRevProxy
@@ -58,23 +58,23 @@ urlpatterns = [
     url(r"^block/(?P<block_id>[\d]+)/pages/$", views.block_pages, name="block_pages"),
     url(r"^block/(?P<block_id>[\d]+)/translate/(?P<target_code>[\w]+)/$", views.block_translate, name="block_translate"),
     url(r"^block/(?P<block_id>[\d]+)/$", views.block, name="block"),
-    url(r"^string_add_by_language/(?P<language_code>[\w-]*)/$", views.string_edit, name="string_add_by_language"),
-    url(r"^string_add_by_proxy/(?P<proxy_slug>[\w-]+)/$", views.string_edit, name="string_add_by_proxy"),
-    url(r"^string_edit/(?P<string_id>[\d]+)/$", views.string_edit, name="string_edit"),
-    url(r"^string_edit/$", views.string_edit, name="string_edit"),
-    url(r"^string/(?P<string_id>[\d]+)/$", views.string_view, name="string_view"),
-    url(r"^string_translate/(?P<string_id>[\d]+)/(?P<target_code>[\w]+)/$", views.string_translate, name="string_translate"),
-    url(r"^strings/(?P<sources>[\w-]*)/(?P<state>[\w-]*)/(?P<targets>[\w-]*)/$", views.list_strings, name="list_strings"),
-    url(r"^strings/(?P<sources>[\w-]*)/(?P<state>[\w-]*)/$", views.list_strings, name="list_strings_notarget"),
+    url(r"^string_add_by_language/(?P<language_code>[\w-]*)/$", term_views.string_edit, name="string_add_by_language"),
+    url(r"^string_add_by_proxy/(?P<proxy_slug>[\w-]+)/$", term_views.string_edit, name="string_add_by_proxy"),
+    url(r"^string_edit/(?P<string_id>[\d]+)/$", term_views.string_edit, name="string_edit"),
+    url(r"^string_edit/$", term_views.string_edit, name="string_edit"),
+    url(r"^string/(?P<string_id>[\d]+)/$", term_views.string_view, name="string_view"),
+    url(r"^string_translate/(?P<string_id>[\d]+)/(?P<target_code>[\w]+)/$", term_views.string_translate, name="string_translate"),
+    url(r"^strings/(?P<sources>[\w-]*)/(?P<state>[\w-]*)/(?P<targets>[\w-]*)/$", term_views.list_strings, name="list_strings"),
+    url(r"^strings/(?P<sources>[\w-]*)/(?P<state>[\w-]*)/$", term_views.list_strings, name="list_strings_notarget"),
     url(r"^proxies/$", views.proxies, name="proxies"),
-    url(r"^proxy/(?P<proxy_slug>[\w-]+)/translations/$", views.proxy_string_translations, name="proxy_string_translations"),
+    url(r"^proxy/(?P<proxy_slug>[\w-]+)/translations/$", term_views.proxy_string_translations, name="proxy_string_translations"),
     url(r"^proxy/(?P<proxy_slug>[\w-]+)/$", views.proxy, name="proxy"),
     url(r"^import_xliff/(?P<proxy_slug>[\w-]+)/$", views.import_xliff, name="import_xliff"),
-    url(r"^add_translated_string/$", views.add_translated_string, name="add_translated_string"),
+    url(r"^add_translated_string/$", term_views.add_translated_string, name="add_translated_string"),
     url(r"^add_update_translation/$", views.add_update_translation, name="add_update_translation"),
-    url(r"^delete_translated_string/$", views.delete_translated_string, name="delete_translated_string"),
-    url(r"^strings_translations/(?P<proxy_slug>[\w-]+)/$", views.strings_translations, name="strings_translations"),
-    url(r"^strings_translations/$", views.strings_translations, name="strings_translations"),
+    url(r"^delete_translated_string/$", term_views.delete_translated_string, name="delete_translated_string"),
+    url(r"^strings_translations/(?P<proxy_slug>[\w-]+)/$", term_views.strings_translations, name="strings_translations"),
+    url(r"^strings_translations/$", term_views.strings_translations, name="strings_translations"),
     url(r"^list_segments/(?P<segment_id>[\d]+)/$", views.list_segments_by_id, name="list_segments_by_id"),
     url(r"^list_segments/(?P<proxy_slug>[\w-]+)/$", views.list_segments_by_proxy, name="list_segments_by_proxy"),
     url(r"^list_segments/$", views.list_segments, name="list_segments"),
@@ -84,8 +84,7 @@ urlpatterns = [
     url(r"^segment/(?P<segment_id>[\d]+)/$", views.segment_view, name="segment_view"),
     url(r"^segment_translate/(?P<segment_id>[\d]+)/(?P<target_code>[\w]+)/$", views.segment_translate, name="segment_translate"),
     url(r"^translation_align/(?P<translation_id>[\d]+)/$", views.translation_align, name="translation_align"),
-    # url(r"^my_task/$", views.my_task, name="my_task"),
-    url(r'^navigation_autocomplete$', search_indexes.navigation_autocomplete, name='navigation_autocomplete'),
+    # url(r'^navigation_autocomplete$', search_indexes.navigation_autocomplete, name='navigation_autocomplete'),
     url(r"^test/$", TemplateView.as_view(template_name="test.html"), name="test"),
 ]
 
@@ -95,6 +94,7 @@ urlpatterns += (
     url(r'^accounts/profile/', TemplateView.as_view(template_name='accounts/profile.html'), name='welcome',),
 )   
 
+import wip.terms.urls
 
 if settings.USE_SCRAPY:
     urlpatterns += (
