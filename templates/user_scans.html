@@ -17,20 +17,24 @@ th, td { text-align: left; vertical-align: top; }
 {% if scans %}
 <form action="#" method="post" id="scans-form">{% csrf_token %}
 <table>
-<thead><th></th><th>id</th><th>task id</th><th>spider name</th>{% if not user %}<th>user</th>{% endif %}<th>start</th><th>stop</th><th># pages</th><th># segments</th><th># words</th></thead>
+<thead><th></th><th>id</th>{% comment %}<th>task id</th>{% endcomment %}<th>spider name</th>{% if not user %}<th>user</th>{% endif %}<th>type</th><th>start</th><th>stop</th><th># pages</th><th># segments</th><th># words</th><th># blocks</th></thead>
 <tbody>
 {% for scan in scans %}
 	<tr>
         <td><input type="checkbox" name="selection" value="{{ scan.pk }}" /></td>
 		<td>{{ scan.pk }}</td>
+{% comment %}
 		<td>{{ scan.task_id }}</td>
+{% endcomment %}
 		<td><a href="/scan/{{ scan.pk }}" title="show details">{{ scan.get_label }}</a></td>
 		{% if not user %}<td>{{ scan.user.username }}</td>{% endif %}
+		<td>{{ scan.get_type }}</td>
 		<td>{{ scan.created }}</td>
 		<td>{{ scan.modified }}</td>
-		<td>{{ scan.get_links.count }}</td>
-		<td>{{ scan.segment_count }}</td>
-		<td>{{ scan.word_count }}</td>
+		<td style="text-align: right;">{{ scan.get_links.count }}</td>
+		<td style="text-align: right;">{{ scan.segment_count }}</td>
+		<td style="text-align: right;">{{ scan.word_count }}</td>
+		<td style="text-align: right;">{{ scan.block_count }}</td>
 	</tr>
 {% endfor %}
 </tbody>

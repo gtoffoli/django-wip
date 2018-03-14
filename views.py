@@ -36,12 +36,13 @@ from haystack.query import SearchQuerySet
 from django.conf import settings
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from django.template import RequestContext
-from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
+from django.http import HttpResponse, HttpResponseRedirect, HttpResponseForbidden, JsonResponse
 from django.shortcuts import render, render_to_response, get_object_or_404
 from django.db import connection
 # from django.db.models import Q, Count
 from django.db.models.expressions import RawSQL, Q
 from django import forms
+from django.views import View
 from django.utils import timezone
 from django.contrib import messages
 from django.contrib.auth.models import User
@@ -62,9 +63,10 @@ from .models import ROLE_DICT, TRANSLATION_TYPE_DICT, TRANSLATION_SERVICE_DICT, 
 from .models import ADMINISTRATOR, OWNER, MANAGER, LINGUIST, TRANSLATOR, CLIENT
 from .models import TM, MT, MANUAL
 from .models import PARALLEL_FORMAT_NONE, PARALLEL_FORMAT_XLIFF, PARALLEL_FORMAT_TEXT
+from .models import DISCOVER, CRAWL, BACKGROUND, FOREGROUND
 from .models import get_or_set_user_role
 from .models import get_segments
-from .forms import DiscoverForm
+from .forms import DiscoverForm, CrawlForm
 from .forms import SiteManageForm, ProxyManageForm, PageManageForm, PageSequencerForm, BlockEditForm, BlockSequencerForm
 from .forms import SegmentSequencerForm, SegmentEditForm, SegmentTranslationForm, TranslationViewForm, TranslationSequencerForm
 from .forms import TranslationServiceForm, FilterPagesForm
@@ -291,7 +293,8 @@ def site(request, site_slug):
             data = form.cleaned_data
             verbose = data['verbose']
             if discovery:
-                return discover(request, site=site)
+                # return discover(request, site=site)
+                return HttpResponseRedirect('/discover/%s/' % site.slug)
             elif site_crawl:
                 clear_pages = data['clear_pages']
                 if clear_pages:
@@ -2270,7 +2273,6 @@ def discover(request, site=None, scan_id=None):
             count_words = data['count_words']
             count_segments = data['count_segments']
             run_worker_process()
-            # scan = Scan(name=name, allowed_domains=allowed_domains, start_urls=start_urls, allow=allow, deny=deny, max_pages=max_pages, count_words=count_words, count_segments=count_segments, task_id=0, user=user)
             scan = Scan(name=name, site=site, allowed_domains=allowed_domains, start_urls=start_urls, allow=allow, deny=deny, max_pages=max_pages, count_words=count_words, count_segments=count_segments, task_id=0, user=user)
             scan.save()
             async_result = discover_task.delay(scan.pk)
@@ -2280,8 +2282,118 @@ def discover(request, site=None, scan_id=None):
             data_dict['scan_id'] = scan.pk
             data_dict['scan_label'] = scan.get_label()
             data_dict['i_line'] = 0
-    data_dict['discover_form'] = form
+    data_dict['form'] = form
     return render(request, 'discover.html', data_dict)
+
+class Discover(View):
+    form_class = DiscoverForm
+    initial = {}
+    template_name = 'discover.html'
+    scan_id = None
+    site_slug = ''
+
+    def get(self, request, *args, **kwargs):
+        user = request.user
+        if not user.is_authenticated():
+            return HttpResponseForbidden()
+        data_dict = {}
+        data_dict['scan_id'] = scan_id = self.kwargs.get('scan_id', '')
+        if scan_id:
+            scan = Scan.objects.get(pk=scan_id)
+            site = scan.site
+            self.initial = {'site': scan.site, 'name': scan.name, 'scan_mode': scan.scan_mode, 'allowed_domains': scan.allowed_domains, 'start_urls': scan.start_urls, 'deny': scan.deny, 'max_pages': scan.max_pages, 'count_words': scan.count_words, 'count_segments': scan.count_segments, 'extract_blocks': scan.extract_blocks}
+        else:
+            site_slug = self.kwargs.get('site_slug', '')
+            site = site_slug and get_object_or_404(Site, slug=site_slug) or None
+            if site:
+                scan_type = DISCOVER
+                scan_mode = FOREGROUND
+                allowed_domains = site.allowed_domains or site.url.split('//')[-1]
+                start_urls = site.start_urls or site.url
+                max_pages = 100
+                extract_blocks = False
+                self.initial = {'site': site, 'name': site.name, 'scan_type': scan_type, 'scan_mode': scan_mode, 'allowed_domains': allowed_domains, 'start_urls': start_urls, 'deny': site.deny, 'max_pages': max_pages, 'extract_blocks': extract_blocks}
+                data_dict['site'] = site
+        data_dict['form'] = self.form_class(initial=self.initial)
+        return render(request, self.template_name, data_dict)
+
+    def post(self, request, *args, **kwargs):
+        user = request.user
+        if not user.is_authenticated():
+            return HttpResponseForbidden()
+        data_dict = {}
+        data_dict['form'] = self.form = self.form_class(request.POST)
+        if self.form.is_valid():
+            data = self.form.cleaned_data
+            name = data['name'] or 'discover'
+            data_dict['site'] = site = data['site']
+            print('----- site:', site)
+            scan_mode = int(data['scan_mode'])
+            allowed_domains = data['allowed_domains']
+            start_urls = data['start_urls']
+            allow = data['allow']
+            deny = data['deny']
+            max_pages = data['max_pages']
+            count_words = data['count_words']
+            count_segments = data['count_segments']
+            run_worker_process()
+            scan = Scan(name=name, site=site, scan_type=DISCOVER, scan_mode=scan_mode, allowed_domains=allowed_domains, start_urls=start_urls, allow=allow, deny=deny, max_pages=max_pages, count_words=count_words, count_segments=count_segments, task_id=0, user=user)
+            scan.save()
+            async_result = discover_task.delay(scan.pk)
+            scan.task_id = async_result.task_id
+            scan.save()
+            data_dict['scan_id'] = scan.pk
+            data_dict['scan_label'] = scan.get_label()
+            data_dict['foreground'] = (scan_mode == FOREGROUND)
+            data_dict['i_line'] = 0
+        else:
+            print(self.form.errors)
+        return render(request, self.template_name, data_dict)
+
+
+class Crawl(View):
+    form_class = CrawlForm
+    initial = {}
+    template_name = 'crawl.html'
+
+    def get(self, request, *args, **kwargs):
+        user = request.user
+        if not user.is_authenticated():
+            return HttpResponseForbidden()
+        data_dict = {}
+        site_slug = self.kwargs['site_slug']
+        data_dict['site'] = site = get_object_or_404(Site, slug=site_slug)
+        self.initial['max_pages'] = 100
+        self.initial['allowed_domains'] = site.allowed_domains
+        self.initial['start_urls'] = site.url
+        self.initial['deny'] = site.deny
+        self.initial['scan_mode'] = FOREGROUND
+        self.initial['extract_blocks'] = False
+        data_dict['form'] = self.form_class(initial=self.initial)
+        return render(request, self.template_name, data_dict)
+
+    def post(self, request, *args, **kwargs):
+        user = request.user
+        if not user.is_authenticated():
+            return HttpResponseForbidden()
+        data_dict = {}
+        site_slug = self.kwargs['site_slug']
+        data_dict['site'] = site = get_object_or_404(Site, slug=site_slug)
+        data_dict['form'] = self.form = self.form_class(request.POST)
+        if self.form.is_valid():
+            data = self.form.cleaned_data
+            scan_mode = data['scan_mode']
+            allowed_domains = data['allowed_domains']
+            start_urls = data['start_urls']
+            allow = data['allow']
+            deny = data['deny']
+            max_pages = data['max_pages']
+            extract_blocks = data['extract_blocks']
+            scan = Scan(name=site.name, site=site, scan_type=CRAWL, scan_mode=scan_mode, extract_blocks=extract_blocks, allowed_domains=allowed_domains, start_urls=start_urls, allow=allow, deny=deny, max_pages=max_pages, task_id=0, user=user)
+            scan.save()
+        else:
+            print(self.form.errors)
+        return render(request, self.template_name, data_dict)
 
 def site_crawl(site_pk):
     crawler_script = WipSiteCrawlerScript()

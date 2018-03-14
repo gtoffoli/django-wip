@@ -18,10 +18,6 @@ import json
 import re
 from collections import defaultdict
 
-# from scrapy.xlib.pydispatch import dispatcher
-# from scrapy import signals
-# from scrapy.exporters import JsonLinesItemExporter
-
 import django
 django.setup()
 
@@ -33,10 +29,7 @@ from .models import Scan, Link, WordCount, SegmentCount
 from .utils import is_invariant_word, strip_html_comments, normalize_string, strings_from_html, make_segmenter # , segments_from_string
 from .models import segments_from_string
 
-"""
-from wip.wip_nltk.tokenizers import NltkTokenizer
-tokenizer = NltkTokenizer()
-"""
+
 segmenter = make_segmenter('it')
 
 class WipDiscoverPipeline(object):
@@ -44,32 +37,6 @@ class WipDiscoverPipeline(object):
     @classmethod
     def from_crawler(cls, crawler):
         return cls()
-
-    """
-    def __init__(self):
-        dispatcher.connect(self.spider_opened, signals.spider_opened)
-        dispatcher.connect(self.spider_closed, signals.spider_closed)
-    """
-
-    def spider_opened(self, spider):
-        # self.exporter = JsonLinesItemExporter(sys.stdout)
-        """
-        self.output_file = open(spider.file_path, "w", 0)
-        self.exporter = JsonLinesItemExporter(self.output_file)
-        self.exporter.start_exporting()
-        """
-        pass
-        # print ('--- spider_opened for scan %d, %s ---' % (spider.scan_id, spider.name))
-
-    def spider_closed(self, spider):
-        """
-        self.exporter.finish_exporting()
-        self.output_file.close()
-        """
-        # print ('--- spider_closed ---')
-        scan = Scan.objects.get(pk=spider.scan_id)
-        scan.terminated = True
-        scan.save()
 
     def process_item(self, item, spider):
         """
@@ -127,14 +94,6 @@ class WipCrawlPipeline(object):
     @classmethod
     def from_crawler(cls, crawler):
         return cls()
-
-    def spider_opened(self, spider):
-        pass
-        # print ('--- spider_opened ---')
-
-    def spider_closed(self, spider):
-        pass
-        # print ('--- spider_closed ---')
 
     def process_item(self, item, spider):
         site = Site.objects.get(pk=item['site_id'])

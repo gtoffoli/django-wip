@@ -32,10 +32,10 @@ import json
 import time
 import copy
 import re, regex
-import difflib
 from collections import defaultdict
-# import datetime
-# from namedentities import unicode_entities
+import difflib
+from difflib import SequenceMatcher
+import Levenshtein
 # from Levenshtein.StringMatcher import StringMatcher
 from lxml import html, etree
 from nltk.translate import AlignedSent, Alignment, IBMModel2, IBMModel3
@@ -143,11 +143,13 @@ class Site(models.Model):
     srx_initials = models.TextField(verbose_name='Custom initials', blank=True, null=True, help_text="Initials to be made explicit as SRX rules" )
     invariant_words = models.TextField(verbose_name='Custom invariant words', blank=True, null=True, help_text="Custom invariant words" )
     themes = models.ManyToManyField(Theme, through='SiteTheme', related_name='site', blank=True, verbose_name='diazo themes')
+
     variable_regions = models.TextField('Variable content regions', blank=True, null=True, help_text="Path-xpath combinations identifying page regions with frequently changing content" )
     last_crawled = models.DateTimeField(null=True, help_text="Last time the site was crawled")
     last_fetched = models.DateTimeField(null=True, help_text="Last time new versions of site pages were fetched")
     last_block_extraction = models.DateTimeField(null=True, help_text="Last time blocks were extracted from site pages")
     last_segment_extraction = models.DateTimeField(null=True, help_text="Last time segments were extracted from site pages")
+    extra_body = models.TextField(verbose_name='Extra body', blank=True, null=True, help_text="Code to be inserted before closing BODY tag")
 
     def __init__(self, *args, **kwargs):
         super(Site, self).__init__(*args, **kwargs)
@@ -830,6 +832,7 @@ class Proxy(models.Model):
         html_string = normalize_string(html_string)
         content_document = html.document_fromstring(html_string)
         translated_document, has_translation = translated_element(content_document, self.site, webpage=None, language=self.language, translate_live=self.enable_live_translation)
+        # translated_document, has_translation = '', False
         if has_translation:
             content = element_tostring(translated_document)
         return content, has_translation
@@ -2155,16 +2158,21 @@ def translated_element(element, site, webpage=None, language=None, xpath='/html'
     """
     if not block and translate_live:
         body = element_tostring(element)
+        is_menu = body.count('menu-item')
         blocks = Block.objects.filter(site=site, checksum=checksum).order_by('-last_seen')
         for b in blocks:
+            # if SequenceMatcher(None, b.body, body).ratio() > 0.80: # need to filter also on block freshness ?
+            # if Levenshtein.ratio(b.body, body) > 0.85: # need to filter also on block freshness ?
             if b.body == body: # need to filter also on block freshness ?
+                block = b
+                break
+            if is_menu and Levenshtein.ratio(b.body, body) > 0.85:
                 block = b
                 break
     if block:
         if block.no_translate:
             return element, True
         translated_blocks = TranslatedBlock.objects.filter(block=block, language=language, state__gt=0).order_by('-modified')
-        # print 'translated_blocks : ', translated_blocks
         if translated_blocks:
             element = html.fromstring(translated_blocks[0].body)
             # return the complete translation of the block
@@ -2269,9 +2277,27 @@ def segments_from_string(string, site, segmenter, exclude_TM_invariants=True, in
     else:
         return filtered
 
+DISCOVER = 0
+CRAWL = 1
+REFETCH = 2
+SCAN_TYPE_CHOICES = (
+    (DISCOVER, _('discover'),),
+    (CRAWL, _('crawl'),),
+    (REFETCH,  _('re-fetch'),),
+)
+SCAN_TYPE_DICT = dict(SCAN_TYPE_CHOICES)
+
+BACKGROUND = 0
+FOREGROUND = 1
+SCAN_MODE_CHOICES = (
+    (BACKGROUND, _('in background, asynchronously'),),
+    (FOREGROUND, _('in foreground, page by page'),),
+)
+
 class Scan(models.Model):
     name = models.CharField(max_length=20)
-    site = models.ForeignKey(Site, null=True)
+    # site = models.ForeignKey(Site, null=True)
+    site = models.ForeignKey(Site, verbose_name='site/project', blank=True, null=True, help_text="leave undefined for discovery")
     language = models.ForeignKey(Language, null=True)
     start_urls = models.TextField()
     allowed_domains = models.TextField()
@@ -2286,19 +2312,29 @@ class Scan(models.Model):
     user = models.ForeignKey(User, null=True)
     created = CreationDateTimeField()
     modified = ModificationDateTimeField()
-    # task_id = models.IntegerField()
     task_id = models.CharField(max_length=100)
     terminated = models.BooleanField(default=False)
+
+    scan_type = models.IntegerField(choices=SCAN_TYPE_CHOICES, default=DISCOVER, verbose_name='scan type')
+    scan_mode = models.IntegerField(choices=SCAN_MODE_CHOICES, default=BACKGROUND, verbose_name='scan mode')
+    extract_blocks = models.BooleanField(default=False)
+    block_count = models.IntegerField(default=0, verbose_name='block count')
 
     class Meta:
         verbose_name = _('discovery scan')
         verbose_name_plural = _('discovery scans')
+
+    def get_type(self):
+        return SCAN_TYPE_DICT.get(self.scan_type, DISCOVER) 
 
     def get_label(self):
         return '%s-%s' % (self.name, self.created.strftime("%y%m%d-%H%M"))
 
     def get_links(self):
         return Link.objects.filter(scan=self)
+
+    def block_count(self):
+        return 0
 
 class Link(models.Model):
     scan = models.ForeignKey(Scan)

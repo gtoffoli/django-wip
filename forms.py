@@ -8,7 +8,7 @@ from django.utils.translation import ugettext_lazy as _, string_concat
 from django.contrib.auth.models import User
 from .models import Site, Segment
 from .models import UserRole
-from .models import SEGMENT_SORT_CHOICES, TRANSLATION_STATE_CHOICES, TRANSLATION_SERVICE_CHOICES
+from .models import SEGMENT_SORT_CHOICES, TRANSLATION_STATE_CHOICES, TRANSLATION_SERVICE_CHOICES, SCAN_MODE_CHOICES
 from .models import ROLE_TYPE_CHOICES
 from .vocabularies import Language, Subject
 
@@ -134,15 +134,25 @@ class FilterPagesForm(forms.Form):
     from_start = forms.BooleanField(required=False, label='Only paths starting with pattern')
 
 class DiscoverForm(forms.Form):
-    site = forms.ModelChoiceField(required=False, label="Site", queryset=Site.objects.all(), widget=forms.Select(attrs={'style':'height: 24px;',}))
-    name = forms.CharField(required=False, label="Name", widget=forms.TextInput(attrs={'style': 'width: 200px;'}))
-    max_pages = forms.IntegerField(required=False, label="Max pages", widget=forms.TextInput(attrs={'size': 8, 'style': 'width: 50px;',}))
-    allowed_domains = forms.CharField(required=False, label="Allowed domains", widget=forms.Textarea(attrs={'style': 'width: 100%; height: 24px;'}))
-    start_urls = forms.CharField(required=False, label="Start urls", widget=forms.Textarea(attrs={'style': 'width: 100%; height: 24px;'}))
-    allow = forms.CharField(required=False, label="Allow", widget=forms.Textarea(attrs={'style': 'width: 100%; height: 40px;'}))
-    deny = forms.CharField(required=False, label="Deny", widget=forms.Textarea(attrs={'style': 'width: 100%; height: 40px;'}))
-    count_words = forms.BooleanField(required=False, label='Extract word count')
-    count_segments = forms.BooleanField(required=False, label='Extract segment count')
+    site = forms.ModelChoiceField(required=False, label="Site", queryset=Site.objects.all(), widget=forms.Select(attrs={'class':'form-control'}))
+    name = forms.CharField(required=False, label="Name", widget=forms.TextInput(attrs={'class':'form-control'}))
+    scan_mode = forms.ChoiceField(required=False, choices=SCAN_MODE_CHOICES, label="Scan mode", widget=forms.Select(attrs={'class':'form-control'}))
+    max_pages = forms.IntegerField(required=False, label="Max pages", widget=forms.TextInput(attrs={'class':'form-control'}))
+    allowed_domains = forms.CharField(required=False, label="Allowed domains", widget=forms.Textarea(attrs={'class':'form-control', 'rows': 1}))
+    start_urls = forms.CharField(required=False, label="Start urls", widget=forms.Textarea(attrs={'class':'form-control', 'rows': 1}))
+    allow = forms.CharField(required=False, label="Allowed paths", widget=forms.Textarea(attrs={'class':'form-control', 'rows': 1}))
+    deny = forms.CharField(required=False, label="Denied paths", widget=forms.Textarea(attrs={'class':'form-control', 'rows': 6}))
+    count_words = forms.BooleanField(required=False, label='Extract word count', widget=forms.CheckboxInput(attrs={'class':'form-control'}))
+    count_segments = forms.BooleanField(required=False, label='Extract segment count', widget=forms.CheckboxInput(attrs={'class':'form-control'}))
+
+class CrawlForm(forms.Form):
+    scan_mode = forms.ChoiceField(required=False, choices=SCAN_MODE_CHOICES, label="Scan mode", widget=forms.Select(attrs={'class':'form-control'}))
+    extract_blocks = forms.BooleanField(required=False, label='Extract blocks', widget=forms.CheckboxInput(attrs={'class':'form-control'}))
+    max_pages = forms.IntegerField(required=False, label="Max pages", widget=forms.TextInput(attrs={'class':'form-control'}))
+    allowed_domains = forms.CharField(required=False, label="Allowed domains", widget=forms.Textarea(attrs={'class':'form-control', 'rows': 1}))
+    start_urls = forms.CharField(required=False, label="Start urls", widget=forms.Textarea(attrs={'class':'form-control', 'rows': 1}))
+    allow = forms.CharField(required=False, label="Allowed paths", widget=forms.Textarea(attrs={'class':'form-control', 'rows': 1}))
+    deny = forms.CharField(required=False, label="Denied paths", widget=forms.Textarea(attrs={'class':'form-control', 'rows': 6}))
 
 class UserRoleEditForm(forms.ModelForm):
     class Meta:

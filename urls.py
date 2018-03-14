@@ -25,7 +25,6 @@ from django.contrib import admin
 from .models import Site, Proxy
 from wip import views
 # from wip import search_indexes
-import wip.terms.views as term_views
 from .api import find_block, send_block, send_fragment
 from .proxy import WipHttpProxy
 from .proxy import WipRevProxy
@@ -43,8 +42,12 @@ urlpatterns = [
     url(r"^role/edit/$", views.role_edit, name="role_edit"),
     url(r"^role/(?P<role_id>[\d]+)/$", views.role_detail, name="role_detail"),
     url(r"^language/(?P<language_code>[\w-]*)/set/$", views.language, name="language"),
-    url(r"^discover/(?P<scan_id>[\d]+)/$", views.discover, name="discover"),
-    url(r"^discover/$", views.discover, name="discover"),
+    # url(r"^discover/(?P<scan_id>[\d]+)/$", views.discover, name="discover"),
+    # url(r"^discover/$", views.discover, name="discover"),
+    url(r'^discover/(?:(?P<scan_id>[\d]+)/)?$', views.Discover.as_view(), name="discover"),
+    url(r'^discover/(?:(?P<site_slug>[\w-]+)/)?$', views.Discover.as_view(), name="discover"),
+    url(r"^discover/$", views.Discover.as_view(), name="discover"),
+    url(r'^crawl/(?P<site_slug>[\w-]+)/$', views.Crawl.as_view(), name="crawl"),
     url(r"^sites/$", views.sites, name="sites"),
     url(r"^site/(?P<site_slug>[\w-]+)/$", views.site, name="site"),
     url(r"^site/(?P<site_slug>[\w-]+)/pages/$", views.site_pages, name="site_pages"),
@@ -58,23 +61,10 @@ urlpatterns = [
     url(r"^block/(?P<block_id>[\d]+)/pages/$", views.block_pages, name="block_pages"),
     url(r"^block/(?P<block_id>[\d]+)/translate/(?P<target_code>[\w]+)/$", views.block_translate, name="block_translate"),
     url(r"^block/(?P<block_id>[\d]+)/$", views.block, name="block"),
-    url(r"^string_add_by_language/(?P<language_code>[\w-]*)/$", term_views.string_edit, name="string_add_by_language"),
-    url(r"^string_add_by_proxy/(?P<proxy_slug>[\w-]+)/$", term_views.string_edit, name="string_add_by_proxy"),
-    url(r"^string_edit/(?P<string_id>[\d]+)/$", term_views.string_edit, name="string_edit"),
-    url(r"^string_edit/$", term_views.string_edit, name="string_edit"),
-    url(r"^string/(?P<string_id>[\d]+)/$", term_views.string_view, name="string_view"),
-    url(r"^string_translate/(?P<string_id>[\d]+)/(?P<target_code>[\w]+)/$", term_views.string_translate, name="string_translate"),
-    url(r"^strings/(?P<sources>[\w-]*)/(?P<state>[\w-]*)/(?P<targets>[\w-]*)/$", term_views.list_strings, name="list_strings"),
-    url(r"^strings/(?P<sources>[\w-]*)/(?P<state>[\w-]*)/$", term_views.list_strings, name="list_strings_notarget"),
     url(r"^proxies/$", views.proxies, name="proxies"),
-    url(r"^proxy/(?P<proxy_slug>[\w-]+)/translations/$", term_views.proxy_string_translations, name="proxy_string_translations"),
     url(r"^proxy/(?P<proxy_slug>[\w-]+)/$", views.proxy, name="proxy"),
     url(r"^import_xliff/(?P<proxy_slug>[\w-]+)/$", views.import_xliff, name="import_xliff"),
-    url(r"^add_translated_string/$", term_views.add_translated_string, name="add_translated_string"),
     url(r"^add_update_translation/$", views.add_update_translation, name="add_update_translation"),
-    url(r"^delete_translated_string/$", term_views.delete_translated_string, name="delete_translated_string"),
-    url(r"^strings_translations/(?P<proxy_slug>[\w-]+)/$", term_views.strings_translations, name="strings_translations"),
-    url(r"^strings_translations/$", term_views.strings_translations, name="strings_translations"),
     url(r"^list_segments/(?P<segment_id>[\d]+)/$", views.list_segments_by_id, name="list_segments_by_id"),
     url(r"^list_segments/(?P<proxy_slug>[\w-]+)/$", views.list_segments_by_proxy, name="list_segments_by_proxy"),
     url(r"^list_segments/$", views.list_segments, name="list_segments"),
@@ -108,10 +98,7 @@ if settings.USE_SCRAPY:
         url(r"^scan/(?P<scan_id>[\d]+)/segments/$", views.scan_segments, name="scan_segments"),
         url(r"^crawler_progress/(?P<scan_id>[\d]+)/(?P<i_line>[\d]+)/$", views.crawler_progress, name="crawler_progress"),
         url(r"^stop_crawler/(?P<scan_id>[\d]+)/$", views.stop_crawler, name="stop_crawler"),
-        # url(r"^view_file/(?P<task_id>[\d]+)/(?P<site_slug>[\w-]+)/(?P<file_name>[\w\.-]+)/(?P<i_line>[\d]+)/$", views.view_file, name="view_file"),
         url(r"^scan_download/(?P<scan_id>[\d]+)/$", views.scan_download, name="scan_download"),
-        # url(r"^view_discovery/(?P<scan_id>[\d]+)/$", views.view_discovery, name="view_discovery"),
-        # url(r"^discovery_settings/$", views.discovery_settings, name="discoveyr_settings"),
     )   
 if settings.USE_NLTK:
     urlpatterns += (

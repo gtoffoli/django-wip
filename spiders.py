@@ -112,7 +112,6 @@ class WipDiscoverSpider(CrawlSpider):
         return spider
 
     def spider_opened(self):
-        # self.exporter = JsonLinesItemExporter(sys.stdout)
         pass
         # print ('--- spider_opened for scan %d, %s ---' % (self.scan_id, self.name))
 

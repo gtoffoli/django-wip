@@ -179,6 +179,7 @@ class WipHttpProxy(HttpProxy):
             if self.rewrite:
                 self.rewrite_response(request)
                 self.replace_links()
+                self.fix_page()
             response.content = self.content.encode('utf-8')
 
         if self.proxy:
@@ -196,6 +197,20 @@ class WipHttpProxy(HttpProxy):
             response['Link'] = link
 
         return response
+
+    def fix_page(self):
+        """
+        <script>
+        function fix_tabs() {
+            // jQuery(".et_pb_gallery").remove();
+            jQuery("ul.et_pb_tabs_controls").css({'min-height': '3.0em'});
+            jQuery("ul.et_pb_tabs_controls").children().css({'height': '2.5em'});
+        }
+        jQuery(document).ready(fix_tabs);
+        </script>
+        """
+        if self.site.extra_body:
+            self.content = self.content.replace('</body>', '\n%s\n</body>' % self.site.extra_body)
 
     def transform_response(self, request, response):
         """ see process_response method of DjangoDiazoMiddleware in module django_diazo.middleware
@@ -294,6 +309,14 @@ class WipHttpProxy(HttpProxy):
             """
             ex: replace http://www.scuolemegranti.org/rete/ with /sm/en/rete/
             """
+            """ (for <script> json code ..)
+            print ('--- replace_links')
+            print ('{0} -> {1}'.format(self.base_url, self.prefix))
+            base_url = self.base_url.replace('/', '\\/')
+            prefix = self.prefix.replace('/', '\\/')
+            print ('{0} -> {1}'.format(base_url, prefix))
+            self.content = self.content.replace(base_url, prefix)
+            """
 
     def rewrite_response(self, request):
         """
@@ -302,10 +325,22 @@ class WipHttpProxy(HttpProxy):
             The rewrite logic uses a fairly simple regular expression to look for
             "src", "href" and "action" attributes with a value starting with "/"
             – your results may vary.
-        """
         proxy_root = self.original_request_path.rsplit(request.path, 1)[0] # example: /link/en
         self.content = REWRITE_REGEX.sub(r'\1{}/'.format(proxy_root), self.content)
+        response.content = REWRITE_REGEX.sub(r'\1{}/'.format(proxy_root), response.content)
+        return response
+        """
+        if self.online:
+            if self.proxy and self.site.url.count(self.proxy.host): # example: https://www.linkroma.it and https://www.linkroma.it/en
+                proxy_root = self.proxy.language_id
+                self.content = REWRITE_REGEX.sub(r'\1{}/'.format(proxy_root), self.content)
+            else:  # example: http://www.scuolemigranti.org and en.scuolemigranti.eu
+                pass
+        else: # example: /link/en
+            proxy_root = self.original_request_path.rsplit(request.path, 1)[0] # example: /link/en
+            self.content = REWRITE_REGEX.sub(r'\1{}/'.format(proxy_root), self.content)
         self.log.info('proxy_root: %s', proxy_root)
+ 
         # next coded added by GT: possibly add a link to the WIP site
         site_url = self.base_url
         extra = ''
