@@ -332,7 +332,7 @@ class WipHttpProxy(HttpProxy):
         """
         if self.online:
             if self.proxy and self.site.url.count(self.proxy.host): # example: https://www.linkroma.it and https://www.linkroma.it/en
-                proxy_root = self.proxy.language_id
+                proxy_root = '/' + self.proxy.language_id
                 self.content = REWRITE_REGEX.sub(r'\1{}/'.format(proxy_root), self.content)
             else:  # example: http://www.scuolemigranti.org and en.scuolemigranti.eu
                 pass
