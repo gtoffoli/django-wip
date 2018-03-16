@@ -1416,20 +1416,15 @@ class Webpage(models.Model):
                     if xpath and not el_xpath==xpath:
                         continue
                     checksum = element_signature(el)
-                    """
-                    string = etree.tostring(el)
-                    matching_blocks = Block.objects.filter(site=site, checksum=checksum).order_by('-time')
-                    """
                     # match based on checksum is only a 1st approximation
                     string = element_tostring(el)         
-                    # 180125: skip blocks containing no segments!
+                    # skip blocks containing no segments!
                     segments = get_segments(string, site, segmenter, exclude_tx=False)
                     if not segments:
                         continue
                     blocks = Block.objects.filter(site=site, checksum=checksum).order_by('-time')
                     matching_blocks = []
                     for b in blocks:
-                        # if b.body == string:
                         string = string.strip()
                         if b.body.strip() == string:
                             matching_blocks.append(b)
@@ -1449,24 +1444,14 @@ class Webpage(models.Model):
                         this_block_in_page = BlockInPage.objects.filter(block=block, xpath=el_xpath, webpage=self).count()
                         if not this_block_in_page:
                             if matching_blocks:
-                                """
                                 # by default purge BIPs for this xpath if BIP with new block is being created
                                 # but DO NOT PURGE BOCKS: could be present in page in rotation
-                                """
-                                """
-                                purge_bips = True
-                                for multi_bips_xpath in multi_bips_xpaths:
-                                    if el_xpath.count(multi_bips_xpath):
-                                        purge_bips = False
-                                        break
-                                if purge_bips:
-                                """
-                                if not el_xpath in variable_xpaths:
-                                    blocks_in_page = BlockInPage.objects.filter(xpath=el_xpath, webpage=self)
-                                    blocks_in_page.delete()
-                            n_3 += 1 # number of new blocks in page
-                            block_in_page = BlockInPage(block=block, xpath=el_xpath, webpage=self)
-                            block_in_page.save()
+                                blocks_in_page = BlockInPage.objects.filter(xpath=el_xpath, webpage=self)
+                                blocks_in_page.delete()
+                            if not el_xpath in variable_xpaths: # added 180316
+                                block_in_page = BlockInPage(block=block, xpath=el_xpath, webpage=self)
+                                block_in_page.save()
+                                n_3 += 1 # number of new blocks in page
                     if xpath and el_xpath==xpath:
                         done = True
                         break
