@@ -1550,7 +1550,7 @@ class PageVersion(models.Model):
     class Meta:
         verbose_name = _('page version')
         verbose_name_plural = _('page versions')
-        ordering = ('webpage__site', 'webpage__path', '-time')
+        # ordering = ('webpage__site', 'webpage__path', '-time')
 
     def get_region(self):
         sd = SDAlgorithm()

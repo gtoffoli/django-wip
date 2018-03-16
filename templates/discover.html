@@ -5,12 +5,12 @@
 
 {% block extra_head %}
 <script>
-var i_line = {{ i_line }};
+var i_line = 0;
 window.getData=function()
 {
     $.ajax({
         /* The whisperingforest.org URL is not longer valid, I found a new one that is similar... */
-        url:'/crawler_progress/{{ scan_id }}/'+ i_line.toString() + '/',
+        url:'/scan_progress/{{ scan_id }}/'+ i_line.toString() + '/',
         async: true,
         dataType: 'json',
         success:function(data){
@@ -66,7 +66,6 @@ window.stopCrawler=function()
 
 <div class="crawlerSettings">
 <h4>{% trans "Crawler settings"|capfirst %}</h4>
-
 
 <form action="/discover/{% if site %}{{ site.slug }}/{% endif %}" method="post">
 	{% csrf_token %}

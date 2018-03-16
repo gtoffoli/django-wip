@@ -5,12 +5,12 @@
 
 {% block extra_head %}
 <script>
-var i_line = {{ i_line }};
+var i_line = 0;
 window.getData=function()
 {
     $.ajax({
         /* The whisperingforest.org URL is not longer valid, I found a new one that is similar... */
-        url:'/crawler_progress/{{ scan_id }}/'+ i_line.toString() + '/',
+        url:'/scan_progress/{{ scan.id }}/'+ i_line.toString() + '/',
         async: true,
         dataType: 'json',
         success:function(data){
@@ -25,13 +25,11 @@ window.getData=function()
             	i_line++;
         	}
         	if (n_lines==0 || line.size>0)
-        		// getData();
         		setTimeout(getData, 1000);
         	if (i_line>0 && line.size==0) {
         		$('.stopButton').hide();
-        		// $('.getResultsButton').show();
         		$('.downloadButton').show();
-        		$('.crawlerSettings').show();
+        		// $('.crawlerSettings').show();
        		}
        	}
     });
@@ -40,13 +38,13 @@ window.getData=function()
 window.stopCrawler=function()
 {
     $.ajax({
-        url:'/stop_crawler/{{ scan_id }}/',
+        url:'/stop_crawler/{{ scan.id }}/',
         async: true,
         dataType: 'json',
         success:function(data){
         	if (data.status == 'ok') {
         		$('.stopMessage').show();
-        		$('.crawlerSettings').show();
+        		// $('.crawlerSettings').show();
         	}
         }
     });
@@ -62,6 +60,8 @@ window.stopCrawler=function()
 
 <ul class="linkList"></ul>
 <div class="stopMessage">--- The crawling task has been stopped ---</div>
+
+<div class="downloadButton"><input type="button" class="btn btn-sm" value="Download results" onclick="document.location='/scan_download/{{ scan.id }}/'"></div>
 
 <div class="crawlerSettings">
 <h4>{% trans "Crawler settings"|capfirst %}</h4>
@@ -81,7 +81,7 @@ window.stopCrawler=function()
 $('.stopMessage').hide();
 $('.getResultsButton').hide();
 $('.downloadButton').hide();
-{% if scan_id %}
+{% if scan.id %}
 	$('.crawlerSettings').hide();
 	$(document).ready(getData());
 {% else %}

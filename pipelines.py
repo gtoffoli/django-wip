@@ -42,12 +42,16 @@ class WipDiscoverPipeline(object):
         """
         self.exporter.export_item(item)
         """
+        spider.page_count += 1
         scan_id = spider.scan_id
         scan = Scan.objects.get(pk=scan_id)
         site = scan.site
+        body = item['body'].decode()
+        for content in settings.PAGES_EXCLUDE_BY_CONTENT.get(site.slug, []):
+            if body.count(content):
+                return item
         link = Link(scan=scan, url=item['url'], status=item['status'], encoding=item['encoding'], size=item['size'], title=item['title'])
         link.save()
-        spider.page_count += 1
         if not (scan.count_words or scan.count_segments):
             return item
         body = item['body'].decode()
@@ -96,13 +100,20 @@ class WipCrawlPipeline(object):
         return cls()
 
     def process_item(self, item, spider):
-        site = Site.objects.get(pk=item['site_id'])
+        spider.page_count += 1
+        # site = Site.objects.get(pk=item['scan_id'])
+        scan = Scan.objects.get(pk=spider.scan_id)
+        site = scan.site
         body = item['body'].decode()
         encoding = item['encoding'].decode()
         for content in settings.PAGES_EXCLUDE_BY_CONTENT.get(site.slug, []):
             # if item['body'].count(content):
             if body.count(content):
                 return item
+        scan.page_count += 1
+        scan.save()
+        link = Link(scan=scan, url=item['url'], status=item['status'], encoding=item['encoding'], size=item['size'], title=item['title'])
+        link.save()
         path = urlparse.urlparse(item['url']).path
         pages = Webpage.objects.filter(site=site, path=path)
         if pages:
@@ -125,8 +136,9 @@ class WipCrawlPipeline(object):
             body = encoding.count('text/') and body or ''
             fetched = PageVersion(webpage=page, response_code=item['status'], size=item['size'], checksum=checksum, body=body)
             fetched.save()
+            if scan.extract_blocks:
+                pass
         return item
-        # raise DropItem()
 
 class L2MemberPipeline(object):
 

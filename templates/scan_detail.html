@@ -13,6 +13,7 @@ th, td { text-align: left; vertical-align: top; }
 {% block title-page %}{% trans "scan"|capfirst %} <a href="/discover/{{ scan.pk }}/">{{ scan.get_label }}</a>{% endblock %}
 
 {% block content-page %}
+<div>Scan type: <strong>{% if scan.scan_type == 0 %}Discover{% else %}Crawling{% endif %}</strong></div>
 
 <div><label>name</label> {{ scan.name }}, <label>max_pages</label> {{ scan.max_pages }}</div>
 <div><label>id</label> {{ scan.pk }}, <label>task</label> {{ scan.task_id }}</div>

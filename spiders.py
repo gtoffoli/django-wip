@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 
-# import os
 import scrapy
 from scrapy import signals
 from scrapy.spiders import CrawlSpider, Rule
@@ -9,6 +8,7 @@ from scrapy.utils.log import configure_logging
 from scrapy.exceptions import CloseSpider
 
 from .models import Scan, Link, WordCount, SegmentCount
+from .utils import text_to_list
 
 # from http://stackoverflow.com/questions/11528739/running-scrapy-spiders-in-a-celery-task
 # from multiprocessing import Process
@@ -17,13 +17,16 @@ from billiard.process import Process
 from scrapy.crawler import CrawlerProcess
 
 class WipCrawlItem(scrapy.Item):
-    site_id = scrapy.Field()
+    # site_id = scrapy.Field()
     url = scrapy.Field()
     status = scrapy.Field()
     encoding = scrapy.Field()
     size = scrapy.Field()
     body = scrapy.Field()
     title = scrapy.Field()
+
+    def __repr__(self):
+        return repr({'url': self['url']})
 
 class WipCrawlSpider(CrawlSpider):
     custom_settings = {'ITEM_PIPELINES': {'wip.pipelines.WipCrawlPipeline': 300}}
@@ -38,16 +41,20 @@ class WipCrawlSpider(CrawlSpider):
 
     def spider_opened(self):
         pass
-        # print ('--- spider_opened ---')
+        print ('--- spider_opened for scan %d, %s ---' % (self.scan_id, self.name))
 
     def spider_closed(self):
-        pass
-        # print ('--- spider_closed ---')
+        print ('--- spider_closed ---')
+        scan = Scan.objects.get(pk=self.scan_id)
+        scan.terminated = True
+        scan.page_count = Link.objects.filter(scan=scan).count()
+        scan.save()
 
     def parse_item(self, response):
-        # print (response.headers)
+        if self.page_count >= self.max_pages:
+            raise CloseSpider(reason='max page count exceeded')
         item = WipCrawlItem()
-        item['site_id'] = self.site_id
+        # item['site_id'] = self.site_id
         item['url'] = response.url
         item['status'] = response.status
         try:
@@ -58,6 +65,7 @@ class WipCrawlSpider(CrawlSpider):
         item['size'] = len(response.body)
         try:
             title = response.xpath('/html/head/title/text()').extract()
+            title = title[0]
         except:
             title = ''
         item['title'] = title
@@ -72,23 +80,18 @@ class WipSiteCrawlerScript():
     def __init__(self):
         self.crawler = CrawlerProcess()
 
-    def _crawl(self, site_id, site_slug, site_name, allowed_domains, start_urls, deny):
-        rules = [Rule(LinkExtractor(deny=deny), callback='parse_item', follow=True),]
-        spider_class = type(str(site_slug),
+    def _crawl(self, scan_id):
+        scan = Scan.objects.get(pk=scan_id)
+        rules = [Rule(LinkExtractor(allow=text_to_list(scan.allow), deny=text_to_list(scan.deny)), callback='parse_item', follow=True),]
+        spider_class = type(str(scan.name),
                             (WipCrawlSpider,),
-                            {'site_id': site_id, 'name':site_name, 'allowed_domains':allowed_domains, 'start_urls':start_urls, 'rules': rules,})
+                            {'scan_id': scan_id, 'name': scan.name, 'max_pages': scan.max_pages, 'page_count': 0, 'allowed_domains': text_to_list(scan.allowed_domains), 'start_urls': text_to_list(scan.start_urls), 'rules': rules,})
         spider = spider_class()
         self.crawler.crawl(spider)
-        # scrapy.log.start()
-        configure_logging({
-                'LOG_ENABLEED' : True,
-                'LOG_LEVEL' : 'ERROR',
-                'LOG_STDOUT' : True})
         self.crawler.start()
-        # self.crawler.stop()
 
-    def crawl(self, site_id, site_slug, site_name, allowed_domains, start_urls, deny):
-        p = Process(target=self._crawl, args=[site_id, site_slug, site_name, allowed_domains, start_urls, deny])
+    def crawl(self, scan_id):
+        p = Process(target=self._crawl, args=[scan_id])
         p.start()
         p.join()
 
@@ -99,6 +102,9 @@ class WipDiscoverItem(scrapy.Item):
     size = scrapy.Field()
     body = scrapy.Field()
     title = scrapy.Field()
+
+    def __repr__(self):
+        return repr({'url': self['url']})
 
 class WipDiscoverSpider(CrawlSpider):
     custom_settings = {'ITEM_PIPELINES': {'wip.pipelines.WipDiscoverPipeline': 300}}
@@ -113,10 +119,10 @@ class WipDiscoverSpider(CrawlSpider):
 
     def spider_opened(self):
         pass
-        # print ('--- spider_opened for scan %d, %s ---' % (self.scan_id, self.name))
+        print ('--- spider_opened for scan %d, %s ---' % (self.scan_id, self.name))
 
     def spider_closed(self):
-        # print ('--- spider_closed ---')
+        print ('--- spider_closed ---')
         scan = Scan.objects.get(pk=self.scan_id)
         scan.terminated = True
         scan.page_count = Link.objects.filter(scan=scan).count()
@@ -146,12 +152,6 @@ class WipDiscoverSpider(CrawlSpider):
         item['title'] = title
         return item
 
-def text_to_list(text):
-    if not text: return []
-    l = text.splitlines()
-    l = [item.strip() for item in l]
-    return [item for item in l if len(item)]
-
 class WipDiscoverScript(object):
 
     def __init__(self):
@@ -162,9 +162,8 @@ class WipDiscoverScript(object):
         rules = [Rule(LinkExtractor(allow=text_to_list(scan.allow), deny=text_to_list(scan.deny)), callback='parse_item', follow=True),]
         spider_class = type(str(scan.name),
                             (WipDiscoverSpider,),
-                            {'name':scan.get_label(), 'scan_id':scan_id, 'max_pages':scan.max_pages, 'page_count':0, 'allowed_domains':text_to_list(scan.allowed_domains), 'start_urls':text_to_list(scan.start_urls), 'rules': rules,})
+                            {'name': scan.get_label(), 'scan_id': scan_id, 'max_pages': scan.max_pages, 'page_count': 0, 'allowed_domains': text_to_list(scan.allowed_domains), 'start_urls': text_to_list(scan.start_urls), 'rules': rules,})
         spider = spider_class()
-        # print ('--- start scan %s ---' % scan.get_label())
         self.crawler.crawl(spider)
         self.crawler.start()
         # print ('--- end scan ---')

@@ -299,10 +299,11 @@ def site(request, site_slug):
                 clear_pages = data['clear_pages']
                 if clear_pages:
                     Webpage.objects.filter(site=site).delete()
-                # task_id = crawl_site.delay(site.id)
+                """
                 run_worker_process()
                 task_id = crawl_site_task.delay(site.id)
-                # print ('site_crawl : ', site.name, 'task id: ', task_id)
+                """
+                return HttpResponseRedirect('/crawl/%s/' % site.slug)
             elif purge_blocks:
                 site.purge_bips(verbose=False)
             elif extract_blocks:
@@ -2157,20 +2158,21 @@ def scan_delete(request, scan_id):
     scan.delete()
     return HttpResponseRedirect('/user_scans/%s/' % user.username)    
     
-def crawler_progress(request, scan_id, i_line):
-    i_line = int(i_line)
+def scan_progress(request, scan_id, i_line):
     scan = Scan.objects.get(pk=scan_id)
+    i_line = int(i_line)
     links = Link.objects.filter(scan=scan).order_by('created')[i_line:]
     lines = []
     for link in links:
-        if i_line >= scan.max_pages:
-            scan.terminated = True
-            scan.save()
-            break
         i_line += 1
         line = {"url": link.url, "status": link.status, "title": link.title, "encoding": link.encoding, "size": link.size}
         lines.append(line)
+    print ('scan_progress', i_line, scan.terminated)
     if scan.terminated:
+        if scan.scan_type == CRAWL:
+            site = scan.site
+            site.last_crawled = timezone.now()
+            site.save()
         lines.append({"size": 0})
     return JsonResponse({'lines': lines,})
 
@@ -2241,6 +2243,7 @@ def discover_task(scan_id):
     crawler_script = WipDiscoverScript()
     return crawler_script.crawl(scan_id)
 
+"""
 def discover(request, site=None, scan_id=None):
     user = request.user    # assert user.is_authenticated()
     assert user.is_authenticated()
@@ -2284,6 +2287,7 @@ def discover(request, site=None, scan_id=None):
             data_dict['i_line'] = 0
     data_dict['form'] = form
     return render(request, 'discover.html', data_dict)
+"""
 
 class Discover(View):
     form_class = DiscoverForm
@@ -2345,7 +2349,6 @@ class Discover(View):
             data_dict['scan_id'] = scan.pk
             data_dict['scan_label'] = scan.get_label()
             data_dict['foreground'] = (scan_mode == FOREGROUND)
-            data_dict['i_line'] = 0
         else:
             print(self.form.errors)
         return render(request, self.template_name, data_dict)
@@ -2355,6 +2358,7 @@ class Crawl(View):
     form_class = CrawlForm
     initial = {}
     template_name = 'crawl.html'
+    scan_id = None
 
     def get(self, request, *args, **kwargs):
         user = request.user
@@ -2363,12 +2367,11 @@ class Crawl(View):
         data_dict = {}
         site_slug = self.kwargs['site_slug']
         data_dict['site'] = site = get_object_or_404(Site, slug=site_slug)
-        self.initial['max_pages'] = 100
-        self.initial['allowed_domains'] = site.allowed_domains
-        self.initial['start_urls'] = site.url
-        self.initial['deny'] = site.deny
-        self.initial['scan_mode'] = FOREGROUND
-        self.initial['extract_blocks'] = False
+        scan_mode = FOREGROUND
+        max_pages = 100
+        start_urls = site.start_urls or site.url
+        extract_blocks = True
+        self.initial = {'scan_mode': scan_mode, 'allowed_domains': site.allowed_domains, 'start_urls': start_urls, 'deny': site.deny, 'max_pages': max_pages, 'extract_blocks': extract_blocks}
         data_dict['form'] = self.form_class(initial=self.initial)
         return render(request, self.template_name, data_dict)
 
@@ -2382,19 +2385,26 @@ class Crawl(View):
         data_dict['form'] = self.form = self.form_class(request.POST)
         if self.form.is_valid():
             data = self.form.cleaned_data
-            scan_mode = data['scan_mode']
+            scan_mode = int(data['scan_mode'])
             allowed_domains = data['allowed_domains']
             start_urls = data['start_urls']
             allow = data['allow']
             deny = data['deny']
             max_pages = data['max_pages']
             extract_blocks = data['extract_blocks']
+            run_worker_process()
             scan = Scan(name=site.name, site=site, scan_type=CRAWL, scan_mode=scan_mode, extract_blocks=extract_blocks, allowed_domains=allowed_domains, start_urls=start_urls, allow=allow, deny=deny, max_pages=max_pages, task_id=0, user=user)
             scan.save()
+            async_result = crawl_task.delay(scan.pk)
+            scan.task_id = async_result.task_id
+            scan.save()
+            data_dict['scan'] = scan
+            data_dict['foreground'] = (scan_mode == FOREGROUND)
         else:
             print(self.form.errors)
         return render(request, self.template_name, data_dict)
 
+"""
 def site_crawl(site_pk):
     crawler_script = WipSiteCrawlerScript()
     site = Site.objects.get(pk=site_pk)
@@ -2424,9 +2434,9 @@ def site_crawl_by_slug(request, site_slug):
         process.stop()
     else:
         # print ('site_crawl_by_slug : ', site_slug)
-        """
+        ""
         crawl_site.apply_async(args=(site.id,))
-        """
+        ""
         # task_id = crawl_site.delay(site.id)
         run_worker_process()
         task_id = crawl_site_task.delay(site.id)
@@ -2440,3 +2450,9 @@ def crawl_site_task(site_pk):
     logger = get_task_logger(__name__)
     logger.info('Crawling site {0}'.format(site_pk))
     return site_crawl(site_pk)
+"""
+
+@app.task()
+def crawl_task(scan_id):
+    crawler_script = WipSiteCrawlerScript()
+    return crawler_script.crawl(scan_id)

@@ -88,7 +88,7 @@ import wip.terms.urls
 
 if settings.USE_SCRAPY:
     urlpatterns += (
-        url(r"^site/(?P<site_slug>[\w-]+)/crawl/$", views.site_crawl_by_slug, name="site_crawl"),
+        # url(r"^site/(?P<site_slug>[\w-]+)/crawl/$", views.site_crawl_by_slug, name="site_crawl"),
         url(r"^my_scans/$", views.my_scans, name="my_scans"),
         url(r"^user_scans(?:/(?P<username>[\w\.-]+))?/$", views.user_scans, name="user_scans"),
         url(r"^scan/(?P<scan_id>[\d]+)/delete/$", views.scan_delete, name="scan_delete"),
@@ -96,7 +96,7 @@ if settings.USE_SCRAPY:
         url(r"^scan/(?P<scan_id>[\d]+)/pages/$", views.scan_pages, name="scan_pages"),
         url(r"^scan/(?P<scan_id>[\d]+)/words/$", views.scan_words, name="scan_words"),
         url(r"^scan/(?P<scan_id>[\d]+)/segments/$", views.scan_segments, name="scan_segments"),
-        url(r"^crawler_progress/(?P<scan_id>[\d]+)/(?P<i_line>[\d]+)/$", views.crawler_progress, name="crawler_progress"),
+        url(r"^scan_progress/(?P<scan_id>[\d]+)/(?P<i_line>[\d]+)/$", views.scan_progress, name="scan_progress"),
         url(r"^stop_crawler/(?P<scan_id>[\d]+)/$", views.stop_crawler, name="stop_crawler"),
         url(r"^scan_download/(?P<scan_id>[\d]+)/$", views.scan_download, name="scan_download"),
     )   
