@@ -269,7 +269,7 @@ class WipHttpProxy(HttpProxy):
         if request.GET or request.POST:
             self.content, transformed = proxy.translate_page_content(self.content)
         else:
-            if True: # not proxy.enable_live_translation:
+            if not proxy.enable_live_translation:
                 webpages = Webpage.objects.filter(site=site, path=path).order_by('-created')
                 if webpages:
                     webpage = webpages[0]

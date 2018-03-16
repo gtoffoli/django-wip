@@ -827,9 +827,8 @@ class Proxy(models.Model):
         return n_ready, n_translated, n_partially
 
     def translate_page_content(self, content):
-        # html_string = normalize_string(content)
         html_string = strip_html_comments(content)
-        html_string = normalize_string(html_string)
+        # html_string = normalize_string(html_string)
         content_document = html.document_fromstring(html_string)
         translated_document, has_translation = translated_element(content_document, self.site, webpage=None, language=self.language, translate_live=self.enable_live_translation)
         # translated_document, has_translation = '', False
@@ -2036,7 +2035,6 @@ class Block(node_factory('BlockEdge')):
                 return 0
         translated_block = translations[0]
 
-    # def translated_element(element, site, webpage, language, xpath='/html'):
     def translated_block_element(self, language, element=None, webpage=None, xpath=None):
         site = self.site
         translation_date = None
@@ -2136,47 +2134,36 @@ class BlockEdge(edge_factory('Block', concrete = False)):
         verbose_name_plural = _('block edges')
 
 # inspired by the algorithm of utils.elements_from_element
-# def translated_element(element, site, webpage, language, xpath='/html'):
+# takes into account possible rotation of content in the same page position (no block_in_page)
+# need to filter also on block freshness?
 def translated_element(element, site, webpage=None, language=None, xpath='/html', translate_live=False):
     logger.info('translated_element: %s', xpath)
     checksum = element_signature(element)
     has_translation = False
     block = None
-    # take into account possible rotation of content in the same page position
     blocks_in_page = webpage and BlockInPage.objects.filter(webpage=webpage, xpath=xpath, block__checksum=checksum).order_by('-time') or []
-    """
-    if not blocks_in_page:
-        blocks_in_page = webpage and BlockInPage.objects.filter(webpage=webpage, xpath=xpath).order_by('-time') or []
-    """
     if blocks_in_page:
         block = blocks_in_page[0].block
-    """
-    elif not webpage and translate_live:
-        blocks = Block.objects.filter(site=site, checksum=checksum).order_by('-time')
-        block = blocks and blocks[0] or None
-        # if block: print ('checksum: ', checksum, 'block: ', block)
-    """
     if not block and translate_live:
         body = element_tostring(element)
         is_menu = body.count('menu-item')
         blocks = Block.objects.filter(site=site, checksum=checksum).order_by('-last_seen')
-        for b in blocks:
-            # if SequenceMatcher(None, b.body, body).ratio() > 0.80: # need to filter also on block freshness ?
-            # if Levenshtein.ratio(b.body, body) > 0.85: # need to filter also on block freshness ?
-            if b.body == body: # need to filter also on block freshness ?
-                block = b
-                break
-            if is_menu and Levenshtein.ratio(b.body, body) > 0.85:
-                block = b
-                break
+        if blocks.count() and blocks[0].body.strip() == body.strip():
+            block = blocks[0]
+        elif blocks.count():
+            # blocks_similarities = [[b, SequenceMatcher(None, b.body, body).ratio()] for b in blocks]
+            blocks_similarities = [[b, Levenshtein.ratio(b.body.strip(), body.strip())] for b in blocks]
+            blocks_similarities.sort(key=lambda x: (x[1], x[0].last_seen), reverse=True)
+            similarity = blocks_similarities[0][1]
+            if similarity > 0.95 or (is_menu and similarity > 0.90):
+                block = blocks_similarities[0][0]
     if block:
         if block.no_translate:
             return element, True
         translated_blocks = TranslatedBlock.objects.filter(block=block, language=language, state__gt=0).order_by('-modified')
         if translated_blocks:
             element = html.fromstring(translated_blocks[0].body)
-            # return the complete translation of the block
-            return element, True
+            return element, True # return the complete translation of the block
 
     child_tags_dict_1 = {}
     child_tags_dict_2 = {}
