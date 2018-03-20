@@ -8,7 +8,7 @@ from django.utils.translation import ugettext_lazy as _, string_concat
 from django.contrib.auth.models import User
 from .models import Site, Segment
 from .models import UserRole
-from .models import SEGMENT_SORT_CHOICES, TRANSLATION_STATE_CHOICES, TRANSLATION_SERVICE_CHOICES, SCAN_MODE_CHOICES
+from .models import SEGMENT_SORT_CHOICES, TRANSLATION_STATE_CHOICES, BLOCK_TRANSLATION_STATE_CHOICES, TRANSLATION_SERVICE_CHOICES, SOURCE_CACHE_TYPE_CHOICES, SCAN_MODE_CHOICES
 from .models import ROLE_TYPE_CHOICES
 from .vocabularies import Language, Subject
 
@@ -75,7 +75,7 @@ class BlockSequencerForm(forms.Form):
     project_site = forms.ModelChoiceField(required=False, label="Project", queryset=Site.objects.all(), widget=forms.Select(attrs={'style':'height: 24px;', 'onchange': 'javascript: this.form.submit()',}))
     webpage = forms.IntegerField(required=False, widget=forms.TextInput(attrs={'size': 8, 'style': 'width: 50px;', 'onchange': 'javascript: this.form.submit()',}))
     # block_age = forms.CharField(required=False, label="Block age range", widget=forms.TextInput(attrs={'size': 8, 'style': 'width: 50px;', 'onchange': 'javascript: this.form.submit()',}))
-    translation_state = forms.ChoiceField(required=False, choices=TRANSLATION_STATE_CHOICES, label="Translation state", widget=forms.Select(attrs={ 'style': 'width: auto; height: 2em;', 'onchange': 'javascript: this.form.submit()',}))
+    translation_state = forms.ChoiceField(required=False, choices=BLOCK_TRANSLATION_STATE_CHOICES, label="Translation state", widget=forms.Select(attrs={ 'style': 'width: auto; height: 2em;', 'onchange': 'javascript: this.form.submit()',}))
     translation_languages = forms.ModelMultipleChoiceField(required=False, queryset=Language.objects.all(), label="Tr. languages", widget=forms.SelectMultiple(attrs={ 'style': 'width: auto;', 'size': 3, 'onchange': 'javascript: this.form.submit()',}))
     # translation_age = forms.CharField(required=False, label="Translation age range", widget=forms.TextInput(attrs={'size': 8, 'style': 'width: 50px;', 'onchange': 'javascript: this.form.submit()',}))
     source_text_filter = forms.CharField(required=False, label="Text in block", widget=forms.TextInput(attrs={'style': 'width: 500px;', 'onchange': 'javascript: this.form.submit()',}))
@@ -146,6 +146,7 @@ class DiscoverForm(forms.Form):
     count_segments = forms.BooleanField(required=False, label='Extract segment count', widget=forms.CheckboxInput(attrs={'class':'form-control'}))
 
 class CrawlForm(forms.Form):
+    cache_type = forms.ChoiceField(required=False, choices=SOURCE_CACHE_TYPE_CHOICES, label="Cache type", widget=forms.Select(attrs={'class':'form-control'}))
     scan_mode = forms.ChoiceField(required=False, choices=SCAN_MODE_CHOICES, label="Scan mode", widget=forms.Select(attrs={'class':'form-control'}))
     extract_blocks = forms.BooleanField(required=False, label='Extract blocks', widget=forms.CheckboxInput(attrs={'class':'form-control'}))
     max_pages = forms.IntegerField(required=False, label="Max pages", widget=forms.TextInput(attrs={'class':'form-control'}))

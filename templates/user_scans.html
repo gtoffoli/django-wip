@@ -17,23 +17,15 @@ th, td { text-align: left; vertical-align: top; }
 {% if scans %}
 <form action="#" method="post" id="scans-form">{% csrf_token %}
 <table>
-<thead><th></th><th>id</th>{% comment %}<th>task id</th>{% endcomment %}<th>spider name</th>{% if not user %}<th>user</th>{% endif %}<th>type</th><th>start</th><th>stop</th><th>max pages</th><th># pages</th><th># segments</th><th># words</th><th># blocks</th></thead>
+<thead><th></th><th>id</th><th>spider name</th>{% if not user %}<th>user</th>{% endif %}<th>cache type</th><th>type</th><th>start</th><th>stop</th><th>max pages</th><th># pages</th><th># segments</th><th># words</th><th># blocks</th></thead>
 <tbody>
 {% for scan in scans %}
 	<tr>
         <td><input type="checkbox" name="selection" value="{{ scan.pk }}" /></td>
 		<td>{{ scan.pk }}</td>
-{% comment %}
-		<td>{{ scan.task_id }}</td>
-{% endcomment %}
 		<td><a href="/scan/{{ scan.pk }}" title="show details">{{ scan.get_label }}</a></td>
-{% if scan.scan_type == 0 %}
-{% else %}
-{% comment %}
-		<td>{{ scan.get_label }}</td>
-{% endcomment %}
-{% endif %}
 		{% if not user %}<td>{{ scan.user.username }}</td>{% endif %}
+		<td>{% if scan.scan_type == 1 %}{{ scan.get_cache_type }}{% endif %}</td>
 		<td>{{ scan.get_type }}</td>
 		<td>{{ scan.created }}</td>
 		<td>{{ scan.modified }}</td>

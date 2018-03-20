@@ -86,7 +86,7 @@ class WebpageAdmin(admin.ModelAdmin):
 
 class PageVersionAdmin(admin.ModelAdmin):
     list_filter = ['webpage__site__name',]
-    list_display = ['id', 'site', 'webpage_link', 'time', 'response_code', 'size', 'checksum',]
+    list_display = ['id', 'site', 'scan_link', 'webpage_link', 'time', 'response_code', 'size', 'checksum',]
     list_display_links = ('id',)
     search_fields = ['webpage__id', 'webpage__path', 'body',]
 
@@ -101,6 +101,17 @@ class PageVersionAdmin(admin.ModelAdmin):
         return link
     webpage_link.short_description = 'webpage'
     webpage_link.allow_tags = True
+
+    def scan_link(self, obj):
+        scan = obj.scan
+        link = ''
+        if scan:
+            label = '%s' % scan.id
+            url = '/admin/wip/scan/%d/' % scan.id
+            link = '<a href="%s">%s</a>' % (url, label)
+        return link
+    scan_link.short_description = 'scan'
+    scan_link.allow_tags = True
 
 class TranslatedVersionAdmin(admin.ModelAdmin):
     pass
@@ -118,7 +129,7 @@ class BlockForm(forms.ModelForm):
 
 class BlockAdmin(admin.ModelAdmin):
     list_filter = ('site',)
-    list_display = ['id', 'site', 'block_link', 'translations_list', 'pages_count', 'time',] # , 'checksum'
+    list_display = ['id', 'site', 'block_link', 'translations_list', 'state', 'pages_count', 'time',] # , 'checksum'
     list_display_links = ('block_link',)
     # search_fields = ['site', 'path',]
     search_fields = ['body',]
@@ -163,6 +174,7 @@ class BlockAdmin(admin.ModelAdmin):
             links.append(link)
         return ' '.join(links)
     translations_list.short_description = 'Trans.'
+    translations_list.allow_tags = True
 
 class BlockEdgeAdmin(admin.ModelAdmin):
     list_display = ['id', 'parent_link', 'child_link']

@@ -107,7 +107,6 @@ class WipCrawlPipeline(object):
         body = item['body'].decode()
         encoding = item['encoding'].decode()
         for content in settings.PAGES_EXCLUDE_BY_CONTENT.get(site.slug, []):
-            # if item['body'].count(content):
             if body.count(content):
                 return item
         scan.page_count += 1
@@ -121,20 +120,17 @@ class WipCrawlPipeline(object):
         else:
             page = Webpage(site=site, path=path)
             page.path = path
-            # page.encoding = item['encoding']
             page.encoding = encoding
         page.last_checked = timezone.now()
         page.last_checked_response_code = item['status']
         page.save()
-        # checksum = site.page_checksum(item['body'])
         checksum = site.page_checksum(body)
         fetched_pages = PageVersion.objects.filter(webpage=page).order_by('-time')
         last = fetched_pages and fetched_pages[0] or None
-        # if not last:
         if not last or checksum!=last.checksum:
-            # body = item['encoding'].count('text/') and item['body'] or ''
             body = encoding.count('text/') and body or ''
-            fetched = PageVersion(webpage=page, response_code=item['status'], size=item['size'], checksum=checksum, body=body)
+            # fetched = PageVersion(webpage=page, response_code=item['status'], size=item['size'], checksum=checksum, body=body)
+            fetched = PageVersion(webpage=page, response_code=item['status'], size=item['size'], checksum=checksum, body=body, scan=scan)
             fetched.save()
             if scan.extract_blocks:
                 pass

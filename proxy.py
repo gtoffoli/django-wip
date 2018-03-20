@@ -276,7 +276,8 @@ class WipHttpProxy(HttpProxy):
                     if not webpage.no_translate:
                         self.content, transformed = webpage.get_translation(self.language_code)
             if not transformed and proxy.enable_live_translation:
-                self.content, transformed = proxy.translate_page_content(self.content)
+                # self.content, transformed = proxy.translate_page_content(self.content)
+                self.content, transformed = proxy.translate_page_content(self.content, online=self.online)
         # replace text or HTML fragment on the fly
         self.content = proxy.replace_fragments(self.content, path)
 

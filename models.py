@@ -85,6 +85,20 @@ TRANSLATION_SERVICE_CHOICES = (
 )
 TRANSLATION_SERVICE_DICT = dict(TRANSLATION_SERVICE_CHOICES)
 
+"""
+The vocabulary TRANSLATION_STATE_CHOICES is shared by TranslatedVersion, Block and TranslatedBlock
+but only a subset of the entries is valid for each model:
+- TranslatedVersion (target language cache) currently aren't used
+- Block currently are all in state 0 (NONE), but a small number in state 4 (INVARIANT);
+  state 5 (ALREADY) can be only a transient value computed based on target language
+- TranslatedBlock ususally are created in state 2 (TRANSLATED),
+  but automatic pre-translation creates some of them in state 1 (PARTIALLY).
+Besides that, it provides symbolic names for literal values used in function calls.
+Related notes:
+- Webpage - no_translate==True can be thought as state==INVARIANT
+- Segment - is_invariant==True can be thought as state==INVARIANT
+- Translation - info on translation state is conveyed by role and date
+"""
 TO_BE_TRANSLATED = -1
 ANY = NONE = 0
 PARTIALLY = 1
@@ -101,6 +115,15 @@ TRANSLATION_STATE_CHOICES = (
     (ALREADY,  _('in target language'),),
 )
 TRANSLATION_STATE_DICT = dict(TRANSLATION_STATE_CHOICES)
+
+BLOCK_TRANSLATION_STATE_CHOICES = (
+    (ANY, _('any'),),
+    (TO_BE_TRANSLATED, _('to be translated'),),
+    (PARTIALLY, _('partially translated'),),
+    (TRANSLATED,  _('translated'),),
+    (INVARIANT,  _('invariant'),),
+    (ALREADY,  _('in target language'),),
+)
 
 TEXT_ASC = 1
 ID_ASC = 2
@@ -569,6 +592,110 @@ class SiteTheme(models.Model):
     def __str__(self):
         return self.theme.name
 
+
+DISCOVER = 0
+CRAWL = 1
+REFETCH = 2
+SCAN_TYPE_CHOICES = (
+    (DISCOVER, _('discover'),),
+    (CRAWL, _('crawl'),),
+    (REFETCH,  _('re-fetch'),),
+)
+SCAN_TYPE_DICT = dict(SCAN_TYPE_CHOICES)
+
+BACKGROUND = 0
+FOREGROUND = 1
+SCAN_MODE_CHOICES = (
+    (BACKGROUND, _('in background, asynchronously'),),
+    (FOREGROUND, _('in foreground, page by page'),),
+)
+
+CACHE_FOR_TRANSLATION = 0
+CACHE_FOR_PUBLISHING = 1
+SOURCE_CACHE_TYPE_CHOICES = (
+    (CACHE_FOR_TRANSLATION, _('cache for translation'),),
+    (CACHE_FOR_PUBLISHING, _('cache for publishing'),),
+)
+SOURCE_CACHE_TYPE_DICT = dict(SOURCE_CACHE_TYPE_CHOICES)
+
+class Scan(models.Model):
+    name = models.CharField(max_length=20)
+    # site = models.ForeignKey(Site, null=True)
+    site = models.ForeignKey(Site, verbose_name='site/project', blank=True, null=True, help_text="leave undefined for discovery")
+    language = models.ForeignKey(Language, null=True)
+    start_urls = models.TextField()
+    allowed_domains = models.TextField()
+    allow = models.TextField()
+    deny = models.TextField()
+    max_pages = models.IntegerField()
+    count_words = models.BooleanField(default=False)
+    count_segments = models.BooleanField(default=False)
+    page_count = models.IntegerField(default=0)
+    word_count = models.IntegerField(default=0)
+    segment_count = models.IntegerField(default=0)
+    user = models.ForeignKey(User, null=True)
+    created = CreationDateTimeField()
+    modified = ModificationDateTimeField()
+    task_id = models.CharField(max_length=100)
+    terminated = models.BooleanField(default=False)
+
+    scan_type = models.IntegerField(choices=SCAN_TYPE_CHOICES, default=DISCOVER, verbose_name='scan type')
+    scan_mode = models.IntegerField(choices=SCAN_MODE_CHOICES, default=BACKGROUND, verbose_name='scan mode')
+    extract_blocks = models.BooleanField(default=False)
+    block_count = models.IntegerField(default=0, verbose_name='block count')
+
+    cache_type = models.IntegerField(choices=SOURCE_CACHE_TYPE_CHOICES, default=CACHE_FOR_TRANSLATION, verbose_name='cache type')
+
+    class Meta:
+        verbose_name = _('discovery scan')
+        verbose_name_plural = _('discovery scans')
+
+    def get_type(self):
+        return SCAN_TYPE_DICT.get(self.scan_type, DISCOVER) 
+
+    def get_cache_type(self):
+        return SOURCE_CACHE_TYPE_DICT.get(self.cache_type, CACHE_FOR_TRANSLATION) 
+
+    def get_label(self):
+        return '%s-%s' % (self.name, self.created.strftime("%y%m%d-%H%M"))
+
+    def get_links(self):
+        return Link.objects.filter(scan=self)
+
+    def block_count(self):
+        return 0
+
+class Link(models.Model):
+    scan = models.ForeignKey(Scan)
+    url = models.TextField()
+    status = models.IntegerField()
+    encoding = models.TextField()
+    size = models.IntegerField()
+    title = models.TextField()
+    created = CreationDateTimeField()
+
+    class Meta:
+        verbose_name = _('followed link')
+        verbose_name_plural = _('followed links')
+
+class SegmentCount(models.Model):
+    scan = models.ForeignKey(Scan)
+    segment = models.CharField(max_length=1000)
+    count = models.IntegerField()
+
+    class Meta:
+        verbose_name = _('segment count')
+        verbose_name_plural = _('segment counts')
+
+class WordCount(models.Model):
+    scan = models.ForeignKey(Scan)
+    word = models.CharField(max_length=100)
+    count = models.IntegerField()
+
+    class Meta:
+        verbose_name = _('word count')
+        verbose_name_plural = _('word counts')
+
 class Proxy(models.Model):
     name = models.CharField(max_length=100)
     slug = AutoSlugField(unique=True, populate_from='name', editable=True)
@@ -826,15 +953,17 @@ class Proxy(models.Model):
                 n_partially += 1
         return n_ready, n_translated, n_partially
 
-    def translate_page_content(self, content):
+    # def translate_page_content(self, content):
+    def translate_page_content(self, content, online=False):
         html_string = strip_html_comments(content)
         # html_string = normalize_string(html_string)
         content_document = html.document_fromstring(html_string)
-        translated_document, has_translation = translated_element(content_document, self.site, webpage=None, language=self.language, translate_live=self.enable_live_translation)
+        # translated_document, has_translation = translated_element(content_document, self.site, webpage=None, language=self.language, translate_live=self.enable_live_translation)
+        translated_document, translation_state = translated_element(content_document, self.site, webpage=None, language=self.language, translate_live=self.enable_live_translation, online=online)
         # translated_document, has_translation = '', False
-        if has_translation:
+        if translation_state in [PARTIALLY, TRANSLATED, REVISED]:
             content = element_tostring(translated_document)
-        return content, has_translation
+        return content, translation_state
 
     def propagate_up_block_updates(self):
         site = self.site
@@ -1531,6 +1660,8 @@ class PageVersion(models.Model):
     checksum = models.CharField(max_length=32, blank=True, null=True)
     body = models.TextField(blank=True, null=True)
 
+    scan = models.ForeignKey(Scan, blank=True, null=True)
+
     class Meta:
         verbose_name = _('page version')
         verbose_name_plural = _('page versions')
@@ -1670,13 +1801,12 @@ class Block(node_factory('BlockEdge')):
         return len(self.get_children())
 
     def get_navigation(self, site=None, webpage=None, translation_state='', translation_codes=[], source_text_filter='', order_by='id'):
-        """
+        site = site or self.site
         target_code = len(translation_codes)==1 and translation_codes[0] or None
+        # qs = filter_blocks(site=self.site, webpage=webpage, translation_state=translation_state, translation_codes=translation_codes, source_text_filter=source_text_filter)
         qs = Block.objects.filter(site=self.site)
         if webpage:
             qs = qs.filter(block_in_page__webpage=webpage).distinct()
-        elif site:
-            qs = qs.filter(block_in_page__webpage__site=site).distinct()
         if translation_state == INVARIANT: # block is language independent
             qs = qs.filter(no_translate=True)
         elif translation_state == ALREADY: # block is already in target language
@@ -1687,6 +1817,12 @@ class Block(node_factory('BlockEdge')):
                     qs = qs.filter(source_block__language_id=code)
             else:
                 qs = qs.filter(source_block__isnull=False) # at least 1
+        elif translation_state == PARTIALLY:
+            if translation_codes:
+                for code in translation_codes:
+                    qs = qs.filter(source_block__language_id=code, source_block__state=PARTIALLY)
+            else:
+                qs = qs.filter(source_block__state=PARTIALLY) # at least 1
         elif translation_state == TO_BE_TRANSLATED:
             if translation_codes:
                 qs = qs.annotate(nt = RawSQL("SELECT COUNT(*) FROM wip_translatedblock WHERE block_id = wip_block.id and language_id IN ('%s')" % "','".join(translation_codes), ())).filter(nt=0)
@@ -1697,9 +1833,6 @@ class Block(node_factory('BlockEdge')):
                 qs = qs.exclude(language_id=target_code)
         if source_text_filter:
             qs = qs.filter(body__icontains=source_text_filter)
-        """
-        site = site or self.site
-        qs = filter_blocks(site=self.site, webpage=webpage, translation_state=translation_state, translation_codes=translation_codes, source_text_filter=source_text_filter)
         if order_by == 'id':
             id = self.id
             qs_before = qs.filter(id__lt=id)
@@ -2121,10 +2254,11 @@ class BlockEdge(edge_factory('Block', concrete = False)):
 # inspired by the algorithm of utils.elements_from_element
 # takes into account possible rotation of content in the same page position (no block_in_page)
 # need to filter also on block freshness?
-def translated_element(element, site, webpage=None, language=None, xpath='/html', translate_live=False):
+# def translated_element(element, site, webpage=None, language=None, xpath='/html', translate_live=False):
+def translated_element(element, site, webpage=None, language=None, xpath='/html', translate_live=False, online=False):
     logger.info('translated_element: %s', xpath)
     checksum = element_signature(element)
-    has_translation = False
+    # has_translation = False
     block = None
     blocks_in_page = webpage and BlockInPage.objects.filter(webpage=webpage, xpath=xpath, block__checksum=checksum).order_by('-time') or []
     if blocks_in_page:
@@ -2144,22 +2278,33 @@ def translated_element(element, site, webpage=None, language=None, xpath='/html'
                 block = blocks_similarities[0][0]
     if block:
         if block.no_translate:
-            return element, True
-        translated_blocks = TranslatedBlock.objects.filter(block=block, language=language, state__gt=0).order_by('-modified')
+            # return element, True
+            return element, INVARIANT
+        # translated_blocks = TranslatedBlock.objects.filter(block=block, language=language, state__gt=0).order_by('-modified')
+        translated_blocks = TranslatedBlock.objects.filter(block=block, language=language, state__gt=0).order_by('-state', '-modified')
         if translated_blocks:
+            """
             element = html.fromstring(translated_blocks[0].body)
             return element, True # return the complete translation of the block
+            """
+            translated_block = translated_blocks[0]
+            element = html.fromstring(translated_block.body)
+            return element, translated_block.state
 
+    children = element.getchildren()
+    if not children:
+        return element, NONE
     child_tags_dict_1 = {}
     child_tags_dict_2 = {}
     # build a dict with the number of occurrences of each type of block tag
-    for child in element.getchildren():
+    for child in children:
         tag = child.tag
         if tag in BLOCK_TAGS:
             child_tags_dict_1[tag] = child_tags_dict_1.setdefault(tag, 0)+1
     # for each child element with a block tag, compute the incremental xpath (branch)
     # and replace it with its translation
-    for child in element.getchildren():
+    translation_state = ALREADY
+    for child in children:
         tag = child.tag
         if tag in BLOCK_TAGS:
             child_tags_dict_2[tag] = n = child_tags_dict_2.setdefault(tag, 0)+1
@@ -2168,12 +2313,16 @@ def translated_element(element, site, webpage=None, language=None, xpath='/html'
             # if child_tags_dict_1[tag] > 1:
             if n>1 and child_tags_dict_1[tag] > 1:
                 branch += '[%d]' % n
-            translated_child, child_has_translation = translated_element(child, site, webpage=webpage, language=language, xpath='%s/%s' % (xpath, branch), translate_live=translate_live)
-            if child_has_translation:
+            # translated_child, child_has_translation = translated_element(child, site, webpage=webpage, language=language, xpath='%s/%s' % (xpath, branch), translate_live=translate_live)
+            translated_child, child_translation_state = translated_element(child, site, webpage=webpage, language=language, xpath='%s/%s' % (xpath, branch), translate_live=translate_live, online=online)
+            if child_translation_state in [PARTIALLY, TRANSLATED, REVISED]:
                 element.replace(child, translated_child)
-                has_translation = True
+                # has_translation = True
+                translation_state = min(translation_state, child_translation_state)
+            else:
+                translation_state = min(translation_state, PARTIALLY)
     # return the original element with translated sub-elements replaced in it
-    return element, has_translation
+    return element, translation_state
 
 def get_segments(body, site, segmenter, fragment=True, exclude_tx=True, exclude_xpaths=False):
     if not segmenter:
@@ -2248,96 +2397,6 @@ def segments_from_string(string, site, segmenter, exclude_TM_invariants=True, in
         return filtered, boundaries
     else:
         return filtered
-
-DISCOVER = 0
-CRAWL = 1
-REFETCH = 2
-SCAN_TYPE_CHOICES = (
-    (DISCOVER, _('discover'),),
-    (CRAWL, _('crawl'),),
-    (REFETCH,  _('re-fetch'),),
-)
-SCAN_TYPE_DICT = dict(SCAN_TYPE_CHOICES)
-
-BACKGROUND = 0
-FOREGROUND = 1
-SCAN_MODE_CHOICES = (
-    (BACKGROUND, _('in background, asynchronously'),),
-    (FOREGROUND, _('in foreground, page by page'),),
-)
-
-class Scan(models.Model):
-    name = models.CharField(max_length=20)
-    # site = models.ForeignKey(Site, null=True)
-    site = models.ForeignKey(Site, verbose_name='site/project', blank=True, null=True, help_text="leave undefined for discovery")
-    language = models.ForeignKey(Language, null=True)
-    start_urls = models.TextField()
-    allowed_domains = models.TextField()
-    allow = models.TextField()
-    deny = models.TextField()
-    max_pages = models.IntegerField()
-    count_words = models.BooleanField(default=False)
-    count_segments = models.BooleanField(default=False)
-    page_count = models.IntegerField(default=0)
-    word_count = models.IntegerField(default=0)
-    segment_count = models.IntegerField(default=0)
-    user = models.ForeignKey(User, null=True)
-    created = CreationDateTimeField()
-    modified = ModificationDateTimeField()
-    task_id = models.CharField(max_length=100)
-    terminated = models.BooleanField(default=False)
-
-    scan_type = models.IntegerField(choices=SCAN_TYPE_CHOICES, default=DISCOVER, verbose_name='scan type')
-    scan_mode = models.IntegerField(choices=SCAN_MODE_CHOICES, default=BACKGROUND, verbose_name='scan mode')
-    extract_blocks = models.BooleanField(default=False)
-    block_count = models.IntegerField(default=0, verbose_name='block count')
-
-    class Meta:
-        verbose_name = _('discovery scan')
-        verbose_name_plural = _('discovery scans')
-
-    def get_type(self):
-        return SCAN_TYPE_DICT.get(self.scan_type, DISCOVER) 
-
-    def get_label(self):
-        return '%s-%s' % (self.name, self.created.strftime("%y%m%d-%H%M"))
-
-    def get_links(self):
-        return Link.objects.filter(scan=self)
-
-    def block_count(self):
-        return 0
-
-class Link(models.Model):
-    scan = models.ForeignKey(Scan)
-    url = models.TextField()
-    status = models.IntegerField()
-    encoding = models.TextField()
-    size = models.IntegerField()
-    title = models.TextField()
-    created = CreationDateTimeField()
-
-    class Meta:
-        verbose_name = _('followed link')
-        verbose_name_plural = _('followed links')
-
-class SegmentCount(models.Model):
-    scan = models.ForeignKey(Scan)
-    segment = models.CharField(max_length=1000)
-    count = models.IntegerField()
-
-    class Meta:
-        verbose_name = _('segment count')
-        verbose_name_plural = _('segment counts')
-
-class WordCount(models.Model):
-    scan = models.ForeignKey(Scan)
-    word = models.CharField(max_length=100)
-    count = models.IntegerField()
-
-    class Meta:
-        verbose_name = _('word count')
-        verbose_name_plural = _('word counts')
 
 def get_display_name(self):
     display_name = self.username
