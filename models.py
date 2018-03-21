@@ -725,6 +725,14 @@ class Proxy(models.Model):
     def get_filepath(self):
         return os.path.join(self.site.get_filepath(), self.language_id)
 
+    def get_url(self):
+        """ the URL at which the user should access the proxy site: to be replaced with an attribute """ 
+        site_url = self.site.url
+        if site_url.count(self.host):
+            return '%s/%s' % (site_url, self.language_id)
+        else:
+            return 'http://%s' % self.host
+
     def can_manage(self, user):
         return user.is_superuser
 

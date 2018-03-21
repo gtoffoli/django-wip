@@ -49,8 +49,7 @@ REWRITE_REGEX = re.compile(r'((?:src|action|href)=["\'])/(?!\/)')
 RESOURCES_REGEX = re.compile(r'(\.(css|js|png|jpg|gif|pdf|ppt|pptx|doc|docx|xls|xslx|odt|woff|ttf))', re.IGNORECASE)
 BODY_REGEX = re.compile(r'(\<body.*?\>)', re.IGNORECASE)
 
-# hreflang_template = '<link rel="alternate" hreflang="%s" href="%s" />'
-hreflang_template = '<%s>; rel="alternate"; hreflang="%s"'
+# hreflang_template = '<%s>; rel="alternate"; hreflang="%s"'
 
 info = {
   'en': """
@@ -175,40 +174,48 @@ class WipHttpProxy(HttpProxy):
             if self.proxy_id and self.language_code:
                 self.translate_response(request)
 
+
             # test on self.rewrite
             if self.rewrite:
                 self.rewrite_response(request)
                 self.replace_links()
                 self.fix_page()
-            response.content = self.content.encode('utf-8')
 
-        if self.proxy:
-            # add language-related headers
-            headers = []
-            # original_url = '%s/%s' % (self.site.url, self.path)
-            protocol = 'http://'
-            for proxy in Proxy.objects.filter(site=self.site):
-                if self.online and proxy.host:
-                    proxy_url = '%s%s/%s' % (protocol, proxy.host, self.path)
-                else:
-                    proxy_url = '%slocalhost:8000/%s/%s' % (protocol, proxy.base_path, self.path)
-                headers.append(hreflang_template % (proxy_url, proxy.language_id))
-            link = ', '.join(headers)
-            response['Link'] = link
+            if self.proxy:
+                self.add_language_links()
+
+            response.content = self.content.encode('utf-8')
 
         return response
 
+    def add_language_links(self):
+        CANONICAL_REGEX = re.compile(r'\<link\s+rel="canonical"\s+href=".+?"\s*?\/?\>', re.IGNORECASE)
+        links = []
+        canonical_url = '%s/%s' % (self.site.url, self.path)
+        canonical_link_match = CANONICAL_REGEX.search(self.content)
+        if canonical_link_match:
+            # pointer after canonical link
+            pointer = canonical_link_match.end()
+        else:
+            # build and append canonical link
+            canonical_link = '<link rel="canonical" href="%s">' % canonical_url
+            links.append(canonical_link)
+            HEAD_REGEX = re.compile(r'\<head\>', re.IGNORECASE)
+            head_match = HEAD_REGEX.search(self.content)
+            # pointer after <head> opening tag
+            pointer = head_match.end()
+        # append alternate link for canonical language
+        links.append('<link rel="alternate" hreflang="%s" href="%s" />' % (self.site.language_id, canonical_url))
+        for proxy in Proxy.objects.filter(site=self.site):
+            alternate_url = '%s/%s' % (proxy.get_url(), self.path)
+            # append alternate link for other language
+            links.append('<link rel="alternate" hreflang="%s" href="%s" />' % (proxy.language_id, alternate_url))
+        self.content = self.content[:pointer] + ''.join(links) + self.content[pointer:]
+        # replace the value of the language attribute in the <html> opening tag
+        LANG_REGEX = re.compile(r'(<html\s+lang=")((?:\w|-){2,5})(".*?\>)', re.IGNORECASE)
+        self.content = LANG_REGEX.sub(r'\1%s\3' % self.proxy.language_id, self.content)
+
     def fix_page(self):
-        """
-        <script>
-        function fix_tabs() {
-            // jQuery(".et_pb_gallery").remove();
-            jQuery("ul.et_pb_tabs_controls").css({'min-height': '3.0em'});
-            jQuery("ul.et_pb_tabs_controls").children().css({'height': '2.5em'});
-        }
-        jQuery(document).ready(fix_tabs);
-        </script>
-        """
         if self.site.extra_body:
             self.content = self.content.replace('</body>', '\n%s\n</body>' % self.site.extra_body)
 
@@ -307,14 +314,15 @@ class WipHttpProxy(HttpProxy):
             """
             ex: replace http://www.scuolemegranti.org/rete/ with /sm/en/rete/
             """
-            """ (for <script> json code ..)
-            print ('--- replace_links')
-            print ('{0} -> {1}'.format(self.base_url, self.prefix))
-            base_url = self.base_url.replace('/', '\\/')
-            prefix = self.prefix.replace('/', '\\/')
-            print ('{0} -> {1}'.format(base_url, prefix))
-            self.content = self.content.replace(base_url, prefix)
-            """
+ 
+    """ (for <script> json code ..)
+    print ('--- replace_links')
+    print ('{0} -> {1}'.format(self.base_url, self.prefix))
+    base_url = self.base_url.replace('/', '\\/')
+    prefix = self.prefix.replace('/', '\\/')
+    print ('{0} -> {1}'.format(base_url, prefix))
+    self.content = self.content.replace(base_url, prefix)
+    """
 
     def rewrite_response(self, request):
         """
