@@ -179,7 +179,8 @@ class WipHttpProxy(HttpProxy):
             if self.rewrite:
                 self.rewrite_response(request)
                 self.replace_links()
-                self.fix_page()
+                self.fix_body_top(request)
+                self.fix_body_bottom()
 
             if self.proxy:
                 self.add_language_links()
@@ -215,7 +216,19 @@ class WipHttpProxy(HttpProxy):
         LANG_REGEX = re.compile(r'(<html\s+lang=")((?:\w|-){2,5})(".*?\>)', re.IGNORECASE)
         self.content = LANG_REGEX.sub(r'\1%s\3' % self.proxy.language_id, self.content)
 
-    def fix_page(self):
+    def fix_body_top(self, request):
+        """ add top message """
+        site_url = self.base_url
+        extra = ''
+        if request.user.is_superuser:
+            webpages = Webpage.objects.filter(site=self.site, path=self.path).order_by('-created')
+            if webpages:
+                extra = '<a href="/page/%s/">@</a> ' % webpages[0].id
+        if self.proxy and self.online:
+            self.content = BODY_REGEX.sub(r'\1' + info[self.language_code] % (extra, site_url, site_url.split('//')[1]), self.content)
+
+    def fix_body_bottom(self):
+        """ currently used to execute javascript on ready """
         if self.site.extra_body:
             self.content = self.content.replace('</body>', '\n%s\n</body>' % self.site.extra_body)
 
@@ -341,12 +354,13 @@ class WipHttpProxy(HttpProxy):
                 proxy_root = '/' + self.proxy.language_id
                 self.content = REWRITE_REGEX.sub(r'\1{}/'.format(proxy_root), self.content)
             else:  # example: http://www.scuolemigranti.org and en.scuolemigranti.eu
-                pass
+                proxy_root = ''
         else: # example: /link/en
             proxy_root = self.original_request_path.rsplit(request.path, 1)[0] # example: /link/en
             self.content = REWRITE_REGEX.sub(r'\1{}/'.format(proxy_root), self.content)
         self.log.info('proxy_root: %s', proxy_root)
  
+        """
         # next coded added by GT: possibly add a link to the WIP site
         site_url = self.base_url
         extra = ''
@@ -356,6 +370,7 @@ class WipHttpProxy(HttpProxy):
                 extra = '<a href="/page/%s/">@</a> ' % webpages[0].id
         if self.proxy and self.online:
             self.content = BODY_REGEX.sub(r'\1' + info[self.language_code] % (extra, site_url, site_url.split('//')[1]), self.content)
+        """
 
 class WipRevProxy(RevProxy, ContextMixin):
     html5 = False
