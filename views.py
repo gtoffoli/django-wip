@@ -337,7 +337,8 @@ def site(request, site_slug):
                     webpage.purge_bips(current_blocks=extracted_blocks)
                     webpage.create_blocks_dag()
             elif refetch_pages:
-                n_pages, n_updates, n_unfound = site.refetch_pages(verbose=verbose)
+                # n_pages, n_updates, n_unfound = site.refetch_pages(verbose=verbose)
+                n_pages, n_updates, n_unfound = site.refetch_pages(verbose=verbose, user=request.user)
                 messages.add_message(request, messages.INFO, 'Requested %d pages: %d updated, %d unfound' % (n_pages, n_updates, n_unfound))
             elif refresh_segments_in_use:
                 site.refresh_segments_in_use()

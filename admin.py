@@ -19,7 +19,7 @@ from wip.terms.admin import *
 
 
 class SiteAdmin(admin.ModelAdmin):
-    list_display = ['name', 'language', 'slug', 'path_prefix', 'url', 'allowed_domains', 'start_urls', 'deny',]
+    list_display = ['name', 'language', 'slug', 'path_prefix', 'url', 'http_server', 'allowed_domains', 'start_urls', 'deny',]
 
 class SiteThemeAdmin(admin.ModelAdmin):
     list_display = ['id', 'site_link', 'theme_link',]
@@ -43,7 +43,7 @@ class SiteThemeAdmin(admin.ModelAdmin):
     theme_link.allow_tags = True
 
 class ProxyAdmin(admin.ModelAdmin):
-    list_display = ['name', 'language', 'slug', 'site_name', 'host', 'base_path', 'live',]
+    list_display = ['name', 'slug', 'site_name', 'language', 'url', 'host', 'base_path', 'live',]
 
     def site_name(self, obj):
         return obj.site.name
@@ -256,7 +256,7 @@ class TranslatedBlockAdmin(admin.ModelAdmin):
     block_link.allow_tags = True
 
 class ScanAdmin(admin.ModelAdmin):
-    list_display = ['id', 'name', 'task_id', 'user', 'created', 'terminated',]
+    list_display = ['id', 'name', 'scan_type', 'scan_mode', 'task_id', 'user', 'created', 'terminated',]
 
 class LinkAdmin(admin.ModelAdmin):
     list_display = ['id', 'scan_link', 'url', 'status', 'size', 'title',]

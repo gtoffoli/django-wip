@@ -141,6 +141,15 @@ PARALLEL_FORMAT_NONE = 0
 PARALLEL_FORMAT_XLIFF = 1
 PARALLEL_FORMAT_TEXT = 2
 
+APACHE = 1
+NGINX = 2
+SERVER_TYPE_CHOICES = (
+    (NONE, _('unknown'),),
+    (APACHE, _('Apache'),),
+    (NGINX,  _('Nginx'),),
+)
+SERVER_TYPE_DICT = dict(SERVER_TYPE_CHOICES)
+
 
 def is_linearblock_translated(block):
     return block.hasCommonTag('span', attrs=['tx'])
@@ -156,6 +165,7 @@ class Site(models.Model):
     language = models.ForeignKey(Language, null=True, related_name='language_site')
     path_prefix = models.CharField(max_length=20, default='')
     url = models.CharField(max_length=100)
+    http_server = models.IntegerField(choices=SERVER_TYPE_CHOICES, null=True, default=NONE, verbose_name='http server type')
     allowed_domains = models.TextField()
     start_urls = models.TextField()
     deny = models.TextField(verbose_name='Deny spyder', blank=True, null=True, help_text="Paths the spider should not follow")
@@ -383,7 +393,8 @@ class Site(models.Model):
         return string_checksum(body.encode())
 
     # def fetch_page(self, path, webpage=None, extract_blocks=True, extract_segments=False, diff=False, dry=False, verbose=False):
-    def fetch_page(self, path, webpage=None, extract_blocks=True, extract_block=None, extract_segments=False, diff=False, dry=False, verbose=False):
+    # def# fetch_page(self, path, webpage=None, extract_blocks=True, extract_block=None, extract_segments=False, diff=False, dry=False, verbose=False):
+    def fetch_page(self, path, webpage=None, extract_blocks=True, extract_block=None, extract_segments=False, diff=False, dry=False, verbose=False, scan=None):
         site_id = self.id
         page_url = self.url + path
         if verbose:
@@ -429,24 +440,22 @@ class Site(models.Model):
             if verbose:
                 print ('size: ', page_version.size, '->', size)
                 print ('checksum: ', page_version.checksum, '->', checksum)
-            """
-            if diff:
-                l_1 = page_version.body.splitlines()
-                l_2 = body.splitlines()
-                l_diff = difflib.Differ().compare(l_1, l_2)
-                print ('\n'.join(l_diff))
-            """
         # if not dry and (not page_version or size != page_version.size or checksum != page_version.checksum):
         if extract_block or (not dry and (not page_version or checksum != page_version.checksum)):
-            page_version = PageVersion(webpage=webpage, delay=delay, response_code=response_code, size=size, checksum=checksum, body=body)
+            # page_version = PageVersion(webpage=webpage, delay=delay, response_code=response_code, size=size, checksum=checksum, body=body)
+            page_version = PageVersion(webpage=webpage, delay=delay, response_code=response_code, size=size, checksum=checksum, body=body, scan=scan)
             page_version.save()
             updated = True
             if extract_block:
                 webpage.extract_blocks(xpath=extract_block, verbose=verbose)
             elif extract_blocks:
                 extracted_blocks = webpage.extract_blocks(verbose=verbose)
+                n_blocks = len(extracted_blocks)
+                if scan:
+                    scan.block_count += n_blocks
+                    scan.save()
                 if verbose:
-                    print ('blocks extracted:', len(extracted_blocks))
+                    print ('blocks extracted:', n_blocks)
                 webpage.purge_bips(current_blocks=extracted_blocks, verbose=verbose)
                 webpage.create_blocks_dag()
         if verbose:
@@ -463,8 +472,11 @@ class Site(models.Model):
         if verbose:
             print('purged %d old blocks' % n_purged)
 
-    def refetch_pages(self, skip_deny_path=True, extract_blocks=True, extract_segments=False, dry=False, verbose=False):
+    # def refetch_pages(self, skip_deny_path=True, extract_blocks=True, extract_segments=False, dry=False, verbose=False):
+    def refetch_pages(self, skip_deny_path=True, extract_blocks=True, extract_segments=False, dry=False, verbose=False, user=None):
         """ fetch known pages; for each, if content has changed, save the version and re-extract blocks """
+        scan = Scan(name=self.name, site=self, scan_type=REFETCH, scan_mode=FOREGROUND, max_pages=0, extract_blocks=extract_blocks, user=user)
+        scan.save()
         webpages = Webpage.objects.filter(site=self)
         n_updates = n_unfound = 0
         extract_deny_list = text_to_list(self.extract_deny)
@@ -478,13 +490,16 @@ class Site(models.Model):
                         break
                 if should_skip:
                     continue
-            updated = self.fetch_page(path, webpage=webpage, extract_blocks=extract_blocks, extract_segments=extract_segments, dry=dry, verbose=verbose)
+            # updated = self.fetch_page(path, webpage=webpage, extract_blocks=extract_blocks, extract_segments=extract_segments, dry=dry, verbose=verbose)
+            updated = self.fetch_page(path, webpage=webpage, extract_blocks=extract_blocks, extract_segments=extract_segments, dry=dry, verbose=verbose, scan=scan)
             if updated == -1:
                 n_unfound += 1
             elif updated:
                 n_updates += 1
             sys.stdout.write('.')
             time.sleep(1)
+        scan.terminated = True
+        scan.save()
         now = timezone.now()
         self.last_fetched = now
         if extract_blocks:
@@ -620,7 +635,6 @@ SOURCE_CACHE_TYPE_DICT = dict(SOURCE_CACHE_TYPE_CHOICES)
 
 class Scan(models.Model):
     name = models.CharField(max_length=20)
-    # site = models.ForeignKey(Site, null=True)
     site = models.ForeignKey(Site, verbose_name='site/project', blank=True, null=True, help_text="leave undefined for discovery")
     language = models.ForeignKey(Language, null=True)
     start_urls = models.TextField()
@@ -662,8 +676,10 @@ class Scan(models.Model):
     def get_links(self):
         return Link.objects.filter(scan=self)
 
+    """
     def block_count(self):
         return 0
+    """
 
 class Link(models.Model):
     scan = models.ForeignKey(Scan)
@@ -702,6 +718,7 @@ class Proxy(models.Model):
     site = models.ForeignKey(Site)
     # language = models.ForeignKey(Language)
     language = models.ForeignKey(Language, related_name='language_proxy')
+    url = models.CharField(max_length=100, null=True, blank=True)
     host = models.CharField(max_length=100)
     base_path = models.CharField(max_length=100)
     enable_live_translation = models.BooleanField(default=False)
