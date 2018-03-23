@@ -15,6 +15,7 @@ import logging
 from django.http import HttpResponse
 from django.shortcuts import redirect
 from django.views.generic.base import ContextMixin
+from django.views.decorators.csrf import csrf_exempt
 from django.utils.cache import patch_response_headers
 from django.core.cache import caches
 from django.conf import settings
@@ -80,6 +81,7 @@ class WipHttpProxy(HttpProxy):
         self.log = logging.getLogger('wip')
         self.log.info("WipHttpProxy created")
 
+    @csrf_exempt
     def dispatch(self, request, url, *args, **kwargs):
         """ redefines the dispatch method of httpproxy.views.HttpProxy """
         # anticipating next 3 statements from method of superclass shouldn't harm
