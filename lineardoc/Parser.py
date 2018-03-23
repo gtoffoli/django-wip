@@ -28,7 +28,9 @@ blockTags = [
     'hr', 'button', 'canvas', 'center', 'col', 'colgroup', 'embed',
     'map', 'object', 'pre', 'progress', 'video',
     # non-annotation inline tags
-    'img', 'br', 'figure-inline'
+    'img', 'br', 'figure-inline',
+    # form controls
+    'input', 'select', 'textarea',
 ]
 blockTags_dict = dict([(tagName, True,) for tagName in blockTags])
 

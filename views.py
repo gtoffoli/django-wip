@@ -72,7 +72,8 @@ from .forms import SegmentSequencerForm, SegmentEditForm, SegmentTranslationForm
 from .forms import TranslationServiceForm, FilterPagesForm
 from .forms import UserRoleEditForm, ListSegmentsForm, ImportXliffForm
 from .session import get_language, set_language, get_site, set_site, get_userrole, set_userrole
-from .utils import strings_from_html, elements_from_element, block_checksum, ask_mymemory, ask_gt, text_to_list # , non_invariant_words
+# from .utils import strings_from_html, elements_from_element, block_checksum
+from .utils import ask_mymemory, ask_gt, text_to_list # , non_invariant_words
 from .utils import pageversion_diff, diff_style
 from  wip import srx_segmenter
 from .aligner import tokenize, best_alignment #, get_train_aligner
@@ -1198,7 +1199,8 @@ def block_translate(request, block_id, target_code):
                 block.apply_tm()
                 translated_blocks = TranslatedBlock.objects.filter(block=block, language=Language.objects.get(code=create)).order_by('-modified')
                 translated_block = translated_blocks.count() and translated_blocks[0] or None
-                segments = translated_block.translated_block_get_segments(None)
+                # segments = translated_block.translated_block_get_segments(None)
+                segments = translated_block and translated_block.translated_block_get_segments(None) or []
         elif modify:
             translated_blocks = TranslatedBlock.objects.filter(block=block, language=Language.objects.get(code=modify)).order_by('-modified')
             if translated_blocks:

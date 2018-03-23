@@ -110,19 +110,7 @@ class WipHttpProxy(HttpProxy):
             elif self.site_id:
                 self.site = site = Site.objects.get(pk=self.site_id)
 
-        """ test on mode "play" shouldn't harm, even if unused - CAN RETURN >
-        if self.mode == 'play':
-            response = self.play(request)
-            # TODO: avoid repetition, flow of logic could be improved
-            if self.rewrite:
-                # response = self.rewrite_response(request, response)
-                if hasattr(self.content, 'decode'):
-                    self.content = response.content.decode('utf-8')
-                self.rewrite_response(request)
-                if hasattr(self.content, 'encode'):
-                    response.content = self.content.encode('utf-8')
-            return response
-        < test on mode "play" """
+        """ removed tests on mode=='play' and mode=='record' (see http_proxy) """
 
         # 1st part of stuff below concerns caching of "resources", such as media files - CAN RETURN
         key = '%s-%s' % (proxy.site.path_prefix, url)
@@ -174,7 +162,6 @@ class WipHttpProxy(HttpProxy):
             if self.proxy_id and self.language_code:
                 self.translate_response(request)
 
-
             # test on self.rewrite
             if self.rewrite:
                 self.rewrite_response(request)
@@ -195,23 +182,24 @@ class WipHttpProxy(HttpProxy):
         canonical_url = '%s/%s' % (self.site.url, self.path)
         canonical_link_match = CANONICAL_REGEX.search(self.content)
         if canonical_link_match:
-            # pointer after canonical link
-            pointer = canonical_link_match.end()
+            # pointers to replace original canonical link
+            pointer_1 = canonical_link_match.start()
+            pointer_2 = canonical_link_match.end()
         else:
-            # build and append canonical link
-            canonical_link = '<link rel="canonical" href="%s">' % canonical_url
-            links.append(canonical_link)
+            # pointers after <head> opening tag
             HEAD_REGEX = re.compile(r'\<head\>', re.IGNORECASE)
             head_match = HEAD_REGEX.search(self.content)
-            # pointer after <head> opening tag
-            pointer = head_match.end()
+            pointer_1 = pointer_2 = head_match.end()
+        # append new canonical link
+        canonical_link = '<link rel="canonical" href="%s">' % canonical_url
+        links.append(canonical_link)
         # append alternate link for canonical language
         links.append('<link rel="alternate" hreflang="%s" href="%s" />' % (self.site.language_id, canonical_url))
         for proxy in Proxy.objects.filter(site=self.site):
             alternate_url = '%s/%s' % (proxy.get_url(), self.path)
             # append alternate link for other language
             links.append('<link rel="alternate" hreflang="%s" href="%s" />' % (proxy.language_id, alternate_url))
-        self.content = self.content[:pointer] + ''.join(links) + self.content[pointer:]
+        self.content = self.content[:pointer_1] + ''.join(links) + self.content[pointer_2:]
         # replace the value of the language attribute in the <html> opening tag
         LANG_REGEX = re.compile(r'(<html\s+lang=")((?:\w|-){2,5})(".*?\>)', re.IGNORECASE)
         self.content = LANG_REGEX.sub(r'\1%s\3' % self.proxy.language_id, self.content)

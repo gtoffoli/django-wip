@@ -2264,6 +2264,8 @@ class TranslatedBlock(models.Model):
         return label
 
     def translated_block_get_segments(self, segmenter):
+        if not segmenter:
+            segmenter = self.block.site.make_segmenter()
         return get_segments(self.body, self.block.site, segmenter)
 
     def normalized_body(self):
