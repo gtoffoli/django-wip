@@ -300,10 +300,6 @@ def site(request, site_slug):
                 clear_pages = data['clear_pages']
                 if clear_pages:
                     Webpage.objects.filter(site=site).delete()
-                """
-                run_worker_process()
-                task_id = crawl_site_task.delay(site.id)
-                """
                 return HttpResponseRedirect('/crawl/%s/' % site.slug)
             elif purge_blocks:
                 site.purge_bips(verbose=False)
@@ -547,47 +543,20 @@ def proxy(request, proxy_slug):
                     m, n = proxy.import_translations(f, request=request)
                     messages.add_message(request, messages.INFO, '%d translations read, %d translations added.' % (m, n))
             elif export_translations:
+                time_stamp = datetime.datetime.now().strftime('%y%m%d-%H-%M-%S')
+                translation_state = int(data['translation_state'])
                 parallel_format = int(data['parallel_format'])
-                lines = []
-                # segments = Segment.objects.filter(site=proxy.site, is_invariant=False)
-                # segments = Segment.objects.filter(site=proxy.site, is_invariant=False, in_use=True)
-                segments = Segment.objects.filter(site=proxy.site, is_invariant=False, in_use__gt=0)
-                for segment in segments:
-                    source_text = segment.text
-                    translations = Translation.objects.filter(segment=segment, language=proxy.language)
-                    for translation in translations:
-                        target_text = translation.text
-                        if parallel_format==PARALLEL_FORMAT_XLIFF: # XLIFF
-                            pass
-                        elif parallel_format==PARALLEL_FORMAT_TEXT: # plain_text
-                            lines.append('%s . ||| . %s' % (source_text, target_text))
-                data = '\n'.join(lines)
                 if parallel_format==PARALLEL_FORMAT_XLIFF: # XLIFF
+                    data = proxy.build_xliff_export(translation_state=translation_state)
                     response = HttpResponse(data, content_type='application/xliff+xml')
-                    filename = '%s_translations.xlf' % proxy.slug
+                    filename = '%s_translations.%s.xlf' % (proxy.slug, time_stamp)
                 elif parallel_format==PARALLEL_FORMAT_TEXT: # plain_text
+                    data = proxy.build_parallel_text_export(translation_state=translation_state)
                     response = HttpResponse(data, content_type='text/plain')
-                    filename = '%s_translations.txt' % proxy.slug
+                    filename = '%s_translations.%s.txt' % (proxy.slug, time_stamp)
                 response['Content-Disposition'] = 'attachment; filename="%s"' % filename
                 return response
             elif align_translations or evaluate_aligner:
-                """
-                lowercasing = True
-                tokenizer = NltkTokenizer(lowercasing=lowercasing)
-                # aligner = get_train_aligner(proxy, train=True, tokenizer=tokenizer, lowercasing=lowercasing)
-                aligner = proxy.get_train_aligner(train=True, tokenizer=tokenizer, lowercasing=lowercasing)
-                segments = Segment.objects.filter(site=proxy.site, is_invariant=False)
-                for segment in segments:
-                    source_tokens = tokenize(segment.text, tokenizer=tokenizer, lowercasing=lowercasing)
-                    translations = Translation.objects.filter(segment=segment, language=proxy.language).exclude(alignment_type=MANUAL)
-                    for translation in translations:
-                        target_tokens = tokenize(translation.text, tokenizer=tokenizer, lowercasing=lowercasing)
-                        alignment = best_alignment(aligner, source_tokens, target_tokens)
-                        translation.alignment = ' '.join(['%s-%s' % (str(couple[0]), couple[1] is not None and str(couple[1]) or '') for couple in alignment])
-                        print 'translation.alignment: ', translation.alignment
-                        translation.alignment_type = MT
-                        translation.save()
-                """
                 aligner = int(data['aligner'])
                 use_known_links = data['use_known_links']
                 test_set_module = int(data['test_set_module'])
@@ -2246,52 +2215,6 @@ def discover_task(scan_id):
     crawler_script = WipDiscoverScript()
     return crawler_script.crawl(scan_id)
 
-"""
-def discover(request, site=None, scan_id=None):
-    user = request.user    # assert user.is_authenticated()
-    assert user.is_authenticated()
-    data_dict = {}
-    post = request.POST
-    if site or scan_id or not post:
-        if site:
-            initial = {'site': site, 'name': site.name, 'deny': site.deny, 'max_pages': 100,}
-            allowed_domains = site.get_allowed_domains() or [site.url.split('//')[-1]]
-            initial['allowed_domains'] = '\n'.join(allowed_domains)
-            start_urls = site.get_start_urls() or [site.url]
-            initial['start_urls'] =  '\n'.join(start_urls)
-        elif scan_id:
-            scan = Scan.objects.get(pk=scan_id)
-            initial = {'site': scan.site, 'name': scan.name, 'allowed_domains': scan.allowed_domains, 'start_urls': scan.start_urls, 'deny': scan.deny, 'max_pages': scan.max_pages,}
-        else:
-            initial = {'max_pages': 100,}
-        form = DiscoverForm(initial=initial)
-    else:
-        form = DiscoverForm(post)
-        if form.is_valid():
-            data = form.cleaned_data
-            name = data['name'] or 'discover'
-            site = data['site']
-            allowed_domains = data['allowed_domains']
-            start_urls = data['start_urls']
-            allow = data['allow']
-            deny = data['deny']
-            max_pages = data['max_pages']
-            count_words = data['count_words']
-            count_segments = data['count_segments']
-            run_worker_process()
-            scan = Scan(name=name, site=site, allowed_domains=allowed_domains, start_urls=start_urls, allow=allow, deny=deny, max_pages=max_pages, count_words=count_words, count_segments=count_segments, task_id=0, user=user)
-            scan.save()
-            async_result = discover_task.delay(scan.pk)
-            scan.task_id = async_result.task_id
-            scan.save()
-            data_dict['task_id'] = scan.task_id
-            data_dict['scan_id'] = scan.pk
-            data_dict['scan_label'] = scan.get_label()
-            data_dict['i_line'] = 0
-    data_dict['form'] = form
-    return render(request, 'discover.html', data_dict)
-"""
-
 class Discover(View):
     form_class = DiscoverForm
     initial = {}
@@ -2406,54 +2329,6 @@ class Crawl(View):
         else:
             print(self.form.errors)
         return render(request, self.template_name, data_dict)
-
-"""
-def site_crawl(site_pk):
-    crawler_script = WipSiteCrawlerScript()
-    site = Site.objects.get(pk=site_pk)
-    crawler_script.crawl(
-      site.id,
-      site.slug,
-      site.name,
-      site.get_allowed_domains(),
-      site.get_start_urls(),
-      site.get_deny()
-      )
-
-def site_crawl_by_slug(request, site_slug):
-    site = get_object_or_404(Site, slug=site_slug)
-    notask = request.GET.get('notask', False)
-    if notask:
-        site_name = site.name
-        allowed_domains = site.get_allowed_domains()
-        start_urls = site.get_start_urls()
-        deny = site.get_deny()
-        rules = [Rule(LinkExtractor(deny=deny), callback='parse_item', follow=True),]
-        spider_class = type(str(site_slug), (WipCrawlSpider,), {'site_id': site.id, 'name':site_name, 'allowed_domains':allowed_domains, 'start_urls':start_urls, 'rules': rules})
-        spider = spider_class()
-        process = CrawlerProcess()
-        process.crawl(spider)
-        process.start() # the script will block here until the crawling is finished
-        process.stop()
-    else:
-        # print ('site_crawl_by_slug : ', site_slug)
-        ""
-        crawl_site.apply_async(args=(site.id,))
-        ""
-        # task_id = crawl_site.delay(site.id)
-        run_worker_process()
-        task_id = crawl_site_task.delay(site.id)
-        # print ('task id: ', task_id)
-        site.last_crawled = timezone.now()
-        site.save()
-    return HttpResponseRedirect('/site/%s/' % site_slug)
-
-@app.task()
-def crawl_site_task(site_pk):
-    logger = get_task_logger(__name__)
-    logger.info('Crawling site {0}'.format(site_pk))
-    return site_crawl(site_pk)
-"""
 
 @app.task()
 def crawl_task(scan_id):

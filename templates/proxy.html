@@ -84,6 +84,7 @@
    		<input type="submit" name="import_translations" value="Import XLIFF translations" title="Import XLIFF translations" class="btn btn-default btn-sm"></span>
 {% endcomment %}
    		<a href="/import_xliff/{{ proxy.slug }}/" title="import XLIFF translations" class="mR30 btn btn-default btn-sm">{% trans "import XLIFF translations"|capfirst %}</a>
+		{{ manage_form.translation_state }}
 		{{ manage_form.parallel_format }}
    		<span><input type="submit" name="export_translations" value="Export translations" title="Export translations" class="mR30 btn btn-default btn-sm"></span>	
   		<span><input type="submit" name="download_words_distribution" value="Download words distribution" title="Download words distributions" class="btn btn-default btn-sm"></span>

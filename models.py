@@ -70,6 +70,7 @@ from .utils import element_tostring, text_from_html, strings_from_html, elements
 from .utils import compact_spaces, strip_html_comments, normalize_string, replace_segment, string_checksum, text_to_list # , non_invariant_words
 from .utils import is_invariant_word as is_base_invariant_word
 from .utils import get_segmenter_rules, make_segmenter
+from .xliff import XLFFile, File
 # import wip.srx_segmenter
 import wip.srx_segmenter as srx_segmenter
 
@@ -115,6 +116,12 @@ TRANSLATION_STATE_CHOICES = (
     (ALREADY,  _('in target language'),),
 )
 TRANSLATION_STATE_DICT = dict(TRANSLATION_STATE_CHOICES)
+
+TRANSLATION_EXPORT_CHOICES = (
+    (ANY, _('all'),),
+    (TO_BE_TRANSLATED, _('missing'),),
+    (TRANSLATED,  _('existing'),),
+)
 
 BLOCK_TRANSLATION_STATE_CHOICES = (
     (ANY, _('any'),),
@@ -852,6 +859,57 @@ class Proxy(models.Model):
                     status['imported'] += 1
                 sys.stdout.write('+')
         return status
+
+    def build_xliff_export(self, translation_state=TO_BE_TRANSLATED, copy_source=False):
+        qs = Segment.objects.filter(site=self.site, is_invariant=False)
+        if translation_state == TRANSLATED:
+            qs = qs.filter(segment_translation__language=self.language)
+        elif translation_state == TO_BE_TRANSLATED:
+            qs = qs.exclude(segment_translation__language=self.language)
+        qs = qs.order_by('text')
+        version = '1.2'
+        filename = self.site.name
+        original = filename
+        attributes = {'source-language': self.site.language_id, 'target-language': self.language_id, 'datatype': 'plaintext', 'tool': 'WIP'}
+        file = File(original, attributes)
+        xlf_file = XLFFile(version=version)
+        xlf_file.files = { filename: file }
+        i = 0
+        for segment in qs:
+            i += 1
+            source = segment.text
+            target = ''
+            if translation_state in [ANY, TRANSLATED]:
+                translations = Translation.objects.filter(segment=segment, language=self.language).order_by('-translation_type', 'user_role__role_type', 'user_role__level')
+                target = translations[0].text
+            if not target and copy_source:
+                target = source
+            context = line = None
+            unit = xlf_file.add_unit(filename, source, target, context, line)
+            unit.attributes = {'id': str(i), 'datatype': 'plaintext'}
+        return xlf_file.to_str()
+
+    def build_parallel_text_export(self, translation_state=ANY, copy_source=False):
+        qs = Segment.objects.filter(site=self.site, is_invariant=False, in_use__gt=0)
+        if translation_state == TRANSLATED:
+            qs = qs.filter(segment_translation__language=self.language)
+        elif translation_state == TO_BE_TRANSLATED:
+            qs = qs.exclude(segment_translation__language=self.language)
+        qs = qs.order_by('text')
+        lines = []
+        for segment in qs:
+            source_text = segment.text
+            translations = Translation.objects.filter(segment=segment, language=self.language)
+            target_text = ''
+            if translation_state in [ANY, TRANSLATED]:
+                for translation in translations:
+                    target_text = translation.text
+                    lines.append('%s . ||| . %s' % (source_text, target_text))
+            if not target_text:
+                if copy_source:
+                    target_text = source_text
+                lines.append('%s . ||| . %s' % (source_text, target_text))
+        return '\n'.join(lines)
 
     def apply_translation_memory(self):
         site = self.site

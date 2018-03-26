@@ -8,7 +8,7 @@ from django.utils.translation import ugettext_lazy as _, string_concat
 from django.contrib.auth.models import User
 from .models import Site, Segment
 from .models import UserRole
-from .models import SEGMENT_SORT_CHOICES, TRANSLATION_STATE_CHOICES, BLOCK_TRANSLATION_STATE_CHOICES, TRANSLATION_SERVICE_CHOICES, SOURCE_CACHE_TYPE_CHOICES, SCAN_MODE_CHOICES
+from .models import SEGMENT_SORT_CHOICES, TRANSLATION_STATE_CHOICES, TRANSLATION_EXPORT_CHOICES, BLOCK_TRANSLATION_STATE_CHOICES, TRANSLATION_SERVICE_CHOICES, SOURCE_CACHE_TYPE_CHOICES, SCAN_MODE_CHOICES
 from .models import ROLE_TYPE_CHOICES
 from .vocabularies import Language, Subject
 
@@ -50,6 +50,7 @@ class ProxyManageForm(forms.Form):
     delete_blocks_confirmation = forms.BooleanField(required=False, label='Delete blocks confirmation')
     delete_proxy_confirmation = forms.BooleanField(required=False, label='Delete proxy confirmation')
     file = forms.FileField(required=False, label='Select a file to upload')
+    translation_state = forms.ChoiceField(choices=TRANSLATION_EXPORT_CHOICES, label="Translation state", widget=forms.Select(attrs={ 'style': 'width: auto; height: 2em;'}))
     parallel_format = forms.ChoiceField(choices=PARALLEL_SENTENCES_FORMAT_CHOICES, label="Format", widget=forms.Select(attrs={ 'style': 'width: auto; height: 2em;',}))
     aligner = forms.ChoiceField(choices=ALIGNER_CHOICES, label="Aligner", widget=forms.Select(attrs={ 'style': 'width: auto; height: 2em;',}))
     use_known_links = forms.BooleanField(required=False, label='Use known links')
