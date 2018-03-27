@@ -129,7 +129,7 @@ class BlockForm(forms.ModelForm):
 
 class BlockAdmin(admin.ModelAdmin):
     list_filter = ('site',)
-    list_display = ['id', 'site', 'block_link', 'translations_list', 'state', 'pages_count', 'time',] # , 'checksum'
+    list_display = ['id', 'site', 'block_link', 'translations_list', 'state', 'pages_count', 'time', 'last_seen',] # , 'checksum'
     list_display_links = ('block_link',)
     # search_fields = ['site', 'path',]
     search_fields = ['body',]

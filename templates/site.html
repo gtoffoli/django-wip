@@ -175,12 +175,12 @@
       <tr>
         <td>{{ language.name }}</td>
         <td>{{ blocks_total }}</td>
-        <td><span class="mR10">{{ blocks_invariant }}</span>{% if blocks_invariant %}<a href="/block/0/?site={{ site.slug }}&filter=no_translate" title="{% trans "browse invariant blocks" %}"><i class="fa fa-caret-square-o-right"></i></a>{% endif %}</td>
+        <td><span class="mR10">{{ blocks_invariant }}</span>{% if blocks_invariant %}<a href="/block/0/?site={{ site.slug }}&filter=invariant&lang={{ language.code }}" title="{% trans "browse invariant blocks" %}"><i class="fa fa-caret-square-o-right"></i></a>{% endif %}</td>
         <td><span class="mR10">{{ dict.already }}</span>{% if dict.already %}<a href="/block/0/?site={{ site.slug }}&filter=already&lang={{ language.code }}" title="{% trans "browse blocks already in target language" %}"><i class="fa fa-caret-square-o-right"></i></a>{% endif %}</td>
-        <td>{{ dict.partially }}</td>
-        <td>{{ dict.translated }}</td>
-        <td>{{ dict.revised }}</td>
-        <td>{{ dict.left }}</td>
+        <td><span class="mR10">{{ dict.partially }}</span>{% if dict.partially %}<a href="/block/0/?site={{ site.slug }}&filter=partially&lang={{ language.code }}" title="{% trans "browse blocks partially translated" %}"><i class="fa fa-caret-square-o-right"></i></a>{% endif %}</td>
+        <td><span class="mR10">{{ dict.translated }}</span>{% if dict.translated %}<a href="/block/0/?site={{ site.slug }}&filter=translated&lang={{ language.code }}" title="{% trans "browse translated blocks" %}"><i class="fa fa-caret-square-o-right"></i></a>{% endif %}</td>
+        <td><span class="mR10">{{ dict.revised }}</span>{% if dict.revised %}<a href="/block/0/?site={{ site.slug }}&filter=revised&lang={{ language.code }}" title="{% trans "browse revised lock translations" %}"><i class="fa fa-caret-square-o-right"></i></a>{% endif %}</td>
+        <td><span class="mR10">{{ dict.left }}</span>{% if dict.left %}<a href="/block/0/?site={{ site.slug }}&filter=to_be_translated&lang={{ language.code }}" title="{% trans "browse untranslated blocks" %}"><i class="fa fa-caret-square-o-right"></i></a>{% endif %}</td>
       </tr>
     {% endfor %}
     </tbody>

@@ -26,8 +26,9 @@
       <th>{% trans "project"|capfirst %}</th>
       <th>{% trans "original site"|capfirst %}</th>
       <th>{% trans "proxy language"|capfirst %}</th>
-      <th>{% trans "proxy domain"|capfirst %}</th>
       <th>{% trans "base path"|capfirst %}</th>
+      <th>{% trans "proxy domain"|capfirst %}</th>
+      <th>{% trans "proxy address"|capfirst %}</th>
       <th>{% trans "live translation"|capfirst %}</th>
     </thead>
     <tbody>
@@ -37,35 +38,58 @@
       </td>
    	  <td><a href="{{ site.url }}" title="{% trans "visit the original site" %}"><i class="fa fa-link" aria-hidden="true"></i> {{ site.url }}</a></td>
       <td>{{ proxy.language.name }}</td>
-      <td>{% if proxy.host != '?' %}<a href="http://{{ proxy.host }}" title="{% trans "visit the proxy site at its online address" %}"><i class="fa fa-link" aria-hidden="true"></i> {{ proxy.host }}</a>{% else %}{% trans "not defined" %}{% endif %}</td>
       <td><a href="/{{ proxy.base_path }}/" title="{% trans "visit the proxy site at the WIP local address" %}"><i class="fa fa-eye" aria-hidden="true"></i> {{ proxy.base_path }}</a></td>
+      <td>{% if proxy.host != '?' %}<a href="http://{{ proxy.host }}" title="{% trans "visit the proxy site at its online address" %}"><i class="fa fa-link" aria-hidden="true"></i> {{ proxy.host }}</a>{% else %}{% trans "not defined" %}{% endif %}</td>
+      <td>{% if proxy.url %}<a href="{{ proxy.url }}" title="{% trans "visit the proxy site at its online address" %}"><i class="fa fa-link" aria-hidden="true"></i> {{ proxy.url }}</a>{% endif %}</td>
       <td>{% if not proxy.enable_live_translation %}{% trans "not" %}{% endif %} {% trans "enabled" %}</td>
     </tbody>
   </table>
 
   <table class="table table-responsive table-bordered table-striped">
-    <thead>
+    <tr>
       <th>{% trans "pages"|capfirst %}</th>
       <th>.. {% trans "translated" %}</th>
 	  <th>{% trans "words"|capfirst %}</th>
-      <th>{% trans "page blocks"|capfirst %}</th>
+      <th>{% trans "blocks"|capfirst %}</th>
+      <th>{% trans "in use" %}</th>
       <th>.. {% trans "invariants" %}</th>
       <th>.. {% trans "translated" %}</th>
       <th>.. {% trans "partially" %}</th>
       <th>.. {% trans "others" %}</th>
-      <th>{% trans "in use" %}</th>
-    </thead>
-    <tbody>
+    </tr>
+    <tr>
       <td>{% if page_count %}<span class="mR10">{{ page_count }}</span><span class="mR10"><a href="/site/{{ site.slug }}/pages/" title="{% trans "list pages" %}"><i class="fa fa-th-list"></i></a></span><a href="/page/{{ first_page.id }}/" title="{% trans "browse all pages" %}"><i class="fa fa-caret-square-o-right"></i></a>{% else %}0{% endif %}</td>
       <td>{{ translated_pages_count }}</td>
       <td>{{ word_count }}</td>
       <td>{{ block_count }}</td>
+      <td>{% if blocks_in_use %}<span class="mR10">{{ blocks_in_use.count }}</span><span class="mR10"><a href="/site/{{ site.slug }}/blocks/" title="{% trans "list blocks in use" %}"><i class="fa fa-th-list"></i></a></span><a href="/block/{{ first_block.id }}/?site={{ site.slug }}" title="{% trans "browse blocks in use" %}"><i class="fa fa-caret-square-o-right"></i></a>{% else %}0{% endif %}</td>
       <td>{{ blocks_invariant }}</td>
       <td>{{ translated_blocks_count }}</td>
       <td>{{ partially_blocks_count }}</td>
       <td>{{ left_blocks_count }}</td>
-      <td>{% if blocks_in_use %}<span class="mR10">{{ blocks_in_use.count }}</span><span class="mR10"><a href="/site/{{ site.slug }}/blocks/" title="{% trans "list blocks in use" %}"><i class="fa fa-th-list"></i></a></span><a href="/block/{{ first_block.id }}/?site={{ site.slug }}" title="{% trans "browse blocks in use" %}"><i class="fa fa-caret-square-o-right"></i></a>{% else %}0{% endif %}</td>
-    </tbody>
+    </tr>
+    <tr>
+      <th></th>
+      <th></th>
+	  <th>{% trans "segments"|capfirst %}</th>
+      <th></th>
+      <th>{% trans "in use" %}</th>
+      <th>.. {% trans "invariants" %}</th>
+      <th>.. {% trans "already" %}</th>
+      <th>.. {% trans "translated" %}</th>
+      <th>.. {% trans "others" %}</th>
+    </tr>
+    <tr>
+      <td></td>
+      <td></td>
+      <td>{{ segments_summary.total }}</td>
+      <td></td>
+      <td>{{ segments_summary.in_use }}</td>
+      <td>{{ segments_summary.invariant }}</td>
+      <td>{{ segments_summary.already }}</td>
+      <td>{{ segments_summary.translated }}</td>
+      <td>{{ segments_summary.others }}</td>
+    </tr>
   </table>
 
 

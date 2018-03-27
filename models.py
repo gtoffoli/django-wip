@@ -333,18 +333,9 @@ class Site(models.Model):
         return pages, total, invariant, proxy_list
 
     def blocks_summary(self):
-        """
-        blocks = Block.objects.filter(block_in_page__webpage__site=self).order_by('checksum', '-time')
-        last_ids = []
-        checksum = '' 
-        for block in blocks:
-            if not (block.checksum==checksum):
-                checksum = block.checksum
-                last_ids.append(block.id)
-        blocks = Block.objects.prefetch_related('source_block').filter(id__in=last_ids).order_by('-time')
-        """
         last_date = self.last_block_extraction or self.last_fetched or self.last_crawled or timezone.now()
-        blocks = Block.objects.filter(Q(block_in_page__webpage__site=self) | Q(last_seen__gt=last_date)).distinct().order_by('checksum', '-time')
+        # blocks = Block.objects.filter(Q(block_in_page__webpage__site=self) | Q(last_seen__gt=last_date)).distinct().order_by('checksum', '-time')
+        blocks = Block.objects.filter(site=self)
         proxy_codes = [proxy.language_id for proxy in Proxy.objects.filter(site=self)]
         proxy_list = [[code, {'already': 0, 'partially': 0, 'translated': 0, 'revised': 0}] for code in proxy_codes]
         proxy_dict = dict(proxy_list)
@@ -801,6 +792,21 @@ class Proxy(models.Model):
         """ create a tokenizer for the proxy target language ...
             possibly exploit knowledge related to the target language and/or the proxy itself """
         return NltkTokenizer(language_code=self.language.code, lowercasing=False, return_matches=return_matches)
+
+    def segments_summary(self):
+        summary = {'total': 0, 'in_use': 0, 'invariant': 0, 'already': 0, 'translated': 0, 'others': 0}
+        segments = Segment.objects.filter(site=self.site)
+        summary['total'] = segments.count()
+        in_use = segments.filter(in_use=True)
+        summary['in_use'] = in_use.count()
+        invariant = segments.filter(is_invariant=True)
+        summary['invariant'] = invariant.count()
+        already = segments.filter(language=self.language)
+        summary['already'] = already.count()
+        translated = segments.filter(segment_translation__language=self.language)
+        summary['translated'] = translated.count()
+        summary['others'] = summary['total'] - summary['invariant'] - summary['already'] - summary['translated']
+        return summary
 
     def import_translations(self, xliff_file, request=None, user_role=None):
         if not user_role:
@@ -1790,14 +1796,18 @@ class TranslatedVersion(models.Model):
 # ContentType, currently not used, could be Site, Webpage or Block
 
 def filter_blocks(site=None, webpage=None, translation_state='', translation_codes=[], source_text_filter='', order_by='id'):
+    print ('filter_blocks:', site, webpage, translation_state, translation_codes, source_text_filter, order_by)
     target_code = len(translation_codes)==1 and translation_codes[0] or None
     qs = Block.objects
     if webpage:
         qs = qs.filter(block_in_page__webpage=webpage).distinct()
     elif site:
+        """
         # qs = qs.filter(block_in_page__webpage__site=site).distinct()
         last_date = site.last_block_extraction or site.last_fetched or site.last_crawled or timezone.now()
         qs = qs.filter(Q(block_in_page__webpage__site=site) | Q(last_seen__gt=last_date)).distinct()
+        """
+        qs = qs.filter(site=site)
     if translation_state == INVARIANT: # block is language independent
         qs = qs.filter(no_translate=True)
     elif translation_state == ALREADY: # block is already in target language
@@ -1808,6 +1818,12 @@ def filter_blocks(site=None, webpage=None, translation_state='', translation_cod
                 qs = qs.filter(source_block__language_id=code)
         else:
             qs = qs.filter(source_block__isnull=False) # at least 1
+    elif translation_state == PARTIALLY:
+        if translation_codes:
+            for code in translation_codes:
+                qs = qs.filter(source_block__language_id=code, source_block__state=PARTIALLY)
+        else:
+            qs = qs.filter(source_block__state=PARTIALLY) # at least 1
     elif translation_state == TO_BE_TRANSLATED:
         if translation_codes:
             qs = qs.annotate(nt = RawSQL("SELECT COUNT(*) FROM wip_translatedblock WHERE block_id = wip_block.id and language_id IN ('%s')" % "','".join(translation_codes), ())).filter(nt=0)
@@ -1886,36 +1902,7 @@ class Block(node_factory('BlockEdge')):
     def get_navigation(self, site=None, webpage=None, translation_state='', translation_codes=[], source_text_filter='', order_by='id'):
         site = site or self.site
         target_code = len(translation_codes)==1 and translation_codes[0] or None
-        # qs = filter_blocks(site=self.site, webpage=webpage, translation_state=translation_state, translation_codes=translation_codes, source_text_filter=source_text_filter)
-        qs = Block.objects.filter(site=self.site)
-        if webpage:
-            qs = qs.filter(block_in_page__webpage=webpage).distinct()
-        if translation_state == INVARIANT: # block is language independent
-            qs = qs.filter(no_translate=True)
-        elif translation_state == ALREADY: # block is already in target language
-            qs = qs.filter(language_id=target_code)
-        elif translation_state == TRANSLATED:
-            if translation_codes:
-                for code in translation_codes:
-                    qs = qs.filter(source_block__language_id=code)
-            else:
-                qs = qs.filter(source_block__isnull=False) # at least 1
-        elif translation_state == PARTIALLY:
-            if translation_codes:
-                for code in translation_codes:
-                    qs = qs.filter(source_block__language_id=code, source_block__state=PARTIALLY)
-            else:
-                qs = qs.filter(source_block__state=PARTIALLY) # at least 1
-        elif translation_state == TO_BE_TRANSLATED:
-            if translation_codes:
-                qs = qs.annotate(nt = RawSQL("SELECT COUNT(*) FROM wip_translatedblock WHERE block_id = wip_block.id and language_id IN ('%s')" % "','".join(translation_codes), ())).filter(nt=0)
-            else:
-                qs = qs.filter(source_block__isnull=True) # none
-            qs = qs.exclude(no_translate=True) # none
-            if target_code:
-                qs = qs.exclude(language_id=target_code)
-        if source_text_filter:
-            qs = qs.filter(body__icontains=source_text_filter)
+        qs = filter_blocks(site=self.site, webpage=webpage, translation_state=translation_state, translation_codes=translation_codes, source_text_filter=source_text_filter)
         if order_by == 'id':
             id = self.id
             qs_before = qs.filter(id__lt=id)

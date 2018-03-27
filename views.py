@@ -174,7 +174,7 @@ def user_role_select(request, role_id):
 
 def manage_roles(request):
     user = request.user
-    post = request.POST
+    post = request.method=='POST' and request.POST or None
     if post:
         delete_roles = post.get('delete-roles', '')
         if delete_roles:
@@ -274,7 +274,7 @@ def site(request, site_slug):
     var_dict['proxy_languages'] = proxy_languages = [proxy.language for proxy in proxies]
     words_distribution = site.get_token_frequency(lowercasing=True)
     var_dict['word_count'] = len(words_distribution)
-    post = request.POST
+    post = request.method=='POST' and request.POST or None
     if post:
         discovery = post.get('discover', '')
         site_crawl = post.get('site_crawl', '')
@@ -507,7 +507,7 @@ def proxy(request, proxy_slug):
     var_dict['language'] = language = proxy.language
     words_distribution = proxy.get_token_frequency(lowercasing=True)
     var_dict['word_count'] = len(words_distribution)
-    post = request.POST
+    post = request.method=='POST' and request.POST or None
     if post:
         # print ('request.POST: ', post)
         delete_pages = post.get('delete_pages', '')
@@ -602,6 +602,7 @@ def proxy(request, proxy_slug):
     var_dict['blocks_total'] = blocks_total
     var_dict['blocks_invariant'] = blocks_invariant
     var_dict['blocks_proxy_list'] = blocks_proxy_list
+    var_dict['segments_summary'] = proxy.segments_summary()
     
     var_dict['translated_pages_count'] = page_count = TranslatedVersion.objects.filter(webpage__site=site, language=language).count()
     # var_dict['translated_blocks_count'] = TranslatedBlock.objects.filter(block__site=site, language=language).count()
@@ -618,7 +619,7 @@ def import_xliff(request, proxy_slug):
     site = proxy.site
     var_dict = {}
     var_dict['proxy'] = proxy
-    post = request.POST
+    post = request.method=='POST' and request.POST or None
     if post:
         if post.get('cancel', ''):
             messages.add_message(request, messages.INFO, 'operation was canceled.')
@@ -721,7 +722,7 @@ def page(request, page_id):
     PageSequencerForm.base_fields['translation_languages'].queryset = Language.objects.filter(code__in=proxy_codes)
     save_page = apply_filter = goto = '' 
     fetch_page = purge_blocks = extract_blocks = ''
-    post = request.POST
+    post = request.method=='POST' and request.POST or None
     if post:
         save_page = post.get('save_page', '')
         fetch_page = post.get('fetch_page', '')
@@ -952,6 +953,7 @@ def block(request, block_id):
         translation_state = None
         translation_codes = []
         if filter:
+            webpage = None
             sequencer_context = request.session.get('sequencer_context', {})
             if site_slug:
                 site = get_object_or_404(Site, slug=site_slug)
@@ -964,7 +966,7 @@ def block(request, block_id):
                 sequencer_context['webpage'] = webpage.id
             if target_code:
                 sequencer_context['translation_codes'] = translation_codes = [target_code]
-            if filter == 'no_translate':
+            if filter == 'invariant':
                 sequencer_context['translation_state'] = translation_state = INVARIANT
             elif filter == 'already' and target_code:
                 sequencer_context['translation_state'] = translation_state = ALREADY
@@ -976,9 +978,9 @@ def block(request, block_id):
                 sequencer_context['translation_state'] = translation_state = TRANSLATED
             elif filter == 'revised' and target_code:
                 sequencer_context['translation_state'] = REVISED
+            sequencer_context['source_text_filter'] = ''
             request.session['sequencer_context'] = sequencer_context
             blocks = filter_blocks(site=site, webpage=webpage, translation_state=translation_state, translation_codes=[target_code])
-            # print ('blocks:', blocks.count())
             if blocks:
                 first_block = block = blocks.order_by('id')[0]
     else:
@@ -989,7 +991,7 @@ def block(request, block_id):
     target_languages = [l for l in proxy_languages if not l == block.language]
     BlockSequencerForm.base_fields['translation_languages'].queryset = Language.objects.filter(code__in=proxy_codes)
     save_block = apply_filter = goto = create = modify = '' 
-    post = request.POST
+    post = request.method=='POST' and request.POST or None
     if post:
         save_block = post.get('save_block', '')
         # apply_filter = post.get('apply_filter', '')
@@ -1000,7 +1002,6 @@ def block(request, block_id):
                     block = get_object_or_404(Block, pk=goto)
         apply_filter = not (save_block or goto)
         if save_block:
-            # print ('1 save_block')
             form = BlockEditForm(post)
             if form.is_valid():
                 data = form.cleaned_data
@@ -1026,7 +1027,8 @@ def block(request, block_id):
                 list_pages = False # data['list_pages']
     if not post or save_block or create or modify:
         sequencer_context = request.session.get('sequencer_context', {})
-        if sequencer_context and not site_slug:
+        # if sequencer_context and not site_slug:
+        if sequencer_context:
             webpage_id = sequencer_context.get('webpage', None)
             block_age = sequencer_context.get('block_age', '')
             project_site_id = sequencer_context.get('project_site_id', None) or block.site.id
@@ -1036,6 +1038,7 @@ def block(request, block_id):
             source_text_filter = sequencer_context.get('source_text_filter', '')
             list_pages = sequencer_context.get('list_pages', False)
             request.session['sequencer_context'] = {}
+            print ('post:', post)
         else:
             webpage_id = None
             block_age = ''
@@ -1111,7 +1114,7 @@ def block_translate(request, block_id, target_code):
         segments = block.block_get_segments(None)
     segments = [segment.strip() for segment in segments]
     extract_strings = False
-    post = request.POST
+    post = request.method=='POST' and request.POST or None
     if post:
         save_block = post.get('save_block', '')
         segment = request.POST.get('segment', '')
@@ -1377,7 +1380,7 @@ def segment_view(request, segment_id):
     project_site = project_site_id and Site.objects.get(pk=project_site_id) or None
 
     apply_filter = goto = '' 
-    post = request.POST
+    post = request.method=='POST' and request.POST or None
     if post:
         apply_filter = post.get('apply_filter', '')
         if not (apply_filter):
@@ -1445,7 +1448,7 @@ def translation_align(request, translation_id):
         alignment_type = ANY
 
     apply_filter = goto = '' 
-    post = request.POST
+    post = request.method=='POST' and request.POST or None
     if post:
         # print('post')
         if post.get('alignment', ''):
@@ -1514,7 +1517,7 @@ def segment_edit(request, segment_id=None, language_code='', proxy_slug=''):
     var_dict = {}
     segment = segment_id and get_object_or_404(Segment, pk=segment_id) or None
     proxy = proxy_slug and get_object_or_404(Proxy, slug=proxy_slug) or None
-    post = request.POST
+    post = request.method=='POST' and request.POST or None
     # print 'post: ', post
     if post:
         if post.get('cancel', ''):
@@ -1591,7 +1594,7 @@ def segment_translate(request, segment_id, target_code):
     translation_form = SegmentTranslationForm()
     translation_service_form = TranslationServiceForm()
     apply_filter = goto = save_translation = '' 
-    post = request.POST
+    post = request.method=='POST' and request.POST or None
     if post:
         apply_filter = post.get('apply_filter', '')
         ask_service = post.get('ask_service', '')
@@ -1814,6 +1817,13 @@ def list_segments(request, state=None):
                 else:
                     segment.is_invariant = True
                 segment.save()
+        elif post.get('make-in-target', ''):
+            if target_language:
+                selection = post.getlist('selection')
+                for segment_id in selection:
+                    segment = Segment.objects.get(pk=int(segment_id))
+                    segment.language = target_language
+                    segment.save()
         elif form.is_valid():
             data = form.cleaned_data
             tm_edit_context['translation_state'] = translation_state = int(data['translation_state'])
@@ -1861,6 +1871,8 @@ def list_segments(request, state=None):
 
     if project_site and translation_state == INVARIANT:
         qs = Segment.objects.filter(site=project_site, is_invariant=True)
+    elif project_site and translation_state == ALREADY:
+        qs = Segment.objects.filter(site=project_site, language=target_language)
     else:
         qs = find_segments(source_languages=[source_language], target_languages=[target_language], site=project_site, translated=translated, order_by='')
     if in_use == 'Y':
@@ -2003,6 +2015,9 @@ def find_segments(source_languages=[], target_languages=[], translated=None, sit
     else: # translated = False
         if target_languages:
             qs = qs.exclude(segment_translation__language_id__in=target_codes).distinct()
+            if len(target_languages)==1:
+                qs = qs.exclude(language=target_languages[0])
+        qs = qs.exclude(is_invariant=True)
     if order_by is None:
         qs = qs.order_by('language', 'text')
     elif order_by:
