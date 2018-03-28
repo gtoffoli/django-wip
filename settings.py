@@ -73,6 +73,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.SessionAuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     # 'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'django.middleware.locale.LocaleMiddleware',
     'wip.middleware.ProxyMiddleware',
     'django.middleware.http.ConditionalGetMiddleware',
 ]
@@ -135,6 +136,14 @@ PROXY_APP = 'httpproxy'
 # https://docs.djangoproject.com/en/1.9/topics/i18n/
 
 LANGUAGE_CODE = 'en-us'
+
+LANGUAGES = (
+    ('ar', 'العربيّة',),
+    ('en', 'English'),
+    ('fr', 'Français'),
+    ('it', 'Italiano'),
+    ('es', 'Espagnol'),
+)
 
 # TIME_ZONE = 'UTC'
 TIME_ZONE = 'Europe/Rome'

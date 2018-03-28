@@ -1,5 +1,6 @@
 {% load staticfiles i18n menu account %}
 {% get_current_language as LANGUAGE_CODE %}
+{% get_available_languages as LANGUAGES %}
 {% generate_menu %}
 
 <!DOCTYPE html>
@@ -77,6 +78,18 @@
 {% endcomment %}
             {% endif %}
             
+            <ul class="nav navbar-nav navbar-right">
+              <li class="dropdown">
+                <form action="/i18n/setlang/" method="post">{% csrf_token %}
+                  <input type="hidden" name="next" value="{{ path_no_language }}">
+                  <select name="language" class="form-control font13 bc-demigray" style="padding:5px; margin-top:15px; height: 30px; color: black;" onchange='this.form.submit()'>
+                  {% for lang in LANGUAGES %}
+                    <option value="{{ lang.0 }}" {% if lang.0 == LANGUAGE_CODE %}selected="selected"{% endif %}>{{ lang.0|upper }}</option>
+                  {% endfor %}
+                  </select>
+                </form>
+              </li>
+            </ul>
             <ul class="nav navbar-nav navbar-right">
             {% if request.user.is_authenticated %}
               <li class="dropdown">

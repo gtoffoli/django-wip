@@ -19,6 +19,7 @@ Including another URLconf
 
 from django.conf import settings
 from django.conf.urls import include, url
+from django.conf.urls.i18n import i18n_patterns
 from django.views.generic import TemplateView
 from django.contrib import admin
 
@@ -29,21 +30,27 @@ from .api import find_block, send_block, send_fragment
 from .proxy import WipHttpProxy
 from .proxy import WipRevProxy
 
-urlpatterns = [
-    url(r'^admin/', admin.site.urls),
-    url(r'^tinymce/', include('tinymce.urls')),
+urlpatterns = i18n_patterns(
     url(r"^$", views.home, name="home"),
+    url(r'^admin/', admin.site.urls),
+)
+
+urlpatterns += (
+    url(r'^i18n/', include('django.conf.urls.i18n')),
     url(r'^api/find_block/$', find_block),
     url(r'^api/send_block/$', send_block),
     url(r'^api/send_fragment/$', send_fragment),
+)   
+
+# urlpatterns = (
+urlpatterns += (
+    url(r'^tinymce/', include('tinymce.urls')),
     url(r"^manage_roles/$", views.manage_roles, name="manage_roles"),
     url(r"^role/(?P<role_id>[\d]+)/select/$", views.user_role_select, name="user_role_select"),
     url(r"^role/(?P<role_id>[\d]+)/edit/$", views.role_edit, name="role_edit"),
     url(r"^role/edit/$", views.role_edit, name="role_edit"),
     url(r"^role/(?P<role_id>[\d]+)/$", views.role_detail, name="role_detail"),
     url(r"^language/(?P<language_code>[\w-]*)/set/$", views.language, name="language"),
-    # url(r"^discover/(?P<scan_id>[\d]+)/$", views.discover, name="discover"),
-    # url(r"^discover/$", views.discover, name="discover"),
     url(r'^discover/(?:(?P<scan_id>[\d]+)/)?$', views.Discover.as_view(), name="discover"),
     url(r'^discover/(?:(?P<site_slug>[\w-]+)/)?$', views.Discover.as_view(), name="discover"),
     url(r"^discover/$", views.Discover.as_view(), name="discover"),
@@ -76,10 +83,11 @@ urlpatterns = [
     url(r"^translation_align/(?P<translation_id>[\d]+)/$", views.translation_align, name="translation_align"),
     # url(r'^navigation_autocomplete$', search_indexes.navigation_autocomplete, name='navigation_autocomplete'),
     url(r"^test/$", TemplateView.as_view(template_name="test.html"), name="test"),
-]
+)
+# )
 
-# urlpatterns += patterns('',
-urlpatterns += (
+# urlpatterns += (
+urlpatterns += i18n_patterns(
     url(r'^accounts/', include('allauth.urls')),
     url(r'^accounts/profile/', TemplateView.as_view(template_name='accounts/profile.html'), name='welcome',),
 )   
