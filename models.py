@@ -390,9 +390,10 @@ class Site(models.Model):
             body = '\n'.join(l_out)
         return string_checksum(body.encode())
 
-    # def fetch_page(self, path, webpage=None, extract_blocks=True, extract_segments=False, diff=False, dry=False, verbose=False):
-    # def# fetch_page(self, path, webpage=None, extract_blocks=True, extract_block=None, extract_segments=False, diff=False, dry=False, verbose=False):
+    """
     def fetch_page(self, path, webpage=None, extract_blocks=True, extract_block=None, extract_segments=False, diff=False, dry=False, verbose=False, scan=None):
+    """
+    def fetch_page(self, path, xpath='', extract_segments=False, dry=False, verbose=False):
         site_id = self.id
         page_url = self.url + path
         if verbose:
@@ -406,60 +407,45 @@ class Site(models.Model):
         except Exception as e:
             if verbose:
                 print (page_url, ': error = ', e)
-            if webpage:
-                webpage.last_unfound = timezone.now()
-                webpage.save()
             return -1
         time_2 = time.time()
         delay = int(round(time_2 - time_1))
         if verbose:
             print ('delay: ', delay)
         response_code = response.getcode()
-        if webpage:
-            webpage.last_checked = timezone.now()
-            webpage.last_checked_response_code = response_code
-            webpage.save()
-        # body = response.read()
         body = response.read().decode()
         size = len(body)
         checksum = self.page_checksum(body)
+        webpages = Webpage.objects.filter(site=self, path=path)
+        webpage = webpages and webpages[0] or None
+        if not dry and not webpage:
+            webpage = Webpage(site=self, path=path, last_checked_response_code=response_code)
+            webpage.save()
         if not webpage:
-            webpages = Webpage.objects.filter(site=self, path=path)
-            webpage = webpages and webpages[0] or None
-            if not dry and not webpage:
-                webpage = Webpage(site=self, path=path, last_checked_response_code=response_code)
-                webpage.save()
-            if not webpage:
-                return site_id, response_code, 0, path
-        webpage_id = webpage.id
+            return self.id, response_code, 0, path # ???
         page_versions = PageVersion.objects.filter(webpage=webpage).order_by('-time')
         page_version = page_versions and page_versions[0] or None
         if page_version:
             if verbose:
                 print ('size: ', page_version.size, '->', size)
                 print ('checksum: ', page_version.checksum, '->', checksum)
-        # if not dry and (not page_version or size != page_version.size or checksum != page_version.checksum):
-        if extract_block or (not dry and (not page_version or checksum != page_version.checksum)):
-            # page_version = PageVersion(webpage=webpage, delay=delay, response_code=response_code, size=size, checksum=checksum, body=body)
-            page_version = PageVersion(webpage=webpage, delay=delay, response_code=response_code, size=size, checksum=checksum, body=body, scan=scan)
+        # if extract_block or (not dry and (not page_version or checksum != page_version.checksum)):
+        if xpath or (not dry and (not page_version or checksum != page_version.checksum)):
+            page_version = PageVersion(webpage=webpage, delay=delay, response_code=response_code, size=size, checksum=checksum, body=body, scan=None)
             page_version.save()
-            updated = True
-            if extract_block:
-                webpage.extract_blocks(xpath=extract_block, verbose=verbose)
-            elif extract_blocks:
+            if xpath:
+                webpage.extract_blocks(xpath=xpath, verbose=verbose)
+                n_blocks = 1
+            else:
                 extracted_blocks = webpage.extract_blocks(verbose=verbose)
-                n_blocks = len(extracted_blocks)
-                if scan:
-                    scan.block_count += n_blocks
-                    scan.save()
-                if verbose:
-                    print ('blocks extracted:', n_blocks)
-                webpage.purge_bips(current_blocks=extracted_blocks, verbose=verbose)
                 webpage.create_blocks_dag()
+                n_blocks = len(extracted_blocks)
+            if verbose:
+                print ('blocks extracted:', n_blocks)
         if verbose:
-            page_version_id = page_version and page_version.id or 0
-            print (site_id, webpage_id, page_version_id)
-        return updated
+            print (self.id, webpage.id, page_version and page_version.id or 0)
+        # return updated
+        return n_blocks
 
     def purge_bips(self, verbose=False):
         """ for all pages, delete all but last BlockInPage for each xpath """
@@ -470,15 +456,17 @@ class Site(models.Model):
         if verbose:
             print('purged %d old blocks' % n_purged)
 
-    # def refetch_pages(self, skip_deny_path=True, extract_blocks=True, extract_segments=False, dry=False, verbose=False):
     def refetch_pages(self, skip_deny_path=True, extract_blocks=True, extract_segments=False, dry=False, verbose=False, user=None):
         """ fetch known pages; for each, if content has changed, save the version and re-extract blocks """
+        MAX_UNFOUND = 3
+        SLEEP_SECONDS = 0.5
         scan = Scan(name=self.name, site=self, scan_type=REFETCH, scan_mode=FOREGROUND, max_pages=0, extract_blocks=extract_blocks, user=user)
         scan.save()
-        webpages = Webpage.objects.filter(site=self)
-        n_updates = n_unfound = 0
+        webpages = Webpage.objects.filter(site=self).order_by('path')
+        n_skipped = n_updated = n_unfound = 0
         extract_deny_list = text_to_list(self.extract_deny)
         for webpage in webpages:
+            # skip page if in the deny list of site configuration
             path = webpage.path
             if skip_deny_path:
                 should_skip = False
@@ -487,15 +475,26 @@ class Site(models.Model):
                         should_skip = True
                         break
                 if should_skip:
+                    n_skipped += 1
                     continue
-            # updated = self.fetch_page(path, webpage=webpage, extract_blocks=extract_blocks, extract_segments=extract_segments, dry=dry, verbose=verbose)
-            updated = self.fetch_page(path, webpage=webpage, extract_blocks=extract_blocks, extract_segments=extract_segments, dry=dry, verbose=verbose, scan=scan)
+            # skip page if last N versions are empty (fetch was unsuccessful)
+            page_versions = PageVersion.objects.filter(webpage=webpage).order_by('-time')
+            should_skip = True
+            for page_version in list(page_versions)[:MAX_UNFOUND]:
+                if page_version.size:
+                    should_skip = False
+                    break
+            if should_skip:
+                n_skipped += 1
+                continue
+            # updated = self.fetch_page(path, webpage=webpage, extract_blocks=extract_blocks, extract_segments=extract_segments, dry=dry, verbose=verbose, scan=scan)
+            updated = webpage.fetch(extract_blocks=extract_blocks, extract_segments=extract_segments, dry=dry, verbose=verbose, scan=scan)
             if updated == -1:
                 n_unfound += 1
             elif updated:
-                n_updates += 1
+                n_updated += 1
             sys.stdout.write('.')
-            time.sleep(1)
+            time.sleep(SLEEP_SECONDS)
         scan.terminated = True
         scan.save()
         now = timezone.now()
@@ -505,7 +504,7 @@ class Site(models.Model):
         if extract_segments:
             self.last_segment_extraction = now
         self.save()
-        return webpages.count(), n_updates, n_unfound
+        return webpages.count(), n_skipped, n_updated, n_unfound
 
     def get_active_theme(self, request):
         """ see get_active_theme(request) in module django_diazo.utils"""
@@ -673,11 +672,6 @@ class Scan(models.Model):
 
     def get_links(self):
         return Link.objects.filter(scan=self)
-
-    """
-    def block_count(self):
-        return 0
-    """
 
 class Link(models.Model):
     scan = models.ForeignKey(Scan)
@@ -1417,13 +1411,19 @@ class Webpage(models.Model):
         body = response.read()
         return body
 
+    """
     def fetch(self, extract_blocks=True, extract_segments=False, dry=False, verbose=False):
-        """ fetch known page; if content has changed, save the version and re-extract blocks """
+        # fetch known page; if content has changed, save the version and re-extract blocks
         path = self.path
         updated = self.site.fetch_page(path, webpage=self, extract_blocks=extract_blocks, extract_segments=extract_segments, dry=dry, verbose=verbose)
         return updated
+    """
 
+    """
     def fetch_page(self, extract_blocks=True, extract_block=None, extract_segments=False, dry=False, verbose=False):
+    """
+    def fetch(self, extract_blocks=True, extract_segments=False, dry=False, verbose=False, scan=None):
+        """ fetch known page; if content has changed, save the version and re-extract blocks """
         site = self.site
         path = self.path
         page_url = site.url + path
@@ -1437,11 +1437,15 @@ class Webpage(models.Model):
         except Exception as e:
             if verbose:
                 print (page_url, ': error = ', e)
-            self.last_unfound = timezone.now()
-            self.save()
+            print('fetch page', self.id, e)
+            if not dry:
+                delay = int(round(time.time() - time_1))
+                page_version = PageVersion(webpage=self, delay=delay, response_code=0, size=0, checksum='', body='')
+                page_version.save()
+                self.last_unfound = timezone.now()
+                self.save()
             return -1
-        time_2 = time.time()
-        delay = int(round(time_2 - time_1))
+        delay = int(round(time.time() - time_1))
         if verbose:
             print ('delay: ', delay)
         response_code = response.getcode()
@@ -1457,14 +1461,22 @@ class Webpage(models.Model):
             if verbose:
                 print ('size: ', page_version.size, '->', size)
                 print ('checksum: ', page_version.checksum, '->', checksum)
-        if extract_block or (not dry and (not page_version or checksum != page_version.checksum)):
+        # if extract_block or (not dry and (not page_version or checksum != page_version.checksum)):
+        if not dry and (not page_version or checksum != page_version.checksum):
             page_version = PageVersion(webpage=self, delay=delay, response_code=response_code, size=size, checksum=checksum, body=body)
             page_version.save()
             updated = True
+            """
             if extract_block:
                 self.extract_blocks(xpath=extract_block, verbose=verbose)
             elif extract_blocks:
-                extracted_blocks = self.extract_blocks(verbose=verbose)
+            """
+            if extract_blocks:
+                # extracted_blocks = self.extract_blocks(verbose=verbose)
+                extracted_blocks, n_blocks, n_new_blocks, n_new_bips = self.extract_blocks(verbose=verbose)
+                if scan and n_new_blocks:
+                    scan.block_count += n_new_blocks
+                    scan.save()
                 if verbose:
                     print ('blocks extracted:', len(extracted_blocks))
                 """ DA APPROFONDIRE >
@@ -1618,7 +1630,7 @@ class Webpage(models.Model):
         top_els = doc.getchildren()
         if verbose:
             print ('top_els: ', top_els)
-        n_1 = n_2 = n_3 = 0
+        n_blocks = n_new_blocks = n_new_bips = 0
         done = False
         current_blocks = []
         for top_el in top_els:
@@ -1626,7 +1638,7 @@ class Webpage(models.Model):
                 break
             for el in elements_from_element(top_el):
                 if el.tag in BLOCK_TAGS and el.tag != 'br':
-                    n_1 += 1 # number of block elements
+                    n_blocks += 1 # number of block elements
                     """ NO [1] element index in xpath address !!!
                     el_xpath = tree.getpath(el)
                     """
@@ -1655,7 +1667,7 @@ class Webpage(models.Model):
                         if not dry:
                             block.last_seen = timezone.now()
                             block.save() # new block to be created always
-                            n_2 += 1 # number of new saved blocks
+                            n_new_blocks += 1 # number of new saved blocks
                     block.xpath = el_xpath # xpath volatile value only for local use !!!
                     current_blocks.append(block)
                     if not dry:
@@ -1669,11 +1681,12 @@ class Webpage(models.Model):
                             if not el_xpath in variable_xpaths: # added 180316
                                 block_in_page = BlockInPage(block=block, xpath=el_xpath, webpage=self)
                                 block_in_page.save()
-                                n_3 += 1 # number of new blocks in page
+                                n_new_bips += 1 # number of new blocks in page
                     if xpath and el_xpath==xpath:
                         done = True
                         break
-        return current_blocks
+        # return current_blocks
+        return current_blocks, n_blocks, n_new_blocks, n_new_bips
 
     # BIP = block in page
     def purge_bips(self, current_blocks=None, verbose=False):

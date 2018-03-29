@@ -97,8 +97,9 @@ import wip.terms.urls
 if settings.USE_SCRAPY:
     urlpatterns += (
         # url(r"^site/(?P<site_slug>[\w-]+)/crawl/$", views.site_crawl_by_slug, name="site_crawl"),
-        url(r"^my_scans/$", views.my_scans, name="my_scans"),
+        url(r"^site_scans/(?P<site_slug>[\w-]+)/$", views.site_scans, name="site_scans"),
         url(r"^user_scans(?:/(?P<username>[\w\.-]+))?/$", views.user_scans, name="user_scans"),
+        url(r"^my_scans/$", views.my_scans, name="my_scans"),
         url(r"^scan/(?P<scan_id>[\d]+)/delete/$", views.scan_delete, name="scan_delete"),
         url(r"^scan/(?P<scan_id>[\d]+)/$", views.scan_detail, name="scan_detail"),
         url(r"^scan/(?P<scan_id>[\d]+)/pages/$", views.scan_pages, name="scan_pages"),

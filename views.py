@@ -334,9 +334,12 @@ def site(request, site_slug):
                     webpage.purge_bips(current_blocks=extracted_blocks)
                     webpage.create_blocks_dag()
             elif refetch_pages:
-                # n_pages, n_updates, n_unfound = site.refetch_pages(verbose=verbose)
+                """
                 n_pages, n_updates, n_unfound = site.refetch_pages(verbose=verbose, user=request.user)
                 messages.add_message(request, messages.INFO, 'Requested %d pages: %d updated, %d unfound' % (n_pages, n_updates, n_unfound))
+                """
+                n_pages, n_skipped, n_updated, n_unfound = site.refetch_pages(verbose=verbose, user=request.user)
+                messages.add_message(request, messages.INFO, 'Requested %d pages: %d skipped, %d updated, %d unfound' % (n_pages, n_skipped, n_updated, n_unfound))
             elif refresh_segments_in_use:
                 site.refresh_segments_in_use()
             elif extract_segments or download_segments:
@@ -2027,6 +2030,32 @@ def find_segments(source_languages=[], target_languages=[], translated=None, sit
 def get_language(language_code):
     return Language.objects.get(code=language_code)
 
+def list_scans(request, user=None, site=None):
+    if request.method == 'POST':
+        post = request.POST
+        if post.get('delete-scan', ''):
+            selection = post.getlist('selection')
+            # print ('delete-scan', selection)
+            for scan_id in selection:
+                scan = Scan.objects.get(pk=int(scan_id))
+                scan.delete()
+    data_dict = {}
+    if user:
+        scans = Scan.objects.filter(user=user).order_by('-created')
+    elif site:
+        scans = Scan.objects.filter(site=site).order_by('-created')
+    else:
+        scans = Scan.objects.all().order_by('-created')
+    data_dict['user'] = user  
+    data_dict['site'] = site  
+    data_dict['scans'] = scans  
+    return render(request, 'list_scans.html', data_dict)
+
+def site_scans(request, site_slug):
+    site = get_object_or_404(Site, slug=site_slug)
+    return list_scans(request, site=site)
+
+"""
 def user_scans(request, username=None):
     if request.method == 'POST':
         post = request.POST
@@ -2046,9 +2075,14 @@ def user_scans(request, username=None):
     data_dict['user'] = user  
     data_dict['scans'] = scans  
     return render(request, 'user_scans.html', data_dict)
+"""
+def user_scans(request, username):
+    user = User.objects.get(username=username)
+    return list_scans(request, user=user)
 
 def my_scans(request):
-    return user_scans(request, username=request.user.username)
+    # return user_scans(request, username=request.user.username)
+    return list_scans(request, user=request.user)
 
 def scan_detail(request, scan_id):
     data_dict = {}
@@ -2255,7 +2289,6 @@ class Discover(View):
                 scan_mode = FOREGROUND
                 allowed_domains = site.allowed_domains or site.url.split('//')[-1]
                 start_urls = site.start_urls or site.url
-                max_pages = 100
                 extract_blocks = False
                 self.initial = {'site': site, 'name': site.name, 'scan_type': scan_type, 'scan_mode': scan_mode, 'allowed_domains': allowed_domains, 'start_urls': start_urls, 'deny': site.deny, 'max_pages': max_pages, 'extract_blocks': extract_blocks}
                 data_dict['site'] = site

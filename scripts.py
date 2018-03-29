@@ -214,12 +214,14 @@ def db_fix_italian_strings():
 """
 example: fetch_page('scuolemigranti', '/osservatorio/', dry=True)
 """
-def fetch_page(site_slug, path, extract_blocks=True, extract_segments=False, diff=False, dry=False):
+# def fetch_page(site_slug, path, extract_blocks=True, extract_segments=False, diff=False, dry=False):
+def fetch_page(site_slug, path, xpath='', extract_segments=False, dry=False, verbose=False):
     sites = Site.objects.filter(slug=site_slug)
     site = sites and sites[0] or None
     if not site:
         return 0, 0, 0, path
-    return site.fetch_page(path, extract_blocks=extract_blocks, extract_segments=extract_segments, diff=diff, dry=dry)
+    # return site.fetch_page(path, extract_blocks=extract_blocks, extract_segments=extract_segments, diff=diff, dry=dry)
+    return site.fetch_page(path, xpath=xpath, extract_segments=extract_segments, dry=dry, verbose=verbose)
 
 """
 example: fix_pages_checksum('scuolemigranti', verbose=True)

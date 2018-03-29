@@ -101,7 +101,6 @@ class WipCrawlPipeline(object):
 
     def process_item(self, item, spider):
         spider.page_count += 1
-        # site = Site.objects.get(pk=item['scan_id'])
         scan = Scan.objects.get(pk=spider.scan_id)
         site = scan.site
         body = item['body'].decode()
@@ -129,11 +128,13 @@ class WipCrawlPipeline(object):
         last = fetched_pages and fetched_pages[0] or None
         if not last or checksum!=last.checksum:
             body = encoding.count('text/') and body or ''
-            # fetched = PageVersion(webpage=page, response_code=item['status'], size=item['size'], checksum=checksum, body=body)
             fetched = PageVersion(webpage=page, response_code=item['status'], size=item['size'], checksum=checksum, body=body, scan=scan)
             fetched.save()
             if scan.extract_blocks:
-                pass
+                current_blocks, n_blocks, n_new_blocks, n_new_bips = page.extract_blocks()
+                if n_new_blocks:
+                    scan.block_count += n_new_blocks
+                    scan.save()
         return item
 
 class L2MemberPipeline(object):

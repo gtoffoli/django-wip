@@ -89,15 +89,15 @@ def send_block(request):
     xpath = json_data.get('xpath', '')
     # print ('url: ', url)
     # print ('xpath: ', xpath)
-
     data = {}
     # identify site and proxy
     proxy, path = url_to_proxy(url)
     if proxy:
         data['site'] = proxy.site.name
         data['language'] = proxy.language_id
-        # fetch the page
-        updated = proxy.site.fetch_page(path, extract_blocks=False, extract_block=xpath, verbose=True)
+        # fetch the block in page page
+        # updated = proxy.site.fetch_page(path, extract_blocks=False, extract_block=xpath, verbose=True)
+        updated = proxy.site.fetch_page(path, xpath=xpath, verbose=True)
         data['updated_page'] = updated
         data['status'] = 'ok'
     else:

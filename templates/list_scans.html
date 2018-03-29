@@ -1,7 +1,11 @@
 {% extends "base.html" %}
 {% load staticfiles i18n %}
 
-{% block head_title %}{% if user %}{% trans "scans by"|capfirst %} {{ user.username }}{% else %}{% trans "all scans"|capfirst %}{% endif %}{% endblock %}
+{% block head_title %}
+	{% if user %}{% trans "scans by"|capfirst %} {{ user.username }}
+	{% elif site %}{% trans "scans for site"|capfirst %} {{ site.name }}
+	{% else %}{% trans "all scans"|capfirst %}{% endif %}
+{% endblock %}
 
 {% block extra_head %}
 <style>
@@ -10,14 +14,32 @@ th, td { text-align: left; vertical-align: top; }
 </style>
 {% endblock %}
 
-{% block title-page %}{% if user %}{% trans "scans by"|capfirst %} {{ user.username }}{% else %}{% trans "all scans"|capfirst %}{% endif %}{% endblock %}
+{% block title-page %}
+	{% if user %}{% trans "scans by"|capfirst %} {{ user.username }}
+	{% elif site %}{% trans "scans for site"|capfirst %} {{ site.name }}
+	{% else %}{% trans "all scans"|capfirst %}{% endif %}
+{% endblock %}
 
 {% block content-page %}
 
 {% if scans %}
 <form action="#" method="post" id="scans-form">{% csrf_token %}
 <table>
-<thead><th></th><th>id</th><th>spider name</th>{% if not user %}<th>user</th>{% endif %}<th>cache type</th><th>type</th><th>start</th><th>stop</th><th>max pages</th><th># pages</th><th># segments</th><th># words</th><th># blocks</th></thead>
+	<thead><tr>
+		<th></th>
+		<th>id</th>
+		<th>spider name</th>
+		{% if not user %}<th>user</th>{% endif %}
+		<th>cache type</th>
+		<th>type</th>
+		<th>start</th>
+		<th>stop</th>
+		<th>max pages</th>
+		<th># pages</th>
+		<th>new blocks</th>
+		<th># segments</th>
+		<th># words</th>
+	</tr></thead>
 <tbody>
 {% for scan in scans %}
 	<tr>
@@ -31,9 +53,9 @@ th, td { text-align: left; vertical-align: top; }
 		<td>{{ scan.modified }}</td>
 		<td style="text-align: right;">{{ scan.max_pages }}</td>
 		<td style="text-align: right;">{{ scan.page_count }}</td>
+		<td style="text-align: right;">{{ scan.block_count }}</td>
 		<td style="text-align: right;">{{ scan.segment_count }}</td>
 		<td style="text-align: right;">{{ scan.word_count }}</td>
-		<td style="text-align: right;">{{ scan.block_count }}</td>
 	</tr>
 {% endfor %}
 </tbody>
