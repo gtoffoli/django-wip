@@ -1491,7 +1491,7 @@ def translation_align(request, translation_id):
     var_dict['last'] = last
 
     var_dict['translation_align_form'] = TranslationViewForm(initial={'compute_alignment': compute_alignment,})
-    if alignment:
+    if post and alignment:
         if alignment=='-':
             alignment = ''
         translation.alignment = alignment
@@ -1508,7 +1508,7 @@ def translation_align(request, translation_id):
     var_dict['sequencer_form'] = TranslationSequencerForm(initial={'order_by': order_by, 'alignment_type': alignment_type})
     sequencer_context = request.session.get('sequencer_context', {})
     var_dict['block_id'] = block_id = sequencer_context.get('block', None)
-    if block_id and post.get('save_confirmed_and_return'):
+    if block_id and post and post.get('save_confirmed_and_return'):
         return HttpResponseRedirect('/block/%d/translate/%s/' % (block_id, translation.language.code))
     return render(request, 'translation_align.html', var_dict)
 
