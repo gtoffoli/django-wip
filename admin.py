@@ -257,6 +257,7 @@ class TranslatedBlockAdmin(admin.ModelAdmin):
 
 class ScanAdmin(admin.ModelAdmin):
     list_display = ['id', 'name', 'scan_type', 'scan_mode', 'task_id', 'user', 'created', 'terminated',]
+    list_filter = ['site__name',]
 
 class LinkAdmin(admin.ModelAdmin):
     list_display = ['id', 'scan_link', 'url', 'status', 'size', 'title',]
@@ -274,6 +275,7 @@ class LinkAdmin(admin.ModelAdmin):
 
 class SegmentCountAdmin(admin.ModelAdmin):
     list_display = ['id', 'scan_link', 'segment', 'count',]
+    list_filter = ['scan__site__name',]
 
     def scan_link(self, obj):
         scan = obj.scan
@@ -286,6 +288,7 @@ class SegmentCountAdmin(admin.ModelAdmin):
 
 class WordCountAdmin(admin.ModelAdmin):
     list_display = ['id', 'scan_link', 'word', 'count',]
+    list_filter = ['scan__site__name',]
 
     def scan_link(self, obj):
         scan = obj.scan

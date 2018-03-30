@@ -2287,6 +2287,7 @@ class Discover(View):
             if site:
                 scan_type = DISCOVER
                 scan_mode = FOREGROUND
+                max_pages = 100
                 allowed_domains = site.allowed_domains or site.url.split('//')[-1]
                 start_urls = site.start_urls or site.url
                 extract_blocks = False

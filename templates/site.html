@@ -48,7 +48,7 @@
 		<th>{% trans "page blocks"|capfirst %}</th>
 		<th>{% trans "in use" %}</th>
 		<th>{% trans "proxies"|capfirst %}</th>
-		{% if user.is_superuser and missing_languages %}<th>{% trans "add proxies"|capfirst %}</th>{% endif %}
+		{% if can_manage and missing_languages %}<th>{% trans "add proxies"|capfirst %}</th>{% endif %}
 	</tr>
     </thead>
     <tbody>
@@ -73,7 +73,7 @@
               {% trans "no proxies are available."|capfirst %}
             {% endif %}
         </td>
-        {% if user.is_superuser and missing_languages %}
+        {% if can_manage and missing_languages %}
         <td>
         	<form action="/site/{{ site.slug }}/" method="post">{% csrf_token %}
         		<ul class="list-inline">
@@ -88,7 +88,7 @@
 	</tbody>
   </table>
 
-	{% if user.is_superuser %}
+	{% if can_manage %}
    	<form style="margin:40px 0" action="/site/{{ site.slug }}/" method="post" enctype="multipart/form-data">{% csrf_token %}
 	{% comment %}
 	{% if missing_languages %}
@@ -130,6 +130,7 @@
 	</form>
 	{% endif %}
 
+{% if proxies %}
   <h4>{% trans "translation state of site pages"|capfirst %}</h4>
   <table class="table table-responsive table-bordered table-striped">
     <thead>
@@ -185,4 +186,6 @@
     {% endfor %}
     </tbody>
   </table>
+{% endif %}
+
 {% endblock %}

@@ -185,11 +185,13 @@ class Site(models.Model):
     themes = models.ManyToManyField(Theme, through='SiteTheme', related_name='site', blank=True, verbose_name='diazo themes')
 
     variable_regions = models.TextField('Variable content regions', blank=True, null=True, help_text="Path-xpath combinations identifying page regions with frequently changing content" )
-    last_crawled = models.DateTimeField(null=True, help_text="Last time the site was crawled")
-    last_fetched = models.DateTimeField(null=True, help_text="Last time new versions of site pages were fetched")
-    last_block_extraction = models.DateTimeField(null=True, help_text="Last time blocks were extracted from site pages")
-    last_segment_extraction = models.DateTimeField(null=True, help_text="Last time segments were extracted from site pages")
+    last_crawled = models.DateTimeField(null=True, blank=True, help_text="Last time the site was crawled")
+    last_fetched = models.DateTimeField(null=True, blank=True, help_text="Last time new versions of site pages were fetched")
+    last_block_extraction = models.DateTimeField(null=True, blank=True, help_text="Last time blocks were extracted from site pages")
+    last_segment_extraction = models.DateTimeField(null=True, blank=True, help_text="Last time segments were extracted from site pages")
     extra_body = models.TextField(verbose_name='Extra body', blank=True, null=True, help_text="Code to be inserted before closing BODY tag")
+    client_key = models.CharField(max_length=20, blank=True, default='')
+    active = models.BooleanField(default=True)
 
     def __init__(self, *args, **kwargs):
         super(Site, self).__init__(*args, **kwargs)
@@ -208,15 +210,10 @@ class Site(models.Model):
         return os.path.join(settings.SITES_ROOT, self.slug)
 
     def can_manage(self, user):
-        return user.is_superuser
+        return user.is_superuser or UserRole.objects.filter(user=user, site=self, role_type__in=[OWNER, MANAGER]).count()
 
     def can_operate(self, user):
         return user.is_superuser
-
-    """
-    def can_view(self, user):
-        return user.is_authenticated()
-    """
 
     def can_view(self, current_role):
         if not current_role:
@@ -658,8 +655,8 @@ class Scan(models.Model):
     cache_type = models.IntegerField(choices=SOURCE_CACHE_TYPE_CHOICES, default=CACHE_FOR_TRANSLATION, verbose_name='cache type')
 
     class Meta:
-        verbose_name = _('discovery scan')
-        verbose_name_plural = _('discovery scans')
+        verbose_name = _('site scan')
+        verbose_name_plural = _('site scans')
 
     def get_type(self):
         return SCAN_TYPE_DICT.get(self.scan_type, DISCOVER) 
@@ -716,6 +713,8 @@ class Proxy(models.Model):
     enable_live_translation = models.BooleanField(default=False)
     robots_txt = models.TextField(verbose_name='robots.txt', blank=True, null=True, help_text="The virtual content of the robots.txt page." )
     translate_deny = models.TextField(verbose_name='Deny translation', blank=True, null=True, help_text="Paths of pages not to processed online by the proxy" )
+    active = models.BooleanField(default=True)
+    published = models.BooleanField(default=False)
 
     class Meta:
         verbose_name = _('proxy site')
