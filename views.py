@@ -51,7 +51,7 @@ from django.contrib.admin.views.decorators import staff_member_required
 from actstream import action, registry
 
 from .wip_nltk.tokenizers import NltkTokenizer
-from .models import Language, Site, Proxy, Webpage, PageVersion, TranslatedVersion
+from .models import Language, Site, ServiceSubscription, Proxy, Webpage, PageVersion, TranslatedVersion
 from .models import Block, BlockEdge, TranslatedBlock, BlockInPage
 from .models import filter_blocks
 from .models import Scan, Link, WordCount, SegmentCount
@@ -1560,6 +1560,15 @@ def segment_edit(request, segment_id=None, language_code='', proxy_slug=''):
     var_dict['segment_edit_form'] = segment_edit_form
     return render(request, 'segment_edit.html', var_dict)
 
+def filtered_translation_services(site):
+    filtered_services = []
+    now = timezone.now()
+    for service in ServiceSubscription.objects.filter(site=site):
+        if not service.service_type in filtered_services:
+            if (not service.start_date or service.start_date < now) and (not service.end_date or now < service.end_date):
+                filtered_services.append(service.service_type)
+    return filtered_services
+
 def segment_translate(request, segment_id, target_code):
     if not request.user.is_superuser:
         return empty_page(request);
@@ -1596,6 +1605,16 @@ def segment_translate(request, segment_id, target_code):
 
     translation_form = SegmentTranslationForm()
     translation_service_form = TranslationServiceForm()
+    """
+    filtered_services = []
+    now = timezone.now()
+    for service in ServiceSubscription.objects.filter(site=project_site):
+        if not service.service_type in filtered_services:
+            if (not service.start_date or service.start_date < now) and (not service.end_date or now < service.end_date):
+                filtered_services.append(service.service_type)
+    """
+    translation_service_form.fields['translation_services'].choices = \
+        [[s, TRANSLATION_SERVICE_DICT[s]] for s in filtered_translation_services(project_site)]
     apply_filter = goto = save_translation = '' 
     post = request.method=='POST' and request.POST or None
     if post:
@@ -1614,10 +1633,13 @@ def segment_translate(request, segment_id, target_code):
                     save_return = False
         if ask_service:
             translation_service_form = TranslationServiceForm(request.POST)
+            translation_service_form.fields['translation_services'].choices = \
+                [[s, TRANSLATION_SERVICE_DICT[s]] for s in filtered_translation_services(project_site)]
             if translation_service_form.is_valid():
                 data = translation_service_form.cleaned_data
                 translation_services = data['translation_services']
                 external_translations = []
+                """
                 if str(GOOGLE) in translation_services:
                     response = ask_gt(segment.text, target_code)
                     if response.get('detectedSourceLanguage', '').startswith(source_language.code):
@@ -1628,6 +1650,19 @@ def segment_translate(request, segment_id, target_code):
                     for external_translation in mymemory_translations:
                         external_translation['service'] = TRANSLATION_SERVICE_DICT[MYMEMORY]
                         external_translations.append(external_translation)
+                """
+                subscriptions = ServiceSubscription.objects.filter(service_type__in=translation_services)
+                for subscription in subscriptions:
+                    if subscription.service_type == GOOGLE:
+                        response = ask_gt(segment.text, target_code, subscription)
+                        if response.get('detectedSourceLanguage', '').startswith(source_language.code):
+                            external_translations = [{ 'segment': response.get('input', ''), 'translation': response.get('translatedText', ''), 'service': TRANSLATION_SERVICE_DICT[GOOGLE] }]
+                    elif subscription.service_type == MYMEMORY:
+                        langpair = '%s|%s' % (source_language.code, target_code)
+                        status, translatedText, mymemory_translations = ask_mymemory(segment.text, langpair, subscription)
+                        for external_translation in mymemory_translations:
+                            external_translation['service'] = TRANSLATION_SERVICE_DICT[MYMEMORY]
+                            external_translations.append(external_translation)
                 var_dict['external_translations'] = external_translations
             else:
                 pass
@@ -1645,6 +1680,8 @@ def segment_translate(request, segment_id, target_code):
                 # print ('error', translation_form.errors)
                 return render(request, 'segment_translate.html', {'translation_form': translation_form,})
             translation_service_form = TranslationServiceForm()
+            translation_service_form.fields['translation_services'].choices = \
+                [[s, TRANSLATION_SERVICE_DICT[s]] for s in filtered_translation_services(project_site)]
         else: # apply_filter
             form = SegmentSequencerForm(post)
             if form.is_valid():

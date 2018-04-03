@@ -288,14 +288,17 @@ def guess_block_language(block):
             return code
     return '?'
 
-def ask_mymemory(string, langpair, use_key=False):
+# def ask_mymemory(string, langpair, use_key=False):
+def ask_mymemory(string, langpair, subscription, use_key=False):
     baseurl = "https://translated-mymemory---translation-memory.p.mashape.com/api/get?"
     querydict = { 'langpair': langpair, 'mt': 1, 'of': 'json', 'q': string, }
     if use_key:
-        querydict['key'] = settings.TRANSLATED_KEY
+        # querydict['key'] = settings.TRANSLATED_KEY
+        querydict['key'] = subscription.secret_2
     querystring = urlencode(querydict)
     url = baseurl + querystring
-    headers={"X-Mashape-Key": settings.MASHAPE_KEY, "Accept": "application/json"}
+    # headers={"X-Mashape-Key": settings.MASHAPE_KEY, "Accept": "application/json"}
+    headers={"X-Mashape-Key": subscription.secret_1, "Accept": "application/json"}
     response = requests.get(url, headers=headers)
     status = response.status_code
     translatedText = ''
@@ -322,8 +325,11 @@ def ask_mymemory(string, langpair, use_key=False):
             translations.append(translation)
     return status, translatedText, translations
 
-def ask_gt(text, target_code):
-    os.environ.setdefault("GOOGLE_APPLICATION_CREDENTIALS", settings.GOOGLE_APPLICATION_CREDENTIALS)
+# def ask_gt(text, target_code):
+def ask_gt(text, target_code, subscription):
+    # os.environ.setdefault("GOOGLE_APPLICATION_CREDENTIALS", settings.GOOGLE_APPLICATION_CREDENTIALS)
+    credentials = subscription.secret_1
+    os.environ.setdefault("GOOGLE_APPLICATION_CREDENTIALS", credentials)
     client = translate.Client()
     return client.translate(text, target_language=target_code)    
 

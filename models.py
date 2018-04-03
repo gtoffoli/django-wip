@@ -76,11 +76,15 @@ import wip.srx_segmenter as srx_segmenter
 
 UNKNOWN = 0
 
-MYMEMORY = 1
-MATECAT = 2
-GOOGLE = 3
+GOOGLE = 1
+DEEPL = 2
+MICROSOFT = 3
+MATECAT = 4
+MYMEMORY = 5
 TRANSLATION_SERVICE_CHOICES = (
     (GOOGLE, _('GoogleTranslate')),
+    (DEEPL, _('DeepL')),
+    (MICROSOFT, _('Microsoft Translator')),
     (MYMEMORY, _('MyMemory')),
     # (MATECAT, _('Matecat')),
 )
@@ -601,6 +605,22 @@ class SiteTheme(models.Model):
     def __str__(self):
         return self.theme.name
 
+class ServiceSubscription(models.Model):
+    site = models.ForeignKey(Site, related_name='service_subscribed_by_site')
+    service_type = models.IntegerField(choices=TRANSLATION_SERVICE_CHOICES, verbose_name='service type')
+    secret_1 = models.CharField(max_length=100, default='', blank=True)
+    secret_2 = models.CharField(max_length=100, default='', blank=True)
+    start_date = models.DateTimeField(null=True, blank=True, help_text="start date")
+    end_date = models.DateTimeField(null=True, blank=True, help_text="end date")
+    order = models.IntegerField(default=0)
+
+    class Meta:
+        verbose_name = _('service subscription')
+        verbose_name_plural = _('service subscription')
+        ordering = ('order', 'service_type')
+
+    def __str__(self):
+        return '{0} subscription for {1}'.format(TRANSLATION_SERVICE_DICT[self.service_type], self.site.name)
 
 DISCOVER = 0
 CRAWL = 1
@@ -2587,13 +2607,27 @@ def get_or_set_user_role(request, site=None, source_language=None, target_langua
 def get_role_type(request, site=None, source_language=None, target_language=None):
     user_role = get_or_set_user_role(request, site=site, source_language=source_language, target_language=target_language)
     return user_role and user_role.role_type or None
-  
+
+IN_ELEMENT = 0
+IN_ATTRIBUTE = 1
+IN_META = 2
+IN_JAVASCRIPT = 3
+IN_JSON = 4
+TEXT_POSITION_CHOICES = (
+    (IN_ELEMENT, _('element'),),
+    (IN_ATTRIBUTE, _('attribute'),),
+    (IN_META, _('meta tag'),),
+    (IN_JAVASCRIPT, _('javascript'),),
+    (IN_JSON, _('json'),),
+)
+TEXT_POSITION_DICT = dict(TEXT_POSITION_CHOICES)
+
 class Segment(models.Model):
     site = models.ForeignKey(Site, verbose_name='source site')
     language = models.ForeignKey(Language, verbose_name='source language', blank=True, null=True)
     is_fragment = models.BooleanField('fragment', default=False)
     is_invariant = models.BooleanField('invariant', default=False)
-    # in_use = models.BooleanField('in use', default=True)
+    text_position = models.IntegerField(choices=TEXT_POSITION_CHOICES, default=IN_ELEMENT, verbose_name='text position')
     in_use = models.IntegerField('in use', default=0)
     text = models.TextField('plain text extracted', blank=True, null=True)
     html = models.TextField('original text with tags', blank=True, null=True)

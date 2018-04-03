@@ -10,7 +10,7 @@ from django import forms
 from django.contrib import admin
 from tinymce.widgets import TinyMCE
 
-from .models import Site, SiteTheme, Proxy, Webpage, PageVersion, TranslatedVersion # , SiteTheme
+from .models import Site, ServiceSubscription, SiteTheme, Proxy, Webpage, PageVersion, TranslatedVersion # , SiteTheme
 from .models import Block, BlockEdge, BlockInPage, TranslatedBlock
 from .models import Scan, Link, SegmentCount, WordCount
 from .models import UserRole, Segment, Translation
@@ -20,6 +20,9 @@ from wip.terms.admin import *
 
 class SiteAdmin(admin.ModelAdmin):
     list_display = ['name', 'language', 'slug', 'path_prefix', 'url', 'http_server', 'allowed_domains', 'start_urls', 'deny',]
+
+class ServiceSubscriptionAdmin(admin.ModelAdmin):
+    list_display = ['id', 'site', 'service_type', 'secret_1', 'secret_2']
 
 class SiteThemeAdmin(admin.ModelAdmin):
     list_display = ['id', 'site_link', 'theme_link',]
@@ -348,6 +351,7 @@ class TranslationAdmin(admin.ModelAdmin):
     time.short_description = 'Time'
 
 admin.site.register(Site, SiteAdmin)
+admin.site.register(ServiceSubscription, ServiceSubscriptionAdmin)
 admin.site.register(SiteTheme, SiteThemeAdmin)
 admin.site.register(Proxy, ProxyAdmin)
 admin.site.register(Webpage, WebpageAdmin)
