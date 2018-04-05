@@ -29,12 +29,21 @@ tr.even { background: white; }
 th, td { text-align: left; vertical-align: top; }
 </style>
 <script>
-function addText(from, to_id) {
+/*
+ * from: the TD element containing the translation text
+ * to_id: the unique id of the element where to copy the translation text
+ * service_id: the id of the TD element containing the service code (GOOGLE, DEEPL, ..)
+ * select_id: the id of the SELECT element to be assigned the service code by default
+ */
+function addText(from, to_id, service_id, select_id) {
 	to = document.getElementById(to_id)
 	if (to.value != ''){
 		to.value += ' '
 	}
     to.value += from.textContent || from.innerText;
+	service_type = document.getElementById(service_id).getAttribute('code');
+	select_element = document.getElementById(select_id);
+	select_element.value = service_type;
 }
 {% comment %}
 function capFirst(id) {
@@ -93,16 +102,31 @@ function capFirst(id) {
 	</fieldset>
 </form>
 
+{% if user.is_superuser %}
+<form action="/segment_translate/{{ segment.id }}/{{ target_code }}/" method="post">{% csrf_token %}
+{% endif %}
+
 {% if translations %}
 	<fieldset>
 		<legend>Translations in internal memory</legend>
     <table style="width: 100%">
     <tbody>
-	<tr><th>target</th><th>type</th><th>by</th><th style="text-align: left">text</th></tr>
+	<tr><th>select</th><th>target</th><th>type</th><th>source</th><th>by</th><th style="text-align: left">text</th></tr>
 	{% for l in other_languages %}{% for t in translations|lookup:l.code %}{% with ur=t.user_role %}
     <tr>
+        <td width="5%" style="text-align: center;">
+        	{% ifequal l.code target_language.code %}
+	        	{% if not t.user_role %}
+	        		<input type="checkbox" name="selection" value="{{ t.id }}" />
+	        	{% endif %}
+	        	{% ifequal t.user_role user_role %}
+	        		<input type="checkbox" name="selection" value="{{ t.id }}" />
+	        	{% endifequal %}
+        	{% endifequal %}
+       	</td>
     	<td><a  class="{{ l.code }}" href="/translation_align/{{ t.id }}">{{ l }}</a></td>
     	<td>{{ TRANSLATION_TYPE_DICT|lookup:t.translation_type }}</td>
+    	<td>{{ TRANSLATION_SERVICE_DICT|lookup:t.service_type }}</td>
     	<td>{% if ur %}{{ ROLE_DICT|lookup:ur.role_type }}-{{ ur.level }}: {{ ur.user.get_full_name }}{% endif %}</td>
     	<td>{{ t.text }}<a onclick="addText(this.parentNode, 'id_translation')"><span class="fa fa-copy" style="font-size: 1.0em; padding-left: 1.0em;" title="append this text to your translation"></span></a></td>
    	</tr>
@@ -113,28 +137,22 @@ function capFirst(id) {
 {% endif %}
 
 {% if user.is_superuser %}
-<form action="/segment_translate/{{ segment.id }}/{{ target_code }}/" method="post">
-	{% csrf_token %}
 	<fieldset>
-		<legend><i>Add/replace <span class="{{ target_language.code }}">{{ target_language }}</span> translation</i></legend>
+		<legend><i>Add/replace/delete <span class="{{ target_language.code }}">{{ target_language }}</span> translation</i></legend>
 
-		<div>{{ translation_form.translation.errors }}{{ translation_form.translation }}</div>
+		<div>{{ translation_form.translation.errors }}{{ translation_form.translation_source }} {% trans "translation source"|capfirst %}</div>
+		<div>{{ translation_form.translation }}</div>
 		<div><input type="submit" name="save-{{ target_language.code }}" value="Save {{ target_language.name }} translation" class="btn btn-sm btn-default" />
 			 {% if block_id %}<input type="submit" name="save_return-{{ target_language.code }}" value="Save translation and return to block" class="btn btn-sm btn-default" />{% endif %}
+			 {% if translations %}<input type="submit" name="delete" value="Delete selected translations" class="btn btn-sm btn-default" />{% endif %}
 		</div>
 	</fieldset>
 </form>
 
-<form action="/segment_translate/{{ segment.id }}/{{ target_code }}/" method="post">
-	{% csrf_token %}
+<form action="/segment_translate/{{ segment.id }}/{{ target_code }}/" method="post">{% csrf_token %}
 
 	<fieldset>
 		<legend><i>{% trans "external services"|capfirst %}</i></legend>
-
-{% comment %}
-		<div>{{ translation_service_form.translation_services }}</div>
-		<div><input type="submit" name="ask_service" value="Ask service" class="btn btn-sm" /></div>
-{% endcomment %}
 	<table>
 		<tbody style="text-align: center">
 		<tr>
@@ -144,9 +162,9 @@ function capFirst(id) {
 			{% endif %}
 		</tr>
 		<tr>
-			<td style="text-align: center;"><input type="submit" name="ask_service" value="{% trans "ask service"|capfirst %}" class="btn btn-sm btn-default" /></td>
+			<td style="text-align: center;"><input type="submit" name="ask_service" value="{% trans "ask service"|capfirst %}" class="btn btn-sm btn-default" title="{% trans "machine translation or translation memory" %}" /></td>
 			{% if translation_state == -1 %}
-			<td style="text-align: center;"><input type="submit" name="batch_translate" value="{% trans "batch translate"|capfirst %}" title="{% trans "use same filters as navigation" %}" class="btn btn-sm" /></td>
+			<td style="text-align: center;"><input type="submit" name="batch_translate" value="{% trans "batch translate"|capfirst %}" title="{% trans "use same filters as navigation" %}" class="btn btn-sm btn-default" /></td>
 			{% endif %}
 		</tr>
 		</tbody>
@@ -158,20 +176,20 @@ function capFirst(id) {
 		<legend><i>{% trans "translations by web services"|capfirst %}</i></legend>
     <table style="width: 100%">
     <tbody>
-	<tr><th>service</th>
-		<th>segment</th>
+	<tr><th>{% trans "service"|capfirst %}</th>
+		<th>{% trans "segment"|capfirst %}</th>
 		{% comment %}<th>entry id</th><th>quality</th>{% endcomment %}
-		<th style="text-align: left">translation</th>
+		<th style="text-align: left">{% trans "translation"|capfirst %}</th>
 	</tr>
 	{% for t in external_translations %}
     <tr class="{% cycle 'odd' 'even' %}">
-    	<td>{{ t.service }}</td>
+    	<td id="service-{{ forloop.counter }}" code="{{ t.service_type }}">{{ TRANSLATION_SERVICE_DICT|lookup:t.service_type }}</td>
     	<td class="{{ source_language.code }}">{{ t.segment }}</td>
 		{% comment %}
     	<td style="text-align: left">{{ t.entry_id }}</td>
     	<td style="text-align: center">{{ t.quality }}</td>
 		{% endcomment %}
-    	<td class="{{ target_language.code }}">{{ t.translation }}<a onclick="addText(this.parentNode, 'id_translation')"><span class="fa fa-copy" style="font-size: 1.0em; padding-left: 1.0em;" title="append this translation to your translation"></span></a></td>
+    	<td class="{{ target_language.code }}">{{ t.translation }}<a onclick="addText(this.parentNode, 'id_translation', 'service-{{ forloop.counter }}', 'id_translation_source')"><span class="fa fa-copy" style="font-size: 1.0em; padding-left: 1.0em;" title="{% trans "append this translation to your translation" %}"></span></a></td>
    	</tr>
 	{% endfor %}
 	</tbody>

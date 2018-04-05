@@ -1590,6 +1590,7 @@ def segment_translate(request, segment_id, target_code):
     var_dict['target_code'] = target_code
     var_dict['target_language'] = target_language = Language.objects.get(code=target_code)
     var_dict['other_languages'] = other_languages = segment.site.get_proxy_languages()
+    var_dict['user_role'] = user_role = get_or_set_user_role(request, site=segment.site, source_language=source_language, target_language=target_language)
     translation_languages= other_languages
     translation_codes = [l.code for l in translation_languages]
     sequencer_context = request.session.get('sequencer_context', {})
@@ -1650,17 +1651,19 @@ def segment_translate(request, segment_id, target_code):
                         if subscription.service_type == GOOGLE:
                             response = ask_gt(segment.text, target_code, subscription)
                             if response.get('detectedSourceLanguage', '').startswith(source_language.code):
-                                external_translations = [{ 'segment': response.get('input', ''), 'translation': response.get('translatedText', ''), 'service': TRANSLATION_SERVICE_DICT[GOOGLE] }]
+                                # external_translations = [{ 'segment': response.get('input', ''), 'translation': response.get('translatedText', ''), 'service': TRANSLATION_SERVICE_DICT[GOOGLE] }]
+                                external_translations = [{ 'segment': response.get('input', ''), 'translation': response.get('translatedText', ''), 'service_type': GOOGLE }]
                         elif subscription.service_type == MYMEMORY:
                             langpair = '%s|%s' % (source_language.code, target_code)
                             status, translatedText, mymemory_translations = ask_mymemory(segment.text, langpair, subscription)
                             for external_translation in mymemory_translations:
-                                external_translation['service'] = TRANSLATION_SERVICE_DICT[MYMEMORY]
+                                # external_translation['service'] = TRANSLATION_SERVICE_DICT[MYMEMORY]
+                                external_translation['service_type'] = MYMEMORY
                                 external_translations.append(external_translation)
                     var_dict['external_translations'] = external_translations
                 elif batch_translate and subscriptions.count()==1:
                     subscription = subscriptions[0]
-                    max_segments = data['max_segments']
+                    max_segments = int(data['max_segments'])
                     n_segments = 0
                     segments = segment.get_navigation(site=project_site, in_use=in_use, translation_state=translation_state, translation_languages=translation_languages, order_by=order_by, return_segments=True)
                     for segment in segments[:max_segments]:
@@ -1668,7 +1671,8 @@ def segment_translate(request, segment_id, target_code):
                             response = ask_gt(segment.text, target_code, subscription)
                             text = response.get('translatedText', '')
                             if text:
-                                translation = Translation(segment=segment, language_id=target_code, text=text, translation_type=MT, service_type=GOOGLE)
+                                translation = Translation(segment=segment, language_id=target_code, text=text, translation_type=MT, service_type=GOOGLE, timestamp=timezone.now())
+                                translation.save()
             else:
                 pass
             translation_form = SegmentTranslationForm()
@@ -1676,8 +1680,28 @@ def segment_translate(request, segment_id, target_code):
             translation_form = SegmentTranslationForm(request.POST)
             if translation_form.is_valid():
                 data = translation_form.cleaned_data
+                translation_source = data['translation_source']
                 translation_text = data['translation']
-                translation = get_or_add_translation(request, segment, translation_text, target_language)
+                # translation = get_or_add_translation(request, segment, translation_text, target_language)
+                translation_type = MANUAL
+                timestamp = timezone.now()
+                selection = post.getlist('selection')
+                if selection:
+                    for translation_id in selection:
+                        translation = Translation.objects.get(pk=int(translation_id))
+                        if not translation.user_role or user_role==translation.user_role:
+                            translation.text = translation_text
+                            translation.translation_type = translation_type
+                            if translation_source:
+                                translation.service_type = int(translation_source)
+                            translation.user_role = user_role
+                            translation.timestamp = timestamp
+                            translation.save()
+                else:
+                    translation = Translation(segment=segment, text=translation_text, language=target_language, translation_type=translation_type, user_role=user_role, timestamp=timestamp)
+                    if translation_source:
+                        translation.service_type = int(translation_source)
+                    translation.save()
                 if save_return:
                     return HttpResponseRedirect('/block/%d/translate/%s/' % (block_id, target_code))
             else:
@@ -1719,6 +1743,7 @@ def segment_translate(request, segment_id, target_code):
     var_dict['translation_form'] = SegmentTranslationForm()
     var_dict['translation_service_form'] = translation_service_form
     var_dict['TRANSLATION_TYPE_DICT'] = TRANSLATION_TYPE_DICT
+    var_dict['TRANSLATION_SERVICE_DICT'] = TRANSLATION_SERVICE_DICT   
     var_dict['ROLE_DICT'] = ROLE_DICT
     var_dict['translation_state'] = translation_state
     return render(request, 'segment_translate.html', var_dict)

@@ -83,9 +83,9 @@ MATECAT = 4
 MYMEMORY = 5
 TRANSLATION_SERVICE_CHOICES = (
     (NONE, ''),
-    (GOOGLE, _('GoogleTranslate')),
+    (GOOGLE, _('Google')), # GoogleTranslate
     (DEEPL, _('DeepL')),
-    (MICROSOFT, _('Microsoft Translator')),
+    (MICROSOFT, _('Microsoft')), # Microsoft Translator
     (MYMEMORY, _('MyMemory')),
     # (MATECAT, _('Matecat')),
 )

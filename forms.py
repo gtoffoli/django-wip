@@ -107,7 +107,8 @@ class SegmentEditForm(forms.ModelForm):
     text = forms.CharField(required=True, widget=forms.Textarea(attrs={'style': 'width: 100%; height: 60px;'}))
 
 class SegmentTranslationForm(forms.Form):
-    translation = forms.CharField(required=True, widget=forms.Textarea(attrs={'style': 'width: 100%; height: 60px;'}))
+    translation_source = forms.ChoiceField(required=False, choices=TRANSLATION_SERVICE_CHOICES, label="Translation source", widget=forms.Select(attrs={ 'style': 'width: auto; height: 2em;'}))
+    translation = forms.CharField(required=True, widget=forms.Textarea(attrs={'style': 'width: 100%; height: 60px;', 'placeholder': _('Put translation here')}))
     show_similar = forms.BooleanField(required=False, label='Show similar', widget=forms.CheckboxInput(attrs={'onchange': 'javascript: this.form.submit()',}))
 
 class ListSegmentsForm(forms.Form):
