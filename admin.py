@@ -14,7 +14,7 @@ from .models import Site, ServiceSubscription, SiteTheme, Proxy, Webpage, PageVe
 from .models import Block, BlockEdge, BlockInPage, TranslatedBlock
 from .models import Scan, Link, SegmentCount, WordCount
 from .models import UserRole, Segment, Translation
-from .models import TRANSLATION_TYPE_DICT, MANUAL
+from .models import TRANSLATION_TYPE_DICT, TRANSLATION_SERVICE_DICT, MANUAL
 from wip.terms.admin import *
 
 
@@ -312,7 +312,7 @@ class SegmentAdmin(admin.ModelAdmin):
     search_fields = ['text',]
 
 class TranslationAdmin(admin.ModelAdmin):
-    list_display = ['id', 'segment_link', 'site_name', 'language', 'text', 'translationtype', 'has_alignment', 'alignmenttype', 'time', 'user_role']
+    list_display = ['id', 'segment_link', 'site_name', 'language', 'text', 'translationtype', 'translationsource', 'has_alignment', 'alignmenttype', 'time', 'user_role']
     list_filter = ['language', 'alignment_type',  'user_role',]
     search_fields = ['text', 'alignment',]
 
@@ -333,7 +333,11 @@ class TranslationAdmin(admin.ModelAdmin):
 
     def translationtype(self, obj):
         return TRANSLATION_TYPE_DICT[obj.translation_type]
-    translationtype.short_description = 'Tr.type'
+    translationtype.short_description = 'Type'
+
+    def translationsource(self, obj):
+        return TRANSLATION_SERVICE_DICT[obj.service_type]
+    translationsource.short_description = 'Source'
     
     def has_alignment(self, obj):
         return obj.alignment and 'X' or ''

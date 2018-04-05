@@ -36,6 +36,9 @@ ALIGNMENT_TEST_SET_CHOICES = (
     (4, _("1 out of 4"))
 )
 
+DISCRETE_VALUES = (0, 10, 20, 50, 100, 200, 500)
+DISCRETE_CHOICES = [(value, str(value)) for value in DISCRETE_VALUES]
+
 class SiteManageForm(forms.Form):
     clear_pages = forms.BooleanField(required=False, label='Clear pages')
     clear_blocks = forms.BooleanField(required=False, label='Clear blocks')
@@ -129,6 +132,8 @@ class TranslationViewForm(forms.Form):
 
 class TranslationServiceForm(forms.Form):
     translation_services = forms.MultipleChoiceField(required=True, choices=TRANSLATION_SERVICE_CHOICES, label="Translation service", widget=forms.SelectMultiple(attrs={ 'style': 'width: auto;', 'size': 3,}))
+    # max_segments = forms.IntegerField(required=False, label="Max segments", widget=forms.TextInput(attrs={'class':'form-control'}))
+    max_segments = forms.ChoiceField(required=False, choices=DISCRETE_CHOICES, label="Max segments", widget=forms.Select(attrs={ 'style': 'width: auto; height: 2em;', }))
 
 class FilterPagesForm(forms.Form):
     path_filter = forms.CharField(required=False, label="Pattern in page path", widget=forms.TextInput(attrs={'style': 'width: 500px;', 'onchange': 'javascript: this.form.submit()',}))

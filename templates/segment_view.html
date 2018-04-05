@@ -21,9 +21,10 @@ legend {
 label { display: inline; font-weight: bold; margin-right: 1.0em; padding: 0.2em 0em; }
 tr.odd { background: LightGray; }
 tr.even { background: white; }
+.ar { border-left: 3px solid Red; border-top: 2px solid Green; border-bottom: 2px solid Black; margin: 1px; }
 .it { border: 1px solid; border-color: Green; margin: 1px; }
-.en { border: 2px solid; border-color: Red; margin: 1px; }
-.es { border: 2px solid; border-color: Orange; margin: 1px; }
+.en { border-left: 2px solid Red; border-top: 2px solid Blue; border-right: 2px solid Red; border-bottom: 2px solid Blue; margin: 1px; }
+.es { border-left: 2px solid Yellow; border-top: 2px solid Red; border-right: 2px solid Yellow; border-bottom: 2px solid Red; margin: 1px; }
 .fr { border: 1px solid; border-color: Blue; margin: 1px; }
 th, td { text-align: left; vertical-align: top; }
 </style>
@@ -58,8 +59,10 @@ th, td { text-align: left; vertical-align: top; }
 	<fieldset>
 		<legend>Navigation -
 		{{ n }} segments found{% if n %}:{% endif %}
-		{% if previous %}<input type="submit" name="goto-{{ previous.id }}" class="btn btn-sm btn-default" value="Previous">{% endif %}
-		{% if next %}<input type="submit" name="goto-{{ next.id }}" class="btn btn-sm btn-default" value="Next">{% endif %}
+		{% if first %}<button type="submit" name="goto-{{ first.id }}" class="btn btn-sm btn-default" value="First"><i class="fa fa-fast-backward"></i></button>{% endif %}
+		{% if previous %}<button type="submit" name="goto-{{ previous.id }}" class="btn btn-sm btn-default" value="Previous"><i class="fa fa-chevron-left"></i></button>{% endif %}
+		{% if next %}<button type="submit" name="goto-{{ next.id }}" class="btn btn-sm btn-default" value="Next"><i class="fa fa-chevron-right"></i></button>{% endif %}
+		{% if last %}<button type="submit" name="goto-{{ last.id }}" class="btn btn-sm btn-default" value="Last"><i class="fa fa-fast-forward"></i></button>{% endif %}
 		{% if block_id %}&nbsp;<a href="/block/{{ block_id }}/translate/{{ target_language.code }}/">Back to last block</a>{% endif %}
 		</legend>
     <table><thead>

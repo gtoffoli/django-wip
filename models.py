@@ -74,7 +74,7 @@ from .xliff import XLFFile, File
 # import wip.srx_segmenter
 import wip.srx_segmenter as srx_segmenter
 
-UNKNOWN = 0
+UNKNOWN = NONE = 0
 
 GOOGLE = 1
 DEEPL = 2
@@ -82,6 +82,7 @@ MICROSOFT = 3
 MATECAT = 4
 MYMEMORY = 5
 TRANSLATION_SERVICE_CHOICES = (
+    (NONE, ''),
     (GOOGLE, _('GoogleTranslate')),
     (DEEPL, _('DeepL')),
     (MICROSOFT, _('Microsoft Translator')),
@@ -89,6 +90,12 @@ TRANSLATION_SERVICE_CHOICES = (
     # (MATECAT, _('Matecat')),
 )
 TRANSLATION_SERVICE_DICT = dict(TRANSLATION_SERVICE_CHOICES)
+TRANSLATION_SERVICE_CODE_DICT = {
+    NONE: '',
+    GOOGLE: 'G',
+    DEEPL: 'D',
+    MICROSOFT: 'M',
+}
 
 """
 The vocabulary TRANSLATION_STATE_CHOICES is shared by TranslatedVersion, Block and TranslatedBlock
@@ -105,7 +112,7 @@ Related notes:
 - Translation - info on translation state is conveyed by role and date
 """
 TO_BE_TRANSLATED = -1
-ANY = NONE = 0
+ANY = 0
 PARTIALLY = 1
 TRANSLATED = 2
 REVISED = 3
@@ -972,7 +979,8 @@ class Proxy(models.Model):
                     logger.info('block: %d invariant string, segment : %s' % (block.id, segment))
                     continue
                 translated_segment = None
-                translations = Translation.objects.filter(language=target_language, segment__site=site, segment__language=source_language, segment__text=segment).distinct().order_by('-translation_type', 'user_role__role_type', 'user_role__level')
+                # translations = Translation.objects.filter(language=target_language, segment__site=site, segment__language=source_language, segment__text=segment).distinct().order_by('-translation_type', 'user_role__role_type', 'user_role__level')
+                translations = Translation.objects.filter(language=target_language, segment__site=site, segment__language=source_language, segment__text=segment, translation_type=MANUAL).distinct().order_by('user_role__role_type', 'user_role__level')
                 if translations:
                     translation = translations[0]
                     """ add here some test on reliability """
@@ -1138,7 +1146,8 @@ class Proxy(models.Model):
                 if L > max_tokens:
                     continue
                 source_text = ' '.join(source_tokens)
-            translations = Translation.objects.filter(segment=segment, language=self.language).order_by('id')
+            # translations = Translation.objects.filter(segment=segment, language=self.language).order_by('id')
+            translations = Translation.objects.filter(segment=segment, language=self.language, translation_type=MANUAL).order_by('id')
             for translation in translations:
                 target_text = translation.text
                 if tokenizer_2:
@@ -1196,7 +1205,8 @@ class Proxy(models.Model):
                     alignment = Alignment([(i, i) for i in range(L)])
                     bitext.append(AlignedSent(source_tokens, source_tokens, alignment))
             else:
-                translations = Translation.objects.filter(segment=segment, language=target_language)
+                # translations = Translation.objects.filter(segment=segment, language=target_language)
+                translations = Translation.objects.filter(segment=segment, language=target_language, translation_type=MANUAL)
                 for translation in translations:
                     translation_text = translation.text
                     # target_tokens = tokenize(translation_text, tokenizer=tokenizer, lowercasing=lowercasing)
@@ -1237,7 +1247,8 @@ class Proxy(models.Model):
         target_language = self.language
         segments = Segment.objects.filter(site=self.site)
         for segment in segments:
-            translations = Translation.objects.filter(segment=segment, language=target_language)
+            # translations = Translation.objects.filter(segment=segment, language=target_language)
+            translations = Translation.objects.filter(segment=segment, language=target_language, translation_type=MANUAL)
             for translation in translations:
                 if translation.alignment and not translation.alignment_type==MANUAL:
                     translation.alignment = ''
@@ -1261,7 +1272,8 @@ class Proxy(models.Model):
         segments = Segment.objects.filter(site=self.site).order_by('id')
         for segment in segments:
             source_tokens = tokenize(segment.text, tokenizer=source_tokenizer)
-            translations = Translation.objects.filter(segment=segment, language=target_language).order_by('id')
+            # translations = Translation.objects.filter(segment=segment, language=target_language).order_by('id')
+            translations = Translation.objects.filter(segment=segment, language=target_language, translation_type=MANUAL).order_by('id')
             for translation in translations:
                 if evaluate or not translation.alignment_type==MANUAL:
                     target_tokens = tokenize(translation.text, tokenizer=target_tokenizer)
@@ -1548,6 +1560,7 @@ class Webpage(models.Model):
                 translated_page.save()
 
     def get_navigation(self, translation_state='', translation_codes=[], order_by='id'):
+        id = self.id
         qs = Webpage.objects.filter(site=self.site)
         if translation_state == INVARIANT: # block is language independent
             qs = qs.filter(no_translate=True)
@@ -1562,18 +1575,25 @@ class Webpage(models.Model):
             else:
                 qs = qs.filter(translated_version__isnull=True).exclude(no_translate=True) # none
         if order_by == 'id':
-            id = self.id
             qs_before = qs.filter(id__lt=id)
             qs_after = qs.filter(id__gt=id)
         elif order_by == 'path':
             path = self.path
             qs_before = qs.filter(path__lt=path)
             qs_after = qs.filter(path__gt=path)
-        qs_before = qs_before.order_by('-'+order_by)
-        qs_after = qs_after.order_by(order_by)
-        previous = qs_before.count() and qs_before[0] or None
-        next = qs_after.count() and qs_after[0] or None
-        return previous, next
+        first = last = previous = next = None
+        n = qs.count()
+        if n:
+            qs_before = qs_before.order_by('-'+order_by)
+            qs_after = qs_after.order_by(order_by)
+            previous = qs_before.count() and qs_before[0] or None
+            next = qs_after.count() and qs_after[0] or None
+            # return previous, next
+            first = qs[0]
+            first = not first.id==id and first or None
+            last = qs.reverse()[0]
+            last = not last.id==id and last or None
+        return n, first, last, previous, next
 
     def blocks_summary(self):
         site = self.site
@@ -1932,18 +1952,27 @@ class Block(node_factory('BlockEdge')):
         return len(self.get_children())
 
     def get_navigation(self, site=None, webpage=None, translation_state='', translation_codes=[], source_text_filter='', order_by='id'):
+        id = self.id
         site = site or self.site
         target_code = len(translation_codes)==1 and translation_codes[0] or None
         qs = filter_blocks(site=self.site, webpage=webpage, translation_state=translation_state, translation_codes=translation_codes, source_text_filter=source_text_filter)
-        if order_by == 'id':
-            id = self.id
-            qs_before = qs.filter(id__lt=id)
-            qs_after = qs.filter(id__gt=id)
-        qs_before = qs_before.order_by('-'+order_by)
-        qs_after = qs_after.order_by(order_by)
-        previous = qs_before.count() and qs_before[0] or None
-        next = qs_after.count() and qs_after[0] or None
-        return qs.count(), previous, next
+        first = last = previous = next = None
+        n = qs.count()
+        if n:
+            if order_by == 'id':
+                id = self.id
+                qs_before = qs.filter(id__lt=id)
+                qs_after = qs.filter(id__gt=id)
+            qs_before = qs_before.order_by('-'+order_by)
+            qs_after = qs_after.order_by(order_by)
+            previous = qs_before.count() and qs_before[0] or None
+            next = qs_after.count() and qs_after[0] or None
+            first = qs[0]
+            first = not first.id==id and first or None
+            last = qs.reverse()[0]
+            last = not last.id==id and last or None
+        # return qs.count(), previous, next
+        return n, first, last, previous, next
 
     def clone(self, language):
         return TranslatedBlock(block=self, language=language, body=self.body)
@@ -2140,8 +2169,8 @@ class Block(node_factory('BlockEdge')):
                 n_invariants += 1
                 continue
             # second, look for a translation
-            # translations = Translation.objects.filter(language=target_language, segment__site=site, segment__text=segment).distinct().order_by('-translation_type', 'user_role__role_type', 'user_role__level')
-            translations = Translation.objects.filter(language=target_language, segment__site=site, segment__text=compact_spaces(segment.strip())).distinct().order_by('-translation_type', 'user_role__role_type', 'user_role__level')
+            # translations = Translation.objects.filter(language=target_language, segment__site=site, segment__text=compact_spaces(segment.strip())).distinct().order_by('-translation_type', 'user_role__role_type', 'user_role__level')
+            translations = Translation.objects.filter(language=target_language, segment__site=site, segment__text=compact_spaces(segment.strip()), translation_type=MANUAL).distinct().order_by('-translation_type', 'user_role__role_type', 'user_role__level')
             logger.info('# {} translations:'.format(translations.count()))
             if not translations:
                 translated_sentences.append(linearsentence)
@@ -2654,10 +2683,15 @@ class Segment(models.Model):
             qs = qs[:limit]
         return qs
 
-    def get_translations(self, target_language=[]):
+    # def get_translations(self, target_language=[]):
+    def get_translations(self, target_language=[], translation_type=ANY):
         """ now returns a dict, previously a list of lists """
         if not isinstance(target_language, (list, tuple)):
-            return Translation.objects.filter(segment=self, language=target_language)
+            # return Translation.objects.filter(segment=self, language=target_language)
+            translations = Translation.objects.filter(segment=self, language=target_language)
+            if translation_type:
+                translations = translations.filter(translation_type=translation_type)
+            return translations
         source_language = self.language
         target_languages = target_language or [l for l in Language.objects.all().order_by('code') if not l==source_language]
         has_translations = False
@@ -2665,6 +2699,8 @@ class Segment(models.Model):
         language_translations = {}
         for language in target_languages:
             translations = Translation.objects.filter(segment=self, language=language)
+            if translation_type:
+                translations = translations.filter(translation_type=translation_type)
             if translations:
                 has_translations = True
                 # language_translations.append([language, translations])
@@ -2672,10 +2708,18 @@ class Segment(models.Model):
         # return has_translations and language_translations or []
         return has_translations and language_translations or {}
 
+    """
     def get_language_translations(self, target_language):
         return Translation.objects.filter(segment=self, language=target_language).order_by('-translation_type', 'user_role__role_type', 'user_role__level')
+    """
+    def get_language_translations(self, target_language, translation_type=ANY):
+        translations = Translation.objects.filter(segment=self, language=target_language)
+        if translation_type:
+            translations = translations.filter(translation_type=translation_type)
+        return translations.order_by('-translation_type', 'user_role__role_type', 'user_role__level')
 
-    def get_navigation(self, site=None, in_use=None, translation_state='', translation_languages=[], order_by=TEXT_ASC):
+    # def get_navigation(self, site=None, in_use=None, translation_state='', translation_languages=[], order_by=TEXT_ASC):
+    def get_navigation(self, site=None, in_use=None, translation_state='', translation_languages=[], order_by=ID_ASC, return_segments=False):
         id = self.id
         text = self.text
         created = self.created
@@ -2696,9 +2740,9 @@ class Segment(models.Model):
         elif translation_state == TO_BE_TRANSLATED:
             qs = qs.exclude(is_invariant=True)
             qs = qs.exclude(segment_translation__language__in=translation_languages)
-        first = last = previous = next = None
         n = qs.count()
         # print (n, order_by, TEXT_ASC, order_by == TEXT_ASC, 1 == 1)
+        first = last = previous = next = None
         if n:
             if order_by == TEXT_ASC:
                 qs = qs.order_by('text')
@@ -2720,12 +2764,14 @@ class Segment(models.Model):
                 qs_before = qs.filter(created__gt=created).order_by('created')
                 qs_after = qs.filter(created__lt=created).order_by('-created')
                 # print (order_by, qs_before.count())
+            if return_segments:
+                return qs
             previous = qs_before.count() and qs_before[0] or None
             next = qs_after.count() and qs_after[0] or None
             first = qs[0]
-            first = not first.id==id or None
+            first = not first.id==id and first or None
             last = qs.reverse()[0]
-            last = not last.id==id or None
+            last = not last.id==id and last or None
         # return previous, next
         return n, first, last, previous, next
 
@@ -2739,7 +2785,14 @@ TRANSLATION_TYPE_CHOICES = (
     (MANUAL, _('Manual'),),
 )
 TRANSLATION_TYPE_DICT = dict(TRANSLATION_TYPE_CHOICES)
+TRANSLATION_TYPE_CODE_DICT = {
+    NONE: '',
+    TM: 'TM',
+    MT: 'MT',
+    MANUAL: 'MA',
+}
 
+"""
 TRANSLATION_SOURCE_TYPE_CHOICES = (
     (TM, _('Translation Memory'),),
     (MT, _('Machine Translation'),),
@@ -2749,6 +2802,7 @@ TRANSLATION_SOURCE_TYPE_DICT = dict(TRANSLATION_SOURCE_TYPE_CHOICES)
 class TranslationSource(models.Model):
     name = models.CharField(max_length=100)
     source_type = models.IntegerField(choices=TRANSLATION_SOURCE_TYPE_CHOICES, verbose_name='translation source type')
+"""
 
 class Translation(models.Model):
     segment = models.ForeignKey(Segment, verbose_name='segment', related_name='segment_translation')
@@ -2756,7 +2810,8 @@ class Translation(models.Model):
     text = models.TextField('text', blank=True, null=True)
     alignment = models.TextField('alignment', blank=True, null=True)
     translation_type = models.IntegerField(choices=TRANSLATION_TYPE_CHOICES, default=0, verbose_name='translation type')
-    translation_source = models.ForeignKey(TranslationSource, verbose_name='translation source', blank=True, null=True)
+    # translation_source = models.ForeignKey(TranslationSource, verbose_name='translation source', blank=True, null=True)
+    service_type = models.IntegerField(choices=TRANSLATION_SERVICE_CHOICES, default=NONE, verbose_name='service type')
     alignment_type = models.IntegerField(choices=TRANSLATION_TYPE_CHOICES, default=0, verbose_name='alignment type')
     is_locked = models.BooleanField('locked', default=False)
     user_role = models.ForeignKey(UserRole, verbose_name='role', blank=True, null=True)
@@ -2765,12 +2820,21 @@ class Translation(models.Model):
     def is_aligned(self):
         return self.alignment and self.alignment_type==MANUAL and normalized_alignment(self.alignment) or False
 
-    def get_navigation(self, order_by=TEXT_ASC, alignment_type=ANY):
+    def get_type_and_source(self):
+        code = TRANSLATION_TYPE_CODE_DICT[self.translation_type]
+        if self.service_type:
+            code += '.'+TRANSLATION_SERVICE_CODE_DICT[self.service_type]
+        return code
+
+    # def get_navigation(self, order_by=TEXT_ASC, alignment_type=ANY):
+    def get_navigation(self, order_by=ID_ASC, alignment_type=ANY, translation_type=ANY):
         id = self.id
         text = self.segment.text
         segment = self.segment
         site = segment.site
         qs = Translation.objects.filter(language=self.language, segment__site=site)
+        if translation_type:
+            qs = qs.filter(translation_type=translation_type)   
         if alignment_type:
             qs = qs.filter(alignment_type=alignment_type)   
         first = last = previous = next = None
@@ -2783,16 +2847,20 @@ class Translation(models.Model):
                 qs_after = qs.filter(segment__text__gt=text).order_by('segment__text', 'text')
                 # print (order_by, qs_before.count())
             elif order_by == ID_ASC:
+                """
                 qs = qs.order_by('segment__id', 'id')
                 qs_before = qs.filter(segment__id__lt=id).order_by('-segment__id', '-id')
                 qs_after = qs.filter(segment__id__gt=id).order_by('segment__id', 'id')
-                # print (order_by, qs_before.count())
+                """
+                qs = qs.order_by('id')
+                qs_before = qs.filter(id__lt=id).order_by('-id')
+                qs_after = qs.filter(id__gt=id).order_by('id')
             previous = qs_before.count() and qs_before[0] or None
             next = qs_after.count() and qs_after[0] or None
             first = qs[0]
-            first = not first.id==id or None
+            first = not first.id==id and first or None
             last = qs.reverse()[0]
-            last = not last.id==id or None
+            last = not last.id==id and last or None
         return n, first, last, previous, next
 
     def make_json(self):

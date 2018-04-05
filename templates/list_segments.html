@@ -97,7 +97,8 @@
 			    {% if target_translations %}
                     {% for translation in target_translations %}
 				  <tr>
-				  <td style="vertical-align: top;"><a href="/translation_align/{{ translation.id }}/" class="{{ target_language.code }}">{{ target_language.code|upper }}</a></td>
+				  <td style="vertical-align: top; text-align: center;"><a href="/translation_align/{{ translation.id }}/" class="{{ target_language.code }}">{{ target_language.code|upper }}</a>
+				  								   <br><small>{{ translation.get_type_and_source }}</small></td>
 				  <td>
                         	<input type="hidden" name="translation-{{ translation.id }}" id="translation-{{ translation.id }}" value="{{ translation.id }}">
                         	<textarea class="form-control custom-control" name="text-{{ translation.id }}" id="text-{{ translation.id }}" style="width:100%">{{ translation.text }}</textarea>
