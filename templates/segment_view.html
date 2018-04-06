@@ -72,6 +72,7 @@ th, td { text-align: left; vertical-align: top; }
 		<td>&nbsp;{{ sequencer_form.in_use }}</td>
 		<td>{{ sequencer_form.translation_state }}</td>
 		<td>{{ sequencer_form.translation_languages }}</td>
+		<td>{{ sequencer_form.translation_sources }}</td>
 		<td>{{ sequencer_form.order_by }}</td>
 		<td style="text-align: center;">{{ sequencer_form.show_similar }}</td>
 	</tr></tbody></table>    	
@@ -83,11 +84,12 @@ th, td { text-align: left; vertical-align: top; }
 		<legend>Translations in internal memory</legend>
     <table style="width: 100%">
     <tbody>
-	<tr><th>target</th><th>t-type</th><th>by</th><th style="text-align: left">text</th></tr>
+	<tr><th>target</th><th>type</th><th>source</th><th>by</th><th style="text-align: left">text</th></tr>
 	{% for l in other_languages %}{% for t in translations|lookup:l.code %}{% with ur=t.user_role %}
     <tr>
     	<td><a  class="{{ l.code }}" href="/translation_align/{{ t.id }}">{{ l }}</a></td>
     	<td>{{ TRANSLATION_TYPE_DICT|lookup:t.translation_type }}</td>
+    	<td>{{ TRANSLATION_SERVICE_DICT|lookup:t.service_type }}</td>
     	<td>{% if ur %}{{ ROLE_DICT|lookup:ur.role_type }}-{{ ur.level }}: {{ ur.user.get_full_name }}{% endif %}</td>
     	<td>{{ t.text }}</td>
    	</tr>

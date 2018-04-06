@@ -59,7 +59,7 @@ from .models import UserRole, Segment, Translation
 from .models import segments_from_string, non_invariant_words
 from .models import ID_ASC, TEXT_ASC, COUNT_DESC
 from .models import ANY, TO_BE_TRANSLATED, TRANSLATED, PARTIALLY, REVISED, INVARIANT, ALREADY
-from .models import ROLE_DICT, TRANSLATION_TYPE_DICT, TRANSLATION_SERVICE_DICT, GOOGLE, MYMEMORY
+from .models import ROLE_DICT, TRANSLATION_TYPE_DICT, TRANSLATION_SERVICE_DICT, GOOGLE, DEEPL, MYMEMORY
 from .models import ADMINISTRATOR, OWNER, MANAGER, LINGUIST, TRANSLATOR, CLIENT
 from .models import TM, MT, MANUAL
 from .models import PARALLEL_FORMAT_NONE, PARALLEL_FORMAT_XLIFF, PARALLEL_FORMAT_TEXT
@@ -73,6 +73,7 @@ from .forms import TranslationServiceForm, FilterPagesForm
 from .forms import UserRoleEditForm, ListSegmentsForm, ImportXliffForm
 from .session import get_language, set_language, get_site, set_site, get_userrole, set_userrole
 # from .utils import strings_from_html, elements_from_element, block_checksum
+from .deepl import translate as ask_deepl
 from .utils import ask_mymemory, ask_gt, text_to_list # , non_invariant_words
 from .utils import pageversion_diff, diff_style
 from  wip import srx_segmenter
@@ -1380,6 +1381,7 @@ def segment_view(request, segment_id):
         in_use = segment_context.get('in_use', None)
         translation_state = segment_context.get('translation_state', TO_BE_TRANSLATED)
         translation_codes = segment_context.get('translation_codes', [l.code for l in other_languages])
+        translation_sources = segment_context.get('translation_sources', [])
         translation_subjects = segment_context.get('translation_subjects', [])
         order_by = segment_context.get('order_by', ID_ASC)
         show_similar = segment_context.get('show_similar', False)
@@ -1388,6 +1390,7 @@ def segment_view(request, segment_id):
         in_use = 'Y'
         translation_state = TO_BE_TRANSLATED
         translation_codes = [l.code for l in other_languages]
+        translation_sources = []
         translation_subjects = []
         order_by = ID_ASC
         show_similar = False
@@ -1403,7 +1406,6 @@ def segment_view(request, segment_id):
                 if key.startswith('goto-'):
                     goto = int(key.split('-')[1])
                     segment = get_object_or_404(Segment, pk=goto)
-        # if (apply_filter or goto):
         form = SegmentSequencerForm(post)
         if form.is_valid():
             data = form.cleaned_data
@@ -1413,14 +1415,16 @@ def segment_view(request, segment_id):
             translation_state = int(data['translation_state'])
             translation_languages = data['translation_languages']
             translation_codes = [l.code for l in translation_languages]
+            translation_sources = data['translation_sources']
+            translation_sources = [int(ts) for ts in translation_sources]
             order_by = int(data['order_by'])
             show_similar = data['show_similar']
         else:
             pass
             # print ('error', form.errors)
-    # print ('project_site: ', project_site)
     segment_context['translation_state'] = translation_state
     segment_context['translation_codes'] = translation_codes
+    segment_context['translation_sources'] = translation_sources
     segment_context['project_site'] = project_site_id
     segment_context['in_use'] = in_use
     segment_context['order_by'] = order_by
@@ -1428,7 +1432,7 @@ def segment_view(request, segment_id):
     request.session['segment_context'] = segment_context
     if goto:
         return HttpResponseRedirect('/segment/%d/' % segment.id)        
-    n, first, last, previous, next = segment.get_navigation(site=project_site, in_use=in_use, translation_state=translation_state, translation_languages=translation_languages, order_by=order_by)
+    n, first, last, previous, next = segment.get_navigation(site=project_site, in_use=in_use, translation_state=translation_state, translation_languages=translation_languages, translation_sources=translation_sources, order_by=order_by)
     var_dict['n'] = n
     var_dict['first'] = first
     var_dict['last'] = last
@@ -1436,8 +1440,9 @@ def segment_view(request, segment_id):
     var_dict['next'] = next
     var_dict['translations'] = segment.get_translations()
     var_dict['similar_segments'] = show_similar and find_like_segments(segment, max_segments=10) or []
-    var_dict['sequencer_form'] = SegmentSequencerForm(initial={'project_site': project_site, 'in_use': in_use, 'translation_state': translation_state, 'translation_languages': translation_languages, 'order_by': order_by, 'show_similar': show_similar})
+    var_dict['sequencer_form'] = SegmentSequencerForm(initial={'project_site': project_site, 'in_use': in_use, 'translation_state': translation_state, 'translation_languages': translation_languages, 'translation_sources': translation_sources, 'order_by': order_by, 'show_similar': show_similar})
     var_dict['TRANSLATION_TYPE_DICT'] = TRANSLATION_TYPE_DICT
+    var_dict['TRANSLATION_SERVICE_DICT'] = TRANSLATION_SERVICE_DICT   
     var_dict['ROLE_DICT'] = ROLE_DICT
     sequencer_context = request.session.get('sequencer_context', {})
     var_dict['block_id'] = sequencer_context.get('block', None)
@@ -1604,6 +1609,7 @@ def segment_translate(request, segment_id, target_code):
         in_use = segment_context.get('in_use', None)
         translation_state = segment_context.get('translation_state', TO_BE_TRANSLATED)
         translation_codes = segment_context.get('translation_codes', [l.code for l in other_languages])
+        translation_sources = segment_context.get('translation_sources', [])
         order_by = segment_context.get('order_by', ID_ASC)
         show_similar = segment_context.get('show_similar', False)
     else:
@@ -1611,6 +1617,7 @@ def segment_translate(request, segment_id, target_code):
         in_use = 'Y'
         translation_state = TO_BE_TRANSLATED
         translation_codes = [l.code for l in other_languages]
+        translation_sources = []
         order_by = ID_ASC
         show_similar = False
     translation_languages = Language.objects.filter(code__in=translation_codes)
@@ -1653,6 +1660,12 @@ def segment_translate(request, segment_id, target_code):
                             if response.get('detectedSourceLanguage', '').startswith(source_language.code):
                                 # external_translations = [{ 'segment': response.get('input', ''), 'translation': response.get('translatedText', ''), 'service': TRANSLATION_SERVICE_DICT[GOOGLE] }]
                                 external_translations = [{ 'segment': response.get('input', ''), 'translation': response.get('translatedText', ''), 'service_type': GOOGLE }]
+                        elif subscription.service_type == DEEPL:
+                            source_code = source_language.code.upper()
+                            translations = ask_deepl(segment.text, target_code, subscription, source_code=source_code)
+                            for translation in translations:
+                                if translation.get('detected_source_language', '').startswith(source_code):
+                                    external_translations.append({ 'segment': segment.text, 'translation': translation.get('text'), 'service_type': DEEPL })
                         elif subscription.service_type == MYMEMORY:
                             langpair = '%s|%s' % (source_language.code, target_code)
                             status, translatedText, mymemory_translations = ask_mymemory(segment.text, langpair, subscription)
@@ -1665,7 +1678,8 @@ def segment_translate(request, segment_id, target_code):
                     subscription = subscriptions[0]
                     max_segments = int(data['max_segments'])
                     n_segments = 0
-                    segments = segment.get_navigation(site=project_site, in_use=in_use, translation_state=translation_state, translation_languages=translation_languages, order_by=order_by, return_segments=True)
+                    # segments = segment.get_navigation(site=project_site, in_use=in_use, translation_state=translation_state, translation_languages=translation_languages, order_by=order_by, return_segments=True)
+                    segments = segment.get_navigation(site=project_site, in_use=in_use, translation_state=translation_state, translation_languages=translation_languages, translation_sources=translation_sources, order_by=order_by, return_segments=True)
                     for segment in segments[:max_segments]:
                         if subscription.service_type == GOOGLE:
                             response = ask_gt(segment.text, target_code, subscription)
@@ -1720,18 +1734,23 @@ def segment_translate(request, segment_id, target_code):
                 translation_state = int(data['translation_state'])
                 translation_languages = data['translation_languages']
                 translation_codes = [l.code for l in translation_languages]
+                translation_sources = data['translation_sources']
+                translation_sources = [int(ts) for ts in translation_sources]
                 order_by = int(data['order_by'])
                 show_similar = data['show_similar']
+            else:
+                print(form.errors)
     segment_context['project_site'] = project_site_id
     segment_context['in_use'] = in_use
     segment_context['translation_state'] = translation_state
     segment_context['translation_codes'] = translation_codes
+    segment_context['translation_sources'] = translation_sources
     segment_context['order_by'] = order_by
     segment_context['show_similar'] = show_similar
     request.session['segment_context'] = segment_context
     if goto:
         return HttpResponseRedirect('/segment_translate/%d/%s/' % (segment.id, target_code))
-    n, first, last, previous, next = segment.get_navigation(site=project_site, in_use=in_use, translation_state=translation_state, translation_languages=translation_languages, order_by=order_by)
+    n, first, last, previous, next = segment.get_navigation(site=project_site, in_use=in_use, translation_state=translation_state, translation_languages=translation_languages, translation_sources=translation_sources, order_by=order_by)
     var_dict['n'] = n
     var_dict['first'] = first
     var_dict['last'] = last
@@ -1739,7 +1758,7 @@ def segment_translate(request, segment_id, target_code):
     var_dict['next'] = next
     var_dict['similar_segments'] = show_similar and find_like_segments(segment, translation_languages=[target_language], with_translations=True, max_segments=10) or []
     var_dict['translations'] = segment.get_translations()
-    var_dict['sequencer_form'] = SegmentSequencerForm(initial={ 'project_site': project_site, 'in_use': in_use, 'translation_state': translation_state, 'translation_languages': translation_languages, 'order_by': order_by, 'show_similar': show_similar})
+    var_dict['sequencer_form'] = SegmentSequencerForm(initial={ 'project_site': project_site, 'in_use': in_use, 'translation_state': translation_state, 'translation_languages': translation_languages, 'translation_sources': translation_sources, 'order_by': order_by, 'show_similar': show_similar})
     var_dict['translation_form'] = SegmentTranslationForm()
     var_dict['translation_service_form'] = translation_service_form
     var_dict['TRANSLATION_TYPE_DICT'] = TRANSLATION_TYPE_DICT

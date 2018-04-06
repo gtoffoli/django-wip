@@ -82,7 +82,7 @@ MICROSOFT = 3
 MATECAT = 4
 MYMEMORY = 5
 TRANSLATION_SERVICE_CHOICES = (
-    (NONE, ''),
+    # (NONE, ''),
     (GOOGLE, _('Google')), # GoogleTranslate
     (DEEPL, _('DeepL')),
     (MICROSOFT, _('Microsoft')), # Microsoft Translator
@@ -90,6 +90,7 @@ TRANSLATION_SERVICE_CHOICES = (
     # (MATECAT, _('Matecat')),
 )
 TRANSLATION_SERVICE_DICT = dict(TRANSLATION_SERVICE_CHOICES)
+TRANSLATION_SERVICE_DICT[NONE] = ''
 TRANSLATION_SERVICE_CODE_DICT = {
     NONE: '',
     GOOGLE: 'G',
@@ -2718,28 +2719,46 @@ class Segment(models.Model):
             translations = translations.filter(translation_type=translation_type)
         return translations.order_by('-translation_type', 'user_role__role_type', 'user_role__level')
 
-    # def get_navigation(self, site=None, in_use=None, translation_state='', translation_languages=[], order_by=TEXT_ASC):
-    def get_navigation(self, site=None, in_use=None, translation_state='', translation_languages=[], order_by=ID_ASC, return_segments=False):
+    ## def get_navigation(self, site=None, in_use=None, translation_state='', translation_languages=[], order_by=TEXT_ASC):
+    # def get_navigation(self, site=None, in_use=None, translation_state='', translation_languages=[], order_by=ID_ASC, return_segments=False):
+    def get_navigation(self, site=None, in_use=None, translation_state='', translation_languages=[], translation_sources=[], order_by=ID_ASC, return_segments=False):
         id = self.id
         text = self.text
         created = self.created
-        qs = Segment.objects.filter(language=self.language)
+        # qs = Segment.objects.filter(language=self.language)
+        qs = Segment.objects
         if site:
             qs = qs.filter(site=site)
+        else:
+            qs = qs.filter(language=self.language)
         if in_use == 'Y':
-            # qs = qs.filter(in_use=True)
             qs = qs.exclude(in_use=0)
         elif in_use == 'N':
-            # qs = qs.exclude(in_use=True)
             qs = qs.filter(in_use=0)
         if translation_state == INVARIANT:
             qs = qs.filter(is_invariant=True)
-        elif translation_state == TRANSLATED:
+        else:
             qs = qs.exclude(is_invariant=True)
-            qs = qs.filter(segment_translation__language__in=translation_languages)
-        elif translation_state == TO_BE_TRANSLATED:
-            qs = qs.exclude(is_invariant=True)
-            qs = qs.exclude(segment_translation__language__in=translation_languages)
+            if translation_state == ALREADY:
+                qs = qs.filter(language__in=translation_languages)
+            else:
+                qs = qs.exclude(language__in=translation_languages)
+                if translation_state == REVISED:
+                    if translation_sources:
+                        qs = qs.filter(segment_translation__translation_type=MANUAL, segment_translation__language__in=translation_languages, segment_translation__service_type__in=translation_sources)
+                    else:
+                        qs = qs.filter(segment_translation__translation_type=MANUAL, segment_translation__language__in=translation_languages)
+                elif translation_state == TRANSLATED:
+                    if translation_sources:
+                        qs = qs.filter(segment_translation__language__in=translation_languages, segment_translation__service_type__in=translation_sources)
+                    else:
+                        qs = qs.filter(segment_translation__language__in=translation_languages)
+                elif translation_state == TO_BE_TRANSLATED:
+                    if translation_sources:
+                        qs = qs.exclude(segment_translation__language__in=translation_languages, segment_translation__service_type__in=translation_sources)
+                    else:
+                        qs = qs.exclude(segment_translation__language__in=translation_languages)
+        qs = qs.distinct()
         n = qs.count()
         # print (n, order_by, TEXT_ASC, order_by == TEXT_ASC, 1 == 1)
         first = last = previous = next = None
