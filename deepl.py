@@ -37,16 +37,7 @@ def translate(text, target_code, subscription, source_code=None):
     if source_code:
         parameters['source_lang'] = source_code.upper()
 
-    response = requests.post(URL, json=parameters).json()
-    print('response:', response)
-
-    if 'result' not in response:
-        raise TranslationError('DeepL call resulted in a unknown result.')
-
-    translations = response['result']['translations']
-    print('translations:', translations)
-
-    if len(translations) == 0:
-        return None    
-
+    response = requests.post(URL, data=parameters)
+    response = response.json()
+    translations = response.get('translations', [])
     return translations

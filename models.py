@@ -82,7 +82,7 @@ MICROSOFT = 3
 MATECAT = 4
 MYMEMORY = 5
 TRANSLATION_SERVICE_CHOICES = (
-    # (NONE, ''),
+    (NONE, ''),
     (GOOGLE, _('Google')), # GoogleTranslate
     (DEEPL, _('DeepL')),
     (MICROSOFT, _('Microsoft')), # Microsoft Translator
@@ -90,12 +90,12 @@ TRANSLATION_SERVICE_CHOICES = (
     # (MATECAT, _('Matecat')),
 )
 TRANSLATION_SERVICE_DICT = dict(TRANSLATION_SERVICE_CHOICES)
-TRANSLATION_SERVICE_DICT[NONE] = ''
+# TRANSLATION_SERVICE_DICT[NONE] = ''
 TRANSLATION_SERVICE_CODE_DICT = {
     NONE: '',
-    GOOGLE: 'G',
-    DEEPL: 'D',
-    MICROSOFT: 'M',
+    GOOGLE: 'Google',
+    DEEPL: 'DeepL',
+    MICROSOFT: 'MsT',
 }
 
 """
@@ -2798,17 +2798,17 @@ TM = 1
 MT = 2
 MANUAL = 3
 TRANSLATION_TYPE_CHOICES = (
-    (0, _('Unspecified'),),
-    (TM, _('Translation Memory'),),
-    (MT, _('Machine Translation'),),
-    (MANUAL, _('Manual'),),
+    (0, _('?'),), # Unspecified
+    (TM, _('TM'),), # Translation Memory
+    (MT, _('MT'),), # Machine Translation
+    (MANUAL, _('MA'),), # Manual
 )
 TRANSLATION_TYPE_DICT = dict(TRANSLATION_TYPE_CHOICES)
 TRANSLATION_TYPE_CODE_DICT = {
     NONE: '',
     TM: 'TM',
     MT: 'MT',
-    MANUAL: 'MA',
+    MANUAL: 'M',
 }
 
 """
@@ -2842,7 +2842,7 @@ class Translation(models.Model):
     def get_type_and_source(self):
         code = TRANSLATION_TYPE_CODE_DICT[self.translation_type]
         if self.service_type:
-            code += '.'+TRANSLATION_SERVICE_CODE_DICT[self.service_type]
+            code += ' '+TRANSLATION_SERVICE_CODE_DICT[self.service_type]
         return code
 
     # def get_navigation(self, order_by=TEXT_ASC, alignment_type=ANY):

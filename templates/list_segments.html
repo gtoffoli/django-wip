@@ -4,6 +4,7 @@
 
 {% block extra_head %}
 <style>
+.ar { color: Green; }
 .it { color: LimeGreen; }
 .en { color: #FF0088; }
 .es { color: Orange; }
@@ -97,8 +98,7 @@
 			    {% if target_translations %}
                     {% for translation in target_translations %}
 				  <tr>
-				  <td style="vertical-align: top; text-align: center;"><a href="/translation_align/{{ translation.id }}/" class="{{ target_language.code }}">{{ target_language.code|upper }}</a>
-				  								   <br><small>{{ translation.get_type_and_source }}</small></td>
+				  <td style="vertical-align: middle; text-align: center;"><a href="/translation_align/{{ translation.id }}/" class="{{ target_language.code }}">{{ target_language.code|upper }}</a></td>
 				  <td>
                         	<input type="hidden" name="translation-{{ translation.id }}" id="translation-{{ translation.id }}" value="{{ translation.id }}">
                         	<textarea class="form-control custom-control" name="text-{{ translation.id }}" id="text-{{ translation.id }}" style="width:100%">{{ translation.text }}</textarea>
@@ -106,11 +106,10 @@
 							  <br /><small>{{ translation.alignment }}</small>
 			            {% endif %}
                   </td>
-                  <td class="text-center" style="vertical-align:top;">
-                        	<span class="input-group-btn">
+                  <td class="text-center" style="vertical-align: middle;">
                   			<input class="btn btn-default btn-sm" type="button" name="save-{{ segment.id }}-{{ translation.id }}" value="{% trans "save"|capfirst %}" onclick="save_translation('segment-{{ segment.id }}', 'translation-{{ translation.id }}', 'text-{{ translation.id }}')">
-                        	</span>
-                  </td>
+						    <br><small>{{ translation.get_type_and_source }}</small>
+				  </td>
                   </tr>
                     {% endfor %}
   			    {% else %}
@@ -119,10 +118,8 @@
 				  <td>
                         <textarea class="form-control custom-control" name="text-{{ segment.id }}" id="text-{{ segment.id }}" style="width:100%"></textarea>
 				  </td>
-                  <td class="text-center" style="vertical-align:top;">
-                        <span class="input-group-btn">
-                  		<input class="btn btn-default btn-sm" type="button" name="save-{{ segment.id }}-0" value="{% trans "save"|capfirst %}" onclick="save_translation('segment-{{ segment.id }}', null, 'text-{{ segment.id }}')">
-                        </span>
+                  <td class="text-center" style="vertical-align: middle;">
+                   		<input class="btn btn-default btn-sm" type="button" name="save-{{ segment.id }}-0" value="{% trans "save"|capfirst %}" onclick="save_translation('segment-{{ segment.id }}', null, 'text-{{ segment.id }}')">
                   </td>
                   </tr>
 			    {% endif %}
@@ -135,7 +132,7 @@
 				  <tr>
                 		<td style="font-size: smaller; vertical-align: middle;"><a href="/translation_align/{{ translation.id }}/"  class="{{ other_language.code }}">{{ other_language.code|upper }}</a></td>
 						<td style="font-size: smaller;">{{ translation.text }}</td>
-						<td></td>
+						<td style="text-align: center"><small>{{ translation.get_type_and_source }}</small></td>
 				  <tr>
                 {% endfor %}
               {% endfor %}

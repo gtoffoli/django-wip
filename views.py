@@ -6,11 +6,6 @@ http://lukeplant.me.uk/blog/posts/djangos-cbvs-were-a-mistake/
 """
 
 import sys
-"""
-sys.stdout = codecs.getwriter('utf8')(sys.stdout)
-sys.stderr = codecs.getwriter('utf8')(sys.stderr)
-"""
-
 if (sys.version_info > (3, 0)):
     # Python 3 code in this block
     from importlib import reload
@@ -59,7 +54,7 @@ from .models import UserRole, Segment, Translation
 from .models import segments_from_string, non_invariant_words
 from .models import ID_ASC, TEXT_ASC, COUNT_DESC
 from .models import ANY, TO_BE_TRANSLATED, TRANSLATED, PARTIALLY, REVISED, INVARIANT, ALREADY
-from .models import ROLE_DICT, TRANSLATION_TYPE_DICT, TRANSLATION_SERVICE_DICT, GOOGLE, DEEPL, MYMEMORY
+from .models import ROLE_DICT, TRANSLATION_TYPE_DICT, TRANSLATION_SERVICE_CHOICES, TRANSLATION_SERVICE_DICT, GOOGLE, DEEPL, MYMEMORY
 from .models import ADMINISTRATOR, OWNER, MANAGER, LINGUIST, TRANSLATOR, CLIENT
 from .models import TM, MT, MANUAL
 from .models import PARALLEL_FORMAT_NONE, PARALLEL_FORMAT_XLIFF, PARALLEL_FORMAT_TEXT
@@ -1602,6 +1597,7 @@ def segment_translate(request, segment_id, target_code):
     var_dict['block_id'] = block_id = sequencer_context.get('block', None)
 
     SegmentSequencerForm.base_fields['translation_languages'].queryset = translation_languages
+    SegmentSequencerForm.base_fields['translation_sources'].choices = TRANSLATION_SERVICE_CHOICES[1:]
 
     segment_context = request.session.get('segment_context', {})
     if segment_context:
@@ -1658,7 +1654,6 @@ def segment_translate(request, segment_id, target_code):
                         if subscription.service_type == GOOGLE:
                             response = ask_gt(segment.text, target_code, subscription)
                             if response.get('detectedSourceLanguage', '').startswith(source_language.code):
-                                # external_translations = [{ 'segment': response.get('input', ''), 'translation': response.get('translatedText', ''), 'service': TRANSLATION_SERVICE_DICT[GOOGLE] }]
                                 external_translations = [{ 'segment': response.get('input', ''), 'translation': response.get('translatedText', ''), 'service_type': GOOGLE }]
                         elif subscription.service_type == DEEPL:
                             source_code = source_language.code.upper()
@@ -1670,7 +1665,6 @@ def segment_translate(request, segment_id, target_code):
                             langpair = '%s|%s' % (source_language.code, target_code)
                             status, translatedText, mymemory_translations = ask_mymemory(segment.text, langpair, subscription)
                             for external_translation in mymemory_translations:
-                                # external_translation['service'] = TRANSLATION_SERVICE_DICT[MYMEMORY]
                                 external_translation['service_type'] = MYMEMORY
                                 external_translations.append(external_translation)
                     var_dict['external_translations'] = external_translations
@@ -1678,7 +1672,6 @@ def segment_translate(request, segment_id, target_code):
                     subscription = subscriptions[0]
                     max_segments = int(data['max_segments'])
                     n_segments = 0
-                    # segments = segment.get_navigation(site=project_site, in_use=in_use, translation_state=translation_state, translation_languages=translation_languages, order_by=order_by, return_segments=True)
                     segments = segment.get_navigation(site=project_site, in_use=in_use, translation_state=translation_state, translation_languages=translation_languages, translation_sources=translation_sources, order_by=order_by, return_segments=True)
                     for segment in segments[:max_segments]:
                         if subscription.service_type == GOOGLE:
@@ -1687,6 +1680,18 @@ def segment_translate(request, segment_id, target_code):
                             if text:
                                 translation = Translation(segment=segment, language_id=target_code, text=text, translation_type=MT, service_type=GOOGLE, timestamp=timezone.now())
                                 translation.save()
+                                n_segments += 1
+                        elif subscription.service_type == DEEPL:
+                            source_code = source_language.code.upper()
+                            translations = ask_deepl(segment.text, target_code, subscription, source_code=source_code)
+                            for translation in translations:
+                                text = translation.get('text', '')
+                                if text:
+                                    translation = Translation(segment=segment, language_id=target_code, text=translation.get('text'), translation_type=MT, service_type=DEEPL, timestamp=timezone.now())
+                                    translation.save()
+                                    n_segments += 1
+                        if n_segments >= max_segments:
+                            break
             else:
                 pass
             translation_form = SegmentTranslationForm()
@@ -1696,7 +1701,6 @@ def segment_translate(request, segment_id, target_code):
                 data = translation_form.cleaned_data
                 translation_source = data['translation_source']
                 translation_text = data['translation']
-                # translation = get_or_add_translation(request, segment, translation_text, target_language)
                 translation_type = MANUAL
                 timestamp = timezone.now()
                 selection = post.getlist('selection')
