@@ -881,7 +881,8 @@ class Proxy(models.Model):
                 sys.stdout.write('.')
                 try:
                     segment = Segment.objects.get(text=source, language=source_language, site=site)
-                    translation = Translation.objects.get(segment=segment, text=target, language=target_language)
+                    # translation = Translation.objects.get(segment=segment, text=target, language=target_language)
+                    translation = Translation.objects.get(segment=segment, text=target, language=target_language, translation_type=MANUAL)
                 except:
                     status['imported'] += 1
                 sys.stdout.write('+')
@@ -893,7 +894,7 @@ class Proxy(models.Model):
             qs = qs.filter(segment_translation__language=self.language)
         elif translation_state == TO_BE_TRANSLATED:
             qs = qs.exclude(segment_translation__language=self.language)
-        qs = qs.order_by('text')
+        qs = qs.distinct().order_by('id')
         version = '1.2'
         filename = self.site.name
         original = filename
@@ -906,8 +907,13 @@ class Proxy(models.Model):
             i += 1
             source = segment.text
             target = ''
-            if translation_state in [ANY, TRANSLATED]:
-                translations = Translation.objects.filter(segment=segment, language=self.language).order_by('-translation_type', 'user_role__role_type', 'user_role__level')
+            translations = Translation.objects.filter(segment=segment, language=self.language)
+            if translation_state == TRANSLATED:
+                translations = translations.exclude(text='')
+            elif translation_state == REVISED:
+                translations = translations.filter(translation_type=MANUAL)
+            if translations.count():
+                translations = translations.order_by('-translation_type', 'user_role__role_type', 'user_role__level')
                 target = translations[0].text
             if not target and copy_source:
                 target = source
@@ -928,11 +934,11 @@ class Proxy(models.Model):
             source_text = segment.text
             translations = Translation.objects.filter(segment=segment, language=self.language)
             target_text = ''
-            if translation_state in [ANY, TRANSLATED]:
-                for translation in translations:
+            for translation in translations:
+                if (translation_state==TRANSLATED and translation.text) or (translation_state==REVISED and translation.translation_type==MANUAL):
                     target_text = translation.text
                     lines.append('%s . ||| . %s' % (source_text, target_text))
-            if not target_text:
+            if not target_text or translation_state==ANY:
                 if copy_source:
                     target_text = source_text
                 lines.append('%s . ||| . %s' % (source_text, target_text))

@@ -335,7 +335,8 @@ def proxy_unsymmetrize_alignment(proxy, alignment_type=MANUAL):
     segments = Segment.objects.filter(site=proxy.site)
     for segment in segments:
         segment_text = segment.text
-        translations = Translation.objects.filter(segment=segment, language=proxy.language)
+        # translations = Translation.objects.filter(segment=segment, language=proxy.language)
+        translations = Translation.objects.filter(segment=segment, language=proxy.language, translation_type=MANUAL)
         if alignment_type:
             translations = translations.filter(alignment_type=alignment_type)
         for translation in translations:
