@@ -112,17 +112,20 @@ Related notes:
 - Segment - is_invariant==True can be thought as state==INVARIANT
 - Translation - info on translation state is conveyed by role and date
 """
-TO_BE_TRANSLATED = -1
 ANY = 0
 PARTIALLY = 1
 TRANSLATED = 2
 REVISED = 3
 INVARIANT = 4
 ALREADY = 5
+# TO_BE_TRANSLATED = -1
+TO_BE_TRANSLATED = -TRANSLATED
+TO_BE_REVISED = -REVISED
 TRANSLATION_STATE_CHOICES = (
     (ANY, _('any'),),
     (TO_BE_TRANSLATED, _('to be translated'),),
     (TRANSLATED,  _('translated'),),
+    (TO_BE_REVISED, _('to be revised'),),
     (REVISED,  _('revised'),),
     (INVARIANT,  _('invariant'),),
     (ALREADY,  _('in target language'),),
@@ -829,6 +832,7 @@ class Proxy(models.Model):
         summary['others'] = summary['total'] - summary['invariant'] - summary['already'] - summary['translated']
         return summary
 
+    """
     def import_translations(self, xliff_file, request=None, user_role=None):
         if not user_role:
             pass # ma dovrebbe essere specificato 
@@ -886,6 +890,68 @@ class Proxy(models.Model):
                 except:
                     status['imported'] += 1
                 sys.stdout.write('+')
+        return status
+    """
+
+    def import_translations(self, xliff_file, request=None, user_role=None):
+        if not user_role:
+            pass # ma dovrebbe essere specificato 
+        site = self.site
+        source_language = site.language
+        target_language = self.language
+        source_code = source_language.code.split('-')[0]
+        target_code = target_language.code.split('-')[0]
+        status = { 'found': 0, 'imported': 0 }
+        tree = etree.iterparse(xliff_file, events=("start", "end"))
+        opening = source = target = ''
+        for action, elem in tree:
+            tag = elem.tag
+            if tag.count('{') and tag.count('}'):
+                tag = tag.split('}')[1]
+            if action=='start':
+                if tag=='xliff' and action=='start':
+                    xliff_version = elem.get('version')
+                    status['version'] = xliff_version
+                elif tag=='file' and action=='start':
+                    xliff_source_language = elem.get('source-language')
+                    xliff_target_language = elem.get('target-language')
+                    if not xliff_source_language.split('-')[0]==source_code:
+                        status['error'] = "source language doesn't match"
+                        break
+                    elif not xliff_target_language.split('-')[0]==target_code:
+                        status['error'] = "target language doesn't match"
+                        break
+                elif tag=='trans-unit':
+                    source = target = ''
+                elif tag in ['source', 'seg-source', 'target']:
+                    opening = tag
+            elif action=='end':
+                text = elem.text
+                if text:
+                    text = text.strip()
+                if text:
+                    if opening in ['source', 'seg-source']:
+                        source = text
+                    elif opening == 'target':
+                        target = text
+                if tag=='trans-unit':
+                    if not source:
+                        continue
+                    status['found'] += 1
+                    segments = Segment.objects.filter(text=source, language=source_language, site=site)
+                    if segments.count():
+                        segment = segments[0]
+                    else:
+                        segment = Segment(text=source, language=source_language, site=site)
+                        segment.save()
+                        status['imported'] += 1
+                        sys.stdout.write('+')
+                    if target:
+                        translations = Translation.objects.filter(segment=segment, text=target, language=target_language)
+                        if not translations.count():
+                            translation = Translation(segment=segment, text=target, language=target_language, translation_type=MANUAL, timestamp=timezone.now())
+                            translation.save()
+                            sys.stdout.write('-')
         return status
 
     def build_xliff_export(self, translation_state=TO_BE_TRANSLATED, copy_source=False):
@@ -2694,7 +2760,6 @@ class Segment(models.Model):
     def get_translations(self, target_language=[], translation_type=ANY):
         """ now returns a dict, previously a list of lists """
         if not isinstance(target_language, (list, tuple)):
-            # return Translation.objects.filter(segment=self, language=target_language)
             translations = Translation.objects.filter(segment=self, language=target_language)
             if translation_type:
                 translations = translations.filter(translation_type=translation_type)
@@ -2702,7 +2767,6 @@ class Segment(models.Model):
         source_language = self.language
         target_languages = target_language or [l for l in Language.objects.all().order_by('code') if not l==source_language]
         has_translations = False
-        # language_translations = []
         language_translations = {}
         for language in target_languages:
             translations = Translation.objects.filter(segment=self, language=language)
@@ -2710,28 +2774,18 @@ class Segment(models.Model):
                 translations = translations.filter(translation_type=translation_type)
             if translations:
                 has_translations = True
-                # language_translations.append([language, translations])
                 language_translations[language.code] = translations
-        # return has_translations and language_translations or []
         return has_translations and language_translations or {}
 
-    """
-    def get_language_translations(self, target_language):
-        return Translation.objects.filter(segment=self, language=target_language).order_by('-translation_type', 'user_role__role_type', 'user_role__level')
-    """
     def get_language_translations(self, target_language, translation_type=ANY):
         translations = Translation.objects.filter(segment=self, language=target_language)
         if translation_type:
             translations = translations.filter(translation_type=translation_type)
         return translations.order_by('-translation_type', 'user_role__role_type', 'user_role__level')
 
-    ## def get_navigation(self, site=None, in_use=None, translation_state='', translation_languages=[], order_by=TEXT_ASC):
-    # def get_navigation(self, site=None, in_use=None, translation_state='', translation_languages=[], order_by=ID_ASC, return_segments=False):
-    def get_navigation(self, site=None, in_use=None, translation_state='', translation_languages=[], translation_sources=[], order_by=ID_ASC, return_segments=False):
-        id = self.id
-        text = self.text
-        created = self.created
-        # qs = Segment.objects.filter(language=self.language)
+    # def get_navigation(self, site=None, in_use=None, translation_state='', translation_languages=[], translation_sources=[], order_by=ID_ASC, return_segments=False):
+    def get_navigation(self, site=None, in_use=None, translation_state='', target_languages=[], translation_sources=[], order_by=ID_ASC):
+        """
         qs = Segment.objects
         if site:
             qs = qs.filter(site=site)
@@ -2764,41 +2818,87 @@ class Segment(models.Model):
                         qs = qs.exclude(segment_translation__language__in=translation_languages, segment_translation__service_type__in=translation_sources)
                     else:
                         qs = qs.exclude(segment_translation__language__in=translation_languages)
+                elif translation_state == TO_BE_REVISED:
+                    if translation_sources:
+                        qs = qs.filter(segment_translation__language__in=translation_languages, segment_translation__service_type__in=translation_sources).exclude(segment_translation__language__in=translation_languages, segment_translation__service_type__in=translation_sources, segment_translation__translation_type=MANUAL)
+                    else:
+                        qs = qs.filter(segment_translation__language__in=translation_languages).exclude(segment_translation__translation_type=MANUAL)
         qs = qs.distinct()
+        """
+        qs = filter_segments(site=site, in_use=in_use, translation_state=translation_state, target_languages=target_languages, translation_sources=translation_sources, order_by=order_by)
         n = qs.count()
-        # print (n, order_by, TEXT_ASC, order_by == TEXT_ASC, 1 == 1)
         first = last = previous = next = None
         if n:
+            text = self.text
+            created = self.created
             if order_by == TEXT_ASC:
                 qs = qs.order_by('text')
                 qs_before = qs.filter(text__lt=text).order_by('-text')
                 qs_after = qs.filter(text__gt=text).order_by('text')
-                # print (order_by, qs_before.count())
             elif order_by == ID_ASC:
                 qs = qs.order_by('id')
-                qs_before = qs.filter(id__lt=id).order_by('-id')
-                qs_after = qs.filter(id__gt=id).order_by('id')
-                # print (order_by, qs_before.count())
+                qs_before = qs.filter(id__lt=self.id).order_by('-id')
+                qs_after = qs.filter(id__gt=self.id).order_by('id')
             elif order_by == DATETIME_ASC:
                 qs = qs.order_by('created')
                 qs_before = qs.filter(created__lt=created).order_by('-created')
                 qs_after = qs.filter(created__gt=created).order_by('created')
-                # print (order_by, qs_before.count())
             elif order_by == DATETIME_DESC:
                 qs = qs.order_by('-created')
                 qs_before = qs.filter(created__gt=created).order_by('created')
                 qs_after = qs.filter(created__lt=created).order_by('-created')
-                # print (order_by, qs_before.count())
-            if return_segments:
-                return qs
             previous = qs_before.count() and qs_before[0] or None
             next = qs_after.count() and qs_after[0] or None
             first = qs[0]
             first = not first.id==id and first or None
             last = qs.reverse()[0]
             last = not last.id==id and last or None
-        # return previous, next
         return n, first, last, previous, next
+
+def filter_segments(site=None, in_use=None, translation_state='', source_languages=[], target_languages=[], translation_sources=[], order_by=ID_ASC):
+    """ returns as a queryset segments filtered based on site and/or source language(s),
+        plus on a set of other criteria related to available translations and their state and/or source
+    """
+    qs = Segment.objects
+    if site:
+        qs = qs.filter(site=site)
+    else:
+        assert(len(source_languages))
+        qs = qs.filter(language__in=source_languages)
+    if in_use == 'Y':
+        qs = qs.exclude(in_use=0)
+    elif in_use == 'N':
+        qs = qs.filter(in_use=0)
+    if translation_state == INVARIANT:
+        qs = qs.filter(is_invariant=True)
+    else:
+        qs = qs.exclude(is_invariant=True)
+        if translation_state == ALREADY:
+            qs = qs.filter(language__in=target_languages)
+        else:
+            qs = qs.exclude(language__in=target_languages)
+            if translation_state == REVISED:
+                if translation_sources:
+                    qs = qs.filter(segment_translation__translation_type=MANUAL, segment_translation__language__in=target_languages, segment_translation__service_type__in=translation_sources)
+                else:
+                    qs = qs.filter(segment_translation__translation_type=MANUAL, segment_translation__language__in=target_languages)
+            elif translation_state == TRANSLATED:
+                if translation_sources:
+                    qs = qs.filter(segment_translation__language__in=target_languages, segment_translation__service_type__in=translation_sources)
+                else:
+                    qs = qs.filter(segment_translation__language__in=target_languages)
+            elif translation_state == TO_BE_TRANSLATED:
+                if translation_sources:
+                    qs = qs.exclude(segment_translation__language__in=target_languages, segment_translation__service_type__in=translation_sources)
+                else:
+                    qs = qs.exclude(segment_translation__language__in=target_languages)
+            elif translation_state == TO_BE_REVISED:
+                if translation_sources:
+                    qs = qs.filter(segment_translation__language__in=target_languages, segment_translation__service_type__in=translation_sources).exclude(segment_translation__language__in=target_languages, segment_translation__service_type__in=translation_sources, segment_translation__translation_type=MANUAL)
+                else:
+                    qs = qs.filter(segment_translation__language__in=target_languages).exclude(segment_translation__translation_type=MANUAL)
+    qs = qs.distinct()
+    return qs
 
 TM = 1
 MT = 2

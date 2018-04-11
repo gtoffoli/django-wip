@@ -60,7 +60,7 @@ from .models import TM, MT, MANUAL
 from .models import PARALLEL_FORMAT_NONE, PARALLEL_FORMAT_XLIFF, PARALLEL_FORMAT_TEXT
 from .models import DISCOVER, CRAWL, BACKGROUND, FOREGROUND
 from .models import get_or_set_user_role
-from .models import get_segments
+from .models import get_segments, filter_segments
 from .forms import DiscoverForm, CrawlForm
 from .forms import SiteManageForm, ProxyManageForm, PageManageForm, PageSequencerForm, BlockEditForm, BlockSequencerForm
 from .forms import SegmentSequencerForm, SegmentEditForm, SegmentTranslationForm, TranslationViewForm, TranslationSequencerForm
@@ -1427,7 +1427,8 @@ def segment_view(request, segment_id):
     request.session['segment_context'] = segment_context
     if goto:
         return HttpResponseRedirect('/segment/%d/' % segment.id)        
-    n, first, last, previous, next = segment.get_navigation(site=project_site, in_use=in_use, translation_state=translation_state, translation_languages=translation_languages, translation_sources=translation_sources, order_by=order_by)
+    # n, first, last, previous, next = segment.get_navigation(site=project_site, in_use=in_use, translation_state=translation_state, translation_languages=translation_languages, translation_sources=translation_sources, order_by=order_by)
+    n, first, last, previous, next = segment.get_navigation(site=project_site, in_use=in_use, translation_state=translation_state, target_languages=translation_languages, translation_sources=translation_sources, order_by=order_by)
     var_dict['n'] = n
     var_dict['first'] = first
     var_dict['last'] = last
@@ -1647,7 +1648,7 @@ def segment_translate(request, segment_id, target_code):
             if translation_service_form.is_valid():
                 data = translation_service_form.cleaned_data
                 translation_services = data['translation_services']
-                subscriptions = ServiceSubscription.objects.filter(service_type__in=translation_services)
+                subscriptions = ServiceSubscription.objects.filter(site=segment.site, service_type__in=translation_services)
                 if ask_service:
                     external_translations = []
                     for subscription in subscriptions:
@@ -1672,7 +1673,8 @@ def segment_translate(request, segment_id, target_code):
                     subscription = subscriptions[0]
                     max_segments = int(data['max_segments'])
                     n_segments = 0
-                    segments = segment.get_navigation(site=project_site, in_use=in_use, translation_state=translation_state, translation_languages=translation_languages, translation_sources=translation_sources, order_by=order_by, return_segments=True)
+                    # segments = segment.get_navigation(site=project_site, in_use=in_use, translation_state=translation_state, translation_languages=translation_languages, translation_sources=translation_sources, order_by=order_by, return_segments=True)
+                    segments = segment.get_navigation(site=project_site, in_use=in_use, translation_state=translation_state, target_languages=translation_languages, translation_sources=translation_sources, order_by=order_by, return_segments=True)
                     for segment in segments[:max_segments]:
                         if subscription.service_type == GOOGLE:
                             response = ask_gt(segment.text, target_code, subscription)
@@ -1754,7 +1756,8 @@ def segment_translate(request, segment_id, target_code):
     request.session['segment_context'] = segment_context
     if goto:
         return HttpResponseRedirect('/segment_translate/%d/%s/' % (segment.id, target_code))
-    n, first, last, previous, next = segment.get_navigation(site=project_site, in_use=in_use, translation_state=translation_state, translation_languages=translation_languages, translation_sources=translation_sources, order_by=order_by)
+    # n, first, last, previous, next = segment.get_navigation(site=project_site, in_use=in_use, translation_state=translation_state, translation_languages=translation_languages, translation_sources=translation_sources, order_by=order_by)
+    n, first, last, previous, next = segment.get_navigation(site=project_site, in_use=in_use, translation_state=translation_state, target_languages=translation_languages, translation_sources=translation_sources, order_by=order_by)
     var_dict['n'] = n
     var_dict['first'] = first
     var_dict['last'] = last
@@ -1951,7 +1954,6 @@ def list_segments(request, state=None):
         translated = None
 
     var_dict = {}
-    # var_dict['proxy'] = proxy
     var_dict['site'] = project_site_id and Site.objects.get(pk=project_site_id) or None
     var_dict['state'] = translation_state
     var_dict['source_language'] = source_language
@@ -1962,6 +1964,7 @@ def list_segments(request, state=None):
     var_dict['other_languages'] = Language.objects.exclude(code=target_language_code).order_by('code')
     var_dict['order_by'] = order_by
 
+    """
     if project_site and translation_state == INVARIANT:
         qs = Segment.objects.filter(site=project_site, is_invariant=True)
     elif project_site and translation_state == ALREADY:
@@ -1969,11 +1972,13 @@ def list_segments(request, state=None):
     else:
         qs = find_segments(source_languages=[source_language], target_languages=[target_language], site=project_site, translated=translated, order_by='')
     if in_use == 'Y':
-        # qs = qs.filter(in_use=True)
         qs = qs.exclude(in_use=0)
     elif in_use == 'N':
-        # qs = qs.exclude(in_use=True)
         qs = qs.filter(in_use=0)
+    """
+    source_languages = source_language and [source_language] or []
+    target_languages = target_language and [target_language] or []
+    qs = filter_segments(site=project_site, in_use=in_use, translation_state=translation_state, source_languages=source_languages, target_languages=target_languages)
     if source_text_filter:
         qs = qs.filter(text__icontains=source_text_filter)
     if target_text_filter:
