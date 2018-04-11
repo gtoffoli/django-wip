@@ -2893,10 +2893,12 @@ def filter_segments(site=None, in_use=None, translation_state='', source_languag
                 else:
                     qs = qs.exclude(segment_translation__language__in=target_languages)
             elif translation_state == TO_BE_REVISED:
+                qs = qs.filter(segment_translation__language__in=target_languages)
                 if translation_sources:
-                    qs = qs.filter(segment_translation__language__in=target_languages, segment_translation__service_type__in=translation_sources).exclude(segment_translation__language__in=target_languages, segment_translation__service_type__in=translation_sources, segment_translation__translation_type=MANUAL)
+                    revised_translation_ids = Translation.objects.filter(segment__in=qs, language__in=target_languages, translation_type=MANUAL, service_type__in=translation_sources).values_list('id', flat=True)
                 else:
-                    qs = qs.filter(segment_translation__language__in=target_languages).exclude(segment_translation__translation_type=MANUAL)
+                    revised_translation_ids = Translation.objects.filter(segment__in=qs, language__in=target_languages, translation_type=MANUAL).values_list('id', flat=True)
+                qs = qs.exclude(segment_translation__id__in=revised_translation_ids)
     qs = qs.distinct()
     return qs
 
