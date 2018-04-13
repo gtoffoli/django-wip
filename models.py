@@ -1959,6 +1959,8 @@ def filter_blocks(site=None, webpage=None, translation_state='', translation_cod
             qs = qs.exclude(language_id=target_code)
     if source_text_filter:
         qs = qs.filter(body__icontains=source_text_filter)
+    if order_by:
+        qs = qs.order_by(order_by)
     return qs
 
 class Block(node_factory('BlockEdge')):
@@ -2909,7 +2911,7 @@ TRANSLATION_TYPE_CHOICES = (
     (0, _('?'),), # Unspecified
     (TM, _('TM'),), # Translation Memory
     (MT, _('MT'),), # Machine Translation
-    (MANUAL, _('MA'),), # Manual
+    (MANUAL, _('M'),), # Manual
 )
 TRANSLATION_TYPE_DICT = dict(TRANSLATION_TYPE_CHOICES)
 TRANSLATION_TYPE_CODE_DICT = {
@@ -2952,6 +2954,12 @@ class Translation(models.Model):
         if self.service_type:
             code += ' '+TRANSLATION_SERVICE_CODE_DICT[self.service_type]
         return code
+
+    def get_type(self):
+        return TRANSLATION_TYPE_CODE_DICT.get(self.translation_type, '')
+
+    def get_source(self):
+        return TRANSLATION_SERVICE_CODE_DICT.get(self.service_type, '')
 
     # def get_navigation(self, order_by=TEXT_ASC, alignment_type=ANY):
     def get_navigation(self, order_by=ID_ASC, alignment_type=ANY, translation_type=ANY):

@@ -111,8 +111,14 @@ function apply_translation (target_code, id_from, id_to) {
 
 	<fieldset>
 		<legend>Navigation - {{ n }} blocks found:
+{% comment %}
 		{% if previous %}<input type="submit" name="goto-{{ previous.id }}" class="btn btn-default btn-sm" value="Previous">{% endif %}
 		{% if next %}<input type="submit" name="goto-{{ next.id }}" class="btn btn-default btn-sm" value="Next">{% endif %}
+{% endcomment %}
+		{% if first %}<button type="submit" name="goto-{{ first.id }}" class="btn btn-sm btn-default" value="First"><i class="fa fa-fast-backward"></i></button>{% endif %}
+		{% if previous %}<button type="submit" name="goto-{{ previous.id }}" class="btn btn-sm btn-default" value="Previous"><i class="fa fa-chevron-left"></i></button>{% endif %}
+		{% if next %}<button type="submit" name="goto-{{ next.id }}" class="btn btn-sm btn-default" value="Next"><i class="fa fa-chevron-right"></i></button>{% endif %}
+		{% if last %}<button type="submit" name="goto-{{ last.id }}" class="btn btn-sm btn-default" value="Last"><i class="fa fa-fast-forward"></i></button>{% endif %}
 		</legend>
 
     <table><thead>

@@ -8,7 +8,9 @@
 .it { color: LimeGreen; }
 .en { color: #FF0088; }
 .es { color: Orange; }
-.fr { color: blue; }   
+.fr { color: blue; }  
+
+table, th, td { max-width: 200px!; }
 </style>
 {% endblock %}
 
@@ -43,10 +45,10 @@
 
 <form action="#" method="post" id="translation-form">{% csrf_token %}
 
-<div>{% for field in list_segments_form.visible_fields|slice:"0:3" %}{{ field.label_tag }} {{ field }} &nbsp; {% endfor %}</div>
-<div>{% for field in list_segments_form.visible_fields|slice:"3:5" %}{{ field.label_tag }} {{ field }} &nbsp; {% endfor %}</div>
-<div>{% for field in list_segments_form.visible_fields|slice:"5:7" %}{{ field.label_tag }} {{ field }} &nbsp; {% endfor %}</div>
-<div>{% for field in list_segments_form.visible_fields|slice:"7:10" %}{{ field.label_tag }} {{ field }} &nbsp; {% endfor %}</div>
+<div>{% for field in list_segments_form.visible_fields|slice:"0:4" %}{{ field.label_tag }} {{ field }} &nbsp; {% endfor %}</div>
+<div>{% for field in list_segments_form.visible_fields|slice:"4:6" %}{{ field.label_tag }} {{ field }} &nbsp; {% endfor %}</div>
+<div>{% for field in list_segments_form.visible_fields|slice:"6:8" %}{{ field.label_tag }} {{ field }} &nbsp; {% endfor %}</div>
+<div>{% for field in list_segments_form.visible_fields|slice:"8:11" %}{{ field.label_tag }} {{ field }} &nbsp; {% endfor %}</div>
 
     {% if segments.paginator.num_pages > 1 %}
       <div class="text-right">
@@ -77,8 +79,8 @@
         <th></th>
         <th>id</th>
         <th>U</th>
-        <th style="width:40%">{{ source_language }}</th>
-        <th style="width:54%">{{ target_language }}</th>
+        <th style="width:46%; max-width: 50%;">{{ source_language }}</th>
+        <th style="width:46%">{{ target_language }}</th>
       </thead>
       <tbody>
       {% for segment in segments %}
@@ -98,17 +100,17 @@
 			    {% if target_translations %}
                     {% for translation in target_translations %}
 				  <tr>
-				  <td style="vertical-align: middle; text-align: center;"><a href="/translation_align/{{ translation.id }}/" class="{{ target_language.code }}">{{ target_language.code|upper }}</a></td>
+				  <td style="vertical-align: middle; text-align: center;"><a href="/segment_translate/{{ segment.id }}/{{ target_language.code }}/" class="{{ target_language.code }}">{{ target_language.code|upper }}</a></td>
 				  <td>
                         	<input type="hidden" name="translation-{{ translation.id }}" id="translation-{{ translation.id }}" value="{{ translation.id }}">
-                        	<textarea class="form-control custom-control" name="text-{{ translation.id }}" id="text-{{ translation.id }}" style="width:100%">{{ translation.text }}</textarea>
+                        	<textarea class="form-control custom-control" name="text-{{ translation.id }}" id="text-{{ translation.id }}" style="width: 100%; resize :none;" rows="3">{{ translation.text }}</textarea>
 					    {% if show_alignments and translation.alignment %}
 							  <br /><small>{{ translation.alignment }}</small>
 			            {% endif %}
                   </td>
                   <td class="text-center" style="vertical-align: middle;">
                   			<input class="btn btn-default btn-sm" type="button" name="save-{{ segment.id }}-{{ translation.id }}" value="{% trans "save"|capfirst %}" onclick="save_translation('segment-{{ segment.id }}', 'translation-{{ translation.id }}', 'text-{{ translation.id }}')">
-						    <br><small>{{ translation.get_type_and_source }}</small>
+						    <br><nobr>{{ translation.get_type }} <small>{{ translation.get_source }}</small></nobr>
 				  </td>
                   </tr>
                     {% endfor %}
@@ -116,7 +118,7 @@
 				  <tr>
 				  <td><a href="/segment_translate/{{ segment.id }}/{{ target_language.code }}/" title="translate this segment"><i class="fa fa-language font07em" style="background-color: white; color: blue; border: none;"></i></a></td>
 				  <td>
-                        <textarea class="form-control custom-control" name="text-{{ segment.id }}" id="text-{{ segment.id }}" style="width:100%"></textarea>
+                        <textarea class="form-control custom-control" name="text-{{ segment.id }}" id="text-{{ segment.id }}" style="width: 100%; resize :none;" rows="3"></textarea>
 				  </td>
                   <td class="text-center" style="vertical-align: middle;">
                    		<input class="btn btn-default btn-sm" type="button" name="save-{{ segment.id }}-0" value="{% trans "save"|capfirst %}" onclick="save_translation('segment-{{ segment.id }}', null, 'text-{{ segment.id }}')">
@@ -130,9 +132,9 @@
               {% for other_language in other_languages %}
                 {% for translation in translations|lookup:other_language.code %}
 				  <tr>
-                		<td style="font-size: smaller; vertical-align: middle;"><a href="/translation_align/{{ translation.id }}/"  class="{{ other_language.code }}">{{ other_language.code|upper }}</a></td>
+                		<td style="font-size: smaller; vertical-align: middle;"><a href="/segment_translate/{{ segment.id }}/{{ translation.language.code }}/"  class="{{ other_language.code }}">{{ other_language.code|upper }}</a></td>
 						<td style="font-size: smaller;">{{ translation.text }}</td>
-						<td style="text-align: center"><small>{{ translation.get_type_and_source }}</small></td>
+						<td style="text-align: center"><nobr>{{ translation.get_type }} <small>{{ translation.get_source }}</small></nobr></td>
 				  <tr>
                 {% endfor %}
               {% endfor %}

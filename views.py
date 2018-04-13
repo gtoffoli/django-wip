@@ -1875,6 +1875,7 @@ def list_segments(request, state=None):
 
     source_text_filter = tm_edit_context.get('source_text_filter', '')
     target_text_filter = tm_edit_context.get('target_text_filter', '')
+    translation_source = tm_edit_context.get('translation_source', '')
     in_use = tm_edit_context.get('in_use', 'Y')
     show_other_targets = tm_edit_context.get('show_other_targets', False)
     show_alignments = tm_edit_context.get('show_alignments', False)
@@ -1882,6 +1883,7 @@ def list_segments(request, state=None):
     tm_edit_context['project_site'] = project_site_id
     tm_edit_context['source_language'] = source_language_code
     tm_edit_context['target_language'] = target_language_code
+    tm_edit_context['translation_source'] = translation_source
     request.session['tm_edit_context'] = tm_edit_context
     if request.method == 'POST':
         post = request.POST
@@ -1929,6 +1931,8 @@ def list_segments(request, state=None):
             tm_edit_context['source_language'] = source_language and source_language.code or None
             target_language = data['target_language']
             tm_edit_context['target_language'] = target_language and target_language.code or None
+            translation_source = data['translation_source']
+            tm_edit_context['translation_source'] = translation_source
             tm_edit_context['source_text_filter'] = source_text_filter = data['source_text_filter']
             tm_edit_context['target_text_filter'] = target_text_filter = data['target_text_filter']
             tm_edit_context['in_use'] = in_use = data['in_use']
@@ -1944,7 +1948,7 @@ def list_segments(request, state=None):
             if post.get('add-segment', '') and project_site and source_language and source_text_filter:
                 segment, created = Segment.objects.get_or_create(site=project_site, language=source_language, text=source_text_filter)
     else:
-        form = ListSegmentsForm(initial={'project_site': project_site, 'in_use': in_use, 'translation_state': translation_state, 'source_language': source_language, 'target_language': target_language, 'source_text_filter': source_text_filter, 'target_text_filter': target_text_filter, 'show_other_targets': show_other_targets, 'order_by': order_by })
+        form = ListSegmentsForm(initial={'project_site': project_site, 'in_use': in_use, 'translation_state': translation_state, 'source_language': source_language, 'target_language': target_language, 'translation_source': translation_source, 'source_text_filter': source_text_filter, 'target_text_filter': target_text_filter, 'show_other_targets': show_other_targets, 'order_by': order_by })
 
     if translation_state == TRANSLATED:
         translated = True
@@ -1978,7 +1982,8 @@ def list_segments(request, state=None):
     """
     source_languages = source_language and [source_language] or []
     target_languages = target_language and [target_language] or []
-    qs = filter_segments(site=project_site, in_use=in_use, translation_state=translation_state, source_languages=source_languages, target_languages=target_languages)
+    translation_sources = translation_source and [translation_source] or []
+    qs = filter_segments(site=project_site, in_use=in_use, translation_state=translation_state, source_languages=source_languages, target_languages=target_languages, translation_sources=translation_sources)
     if source_text_filter:
         qs = qs.filter(text__icontains=source_text_filter)
     if target_text_filter:
