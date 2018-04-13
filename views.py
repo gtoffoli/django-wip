@@ -1274,7 +1274,8 @@ def block_translate(request, block_id, target_code):
             like_strings = find_like_segments(segment_string, max_segments=5)
             # print (segment_string, like_strings)
             source_strings.append(like_strings)
-            translations = Translation.objects.filter(segment=segment_string, language=target_language)
+            # translations = Translation.objects.filter(segment=segment_string, language=target_language)
+            translations = Translation.objects.filter(segment=segment_string, language=target_language).order_by('-translation_type')
             source_translations.append(translations)
         else:
             segment_string.id = 0
@@ -1932,7 +1933,7 @@ def list_segments(request, state=None):
             tm_edit_context['source_language'] = source_language and source_language.code or None
             target_language = data['target_language']
             tm_edit_context['target_language'] = target_language and target_language.code or None
-            translation_source = data['translation_source']
+            translation_source = int(data['translation_source'])
             tm_edit_context['translation_source'] = translation_source
             tm_edit_context['source_text_filter'] = source_text_filter = data['source_text_filter']
             tm_edit_context['target_text_filter'] = target_text_filter = data['target_text_filter']
