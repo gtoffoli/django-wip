@@ -2321,8 +2321,8 @@ class Block(node_factory('BlockEdge')):
                 state = PARTIALLY
                 logger.info('block: {0} , {1} PARTIALLY'.format(self.id, not previous_state and 'new' or ''))
             translated_block.state = state
-            if n_substitutions:
-                translated_block.body = translated_body
+            # if n_substitutions:
+            translated_block.body = translated_body
             if not dry:
                 translated_block.save()
         if dry:
