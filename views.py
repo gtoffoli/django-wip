@@ -1673,8 +1673,9 @@ def segment_translate(request, segment_id, target_code):
                     subscription = subscriptions[0]
                     max_segments = int(data['max_segments'])
                     n_segments = 0
-                    # segments = segment.get_navigation(site=project_site, in_use=in_use, translation_state=translation_state, translation_languages=translation_languages, translation_sources=translation_sources, order_by=order_by, return_segments=True)
-                    segments = segment.get_navigation(site=project_site, in_use=in_use, translation_state=translation_state, target_languages=translation_languages, translation_sources=translation_sources, order_by=order_by, return_segments=True)
+                    ## segments = segment.get_navigation(site=project_site, in_use=in_use, translation_state=translation_state, translation_languages=translation_languages, translation_sources=translation_sources, order_by=order_by, return_segments=True)
+                    # segments = segment.get_navigation(site=project_site, in_use=in_use, translation_state=translation_state, target_languages=translation_languages, translation_sources=translation_sources, order_by=order_by, return_segments=True)
+                    segments = filter_segments(site=project_site, in_use=in_use, translation_state=translation_state, target_languages=translation_languages, translation_sources=translation_sources, order_by=order_by)
                     for segment in segments[:max_segments]:
                         if subscription.service_type == GOOGLE:
                             response = ask_gt(segment.text, target_code, subscription)
