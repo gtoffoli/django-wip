@@ -442,18 +442,17 @@ def site(request, site_slug):
             elif apply_invariants:
                 blocks = Block.objects.filter(site=site, language__isnull=True, no_translate=False)
                 if blocks:
-                    """
-                    srx_filepath = os.path.join(RESOURCES_ROOT, 'segment.srx')
-                    srx_rules = srx_segmenter.parse(srx_filepath)
-                    italian_rules = srx_rules['Italian']
-                    segmenter = srx_segmenter.SrxSegmenter(italian_rules)
-                    """
                     segmenter = site.make_segmenter()
+                    site_invariants = text_to_list(site.invariant_words)
                 n_invariants = 0
+                n_in_language = 0
                 for block in blocks:
-                    if block.apply_invariants(segmenter):
+                    segments = block.block_get_segments(segmenter)
+                    if block.apply_invariants(segmenter, segments=segments, site_invariants=site_invariants):
                         n_invariants += 1
-                messages.add_message(request, messages.INFO, '%d blocks marked as invariant.' % n_invariants)
+                    elif block.apply_language(segmenter, segments=segments, site_invariants=site_invariants):
+                        n_in_language += 1
+                messages.add_message(request, messages.INFO, '%d blocks marked as invariant or in some language.' % n_invariants)
             elif guess_blocks_language:
                 from wip.utils import guess_block_language
                 blocks = Block.objects.filter(site=site, language__isnull=True)

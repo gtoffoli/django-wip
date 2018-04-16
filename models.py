@@ -2330,14 +2330,16 @@ class Block(node_factory('BlockEdge')):
         else:
             return state, n_invariants, n_substitutions
 
-    def apply_invariants(self, segmenter):
+    # def apply_invariants(self, segmenter):
+    def apply_invariants(self, segmenter, segments=None, site_invariants=None):
         if self.no_translate:
             return False
-        segments = self.block_get_segments(segmenter)
-        site_invariants = text_to_list(self.site.invariant_words)
+        if segments==None:
+            segments = self.block_get_segments(segmenter)
+        if site_invariants==None:
+            site_invariants = text_to_list(self.site.invariant_words)
         invariant = True
         for segment in segments:
-            # if not type(segment) == unicode:
             if not type(segment) == str:
                 return False
             if not non_invariant_words(segment.split(), site_invariants=site_invariants):
@@ -2350,6 +2352,45 @@ class Block(node_factory('BlockEdge')):
             self.no_translate = True
             self.save()
         return invariant
+
+    def apply_language(self, segmenter, segments=None, site_invariants=None):
+        if self.language:
+            return False
+        if segments==None:
+            segments = self.block_get_segments(segmenter)
+        site = self.site
+        if site_invariants==None:
+            site_invariants = text_to_list(site.invariant_words)
+        in_language = True
+        language = None
+        for segment in segments:
+            if not type(segment) == str:
+                return False
+            if not non_invariant_words(segment.split(), site_invariants=site_invariants):
+                continue
+            matches = Segment.objects.filter(site=site, text=segment, is_invariant=True)
+            if matches:
+                continue
+            if language:
+                matches = Segment.objects.filter(site=site, text=segment, language=language)
+                if not matches:
+                    in_language = False
+                    break
+            else:
+                matches = Segment.objects.filter(site=site, text=segment).exclude(language=None)
+                if matches:
+                    language = matches[0].language
+                    if language == site.language:
+                        in_language = False
+                        break
+                    for match in matches[1:]:
+                        if not match.language==language:
+                            in_language = False
+                            break
+        if in_language:
+            self.language = language
+            self.save()
+        return in_language
 
     def real_translation_state(self, language):
         language_translations = self.get_last_translations(language=language)
