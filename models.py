@@ -832,67 +832,6 @@ class Proxy(models.Model):
         summary['others'] = summary['total'] - summary['invariant'] - summary['already'] - summary['translated']
         return summary
 
-    """
-    def import_translations(self, xliff_file, request=None, user_role=None):
-        if not user_role:
-            pass # ma dovrebbe essere specificato 
-        site = self.site
-        source_language = site.language
-        target_language = self.language
-        source_code = source_language.code.split('-')[0]
-        target_code = target_language.code.split('-')[0]
-        # print (source_code, target_code)
-        status = { 'found': 0, 'imported': 0 }
-        tree = etree.iterparse(xliff_file, events=("start", "end"))
-        for action, elem in tree:
-            tag = elem.tag
-            if tag.count('{') and tag.count('}'):
-                tag = tag.split('}')[1]
-            # if action == 'start' and 
-            # print(action, tag)
-            if tag=='xliff' and action=='start':
-                xliff_version = elem.get('version')
-                status['version'] = xliff_version
-            elif tag=='file' and action=='start':
-                xliff_source_language = elem.get('source-language')
-                xliff_target_language = elem.get('target-language')
-                # print ('source and target languages: ', xliff_source_language, xliff_target_language)
-                if not elem.get('source-language').split('-')[0]==source_code:
-                    status['error'] = "source language doesn't match"
-                    break
-                elif not elem.get('target-language').split('-')[0]==target_code:
-                    status['error'] = "target language doesn't match"
-                    break
-            elif action=='start':
-                continue
-            text = elem.text
-            if tag.endswith('source') and not tag.endswith('seg-source'):
-                source = text
-                mrk_text = None
-            elif tag.endswith('seg-source'):
-                mrk_text = None
-            elif tag.endswith('mrk'):
-                mrk_text = text
-            elif tag.endswith('target'):
-                if mrk_text is None:
-                    target = text
-                else:
-                    target = mrk_text
-            elif tag.endswith('trans-unit'):
-                if not source or not target:
-                    continue
-                status['found'] += 1
-                sys.stdout.write('.')
-                try:
-                    segment = Segment.objects.get(text=source, language=source_language, site=site)
-                    # translation = Translation.objects.get(segment=segment, text=target, language=target_language)
-                    translation = Translation.objects.get(segment=segment, text=target, language=target_language, translation_type=MANUAL)
-                except:
-                    status['imported'] += 1
-                sys.stdout.write('+')
-        return status
-    """
-
     def import_translations(self, xliff_file, request=None, user_role=None):
         if not user_role:
             pass # ma dovrebbe essere specificato 
@@ -1148,17 +1087,18 @@ class Proxy(models.Model):
             content = element_tostring(translated_document)
         return content, translation_state
 
-    def propagate_up_block_updates(self):
+    # def propagate_up_block_updates(self):
+    def propagate_up_block_updates(self, min_state=TRANSLATED):
         site = self.site
         language = self.language
-        # language_code = language.code
         n_new = 0
         n_updated = 0
         n_no_updated = 0
-        blocks_ready = self.blocks_ready()
-        for block in blocks_ready:
-            label = block.get_label()
-            translated_blocks = TranslatedBlock.objects.filter(block=block, language=language, state__gt=0).order_by('-modified')
+        # blocks = self.blocks_ready()
+        blocks = Block.objects.filter(site=site, no_translate=False).exclude(language=language).exclude(source_block__language=language, source_block__state__gt=min_state-1)
+        for block in blocks:
+            # translated_blocks = TranslatedBlock.objects.filter(block=block, language=language, state__gt=0).order_by('-modified')
+            translated_blocks = TranslatedBlock.objects.filter(block=block, language=language, state__gt=min_state-1).order_by('-modified')
             if translated_blocks:
                 translated_block = translated_blocks[0]
                 element = html.fromstring(translated_block.body)
@@ -1169,17 +1109,13 @@ class Proxy(models.Model):
             if translation_date:
                 if translated_block:
                     if translated_block.modified > translation_date:
-                        # print ('no_updated') #, label
                         n_no_updated +=1
                         continue
                     else:
                         n_updated +=1
-                        # print ('updated') #, label
                 else:
                     translated_block = TranslatedBlock(block=block, language=language)
                     n_new +=1
-                    # print ('new') #, label
-                # translated_block.body = html.tostring(translated_element)
                 translated_block.body = element_tostring(translated_element)
                 translated_block.save()
         return n_new, n_updated, n_no_updated
@@ -2151,9 +2087,9 @@ class Block(node_factory('BlockEdge')):
         return rangeMappings
 
     def apply_tm(self, body=None, proxy=None, target_language=None, segmenter=None, source_tokenizer=None, target_tokenizer=None, dry=False):
-        target_language = target_language or Language.objects.get(code='en')
+        # target_language = target_language or Language.objects.get(code='en')
         site = self.site
-        source_language = site.language
+        # source_language = site.language
         if not segmenter:
             segmenter = site.make_segmenter()
         translated_block = None
@@ -2281,16 +2217,13 @@ class Block(node_factory('BlockEdge')):
             alignment = alignment and normalized_alignment(alignment)
             n_translations += 1
             if alignment and translation.alignment_type==MANUAL:
-                # print (alignment, normalized_alignment(alignment))
                 target_matches = list(target_tokenizer.tokenize(translated_segment))
                 range_mappings = self.make_rangeMappings(translated_segment, source_matches, target_matches, alignment)
-                # print ('--- range_mappings', range_mappings)
                 translated_sentence = linearsentence.translateTags(translated_segment, range_mappings)
                 translated_sentence.textChunks = addCommonTag (
                     translated_sentence.textChunks, {
                         'name': 'span',
                         'attributes': { 'tx': 'auto' }})
-                # print ('--- translated_sentence', i_segment, translated_sentence.getPlainText())
                 translated_sentences.append(translated_sentence)
                 n_substitutions += 1
                 logger.info('--- substitution using alignment: {}'.format(i_segment))

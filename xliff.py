@@ -12,6 +12,8 @@ https://pypi.python.org/pypi/slc.xliff/1.3.3
 https://pypi.python.org/pypi/translate-toolkit/1.0.1
 """
 
+from xml.sax import saxutils
+
 ### from itools.srx.segment.py
 # Constants
 TEXT, START_FORMAT, END_FORMAT = range(3)
@@ -233,9 +235,9 @@ class XLFFile(object):
     def add_unit(self, filename, source, target, context, line):
         file = self.files.setdefault(filename, File(filename, {}))
         unit = XLFUnit({})
-        unit.source = source
-        unit.target = target # added by GT
-        unit.context = context
+        unit.source = source and saxutils.escape(source) or source
+        unit.target = target and saxutils.escape(target) or target # added by GT
+        unit.context = context and saxutils.escape(context) or context
         unit.line = line
         # file.body[context, source] = unit
         file.body.append(unit)

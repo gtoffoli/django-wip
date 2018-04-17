@@ -1175,10 +1175,10 @@ def block_translate(request, block_id, target_code):
                     translated_block.save()
                     print ('n_substitutions:', n_substitutions, 'state:', translation_state)
             else:
-                block.apply_tm()
+                # block.apply_tm()
+                block.apply_tm(target_language=target_language)
                 translated_blocks = TranslatedBlock.objects.filter(block=block, language=Language.objects.get(code=create)).order_by('-modified')
                 translated_block = translated_blocks.count() and translated_blocks[0] or None
-                # segments = translated_block.translated_block_get_segments(None)
                 segments = translated_block and translated_block.translated_block_get_segments(None) or []
         elif modify:
             translated_blocks = TranslatedBlock.objects.filter(block=block, language=Language.objects.get(code=modify)).order_by('-modified')
