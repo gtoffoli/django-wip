@@ -95,7 +95,8 @@ class WipHttpProxy(HttpProxy):
         self.host = self.request.get_host() # Returns the originating host of the request using information from the HTTP_X_FORWARDED_HOST (if USE_X_FORWARDED_HOST is enabled) and HTTP_HOST headers, in that order
         self.online = False
         for proxy in Proxy.objects.all():
-            if proxy.host and self.host.count(proxy.host):
+            # if proxy.host and self.host.count(proxy.host):
+            if proxy.host and self.host.count(proxy.host) and proxy.language_id==self.language_code:
                 self.proxy = proxy
                 self.proxy_id = proxy.id
                 self.language_code = proxy.language.code
