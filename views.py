@@ -137,26 +137,6 @@ def language(request, language_code):
     set_language(request, language_code or '')
     return HttpResponseRedirect(request.META.get('HTTP_REFERER'))
 
-"""
-def get_or_set_user_role(request, site=None, source_language=None, target_language=None):
-    user_role_id = get_userrole(request)
-    if user_role_id: # current role
-        user_role = UserRole.objects.get(pk=user_role_id)
-    else: # role of higher level
-        qs = UserRole.objects.filter(user=request.user)
-        if site:
-            qs = qs.filter(site=site)
-        else:
-            if source_language:
-                qs = qs.filter(source_language=source_language)
-            if target_language:
-                qs = qs.filter(target_language=target_language)
-        qs = qs.order_by('role_type')
-        user_role = qs[0]
-        set_userrole(request, user_role.id)
-    return user_role
-"""
-
 def my_roles(request, site=None):
     qs = UserRole.objects.filter(user=request.user)
     if site:

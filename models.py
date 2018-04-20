@@ -1962,6 +1962,11 @@ class Block(node_factory('BlockEdge')):
     def num_children(self):
         return len(self.get_children())
 
+    def in_use(self):
+        site = self.site
+        last_date = site.last_block_extraction or site.last_fetched or site.last_crawled or timezone.now()
+        return BlockInPage.objects.filter(block=self, webpage__site=site).count() > 0 or self.last_seen > last_date
+
     def get_navigation(self, site=None, webpage=None, translation_state='', translation_codes=[], source_text_filter='', order_by='id'):
         id = self.id
         site = site or self.site
@@ -2107,6 +2112,7 @@ class Block(node_factory('BlockEdge')):
         lineardoc = LineardocParse(html)
         logger.info('--- apply_tm: {0} blocks - wrapperTag: {1!s}'.format(len(lineardoc.items), lineardoc.wrapperTag))
         logger.info('{}'.format(lineardoc.items))
+        """
         try:
             logger.info('lineardoc items: {}'.format(len(lineardoc.items)))
             assert (len(lineardoc.items) == 3)
@@ -2123,122 +2129,140 @@ class Block(node_factory('BlockEdge')):
         linearblock = lineardoc.items[1]['item']
         closetag = lineardoc.items[2]['item']
         logger.info('--- apply_tm - linearblock:\n {!s}'.format(linearblock.dump()))
+        """
 
         def getBoundaries(text):
             segments, boundaries, whitespaces = segmenter.extract(text)
             return boundaries
 
-        linearsentences = linearblock.getSentences(getBoundaries)
-        n_segments = len(linearsentences)
-        logger.info('--- apply_tm - linearblock sentences: \n {!s}'.format('\n'.join([ls.dump() for ls in linearsentences])))
-        return_matches = True
-        if not source_tokenizer:
-            source_tokenizer = site.make_tokenizer(return_matches=return_matches)
-        if not target_tokenizer:
-            if proxy: 
-                target_tokenizer = proxy.make_tokenizer(return_matches=return_matches)
-            else:
-                # target_tokenizer = NltkTokenizer(source_language.code, lowercasing=False, return_matches=return_matches)
-                target_tokenizer = NltkTokenizer(target_language.code, lowercasing=False, return_matches=return_matches)
-        site_invariants = text_to_list(site.invariant_words)
-        segments_tokens = []
-        n_invariants = 0
-        n_translations = 0
-        n_substitutions = 0
-        translated = True
-        translated_sentences = []
-        translated_sentence = None
-        for i_segment in range(n_segments):
-            """
-            if translated_sentence:
-                pass
-                translated_sentence = None
-            """
-            translated_sentence = None
-            linearsentence = linearsentences[i_segment]
-            segment = linearsentence.getPlainText() # .strip()
-            # segment = segment.strip().replace('  ', ' ')
-            # empty segment? do nothing
-            if not segment:
-                logger.info('--- empty segment: {0} "{1}"'.format(i_segment, segment))
-                translated_sentences.append(linearsentence)
-                continue
-            logger.info('segment: {0} "{1}"'.format(i_segment, segment))
-            logger.info('stripped segment: {0} "{1}"'.format(i_segment, compact_spaces(segment.strip())))
-            source_matches = list(source_tokenizer.tokenize(segment))
-            tokens = [segment[m.span()[0]:m.span()[1]] for m in source_matches]
-            segments_tokens.append([segment, tokens])
-            # first, test if no translation is required
-            non_invariant_tokens = [t for t in tokens if not is_invariant_word(t, site_invariants=site_invariants)]
-            # if not non_invariant_tokens or Segment.objects.filter(is_invariant=True, language=source_language, site=site, text=segment):
-            if not non_invariant_tokens or Segment.objects.filter(is_invariant=True, site=site, text=segment):
-                n_invariants += 1
-                logger.info('--- invariant_segment: {0} "{1}"'.format(i_segment, segment))
-                translated_sentences.append(linearsentence)
-                continue
-            if Segment.objects.filter(language=target_language, site=site, text=segment):
-                n_invariants += 1
-                continue
-            # second, look for a translation
-            # translations = Translation.objects.filter(language=target_language, segment__site=site, segment__text=compact_spaces(segment.strip())).distinct().order_by('-translation_type', 'user_role__role_type', 'user_role__level')
-            ## translations = Translation.objects.filter(language=target_language, segment__site=site, segment__text=compact_spaces(segment.strip()), translation_type=MANUAL).distinct().order_by('-translation_type', 'user_role__role_type', 'user_role__level')
-            translations = Translation.objects.filter(language=target_language, segment__site=site, segment__text=compact_spaces(segment.strip()), translation_type=MANUAL).distinct().order_by('-alignment_type', 'user_role__role_type', 'user_role__level', '-timestamp')
-            logger.info('# {} translations:'.format(translations.count()))
-            if not translations:
-                translated_sentences.append(linearsentence)
-                translated = False
-                continue
-            translation = translations[0]
-            translated_segment = translation.text
-            # try a simple text substitution
-            textChunks = linearsentence.textChunks
-            replaced = False
-            for j in range(len(textChunks)):
-                textChunk = textChunks[j]
-                # if len(textChunk.text) and textChunk.text==segment:
-                text = textChunk.text
-                if len(text) and text.count(segment):
-                    # linearsentence = linearsentence.replaceChunkText(j, translated_segment)
-                    translated_sentence = copy.deepcopy(linearsentence)
-                    # translated_sentence.textChunks[j].text = translated_segment
-                    translated_sentence.textChunks[j].text = text.replace(segment, translated_segment)
-                    translated_sentence.textChunks = addCommonTag (
-                        translated_sentence.textChunks, {
-                            'name': 'span',
-                            'attributes': { 'tx': 'auto' }})
-                    translated_sentences.append(translated_sentence)
-                    n_substitutions += 1
-                    logger.info('--- simple substitution: {}'.format(i_segment))
-                    replaced = True
-                    break
-            if replaced:
-                continue
-            # try with alignment and lineardoc
-            alignment = translation.alignment 
-            alignment = alignment and normalized_alignment(alignment)
-            n_translations += 1
-            if alignment and translation.alignment_type==MANUAL:
-                target_matches = list(target_tokenizer.tokenize(translated_segment))
-                range_mappings = self.make_rangeMappings(translated_segment, source_matches, target_matches, alignment)
-                translated_sentence = linearsentence.translateTags(translated_segment, range_mappings)
-                translated_sentence.textChunks = addCommonTag (
-                    translated_sentence.textChunks, {
-                        'name': 'span',
-                        'attributes': { 'tx': 'auto' }})
-                translated_sentences.append(translated_sentence)
-                n_substitutions += 1
-                logger.info('--- substitution using alignment: {}'.format(i_segment))
-                continue
+        translated_body = ''
+        for item in lineardoc.items:
+            item_type = item.get('type', '')
+            if item_type == 'open':
+                opentag = item['item']
+                translated_body += getOpenTagHtml(opentag)
+            elif item_type == 'close':
+                closetag = item['item']
+                translated_body += getCloseTagHtml(closetag)
+            elif item_type == 'textblock':
+                linearblock = item['item']
+                logger.info('--- apply_tm - linearblock:\n {!s}'.format(linearblock.dump()))
 
-            translated_sentences.append(linearsentence)
-            logger.info('--- original sentence: {0} {1!s}'.format(i_segment, linearsentence))
-            translated = False
-        logger.info('--- apply_tm - translated sentences:\n {!s}'.format('\n'.join([ts.dump() for ts in translated_sentences])))
-        translated_linearblock = mergeSentences(translated_sentences)
-        translated_linearblock = translated_linearblock.simplify()
-        logger.info('--- apply_tm - translated block:\n {!s}'.format(translated_linearblock.dump()))
+                linearsentences = linearblock.getSentences(getBoundaries)
+                n_segments = len(linearsentences)
+                logger.info('--- apply_tm - linearblock sentences: \n {!s}'.format('\n'.join([ls.dump() for ls in linearsentences])))
+                return_matches = True
+                if not source_tokenizer:
+                    source_tokenizer = site.make_tokenizer(return_matches=return_matches)
+                if not target_tokenizer:
+                    if proxy: 
+                        target_tokenizer = proxy.make_tokenizer(return_matches=return_matches)
+                    else:
+                        # target_tokenizer = NltkTokenizer(source_language.code, lowercasing=False, return_matches=return_matches)
+                        target_tokenizer = NltkTokenizer(target_language.code, lowercasing=False, return_matches=return_matches)
+                site_invariants = text_to_list(site.invariant_words)
+                segments_tokens = []
+                n_invariants = 0
+                n_translations = 0
+                n_substitutions = 0
+                translated = True
+                translated_sentences = []
+                translated_sentence = None
+                for i_segment in range(n_segments):
+                    """
+                    if translated_sentence:
+                        pass
+                        translated_sentence = None
+                    """
+                    translated_sentence = None
+                    linearsentence = linearsentences[i_segment]
+                    segment = linearsentence.getPlainText() # .strip()
+                    # segment = segment.strip().replace('  ', ' ')
+                    # empty segment? do nothing
+                    if not segment:
+                        logger.info('--- empty segment: {0} "{1}"'.format(i_segment, segment))
+                        translated_sentences.append(linearsentence)
+                        continue
+                    logger.info('segment: {0} "{1}"'.format(i_segment, segment))
+                    logger.info('stripped segment: {0} "{1}"'.format(i_segment, compact_spaces(segment.strip())))
+                    source_matches = list(source_tokenizer.tokenize(segment))
+                    tokens = [segment[m.span()[0]:m.span()[1]] for m in source_matches]
+                    segments_tokens.append([segment, tokens])
+                    # first, test if no translation is required
+                    non_invariant_tokens = [t for t in tokens if not is_invariant_word(t, site_invariants=site_invariants)]
+                    # if not non_invariant_tokens or Segment.objects.filter(is_invariant=True, language=source_language, site=site, text=segment):
+                    if not non_invariant_tokens or Segment.objects.filter(is_invariant=True, site=site, text=segment):
+                        n_invariants += 1
+                        logger.info('--- invariant_segment: {0} "{1}"'.format(i_segment, segment))
+                        translated_sentences.append(linearsentence)
+                        continue
+                    if Segment.objects.filter(language=target_language, site=site, text=segment):
+                        n_invariants += 1
+                        continue
+                    # second, look for a translation
+                    # translations = Translation.objects.filter(language=target_language, segment__site=site, segment__text=compact_spaces(segment.strip())).distinct().order_by('-translation_type', 'user_role__role_type', 'user_role__level')
+                    ## translations = Translation.objects.filter(language=target_language, segment__site=site, segment__text=compact_spaces(segment.strip()), translation_type=MANUAL).distinct().order_by('-translation_type', 'user_role__role_type', 'user_role__level')
+                    translations = Translation.objects.filter(language=target_language, segment__site=site, segment__text=compact_spaces(segment.strip()), translation_type=MANUAL).distinct().order_by('-alignment_type', 'user_role__role_type', 'user_role__level', '-timestamp')
+                    logger.info('# {} translations:'.format(translations.count()))
+                    if not translations:
+                        translated_sentences.append(linearsentence)
+                        translated = False
+                        continue
+                    translation = translations[0]
+                    translated_segment = translation.text
+                    # try a simple text substitution
+                    textChunks = linearsentence.textChunks
+                    replaced = False
+                    for j in range(len(textChunks)):
+                        textChunk = textChunks[j]
+                        # if len(textChunk.text) and textChunk.text==segment:
+                        text = textChunk.text
+                        if len(text) and text.count(segment):
+                            # linearsentence = linearsentence.replaceChunkText(j, translated_segment)
+                            translated_sentence = copy.deepcopy(linearsentence)
+                            # translated_sentence.textChunks[j].text = translated_segment
+                            translated_sentence.textChunks[j].text = text.replace(segment, translated_segment)
+                            translated_sentence.textChunks = addCommonTag (
+                                translated_sentence.textChunks, {
+                                    'name': 'span',
+                                    'attributes': { 'tx': 'auto' }})
+                            translated_sentences.append(translated_sentence)
+                            n_substitutions += 1
+                            logger.info('--- simple substitution: {}'.format(i_segment))
+                            replaced = True
+                            break
+                    if replaced:
+                        continue
+                    # try with alignment and lineardoc
+                    alignment = translation.alignment 
+                    alignment = alignment and normalized_alignment(alignment)
+                    n_translations += 1
+                    if alignment and translation.alignment_type==MANUAL:
+                        target_matches = list(target_tokenizer.tokenize(translated_segment))
+                        range_mappings = self.make_rangeMappings(translated_segment, source_matches, target_matches, alignment)
+                        translated_sentence = linearsentence.translateTags(translated_segment, range_mappings)
+                        translated_sentence.textChunks = addCommonTag (
+                            translated_sentence.textChunks, {
+                                'name': 'span',
+                                'attributes': { 'tx': 'auto' }})
+                        translated_sentences.append(translated_sentence)
+                        n_substitutions += 1
+                        logger.info('--- substitution using alignment: {}'.format(i_segment))
+                        continue
+        
+                    translated_sentences.append(linearsentence)
+                    logger.info('--- original sentence: {0} {1!s}'.format(i_segment, linearsentence))
+                    translated = False
+                logger.info('--- apply_tm - translated sentences:\n {!s}'.format('\n'.join([ts.dump() for ts in translated_sentences])))
+                translated_linearblock = mergeSentences(translated_sentences)
+                translated_linearblock = translated_linearblock.simplify()
+                logger.info('--- apply_tm - translated block:\n {!s}'.format(translated_linearblock.dump()))
+                translated_body += translated_linearblock.getHtml()
+
+        """
         # translated_body = translated_linearblock.getHtml()
         translated_body = getOpenTagHtml(opentag) + translated_linearblock.getHtml() + getCloseTagHtml(closetag)
+        """
         logger.info('--- apply_tm - translated_body block:\n {!s}'.format(translated_body))
         state = 0
         if not translated_block and translated and n_invariants and not n_substitutions:
@@ -2762,46 +2786,6 @@ class Segment(models.Model):
 
     # def get_navigation(self, site=None, in_use=None, translation_state='', translation_languages=[], translation_sources=[], order_by=ID_ASC, return_segments=False):
     def get_navigation(self, site=None, in_use=None, translation_state='', target_languages=[], translation_sources=[], order_by=ID_ASC):
-        """
-        qs = Segment.objects
-        if site:
-            qs = qs.filter(site=site)
-        else:
-            qs = qs.filter(language=self.language)
-        if in_use == 'Y':
-            qs = qs.exclude(in_use=0)
-        elif in_use == 'N':
-            qs = qs.filter(in_use=0)
-        if translation_state == INVARIANT:
-            qs = qs.filter(is_invariant=True)
-        else:
-            qs = qs.exclude(is_invariant=True)
-            if translation_state == ALREADY:
-                qs = qs.filter(language__in=translation_languages)
-            else:
-                qs = qs.exclude(language__in=translation_languages)
-                if translation_state == REVISED:
-                    if translation_sources:
-                        qs = qs.filter(segment_translation__translation_type=MANUAL, segment_translation__language__in=translation_languages, segment_translation__service_type__in=translation_sources)
-                    else:
-                        qs = qs.filter(segment_translation__translation_type=MANUAL, segment_translation__language__in=translation_languages)
-                elif translation_state == TRANSLATED:
-                    if translation_sources:
-                        qs = qs.filter(segment_translation__language__in=translation_languages, segment_translation__service_type__in=translation_sources)
-                    else:
-                        qs = qs.filter(segment_translation__language__in=translation_languages)
-                elif translation_state == TO_BE_TRANSLATED:
-                    if translation_sources:
-                        qs = qs.exclude(segment_translation__language__in=translation_languages, segment_translation__service_type__in=translation_sources)
-                    else:
-                        qs = qs.exclude(segment_translation__language__in=translation_languages)
-                elif translation_state == TO_BE_REVISED:
-                    if translation_sources:
-                        qs = qs.filter(segment_translation__language__in=translation_languages, segment_translation__service_type__in=translation_sources).exclude(segment_translation__language__in=translation_languages, segment_translation__service_type__in=translation_sources, segment_translation__translation_type=MANUAL)
-                    else:
-                        qs = qs.filter(segment_translation__language__in=translation_languages).exclude(segment_translation__translation_type=MANUAL)
-        qs = qs.distinct()
-        """
         qs = filter_segments(site=site, in_use=in_use, translation_state=translation_state, target_languages=target_languages, translation_sources=translation_sources, order_by=order_by)
         n = qs.count()
         first = last = previous = next = None
