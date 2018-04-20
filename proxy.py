@@ -54,9 +54,11 @@ BODY_REGEX = re.compile(r'(\<body.*?\>)', re.IGNORECASE)
 
 info = {
   'en': """
-<div align="center">%sThis is an experimental partial translation of the website <a href="%s">%s</a></div>""",
+<div style="text-align: center;">%sThis is an experimental partial translation of the website <a href="%s">%s</a></div>""",
   'es': """
-<div align="center">%sEsta es una traducción experimental y parcial del sitio web <a href="%s">%s</a></div>""",
+<div style="text-align: center;">%sEsta es una traducción experimental y parcial del sitio web <a href="%s">%s</a></div>""",
+  'ar': """
+<div style="direction: rtl;">%s هذه ترجمة جزئية تجريبية للموقع <a href="%s">%s</a></div>""",
 }
 
 class WipHttpProxy(HttpProxy):

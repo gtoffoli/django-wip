@@ -2181,7 +2181,8 @@ class Block(node_factory('BlockEdge')):
                 continue
             # second, look for a translation
             # translations = Translation.objects.filter(language=target_language, segment__site=site, segment__text=compact_spaces(segment.strip())).distinct().order_by('-translation_type', 'user_role__role_type', 'user_role__level')
-            translations = Translation.objects.filter(language=target_language, segment__site=site, segment__text=compact_spaces(segment.strip()), translation_type=MANUAL).distinct().order_by('-translation_type', 'user_role__role_type', 'user_role__level')
+            ## translations = Translation.objects.filter(language=target_language, segment__site=site, segment__text=compact_spaces(segment.strip()), translation_type=MANUAL).distinct().order_by('-translation_type', 'user_role__role_type', 'user_role__level')
+            translations = Translation.objects.filter(language=target_language, segment__site=site, segment__text=compact_spaces(segment.strip()), translation_type=MANUAL).distinct().order_by('-alignment_type', 'user_role__role_type', 'user_role__level', '-timestamp')
             logger.info('# {} translations:'.format(translations.count()))
             if not translations:
                 translated_sentences.append(linearsentence)
