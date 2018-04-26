@@ -1726,7 +1726,13 @@ class Webpage(models.Model):
                                 # but DO NOT PURGE BOCKS: could be present in page in rotation
                                 blocks_in_page = BlockInPage.objects.filter(xpath=el_xpath, webpage=self)
                                 blocks_in_page.delete()
-                            if not el_xpath in variable_xpaths: # added 180316
+                            # if not el_xpath in variable_xpaths: # added 180316
+                            in_variable_xpath = False
+                            for variable_xpath in variable_xpaths:
+                                if el_xpath.startswith(variable_xpath):
+                                    in_variable_xpath = True
+                                    break
+                            if not in_variable_xpath:
                                 block_in_page = BlockInPage(block=block, xpath=el_xpath, webpage=self)
                                 block_in_page.save()
                                 n_new_bips += 1 # number of new blocks in page

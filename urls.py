@@ -26,7 +26,7 @@ from django.contrib import admin
 from .models import Site, Proxy
 from wip import views
 # from wip import search_indexes
-from .api import find_block, send_block, send_fragment
+from .api import find_block, send_block, add_block, send_fragment
 from .proxy import WipHttpProxy
 from .proxy import WipRevProxy
 
@@ -39,6 +39,7 @@ urlpatterns += (
     url(r'^i18n/', include('django.conf.urls.i18n')),
     url(r'^api/find_block/$', find_block),
     url(r'^api/send_block/$', send_block),
+    url(r'^api/add_block/$', add_block),
     url(r'^api/send_fragment/$', send_fragment),
 )   
 

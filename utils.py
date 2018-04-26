@@ -268,9 +268,11 @@ def string_checksum(string):
     m.update(string)
     return m.hexdigest()
 
+"""
 def block_checksum(block):
     string = element_tostring(block)
     return string_checksum(string)
+"""
 
 def element_signature(element):
     tags = []

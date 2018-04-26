@@ -58,12 +58,16 @@ function sendblock(info,tab)
 {
 	url = request_data['url'];
 	xpath = request_data['xpath'];
+	body = request_data['body'];
 	site_url = request_data['site_url'];
 	console.log('url: ', url);
 	console.log('xpath: ', xpath);
+	console.log('body: ', body);
 	console.log('site_url: ', site_url);
-    var data = JSON.stringify({ url: url, xpath: xpath });
-    var endpoint = site_url + '/api/send_block/';
+    // var data = JSON.stringify({ url: url, xpath: xpath });
+    // var endpoint = site_url + '/api/send_block/';
+    var data = JSON.stringify({ url: url, xpath: xpath, body: body });
+    var endpoint = site_url + '/api/add_block/';
     console.log('json data: ', data);
     console.log('endpoint: ', endpoint);
     var request = new XMLHttpRequest();

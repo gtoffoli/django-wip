@@ -182,10 +182,13 @@ function extendSelectionToBlock() {
     	selection.removeAllRanges();
     	selection.addRange(range);
     	var xpath = getXPath(element);
+    	var body = element.outerHTML;
     	console.log(xpath);
+    	console.log(body);
     	data = {
-			url : window.location.href,
+        	url : window.location.href,
     		xpath: xpath,
+    		body: body,
     		site_url: window.location.protocol + "//" + window.location.host
     	}
         console.log(data);
