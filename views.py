@@ -54,7 +54,7 @@ from .models import UserRole, Segment, Translation
 from .models import segments_from_string, non_invariant_words
 from .models import ID_ASC, TEXT_ASC, COUNT_DESC
 from .models import ANY, TO_BE_TRANSLATED, TRANSLATED, PARTIALLY, REVISED, INVARIANT, ALREADY
-from .models import ROLE_DICT, TRANSLATION_TYPE_DICT, TRANSLATION_SERVICE_CHOICES, TRANSLATION_SERVICE_DICT, GOOGLE, DEEPL, MYMEMORY
+from .models import ROLE_DICT, TRANSLATION_TYPE_DICT, TRANSLATION_SERVICE_CHOICES, TRANSLATION_SERVICE_DICT, GOOGLE, DEEPL, MICROSOFT, MYMEMORY
 from .models import ADMINISTRATOR, OWNER, MANAGER, LINGUIST, TRANSLATOR, CLIENT
 from .models import TM, MT, MANUAL
 from .models import PARALLEL_FORMAT_NONE, PARALLEL_FORMAT_XLIFF, PARALLEL_FORMAT_TEXT
@@ -69,6 +69,7 @@ from .forms import UserRoleEditForm, ListSegmentsForm, ImportXliffForm
 from .session import get_language, set_language, get_site, set_site, get_userrole, set_userrole
 # from .utils import strings_from_html, elements_from_element, block_checksum
 from .deepl import translate as ask_deepl
+from .microsoft import translate as ask_microsofttranslator
 from .utils import ask_mymemory, ask_gt, text_to_list # , non_invariant_words
 from .utils import pageversion_diff, diff_style
 from  wip import srx_segmenter
@@ -1642,6 +1643,10 @@ def segment_translate(request, segment_id, target_code):
                             for translation in translations:
                                 if translation.get('detected_source_language', '').startswith(source_code):
                                     external_translations.append({ 'segment': segment.text, 'translation': translation.get('text'), 'service_type': DEEPL })
+                        elif subscription.service_type == MICROSOFT:
+                            source_code = source_language.code
+                            translation = ask_microsofttranslator(segment.text, target_code, subscription, source_code=source_code)
+                            external_translations = [{ 'segment': segment.text, 'translation': translation, 'service_type': MICROSOFT }]
                         elif subscription.service_type == MYMEMORY:
                             langpair = '%s|%s' % (source_language.code, target_code)
                             status, translatedText, mymemory_translations = ask_mymemory(segment.text, langpair, subscription)
@@ -1673,6 +1678,13 @@ def segment_translate(request, segment_id, target_code):
                                     translation = Translation(segment=segment, language_id=target_code, text=translation.get('text'), translation_type=MT, service_type=DEEPL, timestamp=timezone.now())
                                     translation.save()
                                     n_segments += 1
+                        elif subscription.service_type == MICROSOFT:
+                            source_code = source_language.code
+                            text = ask_microsofttranslator(segment.text, target_code, subscription, source_code=source_code)
+                            if text:
+                                translation = Translation(segment=segment, language_id=target_code, text=text, translation_type=MT, service_type=MICROSOFT, timestamp=timezone.now())
+                                translation.save()
+                                n_segments += 1
                         if n_segments >= max_segments:
                             break
             else:

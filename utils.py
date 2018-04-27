@@ -30,7 +30,6 @@ from lxml import html, etree
 from guess_language.guess_language import guessLanguage
 import requests
 import json
-# from google.cloud import translate
 from google.cloud import translate as google_translate
 from difflib import Differ, HtmlDiff
 # import unirest
