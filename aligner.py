@@ -191,10 +191,6 @@ if (sys.version_info > (3, 0)):
         if not base_path:
             base_path = os.path.join(settings.BASE_DIR, 'sandbox') 
         proxy_code = '%s_%s' % (proxy.site.slug, proxy.language_id)
-        """
-        tokenizer_1 = NltkTokenizer(language=proxy.site.language_id, lowercasing=lowercasing)
-        tokenizer_2 = NltkTokenizer(language=proxy.language_id, lowercasing=lowercasing)
-        """
         tokenizer_1 = proxy.site.make_tokenizer()
         tokenizer_2 = proxy.make_tokenizer()
         tokenized_1 = StringIO()
