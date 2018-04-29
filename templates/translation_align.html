@@ -51,7 +51,9 @@ th, td { text-align: left; vertical-align: top; }
 	<legend>Translation - 
 	<label>id</label><a href="/segment_translate/{{ segment.id }}/{{ target_language.code }}/">{{ translation.id }}</a> &nbsp;
     <span class="{{ target_language.code }}">{{ target_language.name }}</span> &nbsp;
-	{% if translation.user_role %} <label>by</label>{{ translation.user_role }}{% endif %}
+    <label>type</label>{{ translation.get_type }}
+	{% if translation.get_source %}, <label>source</label>{{ translation.get_source }}{% endif %}
+	{% if translation.user_role %}, <label>by</label>{{ translation.user_role }}{% endif %}
 	</legend>
     <div>{{ translation.text }}</div>
 	</fieldset>
@@ -75,6 +77,7 @@ th, td { text-align: left; vertical-align: top; }
     	<tr>{% for field in sequencer_form.visible_fields %}<th>{{ field.label_tag }}</th>{% endfor %}</tr>
    	</thead><tbody><tr>
 		<td>{{ sequencer_form.order_by }}</td>
+		<td style="text-align: center;">{{ sequencer_form.translation_type }}</td>
 		<td style="text-align: center;">{{ sequencer_form.alignment_type }}</td>
 	</tr></tbody></table>    	
 	</fieldset>
@@ -84,10 +87,10 @@ th, td { text-align: left; vertical-align: top; }
 	{% csrf_token %}
 
 	<fieldset>
-	<legend>Word alignment - 
-	{% if alignment_type %}<label>type</label>{{ alignment_type }}{% endif %}
+	<legend>Word alignment 
+	{% if alignment %}- <label>type</label>{{ translation.get_alignment_type }}{% endif %}
 	</legend>
-	<div>{{ alignment }}</div>
+	{% if alignment %}<div>{{ alignment }}</div>{% endif %}
 
 	<div id="dag" style="margin-top: 0.5em; margin-bottom: 0.5em;"></div>
 

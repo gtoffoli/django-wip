@@ -2919,6 +2919,9 @@ class Translation(models.Model):
     def get_source(self):
         return TRANSLATION_SERVICE_CODE_DICT.get(self.service_type, '')
 
+    def get_alignment_type(self):
+        return TRANSLATION_TYPE_CODE_DICT.get(self.alignment_type, '')
+
     # def get_navigation(self, order_by=TEXT_ASC, alignment_type=ANY):
     def get_navigation(self, order_by=ID_ASC, alignment_type=ANY, translation_type=ANY):
         id = self.id

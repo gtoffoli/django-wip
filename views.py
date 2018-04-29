@@ -1439,9 +1439,11 @@ def translation_align(request, translation_id):
     translation_context = request.session.get('translation_context', {})
     if translation_context:
         order_by = translation_context.get('order_by', ID_ASC)
+        translation_type = translation_context.get('translation_type', ANY)
         alignment_type = translation_context.get('alignment_type', ANY)
     else:
         order_by = ID_ASC
+        translation_type = ANY
         alignment_type = ANY
 
     apply_filter = goto = '' 
@@ -1467,17 +1469,20 @@ def translation_align(request, translation_id):
             if form.is_valid():
                 data = form.cleaned_data
                 order_by = int(data['order_by'])
+                translation_type = int(data['translation_type'])
                 alignment_type = int(data['alignment_type'])
             else:
                 pass
                 # print ('error', form.errors)
 
     translation_context['order_by'] = order_by
+    translation_context['translation_type'] = translation_type
     translation_context['alignment_type'] = alignment_type
     request.session['translation_context'] = translation_context
     if goto:
         return HttpResponseRedirect('/translation_align/%d/' % translation.id)        
-    n, first, last, previous, next = translation.get_navigation(order_by=order_by, alignment_type=alignment_type)
+    # n, first, last, previous, next = translation.get_navigation(order_by=order_by, alignment_type=alignment_type)
+    n, first, last, previous, next = translation.get_navigation(order_by=order_by, translation_type=translation_type, alignment_type=alignment_type)
     var_dict['n'] = n
     var_dict['first'] = first
     var_dict['last'] = last
@@ -1499,7 +1504,7 @@ def translation_align(request, translation_id):
     var_dict['alignment'] = alignment
     var_dict['alignment_type'] = translation.alignment_type==MANUAL and 'manual' or ''
     var_dict['can_edit'] = True
-    var_dict['sequencer_form'] = TranslationSequencerForm(initial={'order_by': order_by, 'alignment_type': alignment_type})
+    var_dict['sequencer_form'] = TranslationSequencerForm(initial={'order_by': order_by, 'translation_type': translation_type, 'alignment_type': alignment_type})
     sequencer_context = request.session.get('sequencer_context', {})
     var_dict['block_id'] = block_id = sequencer_context.get('block', None)
     if block_id and post and post.get('save_confirmed_and_return'):

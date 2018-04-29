@@ -25,6 +25,8 @@ ALIGNMENT_CHOICES = (
     (3, _("manual"))
 )
 
+TRANSLATION_CHOICES = ALIGNMENT_CHOICES
+
 ALIGNER_CHOICES = (
     (1, _("eflomal")),
     (2, _("nltk"))
@@ -127,6 +129,7 @@ class ListSegmentsForm(forms.Form):
 
 class TranslationSequencerForm(forms.Form):
     order_by = forms.ChoiceField(required=False, choices=SEGMENT_SORT_CHOICES, label="Sort order", widget=forms.Select(attrs={ 'style': 'width: auto; height: 2em;', }))
+    translation_type = forms.ChoiceField(required=False, choices=TRANSLATION_CHOICES, label="Translation type", widget=forms.Select(attrs={ 'style': 'width: auto; height: 2em;', 'onchange': 'javascript: this.form.submit()', }))
     alignment_type = forms.ChoiceField(required=False, choices=ALIGNMENT_CHOICES, label="Alignment type", widget=forms.Select(attrs={ 'style': 'width: auto; height: 2em;', 'onchange': 'javascript: this.form.submit()', }))
 
 class TranslationViewForm(forms.Form):
