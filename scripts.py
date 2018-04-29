@@ -16,10 +16,11 @@ from django.shortcuts import get_object_or_404
 from django.contrib.auth.models import User
 # from settings import DATA_ROOT, RESOURCES_ROOT, SITES_ROOT
 from .models import Site, Proxy, Webpage, PageVersion, Block, TranslatedBlock, BlockInPage
-from .models import String, Txu, TxuSubject
-from .models import UserRole, Segment, Translation, SEGMENT, FRAGMENT
+from .models import UserRole, Segment, Translation
 from .models import ADMINISTRATOR, OWNER, MANAGER, LINGUIST, TRANSLATOR, CLIENT
 from .models import MT, MANUAL
+from .terms.models import String, Txu, TxuSubject
+from .terms.models import SEGMENT, FRAGMENT
 from .vocabularies import Language, Subject
 from .utils import text_to_list, string_checksum, normalize_string
 from .aligner import tokenize, split_alignment
@@ -436,3 +437,35 @@ def fix_bips(site, dry=True):
                     if not dry:
                         bip.delete()
                     break
+
+def force_manual_translations(site, target_id, best_service):
+    """ for the segments having no MANUAL translation and multiple MT translations to the target language
+        force the translation provided by the preferred translation service to the MANUAL translation type """
+    # segments = Segment.objects.filter(site=site).exclude(segment_translation__language_id=target_id, segment_translation__translation_type=MANUAL)
+    segments = Segment.objects.filter(site=site)
+    n_eq = n_diff = 0
+    print ('segments:', segments.count())
+    for segment in segments:
+        translations = Translation.objects.filter(segment=segment, language_id=target_id, translation_type = MT)
+        print (translations.count())
+        if translations.count() < 2:
+            continue
+        translation = None
+        text = ''
+        for t in translations:
+            if t.translation_type != MT:
+                text = ''
+                break
+            if text and t.text != text:
+                text = ''
+                break
+            text = t.text
+            if t.service_type == best_service:
+                translation = t
+        if text and translation:
+            n_eq += 1
+            translation.translation_type = MANUAL
+            translation.save()
+        else:
+            n_diff += 1
+    return 'forced {0} translations on {1} to MANUAL'.format(n_eq, n_eq+n_diff)
