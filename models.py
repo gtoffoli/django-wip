@@ -2053,29 +2053,42 @@ class Block(node_factory('BlockEdge')):
             state = min(state, child.compute_translation_state(language))
         return state            
 
+    def join_clitics(self, text, plus_positions):
+        """ restore themes with respective splitted clitics """
+        restored_text = ''
+        start = 0
+        for pos in plus_positions:
+            restored_text += text[start, pos]
+            start = pos + 1
+        restored_text += text[start:]
+        return restored_text
+
     def block_get_segments(self, segmenter):
         if not segmenter:
             segmenter = self.site.make_segmenter()
         return get_segments(self.body, self.site, segmenter)
 
-    def make_rangeMappings(self, target_text, source_matches, target_matches, alignment):
+    # def make_rangeMappings(self, target_text, source_matches, target_matches, alignment):
+    def make_rangeMappings(self, target_text, source_matches, target_matches, alignment, plus_positions=[]):
+        """ build a mapping between ranges of tokens in the target text (right) and ranges in the source text (left);
+            multiple target tokens can ba associated to the same source token, but not vice-versa;
+            possible positions of '+' characters added to cope for clitics must be subtracted from the right counts """
+        reversed_positions = reversed(plus_positions)
         links = split_alignment(alignment, return_links=True)
         links.sort(key=lambda x: (x[1], x[0]))
-        # lefts = [link[0] for link in links]
         rights = [link[1] for link in links]
         rangeMappings = []
         previous_left = None
         for link in links:
             left = link[0]
             right = link[1]
-            """
-            if lefts.count(left) > 1:
-                continue
-            """
-            if rights.count(right) > 1:
+            if rights.count(right) > 1: # asymmetric condition
                 continue
             target_match = target_matches[right]
             targetRangeStart = target_match.span()[0]
+            while reversed_positions and reversed_positions[-1] < targetRangeStart:
+                targetRangeStart -= 1
+                reversed_positions.pop()
             targetRangeLength = target_match.span()[1] - targetRangeStart
             target_range = { 'start': targetRangeStart, 'length': targetRangeLength}
             if left == previous_left:
@@ -2112,24 +2125,6 @@ class Block(node_factory('BlockEdge')):
         lineardoc = LineardocParse(html)
         logger.info('--- apply_tm: {0} blocks - wrapperTag: {1!s}'.format(len(lineardoc.items), lineardoc.wrapperTag))
         logger.info('{}'.format(lineardoc.items))
-        """
-        try:
-            logger.info('lineardoc items: {}'.format(len(lineardoc.items)))
-            assert (len(lineardoc.items) == 3)
-            logger.info('type of lineardoc item 0: {}'.format(lineardoc.items[0].get('type', '')))
-            assert (lineardoc.items[0].get('type', '') == 'open')
-            logger.info('type of lineardoc item 1: {}'.format(lineardoc.items[1].get('type', '')))
-            assert (lineardoc.items[1].get('type', '') == 'textblock')
-            logger.info('type of lineardoc item 2: {}'.format(lineardoc.items[2].get('type', '')))
-            assert (lineardoc.items[2].get('type', '') == 'close')
-        except:
-            logger.warning('Ill formed block: {}'.format(self.id))
-            return 0, 0, 0
-        opentag = lineardoc.items[0]['item']
-        linearblock = lineardoc.items[1]['item']
-        closetag = lineardoc.items[2]['item']
-        logger.info('--- apply_tm - linearblock:\n {!s}'.format(linearblock.dump()))
-        """
 
         def getBoundaries(text):
             segments, boundaries, whitespaces = segmenter.extract(text)
@@ -2168,16 +2163,9 @@ class Block(node_factory('BlockEdge')):
                 translated_sentences = []
                 translated_sentence = None
                 for i_segment in range(n_segments):
-                    """
-                    if translated_sentence:
-                        pass
-                        translated_sentence = None
-                    """
                     translated_sentence = None
                     linearsentence = linearsentences[i_segment]
                     segment = linearsentence.getPlainText() # .strip()
-                    # segment = segment.strip().replace('  ', ' ')
-                    # empty segment? do nothing
                     if not segment:
                         logger.info('--- empty segment: {0} "{1}"'.format(i_segment, segment))
                         translated_sentences.append(linearsentence)
@@ -2214,12 +2202,9 @@ class Block(node_factory('BlockEdge')):
                     replaced = False
                     for j in range(len(textChunks)):
                         textChunk = textChunks[j]
-                        # if len(textChunk.text) and textChunk.text==segment:
                         text = textChunk.text
                         if len(text) and text.count(segment):
-                            # linearsentence = linearsentence.replaceChunkText(j, translated_segment)
                             translated_sentence = copy.deepcopy(linearsentence)
-                            # translated_sentence.textChunks[j].text = translated_segment
                             translated_sentence.textChunks[j].text = text.replace(segment, translated_segment)
                             translated_sentence.textChunks = addCommonTag (
                                 translated_sentence.textChunks, {
@@ -2237,8 +2222,13 @@ class Block(node_factory('BlockEdge')):
                     alignment = alignment and normalized_alignment(alignment)
                     n_translations += 1
                     if alignment and translation.alignment_type==MANUAL:
-                        target_matches = list(target_tokenizer.tokenize(translated_segment))
-                        range_mappings = self.make_rangeMappings(translated_segment, source_matches, target_matches, alignment)
+                        if translation.text_word_segmented: # 180502: added handling of clitics (word segmentation) for arabic
+                            target_matches, plus_positions = tokenize(translation, tokenizer=target_tokenizer, word_segmentation=True)
+                            range_mappings = self.make_rangeMappings(translation.text_word_segmented, source_matches, list(target_matches), alignment, plus_positions=plus_positions)
+                            translated_segment = self.join_clitics(translation.text_word_segmented, plus_positions)
+                        else:
+                            target_matches = list(tokenize(translated_segment, tokenizer=target_tokenizer))
+                            range_mappings = self.make_rangeMappings(translated_segment, source_matches, target_matches, alignment)
                         translated_sentence = linearsentence.translateTags(translated_segment, range_mappings)
                         translated_sentence.textChunks = addCommonTag (
                             translated_sentence.textChunks, {
@@ -2732,6 +2722,7 @@ class Segment(models.Model):
     text_position = models.IntegerField(choices=TEXT_POSITION_CHOICES, default=IN_ELEMENT, verbose_name='text position')
     in_use = models.IntegerField('in use', default=0)
     text = models.TextField('plain text extracted', blank=True, null=True)
+    text_word_segmented = models.TextField('text', blank=True, null=True)
     html = models.TextField('original text with tags', blank=True, null=True)
     comment = models.TextField('comment', blank=True, null=True)
     is_comment_settled = models.BooleanField('comment is settled', default=False)
@@ -2895,6 +2886,7 @@ class Translation(models.Model):
     segment = models.ForeignKey(Segment, verbose_name='segment', related_name='segment_translation')
     language = models.ForeignKey(Language, verbose_name='language')
     text = models.TextField('text', blank=True, null=True)
+    text_word_segmented = models.TextField('text', blank=True, null=True)
     alignment = models.TextField('alignment', blank=True, null=True)
     translation_type = models.IntegerField(choices=TRANSLATION_TYPE_CHOICES, default=0, verbose_name='translation type')
     # translation_source = models.ForeignKey(TranslationSource, verbose_name='translation source', blank=True, null=True)
@@ -2957,8 +2949,12 @@ class Translation(models.Model):
     def make_json(self):
         source_tokenizer = self.segment.site.make_tokenizer()
         target_tokenizer = NltkTokenizer(language_code=self.language_id, lowercasing=False)
+        """
         source_tokens = tokenize(self.segment.text, tokenizer=source_tokenizer)
         target_tokens = tokenize(self.text, tokenizer=target_tokenizer)
+        """
+        source_tokens, plus_positions = tokenize(self.segment, tokenizer=source_tokenizer, word_segmentation=True)
+        target_tokens, plus_positions = tokenize(self, tokenizer=target_tokenizer, word_segmentation=True)
         cells = []
         x = 10
         i = 0

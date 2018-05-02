@@ -27,6 +27,30 @@ if (sys.version_info > (3, 0)):
 else:
     import StringIO
 
+def get_text_for_tokenizer(obj):
+    """ replace with blanks the '+' signs used as separators in word segmentation
+        and keep memory of their original positions """
+    text = obj.text_word_segmented
+    if not text:
+        return obj.text, []
+    plus_positions = []
+    n_chars = len(text)
+    if n_chars > 2 and text.count('+'):
+        c = text[0]
+        nxt = text[1]
+        i = 1
+        max_i = n_chars-1
+        while i < max_i:
+            prev = c
+            c = nxt
+            nxt = text[i+1]
+            if c == '+' and prev.isalpha() and nxt.isalpha():
+                plus_positions.append(i)
+                text = text[:i] + ' ' + text[i+1:]
+            i += 1
+    return text, plus_positions
+
+"""
 def tokenize(text, lowercasing=False, tokenizer=None):
     if tokenizer:
         return tokenizer.tokenize(text)
@@ -34,6 +58,22 @@ def tokenize(text, lowercasing=False, tokenizer=None):
         text = text.lower()
     tokens = re.split("[ |\.\,\;\:\'\"]*", text)
     return tokens
+"""
+def tokenize(obj, lowercasing=False, tokenizer=None, word_segmentation=False):
+    if word_segmentation:
+        text, plus_positions = get_text_for_tokenizer(obj)
+    else:
+        text = obj
+    if tokenizer:
+        tokens = tokenizer.tokenize(text)
+    else:
+        if lowercasing:
+            text = text.lower()
+        tokens = re.split("[ |\.\,\;\:\'\"]*", text)
+    if word_segmentation:
+        return tokens, plus_positions
+    else:
+        return tokens
 
 class BitextBuilder(object):
 

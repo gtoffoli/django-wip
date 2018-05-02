@@ -1449,15 +1449,17 @@ def translation_align(request, translation_id):
     apply_filter = goto = '' 
     post = request.method=='POST' and request.POST or None
     if post:
-        # print('post')
         if post.get('alignment', ''):
             translation_align_form = TranslationViewForm(post)
-            # print('alignment')
             if translation_align_form.is_valid():
                 data = translation_align_form.cleaned_data
                 alignment = data['alignment']
-                # print('alignment: ', alignment)
                 compute_alignment = data['compute_alignment']
+        elif post.get('save_text_word_segmented', ''):
+            text_word_segmented = post.get('text_word_segmented', '')
+            translation.text_word_segmented = text_word_segmented.strip()
+            translation.translation_type = MANUAL
+            translation.save()
         else:
             apply_filter = post.get('apply_filter', '')
             if not (apply_filter):

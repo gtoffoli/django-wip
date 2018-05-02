@@ -56,6 +56,13 @@ th, td { text-align: left; vertical-align: top; }
 	{% if translation.user_role %}, <label>by</label>{{ translation.user_role }}{% endif %}
 	</legend>
     <div>{{ translation.text }}</div>
+    <div>
+	<form action="/translation_align/{{ translation.id }}/" id="form_text_word_segmented" method="post">
+		{% csrf_token %}
+		<textarea class="form-control custom-control" name="text_word_segmented" id="text_word_segmented" style="width: 100%;" rows="2">{% if translation.text_word_segmented %}{{ translation.text_word_segmented }}{% endif %}</textarea>
+		<input type="submit" name="save_text_word_segmented" class="btn btn-default btn-sm" value="Save text with word segmentation">
+	</form>
+	</div>
 	</fieldset>
 
 <form action="/translation_align/{{ translation.id }}/" id="sequencer_form" method="post">
