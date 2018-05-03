@@ -502,3 +502,21 @@ def pageversion_diff(old_version, new_version, html=False, wrap=None, diff_file=
     else:
         return diff
 
+def text_to_codepoints(text, keep_ascii=True, number=False):
+    codepoints = []
+    i = 0
+    for c in text:
+        if keep_ascii and ord(c) < 128:
+            if c == ' ':
+                c = 'b'
+            codepoints.append(c)
+        else:
+            codepoint = hex(ord(c)).replace('0x', '').upper()
+            if len(codepoint) % 2 == 1:
+                codepoint = '0'+codepoint
+            if number:
+                codepoint = '{0}-{1}'.format(i, codepoint)
+            codepoints.append(codepoint)
+        i += 1
+    return ' '.join(codepoints)
+

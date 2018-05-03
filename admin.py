@@ -313,7 +313,7 @@ class SegmentAdmin(admin.ModelAdmin):
 
 class TranslationAdmin(admin.ModelAdmin):
     list_display = ['id', 'segment_link', 'site_name', 'language', 'text', 'translationtype', 'translationsource', 'has_alignment', 'alignmenttype', 'time', 'user_role']
-    list_filter = ['language', 'alignment_type',  'user_role',]
+    list_filter = ['segment__site__name', 'language', 'alignment_type',  'user_role',]
     search_fields = ['text', 'alignment',]
 
     def segment_link(self, obj):

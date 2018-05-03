@@ -1074,19 +1074,15 @@ class Proxy(models.Model):
                 n_partially += 1
         return n_ready, n_translated, n_partially
 
-    # def translate_page_content(self, content):
     def translate_page_content(self, content, online=False):
         html_string = strip_html_comments(content)
         # html_string = normalize_string(html_string)
         content_document = html.document_fromstring(html_string)
-        # translated_document, has_translation = translated_element(content_document, self.site, webpage=None, language=self.language, translate_live=self.enable_live_translation)
         translated_document, translation_state = translated_element(content_document, self.site, webpage=None, language=self.language, translate_live=self.enable_live_translation, online=online)
-        # translated_document, has_translation = '', False
         if translation_state in [PARTIALLY, TRANSLATED, REVISED]:
             content = element_tostring(translated_document)
         return content, translation_state
 
-    # def propagate_up_block_updates(self):
     def propagate_up_block_updates(self, min_state=TRANSLATED):
         site = self.site
         language = self.language
@@ -1096,7 +1092,6 @@ class Proxy(models.Model):
         # blocks = self.blocks_ready()
         blocks = Block.objects.filter(site=site, no_translate=False).exclude(language=language).exclude(source_block__language=language, source_block__state__gt=min_state-1)
         for block in blocks:
-            # translated_blocks = TranslatedBlock.objects.filter(block=block, language=language, state__gt=0).order_by('-modified')
             translated_blocks = TranslatedBlock.objects.filter(block=block, language=language, state__gt=min_state-1).order_by('-modified')
             if translated_blocks:
                 translated_block = translated_blocks[0]
@@ -1547,7 +1542,6 @@ class Webpage(models.Model):
         if last_version:
             content = last_version.body
             content_document = html.document_fromstring(content)
-            # translated_document, has_translation = translated_element(content_document, site, webpage=self, language=language)
             translated_document, has_translation = translated_element(content_document, site, webpage=self, language=language, translate_live=proxy.enable_live_translation)
             if has_translation:
                 content = element_tostring(translated_document)
@@ -2073,7 +2067,7 @@ class Block(node_factory('BlockEdge')):
         """ build a mapping between ranges of tokens in the target text (right) and ranges in the source text (left);
             multiple target tokens can ba associated to the same source token, but not vice-versa;
             possible positions of '+' characters added to cope for clitics must be subtracted from the right counts """
-        reversed_positions = reversed(plus_positions)
+        reversed_positions = list(reversed(plus_positions))
         links = split_alignment(alignment, return_links=True)
         links.sort(key=lambda x: (x[1], x[0]))
         rights = [link[1] for link in links]
@@ -2450,11 +2444,9 @@ class BlockEdge(edge_factory('Block', concrete = False)):
 # inspired by the algorithm of utils.elements_from_element
 # takes into account possible rotation of content in the same page position (no block_in_page)
 # need to filter also on block freshness?
-# def translated_element(element, site, webpage=None, language=None, xpath='/html', translate_live=False):
 def translated_element(element, site, webpage=None, language=None, xpath='/html', translate_live=False, online=False):
     logger.info('translated_element: %s', xpath)
     checksum = element_signature(element)
-    # has_translation = False
     block = None
     blocks_in_page = webpage and BlockInPage.objects.filter(webpage=webpage, xpath=xpath, block__checksum=checksum).order_by('-time') or []
     if blocks_in_page:
@@ -2474,17 +2466,20 @@ def translated_element(element, site, webpage=None, language=None, xpath='/html'
                 block = blocks_similarities[0][0]
     if block:
         if block.no_translate:
-            # return element, True
             return element, INVARIANT
-        # translated_blocks = TranslatedBlock.objects.filter(block=block, language=language, state__gt=0).order_by('-modified')
         translated_blocks = TranslatedBlock.objects.filter(block=block, language=language, state__gt=0).order_by('-state', '-modified')
         if translated_blocks:
-            """
-            element = html.fromstring(translated_blocks[0].body)
-            return element, True # return the complete translation of the block
-            """
             translated_block = translated_blocks[0]
             element = html.fromstring(translated_block.body)
+            if translated_block.language_id == 'ar':
+                style = element.get('style', '')
+                if style:
+                    if style.endswith(';'):
+                        style = style[:-1]
+                    style = style + '; direction:rtl;'
+                    element.set('style', style)
+                else:
+                    element.set('style', 'direction:rtl;')
             return element, translated_block.state
 
     children = element.getchildren()
@@ -2509,7 +2504,6 @@ def translated_element(element, site, webpage=None, language=None, xpath='/html'
             # if child_tags_dict_1[tag] > 1:
             if n>1 and child_tags_dict_1[tag] > 1:
                 branch += '[%d]' % n
-            # translated_child, child_has_translation = translated_element(child, site, webpage=webpage, language=language, xpath='%s/%s' % (xpath, branch), translate_live=translate_live)
             translated_child, child_translation_state = translated_element(child, site, webpage=webpage, language=language, xpath='%s/%s' % (xpath, branch), translate_live=translate_live, online=online)
             if child_translation_state in [PARTIALLY, TRANSLATED, REVISED]:
                 element.replace(child, translated_child)
