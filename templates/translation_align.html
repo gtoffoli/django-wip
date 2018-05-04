@@ -27,14 +27,28 @@ tr.even { background: white; }
 .es { border-left: 2px solid Yellow; border-top: 2px solid Red; border-right: 2px solid Yellow; border-bottom: 2px solid Red; margin: 1px; }
 .fr { border: 1px solid; border-color: Blue; margin: 1px; }
 th, td { text-align: left; vertical-align: top; }
+.rtl { direction: rtl; }
 </style>
+<script>
+/*
+ * copy the translation text to the text_word_segmented textarea
+ */
+function text_to_word_segmented() {
+	from = document.getElementById('translation_text')
+	to = document.getElementById('text_word_segmented')
+	to.value = from.innerText;
+}
+</script>
+
 {% endblock %}
 
 {% block head_title %}Segment: {{ segment.text }}{% endblock %}
 
 {% block title-page %}
+<div {% if translation.is_rtl %}class="rtl"{% endif %}>
 <span style="color: black; font-size: smaller;">Align translation: </span>
 <span class="{{ target_language.code }}" style="font-size: smaller;">{{ translation.text|truncatechars:64 }}</span>
+</div>
 {% endblock %}
 
 {% block content-page %}
@@ -55,14 +69,18 @@ th, td { text-align: left; vertical-align: top; }
 	{% if translation.get_source %}, <label>source</label>{{ translation.get_source }}{% endif %}
 	{% if translation.user_role %}, <label>by</label>{{ translation.user_role }}{% endif %}
 	</legend>
-    <div>{{ translation.text }}</div>
+    <div {% if translation.is_rtl %}class="rtl"{% endif %}><span id="translation_text">{{ translation.text }}</span>
+    	{% if translation.is_rtl %}<a href="javascript: text_to_word_segmented();" class="btn btn-default btn-xs">Copy</a>{% endif %}
+    </div>
+    {% if translation.is_rtl %}
     <div>
 	<form action="/translation_align/{{ translation.id }}/" id="form_text_word_segmented" method="post">
 		{% csrf_token %}
-		<textarea class="form-control custom-control" name="text_word_segmented" id="text_word_segmented" style="width: 100%;" rows="2">{% if translation.text_word_segmented %}{{ translation.text_word_segmented }}{% endif %}</textarea>
+		<textarea class="form-control custom-control rtl" name="text_word_segmented" id="text_word_segmented" style="width: 100%;" rows="2">{% if translation.text_word_segmented %}{{ translation.text_word_segmented }}{% endif %}</textarea>
 		<input type="submit" name="save_text_word_segmented" class="btn btn-default btn-sm" value="Save text with word segmentation">
 	</form>
 	</div>
+	{% endif %}
 	</fieldset>
 
 <form action="/translation_align/{{ translation.id }}/" id="sequencer_form" method="post">

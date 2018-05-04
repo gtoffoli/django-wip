@@ -26,7 +26,7 @@ class NltkTokenizer(object):
         self.tokenizer = tokenizer
         if not self.tokenizer and not self.tokenizer_type:
             if self.language_code == 'ar':
-                self.tokenizer_type = 'wordpunkt' # 'wordpunkt' 'treebank' 'word'
+                self.tokenizer_type = 'wordpunct' # 'wordpunct' 'treebank' 'word'
             elif self.language_code:
                 self.tokenizer_type = 'baroni'
         if self.tokenizer_type == 'punkt':

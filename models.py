@@ -2732,6 +2732,10 @@ class Segment(models.Model):
     def __unicode__(self):
         return self.__str__()
 
+    def is_rtl(self):
+        language = self.language or self.site.language
+        return language.code in settings.RTL_LANGUAGES
+
     def more_like_this(self, target_languages=[], limit=5):
         """ to be redone with pg_trg """
         qs = Segment.objects.filter(text=self.text)
@@ -2889,6 +2893,9 @@ class Translation(models.Model):
     is_locked = models.BooleanField('locked', default=False)
     user_role = models.ForeignKey(UserRole, verbose_name='role', blank=True, null=True)
     timestamp = models.DateTimeField('time')
+
+    def is_rtl(self):
+        return self.language_id in settings.RTL_LANGUAGES
 
     def is_aligned(self):
         return self.alignment and self.alignment_type==MANUAL and normalized_alignment(self.alignment) or False

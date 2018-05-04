@@ -145,6 +145,8 @@ LANGUAGES = (
     ('es', 'Espagnol'),
 )
 
+RTL_LANGUAGES = ['ar']
+
 # TIME_ZONE = 'UTC'
 TIME_ZONE = 'Europe/Rome'
 USE_TZ = True
