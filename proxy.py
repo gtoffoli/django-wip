@@ -165,7 +165,8 @@ class WipHttpProxy(HttpProxy):
 
             # apply specific proxy-translation transformation
             if self.proxy_id and self.language_code:
-                self.translate_response(request)
+                # self.translate_response(request)
+                self.translate_response(request, path=self.path)
 
             # test on self.rewrite
             if self.rewrite:
@@ -270,7 +271,7 @@ class WipHttpProxy(HttpProxy):
             response = HttpResponse('<?xml version="1.0" encoding="UTF-8"?>\n' + tostring(content))
         return response
 
-    def translate_response(self, request):
+    def translate_response(self, request, path=''):
         if self.proxy:
             proxy = self.proxy
             site = self.site
@@ -280,7 +281,8 @@ class WipHttpProxy(HttpProxy):
         path = urlparse.urlparse(self.url).path
         transformed = False
         if request.GET or request.POST:
-            self.content, transformed = proxy.translate_page_content(self.content)
+            # self.content, transformed = proxy.translate_page_content(self.content)
+            self.content, transformed = proxy.translate_page_content(self.content, proxy=self.proxy, path=path)
         else:
             if not proxy.enable_live_translation:
                 webpages = Webpage.objects.filter(site=site, path=path).order_by('-created')
@@ -289,7 +291,8 @@ class WipHttpProxy(HttpProxy):
                     if not webpage.no_translate:
                         self.content, transformed = webpage.get_translation(self.language_code)
             if not transformed and proxy.enable_live_translation:
-                self.content, transformed = proxy.translate_page_content(self.content, online=self.online)
+                # self.content, transformed = proxy.translate_page_content(self.content, online=self.online)
+                self.content, transformed = proxy.translate_page_content(self.content, online=self.online, proxy=self.proxy, path=path)
         self.content = proxy.replace_fragments(self.content, path)
 
     def replace_links(self):

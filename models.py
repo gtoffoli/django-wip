@@ -1074,12 +1074,16 @@ class Proxy(models.Model):
                 n_partially += 1
         return n_ready, n_translated, n_partially
 
-    def translate_page_content(self, content, online=False):
+    # def translate_page_content(self, content, online=False):
+    def translate_page_content(self, content, online=False, proxy=None, path=''):
         html_string = strip_html_comments(content)
         # html_string = normalize_string(html_string)
         content_document = html.document_fromstring(html_string)
-        translated_document, translation_state = translated_element(content_document, self.site, webpage=None, language=self.language, translate_live=self.enable_live_translation, online=online)
-        if translation_state in [PARTIALLY, TRANSLATED, REVISED]:
+        # translated_document, translation_state = translated_element(content_document, self.site, webpage=None, language=self.language, translate_live=self.enable_live_translation, online=online)
+        translated_document, translation_state = translated_element(content_document, self.site, webpage=None, language=self.language, translate_live=self.enable_live_translation, online=online, proxy=proxy, path=path)
+        if translated_document == None:
+            return '', translation_state
+        elif translation_state in [PARTIALLY, TRANSLATED, REVISED]:
             content = element_tostring(translated_document)
         return content, translation_state
 
@@ -1383,6 +1387,27 @@ class Proxy(models.Model):
                 if not is_invariant_word(token):
                     tokens_dict[token] += 1
         return tokens_dict
+
+DROP = 1
+TRANSFORMATION_RULE_CHOICES = (
+    (NONE, ''),
+    (DROP, _('Drop')),
+)
+TRANSFORMATION_RULE_DICT = dict(TRANSFORMATION_RULE_CHOICES)
+
+class ProxyTransformationRule(models.Model):
+    proxy = models.ForeignKey(Proxy, related_name='rule_used_for_proxy')
+    path = models.CharField(max_length=200, blank=True, default='', help_text="optional path filter")
+    xpath = models.CharField(max_length=200, blank=True, default='', help_text="Xpath filter")
+    rule_type = models.IntegerField(choices=TRANSFORMATION_RULE_CHOICES, default=DROP, verbose_name='rule type')
+    order = models.IntegerField(default=0, verbose_name='order of execution')
+
+    class Meta:
+        verbose_name = _('proxy transformation rule')
+        verbose_name_plural = _('proxy transformation rules')
+
+    def __str__(self):
+        return '{0}-{1}.{2} {3}:{4}'.format(self.proxy.name, self.order, self.id, self.path, TRANSFORMATION_RULE_DICT[self.rule_type])
 
 class Webpage(models.Model):
     site = models.ForeignKey(Site)
@@ -2444,9 +2469,15 @@ class BlockEdge(edge_factory('Block', concrete = False)):
 # inspired by the algorithm of utils.elements_from_element
 # takes into account possible rotation of content in the same page position (no block_in_page)
 # need to filter also on block freshness?
-def translated_element(element, site, webpage=None, language=None, xpath='/html', translate_live=False, online=False):
+# def translated_element(element, site, webpage=None, language=None, xpath='/html', translate_live=False, online=False):
+def translated_element(element, site, webpage=None, language=None, xpath='/html', translate_live=False, online=False, proxy=None, path=''):
     logger.info('translated_element: %s', xpath)
     checksum = element_signature(element)
+    if proxy and path:
+        transformation_rules = ProxyTransformationRule.objects.filter(proxy=proxy, xpath=xpath)
+        for rule in transformation_rules:
+            if rule.xpath == xpath or (rule.xpath.endswith('*') and xpath.count(rule.xpath[:-1])):
+                return None, INVARIANT
     block = None
     blocks_in_page = webpage and BlockInPage.objects.filter(webpage=webpage, xpath=xpath, block__checksum=checksum).order_by('-time') or []
     if blocks_in_page:
@@ -2504,10 +2535,12 @@ def translated_element(element, site, webpage=None, language=None, xpath='/html'
             # if child_tags_dict_1[tag] > 1:
             if n>1 and child_tags_dict_1[tag] > 1:
                 branch += '[%d]' % n
-            translated_child, child_translation_state = translated_element(child, site, webpage=webpage, language=language, xpath='%s/%s' % (xpath, branch), translate_live=translate_live, online=online)
-            if child_translation_state in [PARTIALLY, TRANSLATED, REVISED]:
+            # translated_child, child_translation_state = translated_element(child, site, webpage=webpage, language=language, xpath='%s/%s' % (xpath, branch), translate_live=translate_live, online=online)
+            translated_child, child_translation_state = translated_element(child, site, webpage=webpage, language=language, xpath='%s/%s' % (xpath, branch), translate_live=translate_live, online=online, proxy=proxy, path=path)
+            if translated_child == None:
+                element.remove(child)
+            elif child_translation_state in [PARTIALLY, TRANSLATED, REVISED]:
                 element.replace(child, translated_child)
-                # has_translation = True
                 translation_state = min(translation_state, child_translation_state)
             else:
                 translation_state = min(translation_state, PARTIALLY)

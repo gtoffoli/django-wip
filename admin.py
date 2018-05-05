@@ -10,7 +10,8 @@ from django import forms
 from django.contrib import admin
 from tinymce.widgets import TinyMCE
 
-from .models import Site, ServiceSubscription, SiteTheme, Proxy, Webpage, PageVersion, TranslatedVersion # , SiteTheme
+from .models import Site, ServiceSubscription, SiteTheme, Proxy, ProxyTransformationRule
+from .models import Webpage, PageVersion, TranslatedVersion # , SiteTheme
 from .models import Block, BlockEdge, BlockInPage, TranslatedBlock
 from .models import Scan, Link, SegmentCount, WordCount
 from .models import UserRole, Segment, Translation
@@ -54,6 +55,14 @@ class ProxyAdmin(admin.ModelAdmin):
 
     def live(self, obj):
         return obj.enable_live_translation
+
+class ProxyTransformationRuleAdmin(admin.ModelAdmin):
+    list_display = ['id', 'proxy_name', 'path', 'rule_type', 'xpath', 'order',]
+    list_filter = ['proxy__name',]
+
+    def proxy_name(self, obj):
+        return obj.proxy.name
+    proxy_name.short_description = 'proxy'
 
 class WebpageAdmin(admin.ModelAdmin):
     list_filter = ('site',)
@@ -358,6 +367,7 @@ admin.site.register(Site, SiteAdmin)
 admin.site.register(ServiceSubscription, ServiceSubscriptionAdmin)
 admin.site.register(SiteTheme, SiteThemeAdmin)
 admin.site.register(Proxy, ProxyAdmin)
+admin.site.register(ProxyTransformationRule, ProxyTransformationRuleAdmin)
 admin.site.register(Webpage, WebpageAdmin)
 admin.site.register(PageVersion, PageVersionAdmin)
 admin.site.register(TranslatedVersion, TranslatedVersionAdmin)
