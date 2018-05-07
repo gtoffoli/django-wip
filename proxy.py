@@ -374,7 +374,7 @@ class WipHttpProxy(HttpProxy):
         self.content = self.content.replace('</body>', '\n{}</body>'.format(locale_switch))
 
     def add_temp(self):
-        html = '<div><a href="/get_locale_switch/">get locale switch</a></div>'.format(self.proxy.language_id)
+        html = '<div><a href="{0}/get_locale_switch/">get locale switch</a></div>'.format(self.proxy.get_url())
         self.content = self.content.replace('</body>', '\n{}</body>'.format(html))
 
 def get_locale_switch(request, is_view=True, original_path=''):
