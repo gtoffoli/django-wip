@@ -179,7 +179,7 @@ class WipHttpProxy(HttpProxy):
             if self.proxy:
                 self.add_language_links()
                 self.add_locale_switch()
-                self.add_temp()
+                self.test_locale_switch()
 
             response.content = self.content.encode('utf-8')
 
@@ -373,8 +373,11 @@ class WipHttpProxy(HttpProxy):
         locale_switch = get_locale_switch(self.request, is_view=False, original_path=self.original_request_path)
         self.content = self.content.replace('</body>', '\n{}</body>'.format(locale_switch))
 
-    def add_temp(self):
-        html = '<div><a href="{0}/get_locale_switch/">get locale switch</a></div>'.format(self.proxy.get_url())
+    def test_locale_switch(self):
+        if self.online:
+            html = '<div><a href="https://wip.fairvillage.eu/get_locale_switch/">test locale switch</a></div>'
+        else:
+            html = '<div><a href="http://localhost:8000/get_locale_switch/">test locale switch</a></div>'
         self.content = self.content.replace('</body>', '\n{}</body>'.format(html))
 
 def get_locale_switch(request, is_view=True, original_path=''):

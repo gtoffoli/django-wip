@@ -33,7 +33,6 @@ from .proxy import WipRevProxy
 urlpatterns = i18n_patterns(
     url(r"^$", views.home, name="home"),
     url(r'^admin/', admin.site.urls),
-    url(r'^get_locale_switch/$', get_locale_switch),
 )
 
 urlpatterns += (
@@ -42,6 +41,7 @@ urlpatterns += (
     url(r'^api/send_block/$', send_block),
     url(r'^api/add_block/$', add_block),
     url(r'^api/send_fragment/$', send_fragment),
+    url(r'^get_locale_switch/$', get_locale_switch),
 )   
 
 # urlpatterns = (
