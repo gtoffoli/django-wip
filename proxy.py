@@ -26,6 +26,7 @@ import revproxy
 revproxy.MIN_STREAMING_LENGTH = 1024 * 1024 * 1024 #  4 * 1024  # 4KB
 
 from .models import Site, Proxy, Webpage
+from .models import url_to_site_proxy
 
 from lxml import etree
 from lxml.etree import tostring
@@ -177,6 +178,8 @@ class WipHttpProxy(HttpProxy):
 
             if self.proxy:
                 self.add_language_links()
+                self.add_locale_switch()
+                self.add_temp()
 
             response.content = self.content.encode('utf-8')
 
@@ -365,6 +368,64 @@ class WipHttpProxy(HttpProxy):
         if self.proxy and self.online:
             self.content = BODY_REGEX.sub(r'\1' + info[self.language_code] % (extra, site_url, site_url.split('//')[1]), self.content)
         """
+
+    def add_locale_switch(self):
+        locale_switch = get_locale_switch(self.request, is_view=False, original_path=self.original_request_path)
+        self.content = self.content.replace('</body>', '\n{}</body>'.format(locale_switch))
+
+    def add_temp(self):
+        html = '<div><a href="/get_locale_switch/">get locale switch</a></div>'.format(self.proxy.language_id)
+        self.content = self.content.replace('</body>', '\n{}</body>'.format(html))
+
+def get_locale_switch(request, is_view=True, original_path=''):
+    """ could be an ajax request sent by original or translated page """
+    if is_view:
+        referer = request.META.get('HTTP_REFERER')
+        parsed_referer = urlparse.urlparse(referer)
+        host = parsed_referer.hostname
+        path = parsed_referer.path
+        site, proxy, path = url_to_site_proxy(host, path)
+    else:
+        host = request.get_host()
+        site, proxy, path = url_to_site_proxy(host, original_path)
+    script = '<script id="wip_locale_script">\n'
+    function_show = 'function show_languages() {\n'
+    function_hide = 'function hide_languages() {\n'
+    html = '<ul id="wip_locale_switch" style="list-style: none; position: absolute; top: 100; left: auto; right: 0; overflow: hidden;" onclick="hide_languages();">\n'
+    label = site.language.code.upper()
+    if proxy:
+        display = ' visibility: hidden;'
+        base_url = site.url
+        a = '<a style="color: white;" target="_top" href="{0}/{1}" title="{2}">{3}</a>'.format(base_url, path, settings.LANGUAGES_DICT[site.language_id], label)
+        function_show += 'document.getElementById("ls_{}").style.visibility = "visible";\n'.format(label)
+        function_hide += 'document.getElementById("ls_{}").style.visibility = "hidden";\n'.format(label)
+    else:
+        display = ' visibility: visible;'
+        a = """<a style="font-weight: bold; color: white;" onmouseover="show_languages();">{0}</a>""".format(label)
+    html += '<li id="ls_{0}" style="height: 32px; width: 32px; background-color: blue; text-align: center; margin: 0; {1}">{2}</li>\n'.format(label, display, a)
+    proxies = Proxy.objects.filter(site=site).order_by('language__code')
+    for p in proxies:
+        language = p.language
+        label = p.language.code.upper()
+        if p == proxy:
+            display = ' visibility: visible;'
+            a = """<a style="font-weight: bold; color: white;" onmouseover="show_languages();">{0}</a>""".format(label)
+        else:
+            display = ' visibility: hidden;'
+            base_url = p.get_url()
+            a = '<a style="color: white;" target="_top" href="{0}/{1}" title="{2}">{3}</a>'.format(base_url, path, settings.LANGUAGES_DICT[language.code], label)
+            function_show += 'document.getElementById("ls_{}").style.visibility = "visible";\n'.format(label)
+            function_hide += 'document.getElementById("ls_{}").style.visibility = "hidden";\n'.format(label)
+        html += '<li id="ls_{0}" style="height: 32px; width: 32px; background-color: blue; text-align: center; margin: 0; {1}">{2}</li>\n'.format(label, display, a)
+    html += '</ul>\n'
+    function_show += '}\n'
+    function_hide += '}\n'
+    script += function_show + function_hide + '</script>\n'
+    locale_switch = script + html
+    if is_view:
+        return HttpResponse(locale_switch, content_type='text/plain')
+    else:
+        return locale_switch
 
 class WipRevProxy(RevProxy, ContextMixin):
     html5 = False

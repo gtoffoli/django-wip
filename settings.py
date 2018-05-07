@@ -144,7 +144,7 @@ LANGUAGES = (
     ('it', 'Italiano'),
     ('es', 'Espagnol'),
 )
-
+LANGUAGES_DICT = dict(LANGUAGES)
 RTL_LANGUAGES = ['ar']
 
 # TIME_ZONE = 'UTC'

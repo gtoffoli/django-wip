@@ -1388,6 +1388,35 @@ class Proxy(models.Model):
                     tokens_dict[token] += 1
         return tokens_dict
 
+def url_to_site_proxy(host, path):
+    """ return the Proxy handling the specified host and path 
+        and the path without site/language codes and leading slash """
+    language_codes = [language[0] for language in settings.LANGUAGES]
+    site = proxy = None
+    splitted_host = host.split('.')
+    splitted_path = path.split('/')[1:]
+    if host.count('localhost') or host.count('wip.fairvillage.eu'):
+        site = Site.objects.get(path_prefix=splitted_path[0])
+        language_id=splitted_path[1]
+        if language_id in language_codes:
+            proxy = Proxy.objects.get(site=site, language_id=splitted_path[1])
+            path = '/'.join(splitted_path[2:])
+            # site = None
+        else:
+            path = '/'.join(splitted_path[1:])
+    else:
+        if splitted_host[0] in language_codes:
+            proxy = Proxy.objects.get(host=host)
+            site = proxy.site
+            path = '/'.join(splitted_path)
+        elif splitted_path[1] in language_codes:
+            proxy = Proxy.objects.get(host=host, language_id=splitted_path[0])
+            site = proxy.site
+            path = '/'.join(splitted_path[1:])
+        else:
+            site = Site.objects.get(url__contains=host)
+    return site, proxy, path
+
 DROP = 1
 TRANSFORMATION_RULE_CHOICES = (
     (NONE, ''),
