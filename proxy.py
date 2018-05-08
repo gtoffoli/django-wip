@@ -391,39 +391,49 @@ def get_locale_switch(request, is_view=True, original_path=''):
     else:
         host = request.get_host()
         site, proxy, path = url_to_site_proxy(host, original_path)
-    script = '<script id="wip_locale_script">\n'
-    function_show = 'function show_languages() {\n'
-    function_hide = 'function hide_languages() {\n'
+    script = """<script id="wip_locale_script">
+function toggle_language(id) {
+    el = document.getElementById(id);
+    if (el.style.visibility == 'hidden') el.style.visibility = 'visible';
+    else el.style.visibility = 'hidden';
+}
+"""
+    function_toggle = 'function toggle_languages() {\n'
     html = '<ul id="wip_locale_switch" style="list-style: none; position: absolute; top: 100; left: auto; right: 0; overflow: hidden;" onclick="hide_languages();">\n'
-    label = site.language.code.upper()
+    code = site.language_id
+    label = code.upper()
+    title = settings.LANGUAGES_DICT[code]
     if proxy:
         display = ' visibility: hidden;'
+        background = ' background-color: darkgrey;'
         base_url = site.url
-        a = '<a style="color: white;" target="_top" href="{0}/{1}" title="{2}">{3}</a>'.format(base_url, path, settings.LANGUAGES_DICT[site.language_id], label)
-        function_show += 'document.getElementById("ls_{}").style.visibility = "visible";\n'.format(label)
-        function_hide += 'document.getElementById("ls_{}").style.visibility = "hidden";\n'.format(label)
+        a = '<a style="color: white;" target="_top" href="{0}/{1}" title="{2}">{3}</a>'.format(base_url, path, title, label)
+        function_toggle += 'toggle_language("ls_{}");\n'.format(label)
     else:
         display = ' visibility: visible;'
-        a = """<a style="font-weight: bold; color: white;" onmouseover="show_languages();">{0}</a>""".format(label)
-    html += '<li id="ls_{0}" style="height: 32px; width: 32px; background-color: blue; text-align: center; margin: 0; {1}">{2}</li>\n'.format(label, display, a)
+        background = ' background-color: dimgrey;'
+        a = """<a style="font-weight: bold; color: white;" onmouseover="toggle_languages();" title="{0}>{1}</a>""".format(title, label)
+    html += '<li id="ls_{0}" style="height: 32px; width: 32px; background-color: dimgrey; text-align: center; margin: 0; {1}{2}">{3}</li>\n'.format(label, display, background, a)
     proxies = Proxy.objects.filter(site=site).order_by('language__code')
     for p in proxies:
         language = p.language
-        label = p.language.code.upper()
+        code = language.code
+        label = code.upper()
+        title = settings.LANGUAGES_DICT[code]
         if p == proxy:
             display = ' visibility: visible;'
-            a = """<a style="font-weight: bold; color: white;" onmouseover="show_languages();">{0}</a>""".format(label)
+            background = ' background-color: dimgrey;'
+            a = """<a style="font-weight: bold; color: white;" onmouseover="toggle_languages();" title="{0}">{1}</a>""".format(title, label)
         else:
             display = ' visibility: hidden;'
+            background = ' background-color: darkgrey;'
             base_url = p.get_url()
-            a = '<a style="color: white;" target="_top" href="{0}/{1}" title="{2}">{3}</a>'.format(base_url, path, settings.LANGUAGES_DICT[language.code], label)
-            function_show += 'document.getElementById("ls_{}").style.visibility = "visible";\n'.format(label)
-            function_hide += 'document.getElementById("ls_{}").style.visibility = "hidden";\n'.format(label)
-        html += '<li id="ls_{0}" style="height: 32px; width: 32px; background-color: blue; text-align: center; margin: 0; {1}">{2}</li>\n'.format(label, display, a)
+            a = '<a style="color: white;" target="_top" href="{0}/{1}" title="{2}" >{3}</a>'.format(base_url, path, title, label)
+            function_toggle += '    toggle_language("ls_{}");\n'.format(label)
+        html += '<li id="ls_{0}" style="height: 32px; width: 32px; background-color: dimgrey; text-align: center; margin: 0; {1}{2}">{3}</li>\n'.format(label, display, background, a)
     html += '</ul>\n'
-    function_show += '}\n'
-    function_hide += '}\n'
-    script += function_show + function_hide + '</script>\n'
+    function_toggle += '}\n'
+    script +=  function_toggle + '</script>\n'
     locale_switch = script + html
     if is_view:
         return HttpResponse(locale_switch, content_type='text/plain')
