@@ -1396,6 +1396,7 @@ def url_to_site_proxy(host, path):
     splitted_host = host.split('.')
     splitted_path = path.split('/')[1:]
     logger.info('url_to_site_proxy: %s, %s', splitted_host, splitted_path)
+    """
     if host.count('localhost') or host.count('wip.fairvillage.eu'):
         site = Site.objects.get(path_prefix=splitted_path[0])
         language_id=splitted_path[1]
@@ -1415,6 +1416,23 @@ def url_to_site_proxy(host, path):
             path = '/'.join(splitted_path[1:])
         else:
             site = Site.objects.get(url__contains=host)
+    """
+    try:
+        site = Site.objects.get(path_prefix=splitted_path[0])
+        splitted_path = splitted_path[1:]
+    except:
+        pass
+    if splitted_host[0] in language_codes:
+        proxy = Proxy.objects.get(host=host)
+        site = proxy.site
+    elif splitted_path[0] in language_codes:
+        if site:
+            proxy = Proxy.objects.get(site=site, language_id=splitted_path[0])
+        else:
+            proxy = Proxy.objects.get(host=host, language_id=splitted_path[0])
+            site = proxy.site
+        splitted_path = splitted_path[1:]
+    path = '/'.join(splitted_path)
     return site, proxy, path
 
 DROP = 1

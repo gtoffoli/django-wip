@@ -413,7 +413,7 @@ function toggle_language(id) {
         display = ' visibility: visible;'
         background = ' background-color: dimgrey;'
         a = """<a style="font-weight: bold; color: white;" onmouseover="toggle_languages();" title="{0}>{1}</a>""".format(title, label)
-    html += '<li id="ls_{0}" style="height: 32px; width: 32px; background-color: dimgrey; text-align: center; margin: 0; {1}{2}">{3}</li>\n'.format(label, display, background, a)
+    html += '<li id="ls_{0}" style="height: 32px; width: 32px; text-align: center; margin: 0; {1}{2}">{3}</li>\n'.format(label, display, background, a)
     proxies = Proxy.objects.filter(site=site).order_by('language__code')
     for p in proxies:
         language = p.language
@@ -430,7 +430,7 @@ function toggle_language(id) {
             base_url = p.get_url()
             a = '<a style="color: white;" target="_top" href="{0}/{1}" title="{2}" >{3}</a>'.format(base_url, path, title, label)
             function_toggle += '    toggle_language("ls_{}");\n'.format(label)
-        html += '<li id="ls_{0}" style="height: 32px; width: 32px; background-color: dimgrey; text-align: center; margin: 0; {1}{2}">{3}</li>\n'.format(label, display, background, a)
+        html += '<li id="ls_{0}" style="height: 32px; width: 32px; text-align: center; margin: 0; {1}{2}">{3}</li>\n'.format(label, display, background, a)
     html += '</ul>\n'
     function_toggle += '}\n'
     script +=  function_toggle + '</script>\n'
