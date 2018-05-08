@@ -1400,28 +1400,21 @@ def url_to_site_proxy(host, path):
         site = Site.objects.get(path_prefix=splitted_path[0])
         language_id=splitted_path[1]
         if language_id in language_codes:
-            logger.info('url_to_site_proxy: %d', 1)
             proxy = Proxy.objects.get(site=site, language_id=splitted_path[1])
             path = '/'.join(splitted_path[2:])
-            # site = None
         else:
             path = '/'.join(splitted_path[1:])
-            logger.info('url_to_site_proxy: %d', 2)
     else:
         if splitted_host[0] in language_codes:
             proxy = Proxy.objects.get(host=host)
             site = proxy.site
             path = '/'.join(splitted_path)
-            logger.info('url_to_site_proxy: %d', 3)
-        elif splitted_path[1] in language_codes:
-            logger.info('url_to_site_proxy: %s, %s', host, splitted_path[1])
-            proxy = Proxy.objects.get(host=host, language_id=splitted_path[1])
+        elif splitted_path[0] in language_codes:
+            proxy = Proxy.objects.get(host=host, language_id=splitted_path[0])
             site = proxy.site
-            path = '/'.join(splitted_path[2:])
-            logger.info('url_to_site_proxy: %d', 4)
+            path = '/'.join(splitted_path[1:])
         else:
             site = Site.objects.get(url__contains=host)
-            logger.info('url_to_site_proxy: %d', 5)
     return site, proxy, path
 
 DROP = 1
