@@ -370,51 +370,76 @@ class WipHttpProxy(HttpProxy):
         """
 
     def add_locale_switch(self):
-        locale_switch = get_locale_switch(self.request, is_view=False, original_path=self.original_request_path)
+        # locale_switch = get_locale_switch(self.request, is_view=False, original_path=self.original_request_path)
+        locale_switch = get_locale_switch(self.request, original_path=self.original_request_path)
         self.content = self.content.replace('</body>', '\n{}</body>'.format(locale_switch))
 
     def test_locale_switch(self):
+        site_prefix = self.site.path_prefix
         if self.online:
-            html = '<div><a href="https://wip.fairvillage.eu/get_locale_switch/">test locale switch</a></div>'
+            # html = '<div><a href="https://wip.fairvillage.eu/get_locale_switch/">test locale switch</a></div>'
+            html = '<div><a href="https://wip.fairvillage.eu/get_locale_switch/{}/">test locale switch</a></div>'.format(site_prefix)
         else:
-            html = '<div><a href="http://localhost:8000/get_locale_switch/">test locale switch</a></div>'
+            # html = '<div><a href="http://localhost:8000/get_locale_switch/">test locale switch</a></div>'
+            html = '<div><a href="http://localhost:8000/get_locale_switch/{}/">test locale switch</a></div>'.format(site_prefix)
         self.content = self.content.replace('</body>', '\n{}</body>'.format(html))
 
-def get_locale_switch(request, is_view=True, original_path=''):
-    """ could be an ajax request sent by original or translated page """
-    if is_view:
+locale_switch_template = """function wip_insert() [
+  var functions_code = `{0}`;
+  var html_code = `{1}`;
+  var body = document.body;
+  var script = document.createElement('script');
+  script.innerHTML = functions_code;
+  body.appendChild(script);
+  var template = document.createElement('template');
+  template.innerHTML = html_code;
+  body.appendChild(template.content.firstChild);
+];
+wip_insert();
+"""
+
+# def get_locale_switch(request, is_view=True, original_path=''):
+
+@csrf_exempt
+def get_locale_switch(request, site_prefix='', language_code='', original_path=''):
+    """ could be an ajax request sent by a page in the original site
+        a non-empty site prefix identifies calls of such type """
+    # if is_view:
+    if site_prefix:
         referer = request.META.get('HTTP_REFERER')
         parsed_referer = urlparse.urlparse(referer)
         host = parsed_referer.hostname
         path = parsed_referer.path
-        site, proxy, path = url_to_site_proxy(host, path)
+        # site, proxy, path = url_to_site_proxy(host, path)
+        site = Site.objects.get(path_prefix=site_prefix)
+        site, proxy, path = url_to_site_proxy(host, path, site=site, language_code=language_code)
     else:
         host = request.get_host()
         site, proxy, path = url_to_site_proxy(host, original_path)
-    script = """<script id="wip_locale_script">
-function toggle_language(id) {
+    functions = """
+function wip_toggle_language(id) {
     el = document.getElementById(id);
     if (el.style.visibility == 'hidden') el.style.visibility = 'visible';
     else el.style.visibility = 'hidden';
-}
+};
 """
-    function_toggle = 'function toggle_languages() {\n'
+    function_toggle = 'function wip_toggle_languages() {\n'
     html = '<ul id="wip_locale_switch" style="list-style: none; position: absolute; top: 100; left: auto; right: 0; overflow: hidden;" onclick="hide_languages();">\n'
     code = site.language_id
     label = code.upper()
     title = settings.LANGUAGES_DICT[code]
     if proxy:
-        display = ' visibility: hidden;'
-        background = ' background-color: darkgrey;'
+        display = 'visibility: hidden;'
+        background = 'background-color: darkgrey;'
         base_url = site.url
         a = '<a style="color: white;" target="_top" href="{0}/{1}" title="{2}">{3}</a>'.format(base_url, path, title, label)
-        function_toggle += 'toggle_language("ls_{}");\n'.format(label)
+        function_toggle += ' wip_toggle_language("ls_{}");\n'.format(label)
     else:
-        display = ' visibility: visible;'
-        background = ' background-color: dimgrey;'
-        a = """<a style="font-weight: bold; color: white;" onmouseover="toggle_languages();" title="{0}>{1}</a>""".format(title, label)
-    html += '<li id="ls_{0}" style="height: 32px; width: 32px; text-align: center; margin: 0; {1}{2}">{3}</li>\n'.format(label, display, background, a)
-    proxies = Proxy.objects.filter(site=site).order_by('language__code')
+        display = 'visibility: visible;'
+        background = 'background-color: dimgrey;'
+        a = """<a style="font-weight: bold; color: white;" onmouseover="wip_toggle_languages();" title="{0}>{1}</a>""".format(title, label)
+    html += '<li id="ls_{0}" style="height: 32px; width: 32px; text-align: center; margin: 0; {1} {2}">{3}</li>\n'.format(label, display, background, a)
+    proxies = Proxy.objects.filter(site=site, active=True).order_by('language__code')
     for p in proxies:
         language = p.language
         code = language.code
@@ -423,21 +448,25 @@ function toggle_language(id) {
         if p == proxy:
             display = ' visibility: visible;'
             background = ' background-color: dimgrey;'
-            a = """<a style="font-weight: bold; color: white;" onmouseover="toggle_languages();" title="{0}">{1}</a>""".format(title, label)
+            a = """<a style="font-weight: bold; color: white;" onmouseover="wip_toggle_languages();" title="{0}">{1}</a>""".format(title, label)
         else:
             display = ' visibility: hidden;'
             background = ' background-color: darkgrey;'
             base_url = p.get_url()
-            a = '<a style="color: white;" target="_top" href="{0}/{1}" title="{2}" >{3}</a>'.format(base_url, path, title, label)
-            function_toggle += '    toggle_language("ls_{}");\n'.format(label)
+            a = '<a style="color: white;" target="_top" href="{0}/{1}" title="{2}">{3}</a>'.format(base_url, path, title, label)
+            function_toggle += '  wip_toggle_language("ls_{}");\n'.format(label)
         html += '<li id="ls_{0}" style="height: 32px; width: 32px; text-align: center; margin: 0; {1}{2}">{3}</li>\n'.format(label, display, background, a)
     html += '</ul>\n'
-    function_toggle += '}\n'
-    script +=  function_toggle + '</script>\n'
-    locale_switch = script + html
-    if is_view:
-        return HttpResponse(locale_switch, content_type='text/plain')
+    function_toggle += '};\n'
+    functions +=  function_toggle
+    if site_prefix:
+        locale_switch = locale_switch_template.format(functions, html).replace('[', '{').replace(']', '}')
+        # return HttpResponse(locale_switch, content_type='text/plain')
+        response = HttpResponse(locale_switch, content_type='text/plain')
+        response['Access-Control-Allow-Origin'] = '*'
+        return response
     else:
+        locale_switch = '<script>\n' + functions + '</script>\n' + html
         return locale_switch
 
 class WipRevProxy(RevProxy, ContextMixin):

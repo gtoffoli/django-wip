@@ -41,6 +41,8 @@ urlpatterns += (
     url(r'^api/send_block/$', send_block),
     url(r'^api/add_block/$', add_block),
     url(r'^api/send_fragment/$', send_fragment),
+    url(r'^get_locale_switch/(?P<site_prefix>[\w-]+)/(?P<language_code>[\w-]*)/$', get_locale_switch),
+    url(r'^get_locale_switch/(?P<site_prefix>[\w-]+)/$', get_locale_switch),
     url(r'^get_locale_switch/$', get_locale_switch),
 )   
 

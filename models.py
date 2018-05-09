@@ -1388,50 +1388,41 @@ class Proxy(models.Model):
                     tokens_dict[token] += 1
         return tokens_dict
 
-def url_to_site_proxy(host, path):
-    """ return the Proxy handling the specified host and path 
+# def url_to_site_proxy(host, path, site=None):
+def url_to_site_proxy(host, path, site=None, language_code=''):
+    """ return the Proxy, if any, handling the specified host and path
         and the path without site/language codes and leading slash """
     language_codes = [language[0] for language in settings.LANGUAGES]
-    site = proxy = None
-    splitted_host = host.split('.')
-    splitted_path = path.split('/')[1:]
+    proxy = None
+    splitted_host = host and host.split('.') or []
+    splitted_path = path and path.split('/') or []
+    if len(splitted_path) and not splitted_path[0]:
+        splitted_path = splitted_path[1:]
     logger.info('url_to_site_proxy: %s, %s', splitted_host, splitted_path)
-    """
-    if host.count('localhost') or host.count('wip.fairvillage.eu'):
-        site = Site.objects.get(path_prefix=splitted_path[0])
-        language_id=splitted_path[1]
-        if language_id in language_codes:
-            proxy = Proxy.objects.get(site=site, language_id=splitted_path[1])
-            path = '/'.join(splitted_path[2:])
-        else:
-            path = '/'.join(splitted_path[1:])
-    else:
-        if splitted_host[0] in language_codes:
-            proxy = Proxy.objects.get(host=host)
-            site = proxy.site
-            path = '/'.join(splitted_path)
-        elif splitted_path[0] in language_codes:
-            proxy = Proxy.objects.get(host=host, language_id=splitted_path[0])
-            site = proxy.site
-            path = '/'.join(splitted_path[1:])
-        else:
-            site = Site.objects.get(url__contains=host)
-    """
     try:
         site = Site.objects.get(path_prefix=splitted_path[0])
         splitted_path = splitted_path[1:]
     except:
         pass
-    if splitted_host[0] in language_codes:
+    if len(splitted_host) and splitted_host[0] in language_codes:
+        assert not language_code or language_code == splitted_host[0]
+        language_code = splitted_host[0]
         proxy = Proxy.objects.get(host=host)
+        assert not site or site == proxy.site
         site = proxy.site
-    elif splitted_path[0] in language_codes:
+    elif len(splitted_path) and splitted_path[0] in language_codes:
+        assert not language_code or language_code == splitted_path[0]
+        language_code = splitted_path[0]
         if site:
-            proxy = Proxy.objects.get(site=site, language_id=splitted_path[0])
+            proxy = Proxy.objects.get(site=site, language_id=language_code)
         else:
-            proxy = Proxy.objects.get(host=host, language_id=splitted_path[0])
+            proxy = Proxy.objects.get(host=host, language_id=language_code)
             site = proxy.site
         splitted_path = splitted_path[1:]
+    elif not site:
+        site = Site.objects.get(url__contains=host)
+    if language_code and not proxy:
+        proxy = Proxy.objects.get(site=site, language_id=language_code)
     path = '/'.join(splitted_path)
     return site, proxy, path
 
