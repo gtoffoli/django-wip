@@ -31,7 +31,6 @@ from .models import url_to_site_proxy
 from lxml import etree
 from lxml.etree import tostring
 from repoze.xmliter.serializer import XMLSerializer
-from repoze.xmliter.utils import getHTMLSerializer
 from diazo.wsgi import DiazoMiddleware
 from diazo.utils import quote_param
 from diazo.compiler import compile_theme
@@ -47,7 +46,6 @@ if settings.PROXY_APP == 'revproxy':
 
 REWRITE_REGEX = re.compile(r'((?:src|action|href)=["\'])/(?!\/)')
 # REWRITE_REGEX = re.compile(r'((?:action)=["\'])/(?!\/)')
-# RESOURCES_REGEX = re.compile(r'(\.(css|js|png|jpg|gif|pdf|ppt|pptx|doc|docx|xls|xslx|odt|woff))', re.IGNORECASE)
 RESOURCES_REGEX = re.compile(r'(\.(css|js|png|jpg|gif|pdf|ppt|pptx|doc|docx|xls|xslx|odt|woff|ttf))', re.IGNORECASE)
 BODY_REGEX = re.compile(r'(\<body.*?\>)', re.IGNORECASE)
 
@@ -341,10 +339,6 @@ class WipHttpProxy(HttpProxy):
             The rewrite logic uses a fairly simple regular expression to look for
             "src", "href" and "action" attributes with a value starting with "/"
             – your results may vary.
-        proxy_root = self.original_request_path.rsplit(request.path, 1)[0] # example: /link/en
-        self.content = REWRITE_REGEX.sub(r'\1{}/'.format(proxy_root), self.content)
-        response.content = REWRITE_REGEX.sub(r'\1{}/'.format(proxy_root), response.content)
-        return response
         """
         if self.online:
             if self.proxy and self.site.url.count(self.proxy.host): # example: https://www.linkroma.it and https://www.linkroma.it/en
@@ -356,7 +350,6 @@ class WipHttpProxy(HttpProxy):
             proxy_root = self.original_request_path.rsplit(request.path, 1)[0] # example: /link/en
             self.content = REWRITE_REGEX.sub(r'\1{}/'.format(proxy_root), self.content)
         self.log.info('proxy_root: %s', proxy_root)
- 
         """
         # next coded added by GT: possibly add a link to the WIP site
         site_url = self.base_url
@@ -370,20 +363,18 @@ class WipHttpProxy(HttpProxy):
         """
 
     def add_locale_switch(self):
-        # locale_switch = get_locale_switch(self.request, is_view=False, original_path=self.original_request_path)
         locale_switch = get_locale_switch(self.request, original_path=self.original_request_path)
         self.content = self.content.replace('</body>', '\n{}</body>'.format(locale_switch))
 
     def test_locale_switch(self):
         site_prefix = self.site.path_prefix
         if self.online:
-            # html = '<div><a href="https://wip.fairvillage.eu/get_locale_switch/">test locale switch</a></div>'
             html = '<div><a href="https://wip.fairvillage.eu/get_locale_switch/{}/">test locale switch</a></div>'.format(site_prefix)
         else:
-            # html = '<div><a href="http://localhost:8000/get_locale_switch/">test locale switch</a></div>'
             html = '<div><a href="http://localhost:8000/get_locale_switch/{}/">test locale switch</a></div>'.format(site_prefix)
         self.content = self.content.replace('</body>', '\n{}</body>'.format(html))
 
+# see https://stackoverflow.com/questions/494143/creating-a-new-dom-element-from-an-html-string-using-built-in-dom-methods-or-pro
 locale_switch_template = """function wip_insert() [
   var functions_code = `{0}`;
   var html_code = `{1}`;
@@ -391,14 +382,12 @@ locale_switch_template = """function wip_insert() [
   var script = document.createElement('script');
   script.innerHTML = functions_code;
   body.appendChild(script);
-  var template = document.createElement('template');
-  template.innerHTML = html_code;
-  body.appendChild(template.content.firstChild);
+  var div = document.createElement('div');
+  div.innerHTML = html_code;
+  body.appendChild(div.firstChild);
 ];
 wip_insert();
 """
-
-# def get_locale_switch(request, is_view=True, original_path=''):
 
 @csrf_exempt
 def get_locale_switch(request, site_prefix='', language_code='', original_path=''):
@@ -424,7 +413,7 @@ function wip_toggle_language(id) {
 };
 """
     function_toggle = 'function wip_toggle_languages() {\n'
-    html = '<ul id="wip_locale_switch" style="list-style: none; position: absolute; top: 100; left: auto; right: 0; overflow: hidden;" onclick="hide_languages();">\n'
+    html = '<ul id="wip_locale_switch" style="list-style: none; position: absolute; top: 100; left: auto; right: 0; overflow: hidden;" onclick="wip_toggle_languages();">\n'
     code = site.language_id
     label = code.upper()
     title = settings.LANGUAGES_DICT[code]
@@ -437,31 +426,30 @@ function wip_toggle_language(id) {
     else:
         display = 'visibility: visible;'
         background = 'background-color: dimgrey;'
-        a = """<a style="font-weight: bold; color: white;" onmouseover="wip_toggle_languages();" title="{0}>{1}</a>""".format(title, label)
+        a = """<a style="font-weight: bold; color: white;" onmouseover="wip_toggle_languages();" title="{0}">{1}</a>""".format(title, label)
     html += '<li id="ls_{0}" style="height: 32px; width: 32px; text-align: center; margin: 0; {1} {2}">{3}</li>\n'.format(label, display, background, a)
-    proxies = Proxy.objects.filter(site=site, active=True).order_by('language__code')
+    proxies = Proxy.objects.filter(site=site, published=True).order_by('language__code')
     for p in proxies:
         language = p.language
         code = language.code
         label = code.upper()
         title = settings.LANGUAGES_DICT[code]
         if p == proxy:
-            display = ' visibility: visible;'
+            display = 'visibility: visible;'
             background = ' background-color: dimgrey;'
             a = """<a style="font-weight: bold; color: white;" onmouseover="wip_toggle_languages();" title="{0}">{1}</a>""".format(title, label)
         else:
-            display = ' visibility: hidden;'
+            display = 'visibility: hidden;'
             background = ' background-color: darkgrey;'
             base_url = p.get_url()
             a = '<a style="color: white;" target="_top" href="{0}/{1}" title="{2}">{3}</a>'.format(base_url, path, title, label)
             function_toggle += '  wip_toggle_language("ls_{}");\n'.format(label)
-        html += '<li id="ls_{0}" style="height: 32px; width: 32px; text-align: center; margin: 0; {1}{2}">{3}</li>\n'.format(label, display, background, a)
+        html += '<li id="ls_{0}" style="height: 32px; width: 32px; text-align: center; margin: 0; {1} {2}">{3}</li>\n'.format(label, display, background, a)
     html += '</ul>\n'
     function_toggle += '};\n'
     functions +=  function_toggle
     if site_prefix:
         locale_switch = locale_switch_template.format(functions, html).replace('[', '{').replace(']', '}')
-        # return HttpResponse(locale_switch, content_type='text/plain')
         response = HttpResponse(locale_switch, content_type='text/plain')
         response['Access-Control-Allow-Origin'] = '*'
         return response
