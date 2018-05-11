@@ -229,14 +229,14 @@ class WipHttpProxy(HttpProxy):
 
     def fix_body_bottom(self):
         """ insert javascript to be executed on ready 
-            and remove wip_insert script (not necessarily at the body bottom) """
+            and remove wip_insert function (not necessarily at the body bottom) """
         if self.site.extra_body:
             self.content = self.content.replace('</body>', '\n%s\n</body>' % self.site.extra_body)
-        i = self.content.find('<script id="wip_insert">')
+        i = self.content.find('function wip_insert()')
         if i>0:
-            j = self.content.find('</script>', beg=i+25)
+            j = self.content.find('wip_insert();', i+21)
             if j>0:
-                self.content = self.content[:i]+self.content[j+9]
+                self.content = self.content[:i]+self.content[j+13:]
 
     def transform_response(self, request, response):
         """ see process_response method of DjangoDiazoMiddleware in module django_diazo.middleware
@@ -416,8 +416,7 @@ def get_locale_switch(request, site_prefix='', language_code='', original_path='
     else:
         host = request.get_host()
         site, proxy, path = url_to_site_proxy(host, original_path)
-    functions = """
-function wip_toggle_language(id) {
+    functions = """function wip_toggle_language(id) {
     el = document.getElementById(id);
     if (el.style.visibility == 'hidden') el.style.visibility = 'visible';
     else el.style.visibility = 'hidden';
