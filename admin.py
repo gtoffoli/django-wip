@@ -47,7 +47,7 @@ class SiteThemeAdmin(admin.ModelAdmin):
     theme_link.allow_tags = True
 
 class ProxyAdmin(admin.ModelAdmin):
-    list_display = ['name', 'slug', 'site_name', 'language', 'url', 'host', 'base_path', 'live',]
+    list_display = ['name', 'slug', 'site_name', 'language', 'url', 'host', 'base_path', 'live', 'active', 'published',]
 
     def site_name(self, obj):
         return obj.site.name

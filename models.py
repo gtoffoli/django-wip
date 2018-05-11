@@ -1410,6 +1410,8 @@ def url_to_site_proxy(host, path, site=None, language_code=''):
         proxy = Proxy.objects.get(host=host)
         assert not site or site == proxy.site
         site = proxy.site
+        assert splitted_path[0] == language_code
+        splitted_path = splitted_path[1:]
     elif len(splitted_path) and splitted_path[0] in language_codes:
         assert not language_code or language_code == splitted_path[0]
         language_code = splitted_path[0]

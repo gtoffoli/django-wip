@@ -177,7 +177,7 @@ class WipHttpProxy(HttpProxy):
             if self.proxy:
                 self.add_language_links()
                 self.add_locale_switch()
-                self.test_locale_switch()
+                # self.test_locale_switch()
 
             response.content = self.content.encode('utf-8')
 
@@ -223,9 +223,15 @@ class WipHttpProxy(HttpProxy):
             self.content = BODY_REGEX.sub(r'\1' + info[self.language_code] % (extra, site_url, site_url.split('//')[1]), self.content)
 
     def fix_body_bottom(self):
-        """ currently used to execute javascript on ready """
+        """ insert javascript to be executed on ready 
+            and remove wip_insert script (not necessarily at the body bottom) """
         if self.site.extra_body:
             self.content = self.content.replace('</body>', '\n%s\n</body>' % self.site.extra_body)
+        i = self.content.find('<script id="wip_insert">')
+        if i>0:
+            j = self.content.find('</script>', beg=i+25)
+            if j>0:
+                self.content = self.content[:i]+self.content[j+9]
 
     def transform_response(self, request, response):
         """ see process_response method of DjangoDiazoMiddleware in module django_diazo.middleware
