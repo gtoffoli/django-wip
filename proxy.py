@@ -419,7 +419,7 @@ function wip_toggle_language(id) {
 };
 """
     function_toggle = 'function wip_toggle_languages() {\n'
-    html = '<ul id="wip_locale_switch" style="list-style: none; position: absolute; top: 100; left: auto; right: 0; overflow: hidden;" onclick="wip_toggle_languages();">\n'
+    html = '<ul id="wip_locale_switch" style="list-style: none; position: absolute; top: 100px; left: auto; right: 0; overflow: hidden;" onclick="wip_toggle_languages();">\n'
     code = site.language_id
     label = code.upper()
     title = settings.LANGUAGES_DICT[code]
