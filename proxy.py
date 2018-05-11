@@ -27,6 +27,7 @@ revproxy.MIN_STREAMING_LENGTH = 1024 * 1024 * 1024 #  4 * 1024  # 4KB
 
 from .models import Site, Proxy, Webpage
 from .models import url_to_site_proxy
+from .utils import text_to_list
 
 from lxml import etree
 from lxml.etree import tostring
@@ -219,8 +220,12 @@ class WipHttpProxy(HttpProxy):
             webpages = Webpage.objects.filter(site=self.site, path=self.path).order_by('-created')
             if webpages:
                 extra = '<a href="/page/%s/">@</a> ' % webpages[0].id
-        if self.proxy and self.online:
-            self.content = BODY_REGEX.sub(r'\1' + info[self.language_code] % (extra, site_url, site_url.split('//')[1]), self.content)
+        # if self.proxy and self.online:
+        if self.proxy and not self.proxy.published:
+            # self.content = BODY_REGEX.sub(r'\1' + info[self.language_code] % (extra, site_url, site_url.split('//')[1]), self.content)
+            custom_lines = text_to_list(self.proxy.custom_text)
+            if len(custom_lines) >= 1:
+                self.content = BODY_REGEX.sub(r'\1' + custom_lines[0] % (extra, site_url, site_url.split('//')[1]), self.content)
 
     def fix_body_bottom(self):
         """ insert javascript to be executed on ready 
