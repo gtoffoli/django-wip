@@ -90,12 +90,12 @@ TRANSLATION_SERVICE_CHOICES = (
     # (MATECAT, _('Matecat')),
 )
 TRANSLATION_SERVICE_DICT = dict(TRANSLATION_SERVICE_CHOICES)
-# TRANSLATION_SERVICE_DICT[NONE] = ''
 TRANSLATION_SERVICE_CODE_DICT = {
-    NONE: '',
-    GOOGLE: 'Google',
-    DEEPL: 'DeepL',
-    MICROSOFT: 'MsT',
+    None: '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;',
+    NONE: '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;',
+    GOOGLE: 'GT',
+    DEEPL: 'DL',
+    MICROSOFT: 'MT',
 }
 
 """
@@ -2937,9 +2937,15 @@ TRANSLATION_TYPE_CHOICES = (
 TRANSLATION_TYPE_DICT = dict(TRANSLATION_TYPE_CHOICES)
 TRANSLATION_TYPE_CODE_DICT = {
     NONE: '',
-    TM: 'TM',
-    MT: 'MT',
-    MANUAL: 'M',
+    TM: 'mem',
+    MT: 'auto',
+    MANUAL: 'hum',
+}
+TRANSLATION_TYPE_COLOR_DICT = {
+    NONE: '',
+    TM: 'yellow',
+    MT: 'red',
+    MANUAL: 'lime',
 }
 
 """
@@ -2983,8 +2989,12 @@ class Translation(models.Model):
     def get_type(self):
         return TRANSLATION_TYPE_CODE_DICT.get(self.translation_type, '')
 
+    def get_type_color(self):
+        return TRANSLATION_TYPE_COLOR_DICT.get(self.translation_type, '')
+
     def get_source(self):
-        return TRANSLATION_SERVICE_CODE_DICT.get(self.service_type, '')
+        # return TRANSLATION_SERVICE_CODE_DICT.get(self.service_type, '')
+        return TRANSLATION_SERVICE_CODE_DICT.get(self.service_type)
 
     def get_alignment_type(self):
         return TRANSLATION_TYPE_CODE_DICT.get(self.alignment_type, '')

@@ -2,8 +2,9 @@
 Django vocabulary mpodels for wip application.
 """
 
-from django.utils.translation import ugettext_lazy as _
+from django.conf import settings
 from django.db import models
+from django.utils.translation import ugettext_lazy as _
 from django.contrib import admin
 
 class VocabularyEntry(models.Model):
@@ -88,6 +89,9 @@ class Language(CodedEntry):
     class Meta:
         verbose_name = _('language')
         verbose_name_plural = _('languages')
+
+    def is_rtl(self):
+        return self.code in settings.RTL_LANGUAGES
         
     def get_other_languages(self):
         # return [l for l in Language.objects.all().order_by('code') if not l==self]

@@ -9,6 +9,7 @@
 .en { color: #FF0088; }
 .es { color: Orange; }
 .fr { color: blue; }  
+.rtl { direction: rtl; }
 
 table, th, td { max-width: 200px!; }
 </style>
@@ -103,14 +104,14 @@ table, th, td { max-width: 200px!; }
 				  <td style="vertical-align: middle; text-align: center;"><a href="/segment_translate/{{ segment.id }}/{{ target_language.code }}/" class="{{ target_language.code }}">{{ target_language.code|upper }}</a></td>
 				  <td>
                         	<input type="hidden" name="translation-{{ translation.id }}" id="translation-{{ translation.id }}" value="{{ translation.id }}">
-                        	<textarea class="form-control custom-control" name="text-{{ translation.id }}" id="text-{{ translation.id }}" style="width: 100%; resize :none;" rows="3">{{ translation.text }}</textarea>
+                        	<textarea class="form-control custom-control{% if translation.is_rtl %} rtl{% endif %}" name="text-{{ translation.id }}" id="text-{{ translation.id }}" style="width: 100%; resize :none;" rows="3">{{ translation.text }}</textarea>
 					    {% if show_alignments and translation.alignment %}
 							  <br /><small>{{ translation.alignment }}</small>
 			            {% endif %}
                   </td>
                   <td class="text-center" style="vertical-align: middle;">
                   			<input class="btn btn-default btn-sm" type="button" name="save-{{ segment.id }}-{{ translation.id }}" value="{% trans "save"|capfirst %}" onclick="save_translation('segment-{{ segment.id }}', 'translation-{{ translation.id }}', 'text-{{ translation.id }}')">
-						    <br><nobr>{{ translation.get_type }} <small>{{ translation.get_source }}</small></nobr>
+						    <br><nobr><small><span style="color: {{ translation.get_type_color }}">{{ translation.get_type }}</span> {{ translation.get_source|safe }}</small></nobr>
 				  </td>
                   </tr>
                     {% endfor %}
@@ -118,7 +119,7 @@ table, th, td { max-width: 200px!; }
 				  <tr>
 				  <td><a href="/segment_translate/{{ segment.id }}/{{ target_language.code }}/" title="translate this segment"><i class="fa fa-language font07em" style="background-color: white; color: blue; border: none;"></i></a></td>
 				  <td>
-                        <textarea class="form-control custom-control" name="text-{{ segment.id }}" id="text-{{ segment.id }}" style="width: 100%; resize :none;" rows="3"></textarea>
+                        <textarea class="form-control custom-control{% if target_language.is_rtl %} rtl{% endif %}" name="text-{{ segment.id }}" id="text-{{ segment.id }}" style="width: 100%; resize :none;" rows="3"></textarea>
 				  </td>
                   <td class="text-center" style="vertical-align: middle;">
                    		<input class="btn btn-default btn-sm" type="button" name="save-{{ segment.id }}-0" value="{% trans "save"|capfirst %}" onclick="save_translation('segment-{{ segment.id }}', null, 'text-{{ segment.id }}')">
@@ -133,8 +134,8 @@ table, th, td { max-width: 200px!; }
                 {% for translation in translations|lookup:other_language.code %}
 				  <tr>
                 		<td style="font-size: smaller; vertical-align: middle;"><a href="/segment_translate/{{ segment.id }}/{{ translation.language.code }}/"  class="{{ other_language.code }}">{{ other_language.code|upper }}</a></td>
-						<td style="font-size: smaller;">{{ translation.text }}</td>
-						<td style="text-align: center"><nobr>{{ translation.get_type }} <small>{{ translation.get_source }}</small></nobr></td>
+						<td style="font-size: smaller;"{% if translation.is_rtl %} class="rtl"{% endif %}>{{ translation.text }}</td>
+						<td style="text-align: center"><nobr><small><span style="color: {{ translation.get_type_color }}">{{ translation.get_type }}</span> {{ translation.get_source|safe }}</small></nobr></td>
 				  <tr>
                 {% endfor %}
               {% endfor %}

@@ -28,6 +28,7 @@ label { font-size: small; }
 .en { border: 1px solid; border-color: red; margin: 1px; }
 .es { border: 1px solid; border-color: yellow; margin: 1px; }
 .fr { border: 1px solid; border-color: blue; margin: 1px; }
+.rtl { direction: rtl; }
 </style>
 
 <script>
@@ -157,7 +158,8 @@ function apply_translation (target_code, id_from, id_to) {
 				<button type="submit" onclick="make_string('seg-{{ forloop.counter }}'); return false;" class="fa fa-caret-square-o-up" style="background-color: transparent; color: #006BB1; border: none;" title="extract this segment" />
 				{% endif %}</td></tr>
 		{% for t in translations %}
-		<tr><td><span id="tra-{{ forloop.parentloop.counter }}-{{ forloop.counter }}" class="{{ target_code }}">{{ t.text }}</span>
+		<tr><td{% if t.is_rtl %} style="text-align: right;"{% endif %}><span id="tra-{{ forloop.parentloop.counter }}-{{ forloop.counter }}" class="{{ target_code }}{% if t.is_rtl %} rtl{% endif %}">{{ t.text }}</span>
+				<small><span style="color: {{ t.get_type_color }}">{{ t.get_type }}</span> {{ t.get_source|safe }}</small>
 				{% if segment.text in body %}<a onclick="apply_translation('{{ target_code }}', 'str-{{ forloop.parentloop.counter }}', 'tra-{{ forloop.parentloop.counter }}-{{ forloop.counter }}'); return true;" class="fa fa-check" style="background-color: white; color: blue; border: none;" title="apply this translation" /> &nbsp;{% endif %}
 				<a href="/translation_align/{{ t.id }}/" class="fa fa-arrows-h" style="background-color: white; color: {% if t.is_aligned %}Lime{% else %}Red{% endif %}; border: none;" title="align this translation" /></td></tr>
 		{% endfor %}
@@ -175,7 +177,7 @@ function apply_translation (target_code, id_from, id_to) {
 	<input type="submit" class="btn btn-sm btn-warning" value="Delete block translation" name="delete-{{ target_code }}" /> &nbsp;
 	<input type="submit" class="btn btn-sm btn-warning" value="Retranslate block" name="create-{{ target_code }}" />
 	{% else %}
-	<textarea id="{{ target_code }}" name="translation-{{ target_code }}" name="translation-{{ target_code }}"  style="width: 96%; height:100px;">{{ page_block.normalized_body }}</textarea>
+	<textarea id="{{ target_code }}" name="translation-{{ target_code }}" style="width: 96%; height:100px;">{{ page_block.normalized_body }}</textarea>
 	<input type="submit" class="btn btn-sm btn-default" value="Save manual changes" name="modify-{{ target_code }}" /> &nbsp;
 	<input type="submit" class="btn btn-sm btn-primary" value="Translate block" name="create-{{ target_code }}" />
 	{% endif %}
