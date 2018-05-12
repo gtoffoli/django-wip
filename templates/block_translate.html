@@ -159,9 +159,9 @@ function apply_translation (target_code, id_from, id_to) {
 				{% endif %}</td></tr>
 		{% for t in translations %}
 		<tr><td{% if t.is_rtl %} style="text-align: right;"{% endif %}><span id="tra-{{ forloop.parentloop.counter }}-{{ forloop.counter }}" class="{{ target_code }}{% if t.is_rtl %} rtl{% endif %}">{{ t.text }}</span>
-				<small><span style="color: {{ t.get_type_color }}">{{ t.get_type }}</span> {{ t.get_source|safe }}</small>
+				<nobr><small><span style="color: {{ t.get_type_color }}">{{ t.get_type }}</span> {{ t.get_source|safe }}</small>
 				{% if segment.text in body %}<a onclick="apply_translation('{{ target_code }}', 'str-{{ forloop.parentloop.counter }}', 'tra-{{ forloop.parentloop.counter }}-{{ forloop.counter }}'); return true;" class="fa fa-check" style="background-color: white; color: blue; border: none;" title="apply this translation" /> &nbsp;{% endif %}
-				<a href="/translation_align/{{ t.id }}/" class="fa fa-arrows-h" style="background-color: white; color: {% if t.is_aligned %}Lime{% else %}Red{% endif %}; border: none;" title="align this translation" /></td></tr>
+				<a href="/translation_align/{{ t.id }}/" class="fa fa-arrows-h" style="background-color: white; color: {% if t.is_aligned %}Lime{% else %}Red{% endif %}; border: none;" title="align this translation" /></nobr></td></tr>
 		{% endfor %}
 		{% endfor %}
 		</tbody></table>

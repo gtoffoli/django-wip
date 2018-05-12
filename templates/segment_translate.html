@@ -26,6 +26,7 @@ tr.even { background: white; }
 .en { border-left: 2px solid Red; border-top: 2px solid Blue; border-right: 2px solid Red; border-bottom: 2px solid Blue; margin: 1px; }
 .es { border-left: 2px solid Yellow; border-top: 2px solid Red; border-right: 2px solid Yellow; border-bottom: 2px solid Red; margin: 1px; }
 .fr { border: 1px solid; border-color: Blue; margin: 1px; }
+.rtl { direction: rtl; }
 th, td { text-align: left; vertical-align: top; }
 </style>
 <script>
@@ -126,10 +127,10 @@ function capFirst(id) {
         	{% endifequal %}
        	</td>
     	<td><a  class="{{ l.code }}" href="/translation_align/{{ t.id }}">{{ l }}</a></td>
-    	<td>{{ TRANSLATION_TYPE_DICT|lookup:t.translation_type }}</td>
-    	<td>{{ TRANSLATION_SERVICE_DICT|lookup:t.service_type }}</td>
+    	<td style="color: {{ t.get_type_color }}">{{ t.get_type }}</td>
+    	<td>{{ t.get_source|safe }}</td>
     	<td>{% if ur %}{{ ROLE_DICT|lookup:ur.role_type }}-{{ ur.level }}: {{ ur.user.get_full_name }}{% endif %}</td>
-    	<td>{{ t.text }}<a onclick="addText(this.parentNode, 'id_translation')"><span class="fa fa-copy" style="font-size: 1.0em; padding-left: 1.0em;" title="append this text to your translation"></span></a></td>
+    	<td{% if t.is_rtl %} style="text-align: right;"{% endif %}><span{% if t.is_rtl %} class="rtl"{% endif %}>{{ t.text }}</span><a onclick="addText(this.parentNode, 'id_translation')"><span class="fa fa-copy" style="font-size: 1.0em; padding-left: 1.0em;" title="append this text to your translation"></span></a></td>
    	</tr>
 	{% endwith %}{% endfor %}{% endfor %}
 	</tbody>
@@ -142,7 +143,7 @@ function capFirst(id) {
 		<legend><i>Add/replace/delete <span class="{{ target_language.code }}">{{ target_language }}</span> translation</i></legend>
 
 		<div>{{ translation_form.translation.errors }}{{ translation_form.translation_source }} {% trans "translation source"|capfirst %}</div>
-		<div>{{ translation_form.translation }}</div>
+		<div{% if target_language.is_rtl %} class="rtl"{% endif %}>{{ translation_form.translation }}</div>
 		<div><input type="submit" name="save-{{ target_language.code }}" value="Save {{ target_language.name }} translation" class="btn btn-sm btn-default" />
 			 {% if block_id %}<input type="submit" name="save_return-{{ target_language.code }}" value="Save translation and return to block" class="btn btn-sm btn-default" />{% endif %}
 			 {% if translations %}<input type="submit" name="delete" value="Delete selected translations" class="btn btn-sm btn-default" />{% endif %}

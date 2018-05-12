@@ -24,8 +24,12 @@ legend {
 }
 label { font-size: small; }
 .rounded-box { border-radius: 10px;  border: 2px solid;  padding: 10px; margin: 5px 0; }
-.it { border-color: green; }
-.en { border-color: red; }
+.ar { border-color: Green; }
+.it { border-color: LimeGreen; }
+.en { border-color: #FF0088; }
+.es { border-color: Orange; }
+.fr { border-color: blue; }  
+.rtl { direction: rtl; }
 </style>
 {% endblock %}
 
@@ -103,7 +107,7 @@ label { font-size: small; }
  	{% if language_translations %}
  	{% for language_code, translations in language_translations %}
  		{% if translations %}
-		<div class="rounded-box {{ language_code }}">{{ translations.0.body|safe }}</div>
+		<div class="rounded-box {{ language_code }}{% if language_code == 'ar' %} rtl{% endif %}">{{ translations.0.body|safe }}</div>
  		{% endif %}
 	{% endfor %}
 	{% endif %}
