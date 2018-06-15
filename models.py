@@ -2620,7 +2620,8 @@ def segments_from_string(string, site, segmenter, exclude_TM_invariants=True, in
         return []
     if string.count('flickr'):
         return []
-    site_invariants = text_to_list(site.invariant_words)
+    # site_invariants = text_to_list(site.invariant_words)
+    site_invariants = site and text_to_list(site.invariant_words) or []
     segments, boundaries, whitespaces = segmenter.extract(string, verbose=verbose)
     if verbose:
         print ('raw segments:', segments)
@@ -2652,7 +2653,8 @@ def segments_from_string(string, site, segmenter, exclude_TM_invariants=True, in
         if len(invariant_words)==len(words):
             continue
         """ REMOVE SEGMENT MATCHING SITE-ASSOCIATED INVARIANT STRINGS IN THE TM """
-        if exclude_TM_invariants:
+        # if exclude_TM_invariants:
+        if site and exclude_TM_invariants:
             if Segment.objects.filter(site=site, language=site.language, text=s, is_invariant=True).count():
                 continue
         filtered.append(s)

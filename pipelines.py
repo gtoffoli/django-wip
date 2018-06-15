@@ -28,7 +28,7 @@ from .models import Site, Webpage, PageVersion
 from .models import Scan, Link, WordCount, SegmentCount
 from .utils import is_invariant_word, strip_html_comments, normalize_string, strings_from_html, make_segmenter # , segments_from_string
 from .models import segments_from_string
-
+from wip.wip_nltk.tokenizers import NltkTokenizer
 
 segmenter = make_segmenter('it')
 
@@ -47,9 +47,10 @@ class WipDiscoverPipeline(object):
         scan = Scan.objects.get(pk=scan_id)
         site = scan.site
         body = item['body'].decode()
-        for content in settings.PAGES_EXCLUDE_BY_CONTENT.get(site.slug, []):
-            if body.count(content):
-                return item
+        if site:
+            for content in settings.PAGES_EXCLUDE_BY_CONTENT.get(site.slug, []):
+                if body.count(content):
+                    return item
         link = Link(scan=scan, url=item['url'], status=item['status'], encoding=item['encoding'], size=item['size'], title=item['title'])
         link.save()
         if not (scan.count_words or scan.count_segments):
@@ -60,7 +61,10 @@ class WipDiscoverPipeline(object):
         html_string = normalize_string(html_string)
         if not html_string:
             return item
-        tokenizer = site.make_tokenizer()
+        if site:
+            tokenizer = site.make_tokenizer()
+        else:
+            tokenizer = NltkTokenizer(language_code='it')
         tokens_dict = defaultdict(int)
         segments_dict = defaultdict(int)
         for string in strings_from_html(html_string):
